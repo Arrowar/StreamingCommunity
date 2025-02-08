@@ -1,0 +1,16 @@
+﻿httpx
+bs4
+rich
+tqdm
+m3u8
+psutil
+unidecode
+jsbeautifier
+pathvalidate
+pycryptodomex
+googlesearch-python
+fake-useragent<2.0.0
+qbittorrent-api
+python-qbittorrent
+Pillow
+pyTelegramBotAPI

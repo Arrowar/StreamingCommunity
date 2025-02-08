@@ -18,7 +18,7 @@ import telebot
 # Fix import
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 from StreamingCommunity.TelegramHelp.request_manager import RequestManager
-
+import threading
 
 # Funzione per caricare variabili da un file .env
 def load_env(file_path="../../.env"):
@@ -44,13 +44,17 @@ class TelegramBot:
             if os.path.exists(cls._config_file):
                 with open(cls._config_file, "r") as f:
                     config = json.load(f)
-                cls._instance = cls.init_bot(
-                    config["token"], config["authorized_user_id"]
-                )
+
+                # Assicura che authorized_user_id venga trattato come una lista
+                authorized_users = config.get('authorized_user_id', [])
+                if isinstance(authorized_users, str):
+                    authorized_users = [int(uid) for uid in authorized_users.split(",") if uid.strip().isdigit()]
+
+                cls._instance = cls.init_bot(config['token'], authorized_users)
+                #cls._instance = cls.init_bot(config['token'], config['authorized_user_id'])
+
             else:
-                raise Exception(
-                    "Bot non ancora inizializzato. Chiamare prima init_bot() con token e authorized_user_id"
-                )
+                raise Exception("Bot non ancora inizializzato. Chiamare prima init_bot() con token e authorized_user_id")
         return cls._instance
 
     @classmethod
@@ -63,7 +67,8 @@ class TelegramBot:
                 json.dump(config, f)
         return cls._instance
 
-    def __init__(self, token, authorized_user_id):
+    def __init__(self, token, authorized_users):
+
         def monitor_scripts():
             while True:
                 try:
@@ -132,8 +137,8 @@ class TelegramBot:
             )
 
         self.token = token
-        self.authorized_user_id = authorized_user_id
-        self.chat_id = authorized_user_id
+        self.authorized_users = authorized_users
+        self.chat_id = authorized_users
         self.bot = telebot.TeleBot(token)
         self.request_manager = RequestManager()
 
@@ -171,7 +176,7 @@ class TelegramBot:
             self.handle_response(message)
 
     def is_authorized(self, user_id):
-        return user_id == self.authorized_user_id
+        return user_id in self.authorized_users
 
     def handle_get_id(self, message):
         if not self.is_authorized(message.from_user.id):
@@ -194,7 +199,6 @@ class TelegramBot:
 
         screen_id = str(uuid.uuid4())[:8]
         debug_mode = os.getenv("DEBUG")
-        verbose = debug_mode
 
         if debug_mode == "True":
             subprocess.Popen(["python3", "../../test_run.py", screen_id])
@@ -407,6 +411,13 @@ class TelegramBot:
         temp_file = f"/tmp/screen_output_{screen_id}.txt"
 
         try:
+            # Verifica se lo screen con l'ID specificato esiste
+            existing_screens = subprocess.check_output(["screen", "-list"]).decode('utf-8')
+            if screen_id not in existing_screens:
+                print(f"⚠️ La sessione screen con ID {screen_id} non esiste.")
+                self.bot.send_message(message.chat.id, f"⚠️ La sessione screen con ID {screen_id} non esiste.")
+                return
+
             # Cattura l'output della screen
             subprocess.run(
                 ["screen", "-X", "-S", screen_id, "hardcopy", "-h", temp_file],
@@ -440,51 +451,22 @@ class TelegramBot:
                 "\n\n", "\n"
             )  # Rimuovi newline multipli
 
-            # Estrarre tutte le parti da "Download:" fino a "Video" o "Subtitle", senza includerli
-            download_matches = re.findall(
-                r"Download: (.*?)(?:Video|Subtitle)", cleaned_output
-            )
-            if download_matches:
-                # Serie TV e Film StreamingCommunity
+            # Dentro cleaned_output c'è una stringa recupero quello che si trova tra ## ##
+            download_section = re.search(r"##(.*?)##", cleaned_output, re.DOTALL)
+            if download_section:
+                cleaned_output_0 = "Download: " + download_section.group(1).strip()
 
-                proc_matches = re.findall(r"Proc: ([\d\.]+%)", cleaned_output)
+            # Recupero tutto quello che viene dopo con ####
+            download_section_bottom = re.search(r"####(.*)", cleaned_output, re.DOTALL)
+            if download_section_bottom:
+                cleaned_output_1 = download_section_bottom.group(1).strip()
 
-                # Creare una stringa unica con tutti i risultati
-                result_string = "\n".join(
-                    [
-                        f"Download: {download_matches[i].strip()}\nDownload al {proc_matches[i]}"
-                        for i in range(len(download_matches))
-                        if i < len(proc_matches)
-                    ]
-                )
-
-                if result_string != "":
-                    cleaned_output = result_string
-                else:
-                    print(f"❌ La parola 'Download:' non è stata trovata nella stringa.")
-            else:
-
-                download_list = []
-
-                # Estrai tutte le righe che iniziano con "Download:" fino al prossimo "Download" o alla fine della riga
-                matches = re.findall(r"Download:\s*(.*?)(?=Download|$)", cleaned_output)
-
-                # Se sono stati trovati download, stampali
-                if matches:
-                    for i, match in enumerate(matches, 1):
-                        # rimuovo solo la parte "downloader.py:57Result:400" se esiste
-                        match = re.sub(r"downloader.py:\d+Result:400", "", match)
-                        match = match.strip()  # Rimuovo gli spazi bianchi in eccesso
-                        if match:  # Assicurati che la stringa non sia vuota
-                            print(f"Download {i}: {match}")
-
-                        # Aggiungi il risultato modificato alla lista
-                        download_list.append(f"Download {i}: {match}")
-
-                    # Creare una stringa unica con tutti i risultati
-                    cleaned_output = "\n".join(download_list)
-                else:
-                    print("❌ Nessun download trovato")
+            # Unico i due risultati se esistono
+            if cleaned_output_0 and cleaned_output_1:
+                cleaned_output = f"{cleaned_output_0}\n{cleaned_output_1}"
+                # Rimuovo 'segments.py:302' e 'downloader.py:385' se presente
+                cleaned_output = re.sub(r'downloader\.py:\d+', '', cleaned_output)
+                cleaned_output = re.sub(r'segments\.py:\d+', '', cleaned_output)
 
             # Invia l'output pulito
             print(f"📄 Output della screen {screen_id}:\n{cleaned_output}")
@@ -505,7 +487,16 @@ class TelegramBot:
         os.remove(temp_file)
 
     def send_message(self, message, choices):
-        if choices is None:
+
+        formatted_message = message
+        if choices:
+            formatted_choices = "\n".join(choices)
+            formatted_message = f"{message}\n\n{formatted_choices}"
+
+        for chat_id in self.authorized_users:
+            self.bot.send_message(chat_id, formatted_message)
+
+        """ if choices is None:
             if self.chat_id:
                 print(f"{message}")
                 self.bot.send_message(self.chat_id, message)
@@ -514,7 +505,7 @@ class TelegramBot:
             message = f"{message}\n\n{formatted_choices}"
             if self.chat_id:
                 print(f"{message}")
-                self.bot.send_message(self.chat_id, message)
+                self.bot.send_message(self.chat_id, message) """
 
     def _send_long_message(self, chat_id, text, chunk_size=4096):
         """Suddivide e invia un messaggio troppo lungo in più parti."""
@@ -527,16 +518,20 @@ class TelegramBot:
 
         if choices is None:
             print(f"{prompt_message}")
-            self.bot.send_message(
+            """ self.bot.send_message(
                 self.chat_id,
                 f"{prompt_message}",
-            )
+            ) """
+            for chat_id in self.authorized_users:  # Manda a tutti gli ID autorizzati
+                self.bot.send_message(chat_id, f"{prompt_message}")
         else:
             print(f"{prompt_message}\n\nOpzioni: {', '.join(choices)}")
-            self.bot.send_message(
+            """ self.bot.send_message(
                 self.chat_id,
                 f"{prompt_message}\n\nOpzioni: {', '.join(choices)}",
-            )
+            ) """
+            for chat_id in self.authorized_users:  # Manda a tutti gli ID autorizzati
+                self.bot.send_message(chat_id, f"{prompt_message}\n\nOpzioni: {', '.join(choices)}")
 
         start_time = time.time()
         while time.time() - start_time < timeout:
@@ -546,7 +541,8 @@ class TelegramBot:
             time.sleep(1)
 
         print(f"⚠️ Timeout: nessuna risposta ricevuta.")
-        self.bot.send_message(self.chat_id, "⚠️ Timeout: nessuna risposta ricevuta.")
+        for chat_id in self.authorized_users:  # Manda a tutti gli ID autorizzati
+            self.bot.send_message(chat_id, "⚠️ Timeout: nessuna risposta ricevuta.")
         self.request_manager.clear_file()
         return None
 
@@ -559,3 +555,36 @@ class TelegramBot:
 
 def get_bot_instance():
     return TelegramBot.get_instance()
+
+# Esempio di utilizzo
+if __name__ == "__main__":
+
+    # Usa le variabili
+    token = os.getenv("TOKEN_TELEGRAM")
+    authorized_users = os.getenv("AUTHORIZED_USER_ID")
+
+    # Controlla se le variabili sono presenti
+    if not token:
+        print("Errore: TOKEN_TELEGRAM non è definito nel file .env.")
+        sys.exit(1)
+
+    if not authorized_users:
+        print("Errore: AUTHORIZED_USER_ID non è definito nel file .env.")
+        sys.exit(1)
+
+    try:
+        TOKEN = token  # Inserisci il token del tuo bot Telegram sul file .env
+        AUTHORIZED_USER_ID = list(map(int, authorized_users.split(",")))  # Inserisci il tuo ID utente Telegram sul file .env
+    except ValueError as e:
+        print(f"Errore nella conversione degli ID autorizzati: {e}. Controlla il file .env e assicurati che gli ID siano numeri interi separati da virgole.")
+        sys.exit(1)
+
+    # Inizializza il bot
+    bot = TelegramBot.init_bot(TOKEN, AUTHORIZED_USER_ID)
+    bot.run()
+
+"""
+start - Avvia lo script
+list - Lista script attivi
+get - Mostra ID utente Telegram
+"""

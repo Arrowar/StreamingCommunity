@@ -1,0 +1,93 @@
+{
+    "DEFAULT": {
+        "debug": false,
+        "log_file": "app.log",
+        "log_to_file": false,
+        "show_message": false,
+        "clean_console": true,
+        "root_path": "/home/giuseppepiccolo/Develop/docker/jellyfin/media/",
+        "movie_folder_name": "Movie",
+        "serie_folder_name": "Serie",
+        "anime_folder_name": "Anime",
+        "map_episode_name": "%(tv_name)_S%(season)E%(episode)_%(episode_name)",
+        "config_qbit_tor": {
+            "host": "192.168.5.172",
+            "port": "8080",
+            "user": "admin",
+            "pass": "adminadmin"
+        },
+        "add_siteName": false,
+        "disable_searchDomain": false,
+        "not_close": true,
+        "telegram_bot": true
+    },
+    "REQUESTS": {
+        "timeout": 20,
+        "max_retry": 8,
+        "proxy_start_min": 0.1,
+        "proxy_start_max": 0.5
+    },
+    "M3U8_DOWNLOAD": {
+        "tqdm_delay": 0.01,
+        "default_video_workser": 12,
+        "default_audio_workser": 12,
+        "download_audio": true,
+        "merge_audio": true,
+        "specific_list_audio": [
+            "ita"
+        ],
+        "download_subtitle": true,
+        "merge_subs": true,
+        "specific_list_subtitles": [
+            "eng",
+            "spa"
+        ],
+        "cleanup_tmp_folder": true
+    },
+    "M3U8_CONVERSION": {
+        "use_codec": false,
+        "use_vcodec": true,
+        "use_acodec": true,
+        "use_bitrate": true,
+        "use_gpu": false,
+        "default_preset": "ultrafast"
+    },
+    "M3U8_PARSER": {
+        "force_resolution": -1,
+        "get_only_link": false
+    },
+    "SITE": {
+        "streamingcommunity": {
+            "domain": "paris"
+        },
+        "altadefinizionegratis": {
+            "domain": "pro"
+        },
+        "guardaserie": {
+            "domain": "meme"
+        },
+        "mostraguarda": {
+            "domain": "stream"
+        },
+        "ddlstreamitaly": {
+            "domain": "co",
+            "extra": {
+                "ips4_device_key": "",
+                "ips4_member_id": "",
+                "ips4_login_key": ""
+            }
+        },
+        "animeunity": {
+            "domain": "so"
+        },
+        "cb01new": {
+            "domain": "media"
+        },
+        "1337xx": {
+            "domain": "to"
+        },
+        "ilcorsaronero": {
+            "domain": "link"
+        }
+    }
+}

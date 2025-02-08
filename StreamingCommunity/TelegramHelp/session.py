@@ -12,7 +12,7 @@ def get_session():
     return session_data.get('script_id', 'unknown')
 
 def updateScriptId(screen_id, titolo):
-    json_file = "scripts.json"
+    json_file = "../../scripts.json"
     try:
         with open(json_file, 'r') as f:
             scripts_data = json.load(f)
@@ -34,7 +34,7 @@ def updateScriptId(screen_id, titolo):
     print(f"Screen_id {screen_id} non trovato.")
 
 def deleteScriptId(screen_id):
-    json_file = "scripts.json"
+    json_file = "../../scripts.json"
     try:
         with open(json_file, 'r') as f:
             scripts_data = json.load(f)

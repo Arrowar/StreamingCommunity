@@ -2,24 +2,24 @@
     "DEFAULT": {
         "debug": false,
         "log_file": "app.log",
-        "log_to_file": false,
-        "show_message": false,
+        "log_to_file": true,
+        "show_message": true,
         "clean_console": true,
-        "root_path": "/home/giuseppepiccolo/Develop/docker/jellyfin/media/",
+        "root_path": "Video",
         "movie_folder_name": "Movie",
         "serie_folder_name": "Serie",
         "anime_folder_name": "Anime",
-        "map_episode_name": "%(tv_name)_S%(season)E%(episode)_%(episode_name)",
+        "map_episode_name": "E%(episode)_%(episode_name)",
         "config_qbit_tor": {
-            "host": "192.168.5.172",
-            "port": "8080",
+            "host": "192.168.1.99",
+            "port": "7060",
             "user": "admin",
             "pass": "adminadmin"
         },
         "add_siteName": false,
         "disable_searchDomain": false,
-        "not_close": true,
-        "telegram_bot": true
+        "not_close": false,
+        "telegram_bot": false
     },
     "REQUESTS": {
         "timeout": 20,

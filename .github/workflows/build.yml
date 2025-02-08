@@ -77,12 +77,12 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
           python -m pip install pyinstaller
-          python -m pip install fake-useragent==1.1.3
+
       - name: Build executable with PyInstaller (Windows)
         if: matrix.os == 'windows-latest'
         shell: pwsh
         run: |
-          pyinstaller --onefile --hidden-import=pycryptodomex --hidden-import=fake_useragent `
+          pyinstaller --onefile --hidden-import=pycryptodomex --hidden-import=ua_generator `
             --hidden-import=qbittorrentapi --hidden-import=qbittorrent --hidden-import=googlesearch `
             --hidden-import=bs4 --hidden-import=httpx --hidden-import=rich --hidden-import=tqdm `
             --hidden-import=m3u8 --hidden-import=psutil --hidden-import=unidecode `
@@ -93,10 +93,11 @@ jobs:
             --hidden-import=pyTelegramBotAPI --additional-hooks-dir=pyinstaller/hooks `
             --add-data "StreamingCommunity;StreamingCommunity" `
             --name=StreamingCommunity --icon=".github/media/logo.ico" test_run.py
+
       - name: Build executable with PyInstaller (Linux)
         if: matrix.os == 'ubuntu-latest'
         run: |
-          pyinstaller --onefile --hidden-import=pycryptodomex --hidden-import=fake_useragent \
+          pyinstaller --onefile --hidden-import=pycryptodomex --hidden-import=ua_generator \
             --hidden-import=qbittorrentapi --hidden-import=qbittorrent --hidden-import=googlesearch \
             --hidden-import=bs4 --hidden-import=httpx --hidden-import=rich --hidden-import=tqdm \
             --hidden-import=m3u8 --hidden-import=psutil --hidden-import=unidecode \
@@ -107,6 +108,7 @@ jobs:
             --hidden-import=pyTelegramBotAPI --additional-hooks-dir=pyinstaller/hooks \
             --add-data "StreamingCommunity:StreamingCommunity" \
             --name=StreamingCommunity test_run.py
+            
       - name: Upload executable (Windows)
         if: matrix.os == 'windows-latest'
         uses: actions/upload-artifact@v4

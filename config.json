@@ -31,6 +31,7 @@
         "tqdm_delay": 0.01,
         "default_video_workser": 12,
         "default_audio_workser": 12,
+        "segment_timeout": 7,
         "download_audio": true,
         "merge_audio": true,
         "specific_list_audio": [

@@ -159,11 +159,7 @@ class M3U8Manager:
         If it's a master playlist, only selects video stream.
         """
         if not self.is_master:
-            if FILTER_CUSTOM_REOLUTION != -1:
-                self.video_url, self.video_res = self.parser._video.get_custom_uri(y_resolution=FILTER_CUSTOM_REOLUTION)
-            else:
-                self.video_url, self.video_res = self.parser._video.get_best_uri()
-
+            self.video_url, self.video_res = self.m3u8_url, "0p"
             self.audio_streams = []
             self.sub_streams = []
 

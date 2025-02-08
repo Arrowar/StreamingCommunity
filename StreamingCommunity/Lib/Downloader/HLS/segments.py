@@ -47,6 +47,7 @@ PROXY_START_MAX = config_manager.get_float('REQUESTS', 'proxy_start_max')
 DEFAULT_VIDEO_WORKERS = config_manager.get_int('M3U8_DOWNLOAD', 'default_video_workser')
 DEFAULT_AUDIO_WORKERS = config_manager.get_int('M3U8_DOWNLOAD', 'default_audio_workser')
 MAX_TIMEOOUT = config_manager.get_int("REQUESTS", "timeout")
+SEGMENT_MAX_TIMEOUT = config_manager.get_int("M3U8_DOWNLOAD", "segment_timeout")
 
 
 
@@ -169,8 +170,9 @@ class M3U8_Segments:
 
     def _get_http_client(self, index: int = None):
         client_params = {
-            'headers': random_headers(self.key_base_url) if hasattr(self, 'key_base_url') else {'User-Agent': get_headers()},
-            'timeout': MAX_TIMEOOUT,
+            #'headers': random_headers(self.key_base_url) if hasattr(self, 'key_base_url') else {'User-Agent': get_headers()},
+            'headers': {'User-Agent': get_headers()},
+            'timeout': SEGMENT_MAX_TIMEOUT,
             'follow_redirects': True,
             'http2': False
         }
@@ -391,7 +393,7 @@ class M3U8_Segments:
                 f"{Colors.YELLOW}[HLS] {Colors.WHITE}({Colors.CYAN}{description}{Colors.WHITE}): "
                 f"{Colors.RED}{{percentage:.2f}}% "
                 f"{Colors.MAGENTA}{{bar}} "
-                f"{Colors.WHITE}[ {Colors.YELLOW}{{elapsed}}{Colors.WHITE} < {Colors.CYAN}{{remaining}}{Colors.WHITE}{{postfix}}{Colors.WHITE} ]"
+                f"{Colors.YELLOW}{{elapsed}}{Colors.WHITE} < {Colors.CYAN}{{remaining}}{Colors.WHITE}{{postfix}}{Colors.WHITE}"
             )
     
     def _get_worker_count(self, stream_type: str) -> int:

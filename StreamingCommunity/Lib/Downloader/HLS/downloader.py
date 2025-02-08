@@ -279,16 +279,33 @@ class DownloadManager:
         return self.stopped
 
     def download_subtitle(self, sub: Dict):
-        """Downloads and saves subtitle file for a specific language."""
+        """Downloads and saves the actual subtitle file or keeps the original format if no external file is needed."""
         if self.stopped:
             return True
-
+        # Scarica il contenuto della playlist M3U8 o del file VTT
         content = self.client.request(sub['uri'])
-        if content:
-            sub_path = os.path.join(self.temp_dir, 'subs', f"{sub['language']}.vtt")
+        if not content:
+            return self.stopped
+        vtt_url = None
+        for line in content.splitlines():
+            if line.startswith("http"):  # Trova la prima URL nel file .m3u8
+                vtt_url = line.strip()
+                break
+        sub_path = os.path.join(self.temp_dir, 'subs', f"{sub['language']}.vtt")
+        if vtt_url:
+            # Scarica il vero file VTT se esiste un URL nel file .m3u8
+            vtt_content = self.client.request(vtt_url)
+            if vtt_content:
+                with open(sub_path, 'w', encoding='utf-8') as f:
+                    f.write(vtt_content)
+                print(f"Sottotitoli scaricati: {sub_path}")
+            else:
+                print(f"Errore nel download dei sottotitoli da {vtt_url}")
+        else:
+            # Se non c'è un URL, salva il contenuto direttamente
             with open(sub_path, 'w', encoding='utf-8') as f:
                 f.write(content)
-
+            print(f"Sottotitoli salvati direttamente: {sub_path}")
         return self.stopped
 
     def download_all(self, video_url: str, audio_streams: List[Dict], sub_streams: List[Dict]):

@@ -4,17 +4,18 @@ import os
 import sys
 import json
 import logging
+from pathlib import Path
 from typing import Any, List
 
 
 class ConfigManager:
-    def __init__(self, file_path: str = 'config.json') -> None:
+    def __init__(self, file_name: str = 'config.json') -> None:
         """Initialize the ConfigManager.
 
         Parameters:
             - file_path (str, optional): The path to the configuration file. Default is 'config.json'.
         """
-        self.file_path = file_path
+        self.file_path = Path(__file__).parent.parent.parent / file_name
         self.config = {}
         self.cache = {}
 
@@ -50,17 +51,17 @@ class ConfigManager:
     def download_requirements(self, url: str, filename: str):
         """
         Download the requirements.txt file from the specified URL if not found locally using requests.
-        
+
         Args:
             url (str): The URL to download the requirements file from.
             filename (str): The local filename to save the requirements file as.
         """
         try:
             import requests
-            
+
             logging.info(f"{filename} not found locally. Downloading from {url}...")
             response = requests.get(url)
-            
+
             if response.status_code == 200:
                 with open(filename, 'wb') as f:
                     f.write(response.content)
@@ -68,7 +69,7 @@ class ConfigManager:
             else:
                 logging.error(f"Failed to download {filename}. HTTP Status code: {response.status_code}")
                 sys.exit(0)
-        
+
         except Exception as e:
             logging.error(f"Failed to download {filename}: {e}")
             sys.exit(0)
@@ -89,15 +90,15 @@ class ConfigManager:
 
         if cache_key in self.cache:
             return self.cache[cache_key]
-        
+
         if section in self.config and key in self.config[section]:
             value = self.config[section][key]
         else:
             raise ValueError(f"Key '{key}' not found in section '{section}'")
-        
+
         value = self._convert_to_data_type(value, data_type)
         self.cache[cache_key] = value
-        
+
         return value
 
     def _convert_to_data_type(self, value: str, data_type: type) -> Any:
@@ -120,7 +121,7 @@ class ConfigManager:
             return None
         else:
             return value
-        
+
     def get(self, section: str, key: str) -> Any:
         """Read a value from the configuration file.
 
@@ -144,7 +145,7 @@ class ConfigManager:
             int: The integer value.
         """
         return self.read_key(section, key, int)
-    
+
     def get_float(self, section: str, key: str) -> int:
         """Read an float value from the configuration file.
 
@@ -180,7 +181,7 @@ class ConfigManager:
             list: The list value.
         """
         return self.read_key(section, key, list)
-    
+
     def get_dict(self, section: str, key: str) -> dict:
         """Read a dictionary value from the configuration file.
 
@@ -220,7 +221,7 @@ class ConfigManager:
                 json.dump(self.config, f, indent=4)
         except Exception as e:
             print(f"Error writing configuration file: {e}")
-            
+
 
 # Initialize
 config_manager = ConfigManager()

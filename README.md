@@ -53,7 +53,7 @@
 - 💬 [Support](#support)
 - 🤝 [Contribute](#contributing)
 - ⚠️ [Disclaimer](#disclaimer)
-- ⚡ [Contributors](#contributors)  
+- ⚡ [Contributors](#contributors)
 
 # Installation
 
@@ -177,7 +177,7 @@ For detailed Windows PATH instructions, see the [Windows PATH guide](https://www
    ```bash
    # For bash (edit ~/.bash_profile)
    export PATH="/your/custom/path:$PATH"
-   
+
    # For zsh (edit ~/.zshrc)
    export PATH="/your/custom/path:$PATH"
    ```
@@ -185,7 +185,7 @@ For detailed Windows PATH instructions, see the [Windows PATH guide](https://www
    ```bash
    # For bash
    source ~/.bash_profile
-   
+
    # For zsh
    source ~/.zshrc
    ```
@@ -196,7 +196,7 @@ For detailed Windows PATH instructions, see the [Windows PATH guide](https://www
    ```bash
    # For bash (edit ~/.bashrc)
    export PATH="/your/custom/path:$PATH"
-   
+
    # For zsh (edit ~/.zshrc)
    export PATH="/your/custom/path:$PATH"
    ```
@@ -279,7 +279,7 @@ The configuration file is divided into several main sections:
 ```
 
 - `root_path`: Directory where all videos will be saved
-  
+
   ### Path examples:
   * Windows: `C:\\MyLibrary\\Folder` or `\\\\MyServer\\MyLibrary` (if you want to use a network folder)
   * Linux/MacOS: `Desktop/MyLibrary/Folder`
@@ -305,7 +305,7 @@ The configuration file is divided into several main sections:
     `<br/><br/>`
   * Can be changed from terminal with `--map_episode_name`
     <br/><br/>
-    
+
 - `add_siteName`: If set to true, appends the site_name to the root path before the movie and serie folders.
   * Can be changed from terminal with `--add_siteName true/false`
     <br/><br/>
@@ -501,15 +501,31 @@ The `run-container` command mounts also the `config.json` file, so any change to
 
 ## Configuration
 
-You need to create an .env file and enter your Telegram token 
+The bot was created to replace terminal commands and allow interaction via Telegram. Each download runs within a screen session, enabling multiple downloads to run simultaneously.
 
-and user ID to authorize only one user to use it
+To run the bot in the background, simply start it inside a screen session and then press Ctrl + A, followed by D, to detach from the session without stopping the bot.
+
+Command Functions:
+
+🔹 /start – Starts a new search for a download. This command performs the same operations as manually running the script in the terminal with test_run.py.
+
+🔹 /list – Displays the status of active downloads, with options to:
+
+Stop an incorrect download using /stop <ID>.
+
+View the real-time output of a download using /screen <ID>.
+
+⚠ Warning: If a download is interrupted, incomplete files may remain in the folder specified in config.json. These files must be deleted manually to avoid storage or management issues.
+
+🛠 Configuration: Currently, the bot's settings are stored in the config.json file, which is located in the same directory as the telegram_bot.py script.
 
 ## .env Example:
 
+You need to create an .env file and enter your Telegram token and user ID to authorize only one user to use it
+
 ```
 TOKEN_TELEGRAM=IlTuo2131TOKEN$12D3Telegram
-AUTHORIZED_USER_ID=12345678 
+AUTHORIZED_USER_ID=12345678
 DEBUG=False
 ```
 
@@ -521,11 +537,13 @@ pip install -r requirements.txt
 
 ## On Linux/MacOS:
 
+Start the bot from the folder /StreamingCommunity/TelegramHelp
+
 ```bash
 python3 telegram_bot.py
 ```
 
-# Website Status 
+# Website Status
 
 | Website            | Status | Command |
 |:-------------------|:------:|:--------:|
@@ -540,14 +558,14 @@ python3 telegram_bot.py
 | [StreamingCommunity](https://streamingcommunity.paris/) |   ✅   | -STR |
 
 
-# Tutorials 
+# Tutorials
 
 - [Windows Tutorial](https://www.youtube.com/watch?v=mZGqK4wdN-k)
 - [Linux Tutorial](https://www.youtube.com/watch?v=0qUNXPE_mTg)
 - [Pypy Tutorial](https://www.youtube.com/watch?v=C6m9ZKOK0p4)
 - [Compiled .exe Tutorial](https://www.youtube.com/watch?v=pm4lqsxkTVo)
 
-# To Do 
+# To Do
 
 - To Finish [website API](https://github.com/Arrowar/StreamingCommunity/tree/test_gui_1)
 - To finish [website API 2](https://github.com/hydrosh/StreamingCommunity/tree/test_gui_1)

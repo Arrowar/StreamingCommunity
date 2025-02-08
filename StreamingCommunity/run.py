@@ -22,8 +22,7 @@ from StreamingCommunity.Util.logger import Logger
 
 
 # Telegram util
-from StreamingCommunity.TelegramHelp.session import get_session, deleteScriptId
-from StreamingCommunity.TelegramHelp.telegram_bot import get_bot_instance
+from StreamingCommunity.TelegramHelp.telegram_bot import get_bot_instance, TelegramSession
 
 
 # Config
@@ -62,7 +61,7 @@ def load_search_functions():
 
     api_dir = os.path.join(base_path, 'Api', 'Site')
     init_files = glob.glob(os.path.join(api_dir, '*', '__init__.py'))
-    
+
     # Retrieve modules and their indices
     for init_file in init_files:
 
@@ -72,7 +71,7 @@ def load_search_functions():
         # Se il modulo è nella lista da escludere, saltalo
         if module_name in excluded_sites:
             continue
-        
+
         logging.info(f"Load module name: {module_name}")
 
         try:
@@ -176,7 +175,7 @@ def force_exit():
 
     print("🚨 Uscita forzata con os._exit(0)")
     os._exit(0)
-  
+
 
 def main(script_id = 0):
 
@@ -332,7 +331,7 @@ def main(script_id = 0):
     if category in input_to_function:
         run_function(input_to_function[category])
     else:
-        
+
         if TELEGRAM_BOT:
             bot.send_message(f"Categoria non valida", None)
 
@@ -347,6 +346,6 @@ def main(script_id = 0):
                 bot.send_message(f"Chiusura in corso", None)
 
                 # Delete script_id
-                script_id = get_session()
+                script_id = TelegramSession.get_session()
                 if script_id != "unknown":
-                    deleteScriptId(script_id)
+                    TelegramSession.deleteScriptId(script_id)

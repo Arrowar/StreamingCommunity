@@ -1,4 +1,4 @@
-# 04.02.25
+# 04.02.26
 # Made by: @GiuPic
 
 import os
@@ -9,16 +9,141 @@ import uuid
 import json
 import threading
 import subprocess
-
+import threading
+from typing import Optional
 
 # External libraries
 import telebot
 
+session_data = {}
 
-# Fix import
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
-from StreamingCommunity.TelegramHelp.request_manager import RequestManager
-import threading
+class TelegramSession:
+
+    def set_session(value):
+        session_data['script_id'] = value
+
+    def get_session():
+        return session_data.get('script_id', 'unknown')
+
+    def updateScriptId(screen_id, titolo):
+        json_file = "../../scripts.json"
+        try:
+            with open(json_file, 'r') as f:
+                scripts_data = json.load(f)
+        except FileNotFoundError:
+            scripts_data = []
+
+        # cerco lo script con lo screen_id
+        for script in scripts_data:
+            if script["screen_id"] == screen_id:
+                # se trovo il match, aggiorno il titolo
+                script["titolo"] = titolo
+
+                # aggiorno il file json
+                with open(json_file, 'w') as f:
+                    json.dump(scripts_data, f, indent=4)
+
+                return
+
+        print(f"Screen_id {screen_id} non trovato.")
+
+    def deleteScriptId(screen_id):
+        json_file = "../../scripts.json"
+        try:
+            with open(json_file, 'r') as f:
+                scripts_data = json.load(f)
+        except FileNotFoundError:
+            scripts_data = []
+
+        for script in scripts_data:
+            if script["screen_id"] == screen_id:
+                # se trovo il match, elimino lo script
+                scripts_data.remove(script)
+
+                # aggiorno il file json
+                with open(json_file, 'w') as f:
+                    json.dump(scripts_data, f, indent=4)
+
+                print(f"Script eliminato per screen_id {screen_id}")
+                return
+
+        print(f"Screen_id {screen_id} non trovato.")
+
+class TelegramRequestManager:
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):
+        if not cls._instance:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
+    def __init__(self, json_file: str = "active_requests.json"):
+        if not hasattr(self, 'initialized'):
+            self.json_file = json_file
+            self.initialized = True
+            self.on_response_callback = None
+
+    def create_request(self, type: str) -> str:
+        request_data = {
+            "type": type,
+            "response": None,
+            "timestamp": time.time()
+        }
+
+        with open(self.json_file, "w") as f:
+            json.dump(request_data, f)
+
+        return "Ok"
+
+    def save_response(self, message_text: str) -> bool:
+        try:
+            # Carica il file JSON
+            with open(self.json_file, "r") as f:
+                data = json.load(f)
+
+            # Controlla se esiste la chiave 'type' e se la risposta è presente
+            if "type" in data and "response" in data:
+                data["response"] = message_text  # Aggiorna la risposta
+
+                with open(self.json_file, "w") as f:
+                    json.dump(data, f, indent=4)
+
+                return True
+            else:
+                return False
+
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            print(f"⚠️ save_response - errore: {e}")
+            return False
+
+    def get_response(self) -> Optional[str]:
+        try:
+            with open(self.json_file, "r") as f:
+                data = json.load(f)
+
+                # Verifica se esiste la chiave "response"
+                if "response" in data:
+                    response = data["response"]  # Ottieni la risposta direttamente
+
+                    if response is not None and self.on_response_callback:
+                        self.on_response_callback(response)
+
+                    return response
+
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            print(f"get_response - errore: {e}")
+        return None
+
+    def clear_file(self) -> bool:
+        try:
+            with open(self.json_file, "w") as f:
+                json.dump({}, f)
+            print(f"File {self.json_file} è stato svuotato con successo.")
+            return True
+
+        except Exception as e:
+            print(f"⚠️ clear_file - errore: {e}")
+            return False
 
 # Funzione per caricare variabili da un file .env
 def load_env(file_path="../../.env"):
@@ -140,7 +265,7 @@ class TelegramBot:
         self.authorized_users = authorized_users
         self.chat_id = authorized_users
         self.bot = telebot.TeleBot(token)
-        self.request_manager = RequestManager()
+        self.request_manager = TelegramRequestManager()
 
         # Registra gli handler
         self.register_handlers()

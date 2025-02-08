@@ -8,8 +8,7 @@ from StreamingCommunity.Util.console import console
 from StreamingCommunity.Util.os import os_manager
 from StreamingCommunity.Util.message import start_message
 from StreamingCommunity.Lib.Downloader import HLS_Downloader
-from StreamingCommunity.TelegramHelp.telegram_bot import get_bot_instance
-from StreamingCommunity.TelegramHelp.session import get_session, updateScriptId, deleteScriptId
+from StreamingCommunity.TelegramHelp.telegram_bot import TelegramSession, get_bot_instance
 
 
 # Logic class
@@ -39,13 +38,13 @@ def download_film(select_title: MediaItem) -> str:
         bot = get_bot_instance()
         bot.send_message(f"Download in corso:\n{select_title.name}", None)
 
-        # Viene usato per lo screen 
+        # Viene usato per lo screen
         console.print(f"## Download: [red]{select_title.name} ##")
-    
+
         # Get script_id
-        script_id = get_session()
+        script_id = TelegramSession.get_session()
         if script_id != "unknown":
-            updateScriptId(script_id, select_title.name)
+            TelegramSession.updateScriptId(script_id, select_title.name)
 
     # Start message and display film information
     start_message()
@@ -66,16 +65,16 @@ def download_film(select_title: MediaItem) -> str:
 
     # Download the film using the m3u8 playlist, and output filename
     r_proc = HLS_Downloader(
-        m3u8_url=master_playlist, 
+        m3u8_url=master_playlist,
         output_path=os.path.join(mp4_path, title_name)
     ).start()
 
     if TELEGRAM_BOT:
-        
+
         # Delete script_id
-        script_id = get_session()
+        script_id = TelegramSession.get_session()
         if script_id != "unknown":
-            deleteScriptId(script_id)
+            TelegramSession.deleteScriptId(script_id)
 
     if "error" in r_proc.keys():
         try:

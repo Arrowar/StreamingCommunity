@@ -60,11 +60,11 @@ class HLSClient:
     def request(self, url: str, return_content: bool = False) -> Optional[httpx.Response]:
         """
         Makes HTTP GET requests with retry logic.
-        
+
         Args:
             url: Target URL to request
             return_content: If True, returns response content instead of text
-            
+
         Returns:
             Response content/text or None if all retries fail
         """
@@ -74,7 +74,7 @@ class HLSClient:
                 response = client.get(url)
                 response.raise_for_status()
                 return response.content if return_content else response.text
-            
+
             except Exception as e:
                 logging.error(f"Attempt {attempt+1} failed: {str(e)}")
                 time.sleep(1.5 ** attempt)
@@ -103,7 +103,7 @@ class PathManager:
             root = config_manager.get('DEFAULT', 'root_path')
             hash_name = compute_sha1_hash(self.m3u8_url) + ".mp4"
             return os.path.join(root, "undefined", hash_name)
-        
+
         if not path.endswith(".mp4"):
             path += ".mp4"
 
@@ -148,7 +148,7 @@ class M3U8Manager:
         content = self.client.request(self.m3u8_url)
         if not content:
             raise ValueError("Failed to fetch M3U8 content")
-        
+
         self.parser.parse_data(uri=self.m3u8_url, raw_content=content)
         self.url_fixer.set_playlist(self.m3u8_url)
         self.is_master = self.parser.is_master_playlist
@@ -166,7 +166,7 @@ class M3U8Manager:
 
             self.audio_streams = []
             self.sub_streams = []
-            
+
         else:
             if FILTER_CUSTOM_REOLUTION != -1:
                 self.video_url, self.video_res = self.parser._video.get_custom_uri(y_resolution=FILTER_CUSTOM_REOLUTION)
@@ -270,7 +270,7 @@ class DownloadManager:
         """Downloads audio segments for a specific language track."""
         if self.stopped:
             return True
-        
+
         audio_full_url = self.url_fixer.generate_full_url(audio['uri'])
         audio_tmp_dir = os.path.join(self.temp_dir, 'audio', audio['language'])
 
@@ -286,7 +286,7 @@ class DownloadManager:
         """Downloads and saves subtitle file for a specific language."""
         if self.stopped:
             return True
-        
+
         content = self.client.request(sub['uri'])
         if content:
             sub_path = os.path.join(self.temp_dir, 'subs', f"{sub['language']}.vtt")
@@ -303,7 +303,7 @@ class DownloadManager:
         if not os.path.exists(video_file):
             if self.download_video(video_url):
                 return True
-        
+
         for audio in audio_streams:
             if self.stopped:
                 break
@@ -321,7 +321,7 @@ class DownloadManager:
             if not os.path.exists(sub_file):
                 if self.download_subtitle(sub):
                     return True
-        
+
         return self.stopped
 
 
@@ -344,7 +344,7 @@ class MergeManager:
         """
         Merges downloaded streams into final video file.
         Returns path to the final merged file.
-        
+
         Process:
         1. If no audio/subs, just process video
         2. If audio exists, merge with video
@@ -387,7 +387,7 @@ class MergeManager:
                     subtitles_list=sub_tracks,
                     out_path=merged_subs_path
                 )
-                
+
         return merged_file
 
 
@@ -404,14 +404,14 @@ class HLS_Downloader:
     def start(self) -> Dict[str, Any]:
         """
         Main execution flow with handling for both index and playlist M3U8s.
-        
+
         Returns:
             Dict containing:
                 - path: Output file path
                 - url: Original M3U8 URL
                 - is_master: Whether the M3U8 was a master playlist
             Or raises an exception if there's an error
-        """       
+        """
         if TELEGRAM_BOT:
             bot = get_bot_instance()
 
@@ -421,12 +421,12 @@ class HLS_Downloader:
                 response = {
                     'path': self.path_manager.output_path,
                     'url': self.m3u8_url,
-                    'is_master': False, 
+                    'is_master': False,
                     'error': 'File already exists',
                     'stopped': False
                 }
                 if TELEGRAM_BOT:
-                    bot.send_message(response)
+                    bot.send_message(f"Contenuto già scaricato!", None)
                 return response
 
             self.path_manager.setup_directories()
@@ -441,7 +441,7 @@ class HLS_Downloader:
                 client=self.client,
                 url_fixer=self.m3u8_manager.url_fixer
             )
-            
+
             # Check if download was stopped
             download_stopped = self.download_manager.download_all(
                 video_url=self.m3u8_manager.video_url,
@@ -482,7 +482,7 @@ class HLS_Downloader:
             error_msg = str(e)
             console.print(f"[red]Download failed: {error_msg}[/red]")
             logging.error("Download error", exc_info=True)
-            
+
             return {
                 'path': None,
                 'url': self.m3u8_url,
@@ -490,7 +490,7 @@ class HLS_Downloader:
                 'error': error_msg,
                 'stopped': False
             }
-        
+
     def _print_summary(self):
         """Prints download summary including file size, duration, and any missing segments."""
         if TELEGRAM_BOT:

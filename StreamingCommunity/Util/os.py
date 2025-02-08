@@ -13,6 +13,7 @@ import subprocess
 import contextlib
 import urllib.request
 import importlib.metadata
+from pathlib import Path
 
 
 # External library
@@ -67,7 +68,7 @@ class OsManager:
 
         # Convert Windows separators to Unix
         normalized = path.replace('\\', '/')
-        
+
         # Ensure absolute paths start with /
         if normalized.startswith('/'):
             return os.path.normpath(normalized)
@@ -82,17 +83,17 @@ class OsManager:
         # Decode and sanitize
         decoded = unidecode(filename)
         sanitized = sanitize_filename(decoded)
-        
+
         # Split name and extension
         name, ext = os.path.splitext(sanitized)
-        
+
         # Calculate available length for name considering the '...' and extension
         max_name_length = self.max_length - len('...') - len(ext)
-        
+
         # Truncate name if it exceeds the max name length
         if len(name) > max_name_length:
             name = name[:max_name_length] + '...'
-        
+
         # Ensure the final file name includes the extension
         return name + ext
 
@@ -103,7 +104,7 @@ class OsManager:
 
         # Decode unicode characters
         decoded = unidecode(path)
-        
+
         # Basic path sanitization
         sanitized = sanitize_filepath(decoded)
 
@@ -121,7 +122,7 @@ class OsManager:
                         if part
                     ])
                 return '\\'.join(sanitized_parts)
-            
+
             # Handle drive letters
             elif len(path) >= 2 and path[1] == ':':
                 drive = path[:2]
@@ -132,7 +133,7 @@ class OsManager:
                     if part
                 ]
                 return '\\'.join(path_parts)
-                
+
             # Regular path
             else:
                 parts = path.replace('/', '\\').split('\\')
@@ -146,21 +147,21 @@ class OsManager:
                 for part in parts
                 if part
             ]
-            
+
             result = '/'.join(sanitized_parts)
             if is_absolute:
                 result = '/' + result
-                
+
             return result
-        
+
     def create_path(self, path: str, mode: int = 0o755) -> bool:
         """
         Create directory path with specified permissions.
-        
+
         Args:
             path (str): Path to create.
             mode (int, optional): Directory permissions. Defaults to 0o755.
-        
+
         Returns:
             bool: True if path created successfully, False otherwise.
         """
@@ -168,7 +169,7 @@ class OsManager:
             sanitized_path = self.get_sanitize_path(path)
             os.makedirs(sanitized_path, mode=mode, exist_ok=True)
             return True
-        
+
         except Exception as e:
             logging.error(f"Path creation error: {e}")
             return False
@@ -176,21 +177,21 @@ class OsManager:
     def remove_folder(self, folder_path: str) -> bool:
         """
         Safely remove a folder.
-        
+
         Args:
             folder_path (str): Path of directory to remove.
-        
+
         Returns:
             bool: Removal status.
         """
         try:
             shutil.rmtree(folder_path)
             return True
-        
+
         except OSError as e:
             logging.error(f"Folder removal error: {e}")
             return False
-    
+
     def remove_files_except_one(self, folder_path: str, keep_file: str) -> None:
         """
         Delete all files in a folder except for one specified file.
@@ -203,11 +204,11 @@ class OsManager:
         try:
             # List all files in the folder
             files_in_folder = os.listdir(folder_path)
-            
+
             # Iterate over each file in the folder
             for file_name in files_in_folder:
                 file_path = os.path.join(folder_path, file_name)
-                
+
                 # Check if the file is not the one to keep and is a regular file
                 if file_name != keep_file and os.path.isfile(file_path):
                     os.remove(file_path)  # Delete the file
@@ -215,7 +216,7 @@ class OsManager:
         except Exception as e:
             logging.error(f"An error occurred: {e}")
             raise
-    
+
     def check_file(self, file_path: str) -> bool:
         """
         Check if a file exists at the given file path.
@@ -229,7 +230,7 @@ class OsManager:
         try:
             logging.info(f"Check if file exists: {file_path}")
             return os.path.exists(file_path)
-            
+
         except Exception as e:
             logging.error(f"An error occurred while checking file existence: {e}")
             return False
@@ -299,7 +300,7 @@ class OsSummary:
         """Get the binary directory based on OS."""
         system = platform.system().lower()
         home = os.path.expanduser('~')
-        
+
         if system == 'windows':
             return os.path.join(os.path.splitdrive(home)[0] + os.path.sep, 'binary')
         elif system == 'darwin':
@@ -315,41 +316,41 @@ class OsSummary:
         try:
             result = subprocess.check_output(command, text=True).strip()
             return result.split('\n')[0] if result else None
-        
+
         except subprocess.CalledProcessError:
             return None
 
     def get_library_version(self, lib_name: str):
         """
         Retrieve the version of a Python library.
-        
+
         Args:
             lib_name (str): The name of the Python library.
-        
+
         Returns:
             str: The library name followed by its version, or `-not installed` if not found.
         """
         try:
             version = importlib.metadata.version(lib_name)
             return f"{lib_name}-{version}"
-        
+
         except importlib.metadata.PackageNotFoundError:
             return f"{lib_name}-not installed"
 
     def download_requirements(self, url: str, filename: str):
         """
         Download the requirements.txt file from the specified URL if not found locally using requests.
-        
+
         Args:
             url (str): The URL to download the requirements file from.
             filename (str): The local filename to save the requirements file as.
         """
         try:
             import requests
-            
+
             logging.info(f"{filename} not found locally. Downloading from {url}...")
             response = requests.get(url)
-            
+
             if response.status_code == 200:
                 with open(filename, 'wb') as f:
                     f.write(response.content)
@@ -357,7 +358,7 @@ class OsSummary:
             else:
                 logging.error(f"Failed to download {filename}. HTTP Status code: {response.status_code}")
                 sys.exit(0)
-        
+
         except Exception as e:
             logging.error(f"Failed to download {filename}: {e}")
             sys.exit(0)
@@ -373,7 +374,7 @@ class OsSummary:
             console.print(f"Installing {lib_name}...", style="bold yellow")
             subprocess.check_call([sys.executable, "-m", "pip", "install", lib_name])
             console.print(f"{lib_name} installed successfully!", style="bold green")
-            
+
         except subprocess.CalledProcessError as e:
             console.print(f"Failed to install {lib_name}: {e}", style="bold red")
             sys.exit(1)
@@ -400,7 +401,7 @@ class OsSummary:
         arch = platform.machine()
         os_info = platform.platform()
         glibc_version = 'glibc ' + '.'.join(map(str, platform.libc_ver()[1]))
-        
+
         console.print(f"[cyan]Python[white]: [bold red]{python_version} ({python_implementation} {arch}) - {os_info} ({glibc_version})[/bold red]")
         logging.info(f"Python: {python_version} ({python_implementation} {arch}) - {os_info} ({glibc_version})")
 
@@ -408,10 +409,10 @@ class OsSummary:
         binary_dir = self.get_binary_directory()
         system = platform.system().lower()
         arch = platform.machine().lower()
-        
+
         # Map architecture names
         arch_map = {
-            'amd64': 'x64', 
+            'amd64': 'x64',
             'x86_64': 'x64',
             'x64': 'x64',
             'arm64': 'arm64',
@@ -424,15 +425,15 @@ class OsSummary:
 
         # Check binary directory
         if os.path.exists(binary_dir):
-            
+
             # Search for any file containing 'ffmpeg' and the architecture
             ffmpeg_files = glob.glob(os.path.join(binary_dir, f'*ffmpeg*{arch}*'))
             ffprobe_files = glob.glob(os.path.join(binary_dir, f'*ffprobe*{arch}*'))
-            
+
             if ffmpeg_files and ffprobe_files:
                 self.ffmpeg_path = ffmpeg_files[0]
                 self.ffprobe_path = ffprobe_files[0]
-                
+
                 # Set executable permissions if needed
                 if system != 'windows':
                     os.chmod(self.ffmpeg_path, 0o755)
@@ -451,15 +452,17 @@ class OsSummary:
         # Handle requirements.txt
         if not getattr(sys, 'frozen', False):
             requirements_file = 'requirements.txt'
-            
+
+            requirements_file = Path(__file__).parent.parent.parent / requirements_file
+
             if not os.path.exists(requirements_file):
                 self.download_requirements(
                     'https://raw.githubusercontent.com/Arrowar/StreamingCommunity/refs/heads/main/requirements.txt',
                     requirements_file
                 )
-            
+
             optional_libraries = [line.strip().split("=")[0] for line in open(requirements_file, 'r', encoding='utf-8-sig')]
-            
+
             for lib in optional_libraries:
                 installed_version = self.get_library_version(lib.split("<")[0])
                 if 'not installed' in installed_version:
@@ -468,7 +471,7 @@ class OsSummary:
                         self.install_library(lib)
                 else:
                     logging.info(f"Library: {installed_version}")
-            
+
             #console.print(f"[cyan]Libraries[white]: [bold red]{', '.join([self.get_library_version(lib) for lib in optional_libraries])}[/bold red]\n")
             logging.info(f"Libraries: {', '.join([self.get_library_version(lib) for lib in optional_libraries])}")
 
@@ -495,6 +498,6 @@ def compute_sha1_hash(input_string: str) -> str:
     """
     # Compute the SHA-1 hash
     hashed_string = hashlib.sha1(input_string.encode()).hexdigest()
-    
+
     # Return the hashed string
     return hashed_string

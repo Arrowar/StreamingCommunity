@@ -10,8 +10,7 @@ from StreamingCommunity.Util.console import console, msg
 from StreamingCommunity.Util.os import os_manager
 from StreamingCommunity.Util.message import start_message
 from StreamingCommunity.Lib.Downloader import MP4_downloader
-from StreamingCommunity.TelegramHelp.telegram_bot import get_bot_instance
-from StreamingCommunity.TelegramHelp.session import get_session, updateScriptId, deleteScriptId
+from StreamingCommunity.TelegramHelp.telegram_bot import TelegramSession, get_bot_instance
 
 
 # Logic class
@@ -43,7 +42,7 @@ def download_episode(index_select: int, scrape_serie: ScrapeSerieAnime, video_so
     """
     if TELEGRAM_BOT:
         bot = get_bot_instance()
-      
+
     # Get information about the selected episode
     obj_episode = scrape_serie.get_info_episode(index_select)
 
@@ -52,14 +51,14 @@ def download_episode(index_select: int, scrape_serie: ScrapeSerieAnime, video_so
         start_message()
         console.print(f"[yellow]Download:  [red]EP_{obj_episode.number} \n")
         console.print("[cyan]You can safely stop the download with [bold]Ctrl+c[bold] [cyan] \n")
-        
+
         if TELEGRAM_BOT:
             bot.send_message(f"Download in corso:\nTitolo:{scrape_serie.series_name}\nEpisodio: {obj_episode.number}", None)
 
             # Get script_id
-            script_id = get_session()
+            script_id = TelegramSession.get_session()
             if script_id != "unknown":
-                updateScriptId(script_id, f"{scrape_serie.series_name} - E{obj_episode.number}")
+                TelegramSession.updateScriptId(script_id, f"{scrape_serie.series_name} - E{obj_episode.number}")
 
         # Collect mp4 url
         video_source.get_embed(obj_episode.id)
@@ -75,15 +74,15 @@ def download_episode(index_select: int, scrape_serie: ScrapeSerieAnime, video_so
             mp4_path = os_manager.get_sanitize_path(os.path.join(MOVIE_FOLDER, scrape_serie.series_name))
 
         # Create output folder
-        os_manager.create_path(mp4_path)                                                            
+        os_manager.create_path(mp4_path)
 
         # Start downloading
         path, kill_handler = MP4_downloader(
             url=str(video_source.src_mp4).strip(),
             path=os.path.join(mp4_path, title_name)
         )
-        
-        return path, kill_handler 
+
+        return path, kill_handler
 
     else:
         logging.error(f"Skip index: {index_select} cant find info with api.")
@@ -98,7 +97,7 @@ def download_series(select_title: MediaItem):
         - tv_name (str): The name of the TV series.
     """
     start_message()
-    
+
     if TELEGRAM_BOT:
         bot = get_bot_instance()
 
@@ -123,9 +122,9 @@ def download_series(select_title: MediaItem):
         )
 
     else:
-        
+
         # Prompt user to select an episode index
-        last_command = msg.ask("\n[cyan]Insert media [red]index [yellow]or [red](*) [cyan]to download all media [yellow]or [red][1-2] [cyan]or [red][3-*] [cyan]for a range of media") 
+        last_command = msg.ask("\n[cyan]Insert media [red]index [yellow]or [red](*) [cyan]to download all media [yellow]or [red][1-2] [cyan]or [red][3-*] [cyan]for a range of media")
 
     # Manage user selection
     list_episode_select = manage_selection(last_command, episoded_count)
@@ -140,16 +139,16 @@ def download_series(select_title: MediaItem):
         kill_handler = False
         for i_episode in list_episode_select:
             if kill_handler:
-                break            
+                break
             _, kill_handler = download_episode(i_episode-1, scrape_serie, video_source)
-	
+
     if TELEGRAM_BOT:
         bot.send_message(f"Finito di scaricare tutte le serie e episodi", None)
 
         # Get script_id
-        script_id = get_session()
+        script_id = TelegramSession.get_session()
         if script_id != "unknown":
-            deleteScriptId(script_id)
+            TelegramSession.deleteScriptId(script_id)
 
 
 def download_film(select_title: MediaItem):

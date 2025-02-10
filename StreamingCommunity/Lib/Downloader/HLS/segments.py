@@ -47,6 +47,7 @@ PROXY_START_MAX = config_manager.get_float('REQUESTS', 'proxy_start_max')
 DEFAULT_VIDEO_WORKERS = config_manager.get_int('M3U8_DOWNLOAD', 'default_video_workser')
 DEFAULT_AUDIO_WORKERS = config_manager.get_int('M3U8_DOWNLOAD', 'default_audio_workser')
 MAX_TIMEOOUT = config_manager.get_int("REQUESTS", "timeout")
+MAX_INTERRUPT_COUNT = 3
 SEGMENT_MAX_TIMEOUT = config_manager.get_int("M3U8_DOWNLOAD", "segment_timeout")
 
 
@@ -83,6 +84,9 @@ class M3U8_Segments:
         # Stopping
         self.interrupt_flag = threading.Event()
         self.download_interrupted = False
+        self.interrupt_count = 0
+        self.force_stop = False
+        self.interrupt_lock = threading.Lock()
 
         # OTHER INFO
         self.info_maxRetry = 0
@@ -157,12 +161,24 @@ class M3U8_Segments:
         Set up a signal handler for graceful interruption.
         """
         def interrupt_handler(signum, frame):
-            if not self.interrupt_flag.is_set():
-                console.print("\n[red]- Stopping download gracefully...")
-                #self.interrupt_flag.set()              IN MODO DA NON TERMINARE SUBITO 
-                self.download_interrupted = True
-                #self.stop_event.set()                  IN MODO DA NON TERMINARE SUBITO 
+            with self.interrupt_lock:
+                self.interrupt_count += 1
+                if self.interrupt_count >= MAX_INTERRUPT_COUNT:
+                    self.force_stop = True
+                    
+            if self.force_stop:
+                console.print("\n[red]Force stop triggered! Exiting immediately.")
 
+            else:
+                if not self.interrupt_flag.is_set():
+                    remaining = MAX_INTERRUPT_COUNT - self.interrupt_count
+                    console.print(f"\n[red]- Stopping gracefully... (Ctrl+C {remaining}x to force)")
+                    self.download_interrupted = True
+
+                    if remaining == 1:
+                        self.interrupt_flag.set()
+
+                    
         if threading.current_thread() is threading.main_thread():
             signal.signal(signal.SIGINT, interrupt_handler)
         else:

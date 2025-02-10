@@ -43,7 +43,7 @@ DOWNLOAD_SPECIFIC_SUBTITLE = config_manager.get_list('M3U8_DOWNLOAD', 'specific_
 MERGE_AUDIO = config_manager.get_bool('M3U8_DOWNLOAD', 'merge_audio')
 MERGE_SUBTITLE = config_manager.get_bool('M3U8_DOWNLOAD', 'merge_subs')
 CLEANUP_TMP = config_manager.get_bool('M3U8_DOWNLOAD', 'cleanup_tmp_folder')
-FILTER_CUSTOM_REOLUTION = config_manager.get('M3U8_PARSER', 'force_resolution')
+FILTER_CUSTOM_REOLUTION = str(config_manager.get('M3U8_PARSER', 'force_resolution')).strip().lower()
 GET_ONLY_LINK = config_manager.get_bool('M3U8_PARSER', 'get_only_link')
 RETRY_LIMIT = config_manager.get_int('REQUESTS', 'max_retry')
 MAX_TIMEOUT = config_manager.get_int("REQUESTS", "timeout")
@@ -164,12 +164,15 @@ class M3U8Manager:
             self.sub_streams = []
 
         else:
-            if str(FILTER_CUSTOM_REOLUTION).lower().strip() == "best":
+            if str(FILTER_CUSTOM_REOLUTION) == "best":
                 self.video_url, self.video_res = self.parser._video.get_best_uri()
-            elif str(FILTER_CUSTOM_REOLUTION).lower().strip() == "worst":
+            elif str(FILTER_CUSTOM_REOLUTION) == "worst":
                 self.video_url, self.video_res = self.parser._video.get_worst_uri()
-            elif "p" in str(FILTER_CUSTOM_REOLUTION).lower().strip():
-                self.video_url, self.video_res = self.parser._video.get_custom_uri(int(str(FILTER_CUSTOM_REOLUTION).strip().replace("p", "")))
+            elif "p" in str(FILTER_CUSTOM_REOLUTION):
+                self.video_url, self.video_res = self.parser._video.get_custom_uri(int(FILTER_CUSTOM_REOLUTION.replace("p", "")))
+            else:
+                logging.error("Resolution not recognized.")
+                self.video_url, self.video_res = self.parser._video.get_best_uri()
 
             self.audio_streams = []
             if ENABLE_AUDIO:
@@ -456,15 +459,6 @@ class HLS_Downloader:
                 sub_streams=self.m3u8_manager.sub_streams
             )
 
-            if download_stopped:
-                return {
-                    'path': None,
-                    'url': self.m3u8_url,
-                    'is_master': self.m3u8_manager.is_master,
-                    'error': 'Download stopped by user',
-                    'stopped': True
-                }
-
             self.merge_manager = MergeManager(
                 temp_dir=self.path_manager.temp_dir,
                 parser=self.m3u8_manager.parser,
@@ -482,7 +476,7 @@ class HLS_Downloader:
                 'path': self.path_manager.output_path,
                 'url': self.m3u8_url,
                 'is_master': self.m3u8_manager.is_master,
-                'stopped': False
+                'stopped': download_stopped
             }
 
         except Exception as e:

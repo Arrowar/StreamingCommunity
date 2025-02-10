@@ -74,7 +74,7 @@
 
 Install directly from PyPI:
 
-```python
+```bash
 pip install StreamingCommunity
 ```
 

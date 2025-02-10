@@ -15,7 +15,7 @@ from StreamingCommunity.TelegramHelp.telegram_bot import TelegramSession, get_bo
 
 # Logic class
 from .util.ScrapeSerie import ScrapeSerieAnime
-from StreamingCommunity.Api.Template.Util import manage_selection
+from StreamingCommunity.Api.Template.Util import manage_selection, dynamic_format_number
 from StreamingCommunity.Api.Template.Class.SearchType import MediaItem
 
 
@@ -64,8 +64,7 @@ def download_episode(index_select: int, scrape_serie: ScrapeSerieAnime, video_so
         video_source.get_embed(obj_episode.id)
 
         # Create output path
-        title_name = f"{obj_episode.number}.mp4"
-        title_name = f"{scrape_serie.series_name}_EP_{obj_episode.number}.mp4"
+        title_name = f"{scrape_serie.series_name}_EP_{dynamic_format_number(int(obj_episode.number))}.mp4"
 
         if scrape_serie.is_series:
             mp4_path = os_manager.get_sanitize_path(os.path.join(ANIME_FOLDER, scrape_serie.series_name))

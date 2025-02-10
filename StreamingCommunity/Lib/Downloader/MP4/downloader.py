@@ -119,8 +119,8 @@ def MP4_downloader(url: str, path: str, referer: str = None, headers_: dict = No
                     bar_format=f"{Colors.YELLOW}[MP4]{Colors.WHITE}: "
                                f"{Colors.RED}{{percentage:.2f}}% {Colors.MAGENTA}{{bar}} {Colors.WHITE}[ "
                                f"{Colors.YELLOW}{{n_fmt}}{Colors.WHITE} / {Colors.RED}{{total_fmt}} {Colors.WHITE}] "
-                               f"{Colors.YELLOW}{{elapsed}} {Colors.WHITE}< {Colors.CYAN}{{remaining}} {Colors.WHITE}| "
-                               f"{Colors.YELLOW}{{rate_fmt}}{{postfix}} {Colors.WHITE}]",
+                               f"{Colors.YELLOW}{{elapsed}} {Colors.WHITE}< {Colors.CYAN}{{remaining}}{Colors.WHITE}, "
+                               f"{Colors.YELLOW}{{rate_fmt}}{{postfix}} ",
                     unit='iB',
                     unit_scale=True,
                     desc='Downloading',

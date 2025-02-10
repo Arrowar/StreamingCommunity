@@ -43,7 +43,7 @@ DOWNLOAD_SPECIFIC_SUBTITLE = config_manager.get_list('M3U8_DOWNLOAD', 'specific_
 MERGE_AUDIO = config_manager.get_bool('M3U8_DOWNLOAD', 'merge_audio')
 MERGE_SUBTITLE = config_manager.get_bool('M3U8_DOWNLOAD', 'merge_subs')
 CLEANUP_TMP = config_manager.get_bool('M3U8_DOWNLOAD', 'cleanup_tmp_folder')
-FILTER_CUSTOM_REOLUTION = config_manager.get_int('M3U8_PARSER', 'force_resolution')
+FILTER_CUSTOM_REOLUTION = config_manager.get('M3U8_PARSER', 'force_resolution')
 GET_ONLY_LINK = config_manager.get_bool('M3U8_PARSER', 'get_only_link')
 RETRY_LIMIT = config_manager.get_int('REQUESTS', 'max_retry')
 MAX_TIMEOUT = config_manager.get_int("REQUESTS", "timeout")
@@ -164,10 +164,12 @@ class M3U8Manager:
             self.sub_streams = []
 
         else:
-            if FILTER_CUSTOM_REOLUTION != -1:
-                self.video_url, self.video_res = self.parser._video.get_custom_uri(y_resolution=FILTER_CUSTOM_REOLUTION)
-            else:
+            if str(FILTER_CUSTOM_REOLUTION).lower().strip() == "best":
                 self.video_url, self.video_res = self.parser._video.get_best_uri()
+            elif str(FILTER_CUSTOM_REOLUTION).lower().strip() == "worst":
+                self.video_url, self.video_res = self.parser._video.get_worst_uri()
+            elif "p" in str(FILTER_CUSTOM_REOLUTION).lower().strip():
+                self.video_url, self.video_res = self.parser._video.get_custom_uri(int(str(FILTER_CUSTOM_REOLUTION).strip().replace("p", "")))
 
             self.audio_streams = []
             if ENABLE_AUDIO:
@@ -184,17 +186,12 @@ class M3U8Manager:
                 ]
 
     def log_selection(self):
-        if FILTER_CUSTOM_REOLUTION == -1:
-            set_resolution = "Best"
-        else:
-            set_resolution = f"{FILTER_CUSTOM_REOLUTION}p"
-
         tuple_available_resolution = self.parser._video.get_list_resolution()
         list_available_resolution = [f"{r[0]}x{r[1]}" for r in tuple_available_resolution]
 
         console.print(
             f"[cyan bold]Video    →[/cyan bold] [green]Available:[/green] [purple]{', '.join(list_available_resolution)}[/purple] | "
-            f"[red]Set:[/red] [purple]{set_resolution}[/purple] | "
+            f"[red]Set:[/red] [purple]{FILTER_CUSTOM_REOLUTION}[/purple] | "
             f"[yellow]Downloadable:[/yellow] [purple]{self.video_res[0]}x{self.video_res[1]}[/purple]"
         )
 

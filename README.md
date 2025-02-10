@@ -74,7 +74,7 @@
 
 Install directly from PyPI:
 
-```bash
+```python
 pip install StreamingCommunity
 ```
 
@@ -425,12 +425,25 @@ You can download VLC Media Player from the [official website](https://www.videol
 
 ```json
 {
-    "force_resolution": -1,
+    "force_resolution": "1080p",
     "get_only_link": false
 }
 ```
 
-- `force_resolution`: Force specific resolution (-1 for best available, or specify 1080, 720, 360)
+- `force_resolution`: Choose the video resolution for downloading:
+    * `"Best"`: Highest available resolution
+    * `"Worst"`: Lowest available resolution
+    * `"720p"`: Force 720p resolution
+    * Or specify one of these resolutions:
+        - 1080p (1920x1080)
+        - 720p (1280x720)
+        - 480p (640x480)
+        - 360p (640x360)
+        - 320p (480x320)
+        - 240p (426x240)
+        - 240p (320x240)
+        - 144p (256x144)
+
 - `get_only_link`: Return M3U8 playlist/index URL instead of downloading
 
 

@@ -446,8 +446,8 @@ class M3U8_Segments:
         writer_thread.join(timeout=30)
         progress_bar.close()
         
-        if self.download_interrupted:
-            console.print("\n[red]Download terminated by user")
+        #if self.download_interrupted:
+        #    console.print("\n[red]Download terminated by user")
             
         if self.info_nFailed > 0:
             self._display_error_summary()

@@ -54,7 +54,7 @@
         "default_preset": "ultrafast"
     },
     "M3U8_PARSER": {
-        "force_resolution": -1,
+        "force_resolution": "Best",
         "get_only_link": false
     },
     "SITE": {

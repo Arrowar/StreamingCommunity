@@ -52,7 +52,7 @@ jobs:
     if: github.event.inputs.publish_pypi == 'false'
     strategy:
       matrix:
-        os: [windows-latest, ubuntu-latest]
+        os: [windows-latest, ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -67,6 +67,7 @@ jobs:
         run: |
           $latestTag = git describe --tags --abbrev=0
           echo "latest_tag=$latestTag" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -92,7 +93,7 @@ jobs:
             --hidden-import=Cryptodome.Random --hidden-import=Pillow `
             --hidden-import=pyTelegramBotAPI --additional-hooks-dir=pyinstaller/hooks `
             --add-data "StreamingCommunity;StreamingCommunity" `
-            --name=StreamingCommunity --icon=".github/media/logo.ico" test_run.py
+            --name=StreamingCommunity_win --icon=".github/media/logo.ico" test_run.py
 
       - name: Build executable with PyInstaller (Linux)
         if: matrix.os == 'ubuntu-latest'
@@ -107,28 +108,51 @@ jobs:
             --hidden-import=Cryptodome.Random --hidden-import=Pillow \
             --hidden-import=pyTelegramBotAPI --additional-hooks-dir=pyinstaller/hooks \
             --add-data "StreamingCommunity:StreamingCommunity" \
-            --name=StreamingCommunity test_run.py
+            --name=StreamingCommunity_linux test_run.py
+
+      - name: Build executable with PyInstaller (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          pyinstaller --onefile --hidden-import=pycryptodomex --hidden-import=ua_generator \
+            --hidden-import=qbittorrentapi --hidden-import=qbittorrent --hidden-import=googlesearch \
+            --hidden-import=bs4 --hidden-import=httpx --hidden-import=rich --hidden-import=tqdm \
+            --hidden-import=m3u8 --hidden-import=psutil --hidden-import=unidecode \
+            --hidden-import=jsbeautifier --hidden-import=pathvalidate \
+            --hidden-import=Cryptodome.Cipher --hidden-import=Cryptodome.Cipher.AES \
+            --hidden-import=Cryptodome.Util --hidden-import=Cryptodome.Util.Padding \
+            --hidden-import=Cryptodome.Random --hidden-import=Pillow \
+            --hidden-import=pyTelegramBotAPI --additional-hooks-dir=pyinstaller/hooks \
+            --add-data "StreamingCommunity:StreamingCommunity" \
+            --name=StreamingCommunity_mac test_run.py
             
       - name: Upload executable (Windows)
         if: matrix.os == 'windows-latest'
         uses: actions/upload-artifact@v4
         with:
-          name: StreamingCommunity-Windows
-          path: dist/StreamingCommunity.exe
+          name: StreamingCommunity_win
+          path: dist/StreamingCommunity_win.exe
 
       - name: Upload executable (Linux)
         if: matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v4
         with:
-          name: StreamingCommunity-Linux
-          path: dist/StreamingCommunity
+          name: StreamingCommunity_linux
+          path: dist/StreamingCommunity_linux
+
+      - name: Upload executable (macOS)
+        if: matrix.os == 'macos-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: StreamingCommunity_mac
+          path: dist/StreamingCommunity_mac
 
       - name: Create or update release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ env.latest_tag }}
           files: |
-            dist/StreamingCommunity.exe
-            dist/StreamingCommunity
+            dist/StreamingCommunity_win.exe
+            dist/StreamingCommunity_linux
+            dist/StreamingCommunity_mac
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

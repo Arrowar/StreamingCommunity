@@ -58,11 +58,14 @@
 # Installation
 
 <p align="center">
-  <a href="https://github.com/Arrowar/StreamingCommunity/releases/latest/download/StreamingCommunity.exe">
-    <img src="https://img.shields.io/badge/-Windows_x64-blue.svg?style=for-the-badge&logo=windows" alt="Windows">
+  <a href="https://github.com/Arrowar/StreamingCommunity/releases/latest/download/StreamingCommunity_win.exe">
+    <img src="https://img.shields.io/badge/-Windows-blue.svg?style=for-the-badge&logo=windows" alt="Windows">
   </a>
-  <a href="https://github.com/Arrowar/StreamingCommunity/releases/latest/download/StreamingCommunity.zip">
-    <img src="https://img.shields.io/badge/-Source_tar-green.svg?style=for-the-badge" alt="Source Tarball">
+  <a href="https://github.com/Arrowar/StreamingCommunity/releases/latest/download/StreamingCommunity_mac">
+    <img src="https://img.shields.io/badge/-macOS-black.svg?style=for-the-badge&logo=apple" alt="macOS">
+  </a>
+  <a href="https://github.com/Arrowar/StreamingCommunity/releases/latest/download/StreamingCommunity_linux">
+    <img src="https://img.shields.io/badge/-Linux-orange.svg?style=for-the-badge&logo=linux" alt="Linux">
   </a>
   <a href="https://github.com/Arrowar/StreamingCommunity/releases">
     <img src="https://img.shields.io/badge/-All_Versions-lightgrey.svg?style=for-the-badge" alt="All Versions">

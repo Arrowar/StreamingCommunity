@@ -1,20 +1,25 @@
 # 3.12.23
 
 import os
-import sys
 from typing import Tuple
 
 
 # Internal utilities
 from StreamingCommunity.Util.console import console, msg
 from StreamingCommunity.Util.message import start_message
-from StreamingCommunity.Util.table import TVShowManager
 from StreamingCommunity.Lib.Downloader import HLS_Downloader
 from StreamingCommunity.TelegramHelp.telegram_bot import TelegramSession, get_bot_instance
 
 # Logic class
 from .util.ScrapeSerie import ScrapeSerie
-from StreamingCommunity.Api.Template.Util import manage_selection, map_episode_title, dynamic_format_number, validate_selection, validate_episode_selection
+from StreamingCommunity.Api.Template.Util import (
+    manage_selection, 
+    map_episode_title, 
+    dynamic_format_number, 
+    validate_selection, 
+    validate_episode_selection, 
+    display_episodes_list
+)
 from StreamingCommunity.Api.Template.Class.SearchType import MediaItem
 
 
@@ -114,7 +119,7 @@ def download_episode(index_season_selected: int, scrape_serie: ScrapeSerie, vide
     else:
 
         # Display episodes list and manage user selection
-        last_command = display_episodes_list(scrape_serie)
+        last_command = display_episodes_list(scrape_serie.episode_manager.episodes)
         list_episode_select = manage_selection(last_command, episodes_count)
 
         try:
@@ -205,54 +210,3 @@ def download_series(select_season: MediaItem, version: str) -> None:
         script_id = TelegramSession.get_session()
         if script_id != "unknown":
             TelegramSession.deleteScriptId(script_id)
-
-
-def display_episodes_list(scrape_serie) -> str:
-    """
-    Display episodes list and handle user input.
-
-    Returns:
-        last_command (str): Last command entered by the user.
-    """
-    if TELEGRAM_BOT:
-        bot = get_bot_instance()
-
-    # Set up table for displaying episodes
-    table_show_manager = TVShowManager()
-    table_show_manager.set_slice_end(10)
-
-    # Add columns to the table
-    column_info = {
-        "Index": {'color': 'red'},
-        "Name": {'color': 'magenta'},
-        "Duration": {'color': 'green'}
-    }
-    table_show_manager.add_column(column_info)
-
-    # Populate the table with episodes information
-    if TELEGRAM_BOT:
-        choices = []
-
-    for i, media in enumerate(scrape_serie.episode_manager.episodes):
-        table_show_manager.add_tv_show({
-            'Index': str(media.number),
-            'Name': media.name,
-            'Duration': str(media.duration)
-        })
-
-        if TELEGRAM_BOT:
-            choice_text = f"{media.number} - {media.name} ({media.duration} min)"
-            choices.append(choice_text)
-
-    if TELEGRAM_BOT:
-        if choices:
-            bot.send_message(f"Lista episodi:", choices)
-
-    # Run the table and handle user input
-    last_command = table_show_manager.run()
-
-    if last_command == "q" or last_command == "quit":
-        console.print("\n[red]Quit [white]...")
-        sys.exit(0)
-
-    return last_command

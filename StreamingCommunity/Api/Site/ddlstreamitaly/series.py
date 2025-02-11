@@ -1,7 +1,6 @@
 # 13.06.24
 
 import os
-import sys
 from urllib.parse import urlparse
 from typing import Tuple
 
@@ -10,13 +9,17 @@ from typing import Tuple
 from StreamingCommunity.Util.console import console
 from StreamingCommunity.Util.message import start_message
 from StreamingCommunity.Util.os import os_manager
-from StreamingCommunity.Util.table import TVShowManager
 from StreamingCommunity.Lib.Downloader import MP4_downloader
 
 
 # Logic class
 from StreamingCommunity.Api.Template.Class.SearchType import MediaItem
-from StreamingCommunity.Api.Template.Util import manage_selection, map_episode_title, validate_episode_selection
+from StreamingCommunity.Api.Template.Util import (
+    manage_selection, 
+    map_episode_title, 
+    validate_episode_selection, 
+    display_episodes_list
+)
 
 
 # Player
@@ -111,39 +114,3 @@ def download_thread(dict_serie: MediaItem):
         if kill_handler:
             break
         kill_handler = download_video(i_episode, scape_info_serie, video_source)[1]
-
-
-def display_episodes_list(obj_episode_manager) -> str:
-    """
-    Display episodes list and handle user input.
-
-    Returns:
-        last_command (str): Last command entered by the user.
-    """
-
-    # Set up table for displaying episodes
-    table_show_manager = TVShowManager()
-    table_show_manager.set_slice_end(10)
-
-    # Add columns to the table
-    column_info = {
-        "Index": {'color': 'red'},
-        "Name": {'color': 'magenta'},
-    }
-    table_show_manager.add_column(column_info)
-
-    # Populate the table with episodes information
-    for i, media in enumerate(obj_episode_manager):
-        table_show_manager.add_tv_show({
-            'Index': str(i+1),
-            'Name': media.get('name'),
-        })
-
-    # Run the table and handle user input
-    last_command = table_show_manager.run()
-
-    if last_command == "q":
-        console.print("\n[red]Quit [white]...")
-        sys.exit(0)
-
-    return last_command

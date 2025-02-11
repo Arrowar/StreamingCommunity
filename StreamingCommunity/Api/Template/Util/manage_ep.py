@@ -1,12 +1,15 @@
 # 19.06.24
 
+import sys
 import logging
 from typing import List
 
 
 # Internal utilities
-from StreamingCommunity.Util._jsonConfig import config_manager
+from StreamingCommunity.Util.console import console
 from StreamingCommunity.Util.os import os_manager
+from StreamingCommunity.Util._jsonConfig import config_manager
+from StreamingCommunity.Util.table import TVShowManager
 
 
 # Config
@@ -177,3 +180,44 @@ def validate_episode_selection(list_episode_select: List[int], episodes_count: i
             # Prompt the user for valid input again
             input_episodes = input(f"Enter valid episode numbers (1-{episodes_count}): ")
             list_episode_select = list(map(int, input_episodes.split(',')))
+
+def display_episodes_list(episodes_manager) -> str:
+    """
+    Display episodes list and handle user input.
+
+    Returns:
+        last_command (str): Last command entered by the user.
+    """
+    # Set up table for displaying episodes
+    table_show_manager = TVShowManager()
+    table_show_manager.set_slice_end(10)
+
+    # Add columns to the table
+    column_info = {
+        "Index": {'color': 'red'},
+        "Name": {'color': 'magenta'},
+        "Duration": {'color': 'blue'}
+    }
+    table_show_manager.add_column(column_info)
+
+    # Populate the table with episodes information
+    for i, media in enumerate(episodes_manager):
+        name = media.get('name') if isinstance(media, dict) else getattr(media, 'name', None)
+        duration = media.get('duration') if isinstance(media, dict) else getattr(media, 'duration', None)
+
+        episode_info = {
+            'Index': str(i + 1),
+            'Name': name,
+            'Duration': duration
+        }
+
+        table_show_manager.add_tv_show(episode_info)
+
+    # Run the table and handle user input
+    last_command = table_show_manager.run()
+
+    if last_command in ("q", "quit"):
+        console.print("\n[red]Quit [white]...")
+        sys.exit(0)
+
+    return last_command

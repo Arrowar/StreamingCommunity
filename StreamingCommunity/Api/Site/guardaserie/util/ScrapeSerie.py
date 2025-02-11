@@ -11,10 +11,15 @@ from bs4 import BeautifulSoup
 
 # Internal utilities
 from StreamingCommunity.Util.headers import get_headers
+from StreamingCommunity.Util._jsonConfig import config_manager
 
 
 # Logic class
-from StreamingCommunity.Api.Template .Class.SearchType import MediaItem
+from StreamingCommunity.Api.Template.Class.SearchType import MediaItem
+
+
+# Variable
+max_timeout = config_manager.get_int("REQUESTS", "timeout")
 
 
 class GetSerieInfo:
@@ -40,19 +45,12 @@ class GetSerieInfo:
         try:
 
             # Make an HTTP request to the series URL
-            response = httpx.get(self.url, headers=self.headers, timeout=15)
+            response = httpx.get(self.url, headers=self.headers, timeout=max_timeout, follow_redirects=True)
             response.raise_for_status()
 
-            # Parse HTML content of the page
             soup = BeautifulSoup(response.text, "html.parser")
-
-            # Find the container of seasons
             table_content = soup.find('div', class_="tt_season")
-
-            # Count the number of seasons
             seasons_number = len(table_content.find_all("li"))
-
-            # Extract the name of the series
             self.tv_name = soup.find("h1", class_="front_title").get_text(strip=True)
 
             return seasons_number
@@ -60,7 +58,7 @@ class GetSerieInfo:
         except Exception as e:
             logging.error(f"Error parsing HTML page: {e}")
 
-        return -999
+        return -1
 
     def get_episode_number(self, n_season: int) -> List[Dict[str, str]]:
         """
@@ -75,7 +73,7 @@ class GetSerieInfo:
         try:
 
             # Make an HTTP request to the series URL
-            response = httpx.get(self.url, headers=self.headers, timeout=15)
+            response = httpx.get(self.url, headers=self.headers, timeout=max_timeout, follow_redirects=True)
             response.raise_for_status()
 
             # Parse HTML content of the page
@@ -83,8 +81,6 @@ class GetSerieInfo:
 
             # Find the container of episodes for the specified season
             table_content = soup.find('div', class_="tab-pane", id=f"season-{n_season}")
-
-            # Extract episode information
             episode_content = table_content.find_all("li")
             list_dict_episode = []
 

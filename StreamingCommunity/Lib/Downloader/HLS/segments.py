@@ -326,9 +326,10 @@ class M3U8_Segments:
             - type (str): Type of download: 'video' or 'audio'
         """
         if TELEGRAM_BOT:
-            # Viene usato per lo screen 
-            console.log("####")
 
+          # Viene usato per lo screen 
+          console.log("####")
+          
         self.get_info()
         self.setup_interrupt_handler()
 

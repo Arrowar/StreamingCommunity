@@ -194,6 +194,7 @@ class TheMovieDB:
         """
         self._cached_trending_movies = self._make_request("trending/movie/week").get("results", [])
         return self._cached_trending_movies
+      
     def search_movie(self, movie_name: str):
         """
         Search for a movie by name and return its TMDB ID.

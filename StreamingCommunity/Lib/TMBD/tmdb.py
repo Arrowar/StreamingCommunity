@@ -101,6 +101,8 @@ class TheMovieDB:
         self.api_key = api_key
         self.base_url = "https://api.themoviedb.org/3"
         #self.genres = self._fetch_genres()
+        self._cached_trending_tv = None
+        self._cached_trending_movies = None
 
     def _make_request(self, endpoint, params=None):
         """
@@ -162,17 +164,36 @@ class TheMovieDB:
     def display_trending_tv_shows(self):
         """
         Fetch and display the top 5 trending TV shows of the week.
+        Uses cached data if available, otherwise makes a new request.
         """
-        data = self._make_request("trending/tv/week").get("results", [])
-        self._display_top_5("Trending TV shows", data, name_key='name')
+        if self._cached_trending_tv is None:
+            self._cached_trending_tv = self._make_request("trending/tv/week").get("results", [])
+        
+        self._display_top_5("Trending TV shows", self._cached_trending_tv, name_key='name')
+
+    def refresh_trending_tv_shows(self):
+        """
+        Force a refresh of the trending TV shows cache.
+        """
+        self._cached_trending_tv = self._make_request("trending/tv/week").get("results", [])
+        return self._cached_trending_tv
 
     def display_trending_films(self):
         """
         Fetch and display the top 5 trending films of the week.
+        Uses cached data if available, otherwise makes a new request.
         """
-        data = self._make_request("trending/movie/week").get("results", [])
-        self._display_top_5("Trending films", data, name_key='title')
+        if self._cached_trending_movies is None:
+            self._cached_trending_movies = self._make_request("trending/movie/week").get("results", [])
+        
+        self._display_top_5("Trending films", self._cached_trending_movies, name_key='title')
 
+    def refresh_trending_films(self):
+        """
+        Force a refresh of the trending films cache.
+        """
+        self._cached_trending_movies = self._make_request("trending/movie/week").get("results", [])
+        return self._cached_trending_movies
     def search_movie(self, movie_name: str):
         """
         Search for a movie by name and return its TMDB ID.

@@ -92,7 +92,6 @@ class M3U8_Segments:
         self.info_maxRetry = 0
         self.info_nRetry = 0
         self.info_nFailed = 0
-
         self.active_retries = 0 
         self.active_retries_lock = threading.Lock()
 
@@ -207,7 +206,7 @@ class M3U8_Segments:
             - index (int): The index of the segment.
             - progress_bar (tqdm): Progress counter for tracking download progress.
             - backoff_factor (float): The backoff factor for exponential backoff (default is 1.5 seconds).
-        """       
+        """
         for attempt in range(REQUEST_MAX_RETRY):
             if self.interrupt_flag.is_set():
                 return
@@ -309,6 +308,8 @@ class M3U8_Segments:
 
                 except queue.Empty:
                     self.current_timeout = min(MAX_TIMEOOUT, self.current_timeout * 1.1)
+                    time.sleep(0.05)
+
                     if self.stop_event.is_set():
                         break
 
@@ -331,7 +332,8 @@ class M3U8_Segments:
             unit='s',
             ascii='░▒█',
             bar_format=self._get_bar_format(description),
-            mininterval=0.05,
+            mininterval=0.6,
+            maxinterval=1.0,
             file=sys.stdout,        # Using file=sys.stdout to force in-place updates because sys.stderr may not support carriage returns in this environment.
         )
 

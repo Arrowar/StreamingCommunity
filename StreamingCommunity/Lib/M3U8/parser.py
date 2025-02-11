@@ -382,47 +382,6 @@ class M3U8_Subtitle:
                 return subtitle
         return None
 
-    def download_all(self, custom_subtitle):
-        """
-        Download all subtitles listed in the object's attributes, filtering based on a provided list of custom subtitles.
-
-        Parameters:
-            - custom_subtitle (list): A list of custom subtitles to download.
-
-        Returns:
-            list: A list containing dictionaries with subtitle information including name, language, and URI.
-        """
-            
-        output = []  # Initialize an empty list to store subtitle information
-
-        # Iterate through all available subtitles
-        for obj_subtitle in self.subtitle_get_all_uris_and_names():
-
-            # Check if the subtitle name is not in the list of custom subtitles, and skip if not found
-            if obj_subtitle.get('name') not in custom_subtitle:
-                continue
-
-            # Send a request to retrieve the subtitle content
-            logging.info(f"Download subtitle: {obj_subtitle.get('name')}")
-            response_subitle = httpx.get(obj_subtitle.get('uri'))
-
-            try:
-                # Try to extract the VTT URL from the subtitle content
-                sub_parse = M3U8_Parser()
-                sub_parse.parse_data(obj_subtitle.get('uri'), response_subitle.text)
-                url_subititle = sub_parse.subtitle[0]
-
-                output.append({
-                    'name': obj_subtitle.get('name'),
-                    'language': obj_subtitle.get('language'),
-                    'uri': url_subititle
-                })
-
-            except Exception as e:
-                logging.error(f"Cant download: {obj_subtitle.get('name')}, error: {e}")
-
-        return output
-
 
 class M3U8_Parser:
     def __init__(self):
@@ -560,7 +519,6 @@ class M3U8_Parser:
             - m3u8_obj: The M3U8 object containing encryption keys.
         """
         try:
-
             if m3u8_obj.key is not None:
                 if self.keys is None:
                     self.keys = {
@@ -568,7 +526,6 @@ class M3U8_Parser:
                         'iv': m3u8_obj.key.iv,
                         'uri': m3u8_obj.key.uri
                     }
-
 
         except Exception as e:
             logging.error(f"Error parsing encryption keys: {e}")
@@ -634,7 +591,6 @@ class M3U8_Parser:
         """
         Initialize variables for video, audio, and subtitle playlists.
         """
-
         self._video = M3U8_Video(self.video_playlist)
         self._audio = M3U8_Audio(self.audio_playlist)
         self._subtitle = M3U8_Subtitle(self.subtitle_playlist)

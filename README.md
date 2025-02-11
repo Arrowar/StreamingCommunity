@@ -567,9 +567,9 @@ python3 telegram_bot.py
 | [AltadefinizioneGratis](https://altadefinizionegratis.pro/) |   ✅   | -ALT |
 | [AnimeUnity](https://animeunity.so/) |   ✅   | -ANI |
 | [Ilcorsaronero](https://ilcorsaronero.link/) | ✅ | `-ILC` |
-| [CB01New](https://cb01new.media/) |   ✅   | -CB0 |
+| [CB01New](https://cb01new.gold/) |   ✅   | -CB0 |
 | [DDLStreamItaly](https://ddlstreamitaly.co/) |   ✅   | -DDL |
-| [GuardaSerie](https://guardaserie.meme/) |   ✅   | -GUA |
+| [GuardaSerie](https://guardaserie.now/) |   ✅   | -GUA |
 | [MostraGuarda](https://mostraguarda.stream/) |   ✅   | -MOS |
 | [StreamingCommunity](https://streamingcommunity.paris/) |   ✅   | -STR |
 

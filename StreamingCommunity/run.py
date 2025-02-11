@@ -16,9 +16,10 @@ from typing import Callable
 from StreamingCommunity.Util.message import start_message
 from StreamingCommunity.Util.console import console, msg
 from StreamingCommunity.Util._jsonConfig import config_manager
-from StreamingCommunity.Upload.update import update as git_update
 from StreamingCommunity.Util.os import os_summary
 from StreamingCommunity.Util.logger import Logger
+from StreamingCommunity.Upload.update import update as git_update
+from StreamingCommunity.Lib.TMBD import tmdb
 
 
 # Telegram util
@@ -132,12 +133,17 @@ def initialize():
         console.log("[red]Install python version > 3.7.16")
         sys.exit(0)
 
+    # Trending tmbd
+    print()
+    tmdb.display_trending_films()
+    tmdb.display_trending_tv_shows()
+
+
     # Attempting GitHub update
     try:
         git_update()
     except:
         console.log("[red]Error with loading github.")
-
 
 def restart_script():
     """Riavvia lo script con gli stessi argomenti della riga di comando."""

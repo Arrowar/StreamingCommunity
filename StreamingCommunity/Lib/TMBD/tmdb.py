@@ -6,17 +6,19 @@ from typing import Dict
 
 # External libraries
 import httpx
-from rich.console import Console
 
 
 # Internal utilities
 from .obj_tmbd import Json_film
+from StreamingCommunity.Util.console import console
+from StreamingCommunity.Util._jsonConfig import config_manager
 from StreamingCommunity.Util.table import TVShowManager
 
 
 # Variable
 table_show_manager = TVShowManager()
 api_key = "a800ed6c93274fb857ea61bd9e7256c5"
+MAX_TIMEOUT = config_manager.get_int("REQUESTS", "timeout")
 
 
 
@@ -33,7 +35,7 @@ def get_select_title(table_show_manager, generic_obj):
 
     # Check if the generic_obj list is empty
     if not generic_obj:
-        Console.print("\n[red]No media items available.")
+        console.print("\n[red]No media items available.")
         return None
     
     # Example of available colors for columns
@@ -76,7 +78,7 @@ def get_select_title(table_show_manager, generic_obj):
 
     # Handle user's quit command
     if last_command == "q" or last_command == "quit":
-        Console.print("\n[red]Quit [white]...")
+        console.print("\n[red]Quit [white]...")
         sys.exit(0)
 
     # Check if the selected index is within range
@@ -84,7 +86,7 @@ def get_select_title(table_show_manager, generic_obj):
         return generic_obj[int(last_command)]
     
     else:
-        Console.print("\n[red]Wrong index")
+        console.print("\n[red]Wrong index")
         sys.exit(0)
 
 
@@ -98,7 +100,6 @@ class TheMovieDB:
         """
         self.api_key = api_key
         self.base_url = "https://api.themoviedb.org/3"
-        self.console = Console()
         #self.genres = self._fetch_genres()
 
     def _make_request(self, endpoint, params=None):
@@ -117,7 +118,7 @@ class TheMovieDB:
 
         params['api_key'] = self.api_key
         url = f"{self.base_url}/{endpoint}"
-        response = httpx.get(url, params=params)
+        response = httpx.get(url, params=params, timeout=MAX_TIMEOUT)
         response.raise_for_status()
         
         return response.json()
@@ -132,77 +133,45 @@ class TheMovieDB:
         genres = self._make_request("genre/movie/list")
         return {genre['id']: genre['name'] for genre in genres.get('genres', [])}
 
-    def _process_and_add_tv_shows(self, data, columns):
+    def _display_top_5(self, category: str, data, name_key='title'):
         """
-        Process TV show data and add it to the TV show manager.
+        Display top 5 most popular items in a single line with colors.
         
         Parameters:
-            - data (list): List of dictionaries containing the data to process.
-            - columns (list): A list of tuples, where each tuple contains the column name and the key to fetch the data from the dictionary.
+            - category (str): Category label (e.g., "Trending films", "Trending TV shows")
+            - data (list): List of media items
+            - name_key (str): Key to use for the name ('title' for movies, 'name' for TV shows)
         """
-        # Define column styles with colors
-        tv_show_manager = TVShowManager()
-        column_info = {
-            col[0]: {'color': col[2] if len(col) > 2 else 'white'}
-            for col in columns
-        }
-        tv_show_manager.add_column(column_info)
-
-        # Add each item to the TV show manager, including rank
-        for index, item in enumerate(data):
-            
-            # Convert genre IDs to genre names
-            genre_names = [self.genres.get(genre_id, 'Unknown') for genre_id in item.get('genre_ids', [])]
-            tv_show = {
-                col[0]: str(item.get(col[1], 'N/A')) if col[1] != 'genre_ids' else ', '.join(genre_names)
-                for col in columns
-            }
-
-            tv_show_manager.add_tv_show(tv_show)
+        # Colors for the titles
+        colors = ['cyan', 'magenta', 'yellow', 'green', 'blue']
         
-        # Display the processed TV show data
-        tv_show_manager.display_data(tv_show_manager.tv_shows[tv_show_manager.slice_start:tv_show_manager.slice_end])
-
-    def _display_with_title(self, title: str, data, columns):
-        """
-        Display data with a title.
-
-        Parameters:
-            - title (str): The title to display.
-            - data (list): List of dictionaries containing the data to process.
-            - columns (list): A list of tuples, where each tuple contains the column name and the key to fetch the data from the dictionary.
-        """
-        self.console.print(f"\n{title}", style="bold underline")
-        self._process_and_add_tv_shows(data, columns)
+        # Sort by popularity and get top 5
+        sorted_data = sorted(data, key=lambda x: x.get('popularity', 0), reverse=True)[:5]
+        
+        # Create list of colored titles
+        colored_items = []
+        for item, color in zip(sorted_data, colors):
+            title = item.get(name_key, 'Unknown')
+            colored_items.append(f"[{color}]{title}[/]")
+        
+        # Join with colored arrows and print with proper category label
+        console.print(
+            f"[bold purple]{category}:[/] {' [red]→[/] '.join(colored_items)}"
+        )
 
     def display_trending_tv_shows(self):
         """
-        Fetch and display the trending TV shows of the week.
+        Fetch and display the top 5 trending TV shows of the week.
         """
         data = self._make_request("trending/tv/week").get("results", [])
-        columns = [
-            ("Title", "name", 'cyan'), 
-            ("First Air Date", "first_air_date", 'green'), 
-            ("Popularity", "popularity", 'magenta'),
-            ("Genres", "genre_ids", 'blue'),
-            ("Origin Country", "origin_country", 'red'),
-            ("Vote Average", "vote_average", 'yellow')
-        ]
-        self._display_with_title("Trending TV Shows of the Week", data, columns)
+        self._display_top_5("Trending TV shows", data, name_key='name')
 
     def display_trending_films(self):
         """
-        Fetch and display the trending films of the week.
+        Fetch and display the top 5 trending films of the week.
         """
         data = self._make_request("trending/movie/week").get("results", [])
-        columns = [
-            ("Title", "title", 'cyan'), 
-            ("Release Date", "release_date", 'green'), 
-            ("Popularity", "popularity", 'magenta'),
-            ("Genres", "genre_ids", 'blue'),
-            ("Vote Average", "vote_average", 'yellow')
-        ]
-        self._display_with_title("Trending Films of the Week", data, columns)
+        self._display_top_5("Trending films", data, name_key='title')
 
     def search_movie(self, movie_name: str):
         """
@@ -217,10 +186,10 @@ class TheMovieDB:
         generic_obj = []
         data = self._make_request("search/movie", {"query": movie_name}).get("results", [])
         if not data:
-            self.console.print("No movies found with that name.", style="red")
+            console.print("No movies found with that name.", style="red")
             return None
 
-        self.console.print("\nSelect a Movie:")
+        console.print("\nSelect a Movie:")
         for i, movie in enumerate(data, start=1):
             generic_obj.append({
                 'name': movie['title'],
@@ -243,7 +212,7 @@ class TheMovieDB:
         """
         movie = self._make_request(f"movie/{tmdb_id}")
         if not movie:
-            self.console.print("Movie not found.", style="red")
+            console.print("Movie not found.", style="red")
             return None
         
         return Json_film(movie)
@@ -260,12 +229,12 @@ class TheMovieDB:
         """
         data = self._make_request("search/tv", {"query": tv_name}).get("results", [])
         if not data:
-            self.console.print("No TV shows found with that name.", style="red")
+            console.print("No TV shows found with that name.", style="red")
             return None
 
-        self.console.print("\nSelect a TV Show:")
+        console.print("\nSelect a TV Show:")
         for i, show in enumerate(data, start=1):
-            self.console.print(f"{i}. {show['name']} (First Air Date: {show.get('first_air_date', 'N/A')})")
+            console.print(f"{i}. {show['name']} (First Air Date: {show.get('first_air_date', 'N/A')})")
 
         choice = int(input("Enter the number of the show you want: ")) - 1
         selected_show = data[choice]
@@ -283,12 +252,12 @@ class TheMovieDB:
         """
         data = self._make_request(f"tv/{tv_show_id}").get("seasons", [])
         if not data:
-            self.console.print("No seasons found for this TV show.", style="red")
+            console.print("No seasons found for this TV show.", style="red")
             return None
 
-        self.console.print("\nSelect a Season:")
+        console.print("\nSelect a Season:")
         for i, season in enumerate(data, start=1):
-            self.console.print(f"{i}. {season['name']} (Episodes: {season['episode_count']})")
+            console.print(f"{i}. {season['name']} (Episodes: {season['episode_count']})")
 
         choice = int(input("Enter the number of the season you want: ")) - 1
         return data[choice]["season_number"]
@@ -306,12 +275,12 @@ class TheMovieDB:
         """
         data = self._make_request(f"tv/{tv_show_id}/season/{season_number}").get("episodes", [])
         if not data:
-            self.console.print("No episodes found for this season.", style="red")
+            console.print("No episodes found for this season.", style="red")
             return None
 
-        self.console.print("\nSelect an Episode:")
+        console.print("\nSelect an Episode:")
         for i, episode in enumerate(data, start=1):
-            self.console.print(f"{i}. {episode['name']} (Air Date: {episode.get('air_date', 'N/A')})")
+            console.print(f"{i}. {episode['name']} (Air Date: {episode.get('air_date', 'N/A')})")
 
         choice = int(input("Enter the number of the episode you want: ")) - 1
         return data[choice]
@@ -320,27 +289,3 @@ class TheMovieDB:
 
 # Output
 tmdb = TheMovieDB(api_key)
-
-
-"""
-Example:
-
-
-@ movie
-movie_name = "Interstellar"
-movie_id = tmdb.search_movie(movie_name)
-
-if movie_id:
-    movie_details = tmdb.get_movie_details(tmdb_id=movie_id)
-    print(movie_details)
-
-
-@ series
-tv_name = "Game of Thrones"
-tv_show_id = tmdb.search_tv_show(tv_name)
-if tv_show_id:
-    season_number = tmdb.get_seasons(tv_show_id=tv_show_id)
-    if season_number:
-        episode = tmdb.get_episodes(tv_show_id=tv_show_id, season_number=season_number)
-        print(episode)
-"""

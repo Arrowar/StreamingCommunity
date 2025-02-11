@@ -15,5 +15,6 @@ if TELEGRAM_BOT:
 
     TelegramSession.set_session(script_id)
     main(script_id)
+    
 else:
     main()

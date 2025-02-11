@@ -49,6 +49,7 @@ DEFAULT_AUDIO_WORKERS = config_manager.get_int('M3U8_DOWNLOAD', 'default_audio_w
 MAX_TIMEOOUT = config_manager.get_int("REQUESTS", "timeout")
 MAX_INTERRUPT_COUNT = 3
 SEGMENT_MAX_TIMEOUT = config_manager.get_int("M3U8_DOWNLOAD", "segment_timeout")
+TELEGRAM_BOT = config_manager.get_bool('DEFAULT', 'telegram_bot')
 
 
 
@@ -323,6 +324,10 @@ class M3U8_Segments:
             - description: Description to insert on tqdm bar
             - type (str): Type of download: 'video' or 'audio'
         """
+        if TELEGRAM_BOT:
+          # Viene usato per lo screen 
+          console.log("####")
+          
         self.get_info()
         self.setup_interrupt_handler()
 

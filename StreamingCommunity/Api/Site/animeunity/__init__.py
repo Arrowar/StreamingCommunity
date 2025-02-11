@@ -2,16 +2,16 @@
 
 import sys
 import subprocess
-from urllib.parse import quote_plus
 
 
 # Internal utilities
 from StreamingCommunity.Util.console import console, msg
+from StreamingCommunity.Api.Template import get_select_title
 from StreamingCommunity.TelegramHelp.telegram_bot import get_bot_instance
 
 
 # Logic class
-from .site import title_search, run_get_select_title, media_search_manager
+from .site import title_search, media_search_manager, table_show_manager
 from .film_serie import download_film, download_series
 
 
@@ -58,7 +58,7 @@ def search(string_to_search: str = None, get_onylDatabase: bool = False):
     if len_database > 0:
 
         # Select title from list (type: TV \ Movie \ OVA)
-        select_title = run_get_select_title()
+        select_title = get_select_title(table_show_manager, media_search_manager)
 
         if select_title.type == 'Movie' or select_title.type == 'OVA':
             download_film(select_title)

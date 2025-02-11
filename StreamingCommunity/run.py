@@ -145,6 +145,7 @@ def initialize():
     except:
         console.log("[red]Error with loading github.")
 
+
 def restart_script():
     """Riavvia lo script con gli stessi argomenti della riga di comando."""
     print("\n🔄 Riavvio dello script...\n")

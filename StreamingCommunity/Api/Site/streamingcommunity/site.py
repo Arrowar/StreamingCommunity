@@ -19,7 +19,6 @@ from StreamingCommunity.TelegramHelp.telegram_bot import get_bot_instance
 
 
 # Logic class
-from StreamingCommunity.Api.Template import get_select_title
 from StreamingCommunity.Api.Template.Util import search_domain
 from StreamingCommunity.Api.Template.Class.SearchType import MediaManager
 
@@ -148,10 +147,3 @@ def title_search(title_search: str, domain: str) -> int:
           
     # Return the number of titles found
     return media_search_manager.get_length()
-
-
-def run_get_select_title():
-    """
-    Display a selection of titles and prompt the user to choose one.
-    """
-    return get_select_title(table_show_manager, media_search_manager)

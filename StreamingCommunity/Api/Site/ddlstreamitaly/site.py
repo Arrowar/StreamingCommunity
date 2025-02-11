@@ -16,7 +16,6 @@ from StreamingCommunity.Util.table import TVShowManager
 
 
 # Logic class
-from StreamingCommunity.Api.Template import get_select_title
 from StreamingCommunity.Api.Template.Util import search_domain
 from StreamingCommunity.Api.Template.Class.SearchType import MediaManager
 
@@ -90,10 +89,3 @@ def title_search(word_to_search: str) -> int:
         return -999
 
     return -9999
-
-
-def run_get_select_title():
-    """
-    Display a selection of titles and prompt the user to choose one.
-    """
-    return get_select_title(table_show_manager, media_search_manager)

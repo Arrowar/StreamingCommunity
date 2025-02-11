@@ -5,10 +5,11 @@ from urllib.parse import quote_plus
 
 # Internal utilities
 from StreamingCommunity.Util.console import console, msg
+from StreamingCommunity.Api.Template import get_select_title
 
 
 # Logic class
-from .site import title_search, run_get_select_title, media_search_manager
+from .site import title_search, media_search_manager, table_show_manager
 from .series import download_series
 
 
@@ -39,7 +40,7 @@ def search(string_to_search: str = None, get_onylDatabase: bool = False):
     if len_database > 0:
 
         # Select title from list
-        select_title = run_get_select_title()
+        select_title = get_select_title(table_show_manager, media_search_manager)
 
         # Download only film
         download_series(select_title)

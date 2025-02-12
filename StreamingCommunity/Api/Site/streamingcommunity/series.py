@@ -20,15 +20,12 @@ from StreamingCommunity.Api.Template.Util import (
     validate_episode_selection, 
     display_episodes_list
 )
+from StreamingCommunity.Api.Template.config_loader import site_constant
 from StreamingCommunity.Api.Template.Class.SearchType import MediaItem
 
 
 # Player
 from StreamingCommunity.Api.Player.vixcloud import VideoSource
-
-
-# Variable
-from .costant import SITE_NAME, SERIES_FOLDER, TELEGRAM_BOT
 
 
 def download_video(index_season_selected: int, index_episode_selected: int, scrape_serie: ScrapeSerie, video_source: VideoSource) -> Tuple[str,bool]:
@@ -51,7 +48,7 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
     console.print(f"[yellow]Download: [red]{index_season_selected}:{index_episode_selected} {obj_episode.name}")
     print()
 
-    if TELEGRAM_BOT:
+    if site_constant.TELEGRAM_BOT:
         bot = get_bot_instance()
 
         # Invio a telegram
@@ -67,7 +64,7 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
 
     # Define filename and path for the downloaded video
     mp4_name = f"{map_episode_title(scrape_serie.series_name, index_season_selected, index_episode_selected, obj_episode.name)}.mp4"
-    mp4_path = os.path.join(SERIES_FOLDER, scrape_serie.series_name, f"S{index_season_selected}")
+    mp4_path = os.path.join(site_constant.SERIES_FOLDER, scrape_serie.series_name, f"S{index_season_selected}")
 
     # Retrieve scws and if available master playlist
     video_source.get_iframe(obj_episode.id)
@@ -144,15 +141,15 @@ def download_series(select_season: MediaItem, version: str) -> None:
         - domain (str): Domain from which to download.
         - version (str): Version of the site.
     """
-    if TELEGRAM_BOT:
+    if site_constant.TELEGRAM_BOT:
         bot = get_bot_instance()
 
     # Start message and set up video source
     start_message()
 
     # Init class
-    scrape_serie = ScrapeSerie(SITE_NAME)
-    video_source = VideoSource(SITE_NAME, True)
+    scrape_serie = ScrapeSerie(site_constant.SITE_NAME)
+    video_source = VideoSource(site_constant.SITE_NAME, True)
 
     # Setup video source
     scrape_serie.setup(version, select_season.id, select_season.slug)
@@ -165,7 +162,7 @@ def download_series(select_season: MediaItem, version: str) -> None:
     # Prompt user for season selection and download episodes
     console.print(f"\n[green]Seasons found: [red]{seasons_count}")
 
-    if TELEGRAM_BOT:
+    if site_constant.TELEGRAM_BOT:
         console.print("\n[cyan]Insert season number [yellow](e.g., 1), [red]* [cyan]to download all seasons, "
           "[yellow](e.g., 1-2) [cyan]for a range of seasons, or [yellow](e.g., 3-*) [cyan]to download from a specific season to the end")
 
@@ -203,7 +200,7 @@ def download_series(select_season: MediaItem, version: str) -> None:
             # Otherwise, let the user select specific episodes for the single season
             download_episode(i_season, scrape_serie, video_source, download_all=False)
 
-    if TELEGRAM_BOT:
+    if site_constant.TELEGRAM_BOT:
         bot.send_message(f"Finito di scaricare tutte le serie e episodi", None)
 
         # Get script_id

@@ -22,12 +22,9 @@ from StreamingCommunity.Lib.Downloader import HLS_Downloader
 from StreamingCommunity.Api.Player.supervideo import VideoSource
 
 
-# TMBD
+# Logic class
+from StreamingCommunity.Api.Template.config_loader import site_constant
 from StreamingCommunity.Lib.TMBD import Json_film
-
-
-# Config
-from .costant import SITE_NAME, DOMAIN_NOW, MOVIE_FOLDER
 
 
 def download_film(movie_details: Json_film) -> str:
@@ -47,7 +44,7 @@ def download_film(movie_details: Json_film) -> str:
     
     # Make request to main site
     try:
-        url = f"https://{SITE_NAME}.{DOMAIN_NOW}/set-movie-a/{movie_details.imdb_id}"
+        url = f"https://{site_constant.SITE_NAME}.{site_constant.DOMAIN_NOW}/set-movie-a/{movie_details.imdb_id}"
         response = httpx.get(url, headers={'User-Agent': get_headers()})
         response.raise_for_status()
 
@@ -69,7 +66,7 @@ def download_film(movie_details: Json_film) -> str:
     
     # Define output path
     title_name = os_manager.get_sanitize_file(movie_details.title) + ".mp4"
-    mp4_path = os.path.join(MOVIE_FOLDER, title_name.replace(".mp4", ""))
+    mp4_path = os.path.join(site_constant.MOVIE_FOLDER, title_name.replace(".mp4", ""))
 
     # Get m3u8 master playlist
     master_playlist = video_source.get_playlist()

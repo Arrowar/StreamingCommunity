@@ -16,12 +16,12 @@ from StreamingCommunity.Util.table import TVShowManager
 
 
 # Logic class
+from StreamingCommunity.Api.Template.config_loader import site_constant
 from StreamingCommunity.Api.Template.Util import search_domain
 from StreamingCommunity.Api.Template.Class.SearchType import MediaManager
 
 
 # Variable
-from .costant import SITE_NAME, DOMAIN_NOW
 media_search_manager = MediaManager()
 table_show_manager = TVShowManager()
 max_timeout = config_manager.get_int("REQUESTS", "timeout")
@@ -42,22 +42,22 @@ def title_search(word_to_search: str) -> int:
     table_show_manager.clear()
 
     # Find new domain if prev dont work
-    domain_to_use = DOMAIN_NOW
+    domain_to_use = site_constant.DOMAIN_NOW
     
     if not disable_searchDomain:
-        domain_to_use, base_url = search_domain(SITE_NAME, f"https://{SITE_NAME}.{DOMAIN_NOW}")
+        domain_to_use, base_url = search_domain(site_constant.SITE_NAME, f"https://{site_constant.SITE_NAME}.{site_constant.DOMAIN_NOW}")
 
     # Send request to search for titles
     try:
         response = httpx.get(
-            url=f"https://{SITE_NAME}.{domain_to_use}/search/?&q={word_to_search}&quick=1&type=videobox_video&nodes=11", 
+            url=f"https://{site_constant.SITE_NAME}.{domain_to_use}/search/?&q={word_to_search}&quick=1&type=videobox_video&nodes=11", 
             headers={'user-agent': get_headers()},
             timeout=max_timeout
         )
         response.raise_for_status()
 
     except Exception as e:
-        console.print(f"Site: {SITE_NAME}, request search error: {e}")
+        console.print(f"Site: {site_constant.SITE_NAME}, request search error: {e}")
 
     # Create soup and find table
     soup = BeautifulSoup(response.text, "html.parser")
@@ -87,5 +87,3 @@ def title_search(word_to_search: str) -> int:
     else:
         logging.error("No table content found.")
         return -999
-
-    return -9999

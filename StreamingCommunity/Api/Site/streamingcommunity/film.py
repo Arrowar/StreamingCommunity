@@ -12,15 +12,12 @@ from StreamingCommunity.TelegramHelp.telegram_bot import TelegramSession, get_bo
 
 
 # Logic class
+from StreamingCommunity.Api.Template.config_loader import site_constant
 from StreamingCommunity.Api.Template.Class.SearchType import MediaItem
 
 
 # Player
 from StreamingCommunity.Api.Player.vixcloud import VideoSource
-
-
-# Variable
-from .costant import SITE_NAME, MOVIE_FOLDER, TELEGRAM_BOT
 
 
 def download_film(select_title: MediaItem) -> str:
@@ -34,7 +31,7 @@ def download_film(select_title: MediaItem) -> str:
     Return:
         - str: output path
     """
-    if TELEGRAM_BOT:
+    if site_constant.TELEGRAM_BOT:
         bot = get_bot_instance()
         bot.send_message(f"Download in corso:\n{select_title.name}", None)
 
@@ -51,7 +48,7 @@ def download_film(select_title: MediaItem) -> str:
     console.print(f"[yellow]Download: [red]{select_title.name} \n")
 
     # Init class
-    video_source = VideoSource(SITE_NAME, False)
+    video_source = VideoSource(site_constant.SITE_NAME, False)
     video_source.setup(select_title.id)
 
     # Retrieve scws and if available master playlist
@@ -61,7 +58,7 @@ def download_film(select_title: MediaItem) -> str:
 
     # Define the filename and path for the downloaded film
     title_name = os_manager.get_sanitize_file(select_title.name) + ".mp4"
-    mp4_path = os.path.join(MOVIE_FOLDER, title_name.replace(".mp4", ""))
+    mp4_path = os.path.join(site_constant.MOVIE_FOLDER, title_name.replace(".mp4", ""))
 
     # Download the film using the m3u8 playlist, and output filename
     r_proc = HLS_Downloader(
@@ -69,7 +66,7 @@ def download_film(select_title: MediaItem) -> str:
         output_path=os.path.join(mp4_path, title_name)
     ).start()
 
-    if TELEGRAM_BOT:
+    if site_constant.TELEGRAM_BOT:
 
         # Delete script_id
         script_id = TelegramSession.get_session()

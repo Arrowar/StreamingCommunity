@@ -7,13 +7,13 @@ from StreamingCommunity.Util.table import TVShowManager
 
 
 # Logic class
+from StreamingCommunity.Api.Template.config_loader import site_constant
 from StreamingCommunity.Api.Template.Util import search_domain
 from StreamingCommunity.Api.Template.Class.SearchType import MediaManager
 from .util.ilCorsarScraper import IlCorsaroNeroScraper
 
 
 # Variable
-from .costant import SITE_NAME, DOMAIN_NOW
 media_search_manager = MediaManager()
 table_show_manager = TVShowManager()
 max_timeout = config_manager.get_int("REQUESTS", "timeout")
@@ -34,14 +34,14 @@ async def title_search(word_to_search: str) -> int:
     table_show_manager.clear()
 
     # Find new domain if prev dont work
-    domain_to_use = DOMAIN_NOW
+    domain_to_use = site_constant.DOMAIN_NOW
     
     if not disable_searchDomain:
-        domain_to_use, base_url = search_domain(SITE_NAME, f"https://{SITE_NAME}.{DOMAIN_NOW}")
+        domain_to_use, base_url = search_domain(site_constant.SITE_NAME, f"https://{site_constant.SITE_NAME}.{site_constant.DOMAIN_NOW}")
 
     # Create scraper and collect result
     print("\n")
-    scraper = IlCorsaroNeroScraper(f"https://{SITE_NAME}.{domain_to_use}/", 1)
+    scraper = IlCorsaroNeroScraper(f"https://{site_constant.SITE_NAME}.{domain_to_use}/", 1)
     results = await scraper.search(word_to_search)
 
     for i, torrent in enumerate(results):

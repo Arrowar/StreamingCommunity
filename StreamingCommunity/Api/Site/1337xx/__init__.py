@@ -9,6 +9,7 @@ from StreamingCommunity.Api.Template import get_select_title
 
 
 # Logic class
+from StreamingCommunity.Api.Template.config_loader import site_constant
 from .site import title_search, media_search_manager, table_show_manager
 from .title import download_title
 
@@ -19,7 +20,6 @@ _useFor = "film_serie"
 _deprecate = False
 _priority = 2
 _engineDownload = "tor"
-from .costant import SITE_NAME
 
 
 def search(string_to_search: str = None, get_onylDatabase: bool = False):
@@ -27,7 +27,7 @@ def search(string_to_search: str = None, get_onylDatabase: bool = False):
     Main function of the application for film and series.
     """
     if string_to_search is None:
-        string_to_search = msg.ask(f"\n[purple]Insert word to search in [green]{SITE_NAME}").strip()
+        string_to_search = msg.ask(f"\n[purple]Insert word to search in [green]{site_constant.SITE_NAME}").strip()
 
     # Search on database
     len_database = title_search(quote_plus(string_to_search))

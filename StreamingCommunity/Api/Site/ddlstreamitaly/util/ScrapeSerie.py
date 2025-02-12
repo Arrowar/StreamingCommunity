@@ -16,11 +16,11 @@ from StreamingCommunity.Util.headers import get_headers
 
 
 # Logic class
+from ..site import site_constant
 from StreamingCommunity.Api.Template.Class.SearchType import MediaItem
 
 
 # Variable
-from ..costant import COOKIE
 max_timeout = config_manager.get_int("REQUESTS", "timeout")
 
 
@@ -33,7 +33,7 @@ class GetSerieInfo:
             - dict_serie (MediaItem): Dictionary containing series information (optional).
         """
         self.headers = {'user-agent': get_headers()}
-        self.cookies = COOKIE
+        self.cookies = site_constant.COOKIE
         self.url = dict_serie.url
         self.tv_name = None
         self.list_episodes = None

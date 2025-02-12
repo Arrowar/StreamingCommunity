@@ -20,15 +20,12 @@ from StreamingCommunity.Api.Template.Util import (
     validate_episode_selection, 
     display_episodes_list
 )
+from StreamingCommunity.Api.Template.config_loader import site_constant
 
 
 # Player
 from .util.ScrapeSerie import GetSerieInfo
 from StreamingCommunity.Api.Player.ddl import VideoSource
-
-
-# Variable
-from .costant import SERIES_FOLDER
 
 
 
@@ -54,7 +51,7 @@ def download_video(index_episode_selected: int, scape_info_serie: GetSerieInfo, 
     title_name = os_manager.get_sanitize_file(
         f"{map_episode_title(scape_info_serie.tv_name, None, index_episode_selected, obj_episode.get('name'))}.mp4"
     )
-    mp4_path = os.path.join(SERIES_FOLDER, scape_info_serie.tv_name)
+    mp4_path = os.path.join(site_constant.SERIES_FOLDER, scape_info_serie.tv_name)
 
     # Create output folder
     os_manager.create_path(mp4_path)
@@ -86,8 +83,6 @@ def download_thread(dict_serie: MediaItem):
     """
     Download all episode of a thread
     """
-
-    # Start message and set up video source
     start_message()
 
     # Init class
@@ -104,6 +99,7 @@ def download_thread(dict_serie: MediaItem):
 
     try:
         list_episode_select = validate_episode_selection(list_episode_select, episodes_count)
+
     except ValueError as e:
         console.print(f"[red]{str(e)}")
         return
@@ -113,4 +109,5 @@ def download_thread(dict_serie: MediaItem):
     for i_episode in list_episode_select:
         if kill_handler:
             break
+
         kill_handler = download_video(i_episode, scape_info_serie, video_source)[1]

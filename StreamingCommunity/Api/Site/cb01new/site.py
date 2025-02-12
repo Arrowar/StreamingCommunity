@@ -12,12 +12,12 @@ from StreamingCommunity.Util.table import TVShowManager
 
 
 # Logic class
+from StreamingCommunity.Api.Template.config_loader import site_constant
 from StreamingCommunity.Api.Template.Util import search_domain
 from StreamingCommunity.Api.Template.Class.SearchType import MediaManager
 
 
 # Variable
-from .costant import SITE_NAME, DOMAIN_NOW
 media_search_manager = MediaManager()
 table_show_manager = TVShowManager()
 max_timeout = config_manager.get_int("REQUESTS", "timeout")
@@ -38,13 +38,13 @@ def title_search(word_to_search: str) -> int:
     table_show_manager.clear()
 
     # Find new domain if prev dont work
-    domain_to_use = DOMAIN_NOW
+    domain_to_use = site_constant.DOMAIN_NOW
     
     if not disable_searchDomain:
-        domain_to_use, base_url = search_domain(SITE_NAME, f"https://{SITE_NAME}.{DOMAIN_NOW}")
+        domain_to_use, base_url = search_domain(site_constant.SITE_NAME, f"https://{site_constant.SITE_NAME}.{site_constant.DOMAIN_NOW}")
 
     response = httpx.get(
-        url=f"https://{SITE_NAME}.{domain_to_use}/?s={word_to_search}",
+        url=f"https://{site_constant.SITE_NAME}.{domain_to_use}/?s={word_to_search}",
         headers={'user-agent': get_headers()},
         timeout=max_timeout
     )

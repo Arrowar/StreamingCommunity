@@ -19,12 +19,10 @@ from StreamingCommunity.TelegramHelp.telegram_bot import get_bot_instance
 
 
 # Logic class
+from StreamingCommunity.Api.Template.config_loader import site_constant
 from StreamingCommunity.Api.Template.Util import search_domain
 from StreamingCommunity.Api.Template.Class.SearchType import MediaManager
 
-
-# Config
-from .costant import SITE_NAME, DOMAIN_NOW, TELEGRAM_BOT
 
 
 # Variable
@@ -46,7 +44,7 @@ def get_version(domain: str):
     """
     try:
         response = httpx.get(
-            url=f"https://{SITE_NAME}.{domain}/", 
+            url=f"https://{site_constant.SITE_NAME}.{domain}/", 
             headers={'User-Agent': get_headers()}, 
             timeout=max_timeout
         )
@@ -74,12 +72,10 @@ def get_version_and_domain():
         - Determines the correct domain to use for the site by searching for a specific meta tag.
         - Fetches the content of the site to extract the version information.
     """
-
-    # Find new domain if prev dont work
-    domain_to_use = DOMAIN_NOW
+    domain_to_use = site_constant
 
     if not disable_searchDomain:
-        domain_to_use, base_url = search_domain(SITE_NAME, f"https://{SITE_NAME}.{DOMAIN_NOW}")
+        domain_to_use, base_url = search_domain(site_constant.SITE_NAME, f"https://{site_constant.SITE_NAME}.{site_constant.DOMAIN_NOW}")
 
     try:
         version = get_version(domain_to_use)
@@ -102,7 +98,7 @@ def title_search(title_search: str, domain: str) -> int:
     Returns:
         int: The number of titles found.
     """
-    if TELEGRAM_BOT:
+    if site_constant.TELEGRAM_BOT:
         bot = get_bot_instance()
 
     media_search_manager.clear()
@@ -110,17 +106,17 @@ def title_search(title_search: str, domain: str) -> int:
     
     try:
         response = httpx.get(
-            url=f"https://{SITE_NAME}.{domain}/api/search?q={title_search.replace(' ', '+')}", 
+            url=f"https://{site_constant.SITE_NAME}.{domain}/api/search?q={title_search.replace(' ', '+')}", 
             headers={'user-agent': get_headers()}, 
             timeout=max_timeout
         )
         response.raise_for_status()
 
     except Exception as e:
-        console.print(f"Site: {SITE_NAME}, request search error: {e}")
+        console.print(f"Site: {site_constant.SITE_NAME}, request search error: {e}")
 
     # Prepara le scelte per l'utente
-    if TELEGRAM_BOT:
+    if site_constant.TELEGRAM_BOT:
         choices = []
           
     for i, dict_title in enumerate(response.json()['data']):
@@ -134,14 +130,14 @@ def title_search(title_search: str, domain: str) -> int:
                 'score': dict_title.get('score')
             })
 
-            if TELEGRAM_BOT:
+            if site_constant.TELEGRAM_BOT:
                 choice_text = f"{i} - {dict_title.get('name')} ({dict_title.get('type')}) - {dict_title.get('last_air_date')}"
                 choices.append(choice_text)
             
         except Exception as e:
             print(f"Error parsing a film entry: {e}")
 	
-    if TELEGRAM_BOT:
+    if site_constant.TELEGRAM_BOT:
         if choices:
             bot.send_message(f"Lista dei risultati:", choices)
           

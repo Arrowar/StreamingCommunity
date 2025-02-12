@@ -8,6 +8,7 @@ from StreamingCommunity.Util.console import console, msg
 
 
 # Logic class
+from StreamingCommunity.Api.Template.config_loader import site_constant
 from StreamingCommunity.Lib.TMBD import tmdb, Json_film
 from .film import download_film
 
@@ -18,7 +19,6 @@ _useFor = "film"
 _deprecate = False
 _priority = 2
 _engineDownload = "hls"
-from .costant import SITE_NAME
 
 
 def search(string_to_search: str = None, get_onylDatabase: bool = False):
@@ -27,7 +27,7 @@ def search(string_to_search: str = None, get_onylDatabase: bool = False):
     """
 
     if string_to_search is None:
-        string_to_search = msg.ask(f"\n[purple]Insert word to search in [green]{SITE_NAME}").strip()
+        string_to_search = msg.ask(f"\n[purple]Insert word to search in [green]{site_constant.SITE_NAME}").strip()
 
     # Not available for the moment
     if get_onylDatabase:

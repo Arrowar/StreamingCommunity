@@ -11,11 +11,9 @@ from StreamingCommunity.Lib.Downloader import TOR_downloader
 
 
 # Logic class
+from StreamingCommunity.Api.Template.config_loader import site_constant
 from StreamingCommunity.Api.Template.Class.SearchType import MediaItem
 
-
-# Config
-from .costant import MOVIE_FOLDER
 
 
 def download_title(select_title: MediaItem):
@@ -32,7 +30,7 @@ def download_title(select_title: MediaItem):
 
     # Define output path
     title_name = os_manager.get_sanitize_file(select_title.name)
-    mp4_path = os.path.join(MOVIE_FOLDER, title_name.replace(".mp4", ""))
+    mp4_path = os.path.join(site_constant.MOVIE_FOLDER, title_name.replace(".mp4", ""))
 
     # Create output folder
     os_manager.create_path(mp4_path)                                                                

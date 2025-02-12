@@ -12,6 +12,7 @@ from StreamingCommunity.TelegramHelp.telegram_bot import get_bot_instance
 
 
 # Logic class
+from StreamingCommunity.Api.Template.config_loader import site_constant
 from .site import title_search, media_search_manager, table_show_manager
 from .film import download_film
 
@@ -22,14 +23,13 @@ _useFor = "film"
 _deprecate = False
 _priority = 2
 _engineDownload = "hls"
-from .costant import SITE_NAME, TELEGRAM_BOT
 
 
 def search(string_to_search: str = None, get_onylDatabase: bool = False):
     """
     Main function of the application for film and series.
     """
-    if TELEGRAM_BOT:
+    if site_constant.TELEGRAM_BOT:
         bot = get_bot_instance()
 
         if string_to_search is None:
@@ -49,7 +49,7 @@ def search(string_to_search: str = None, get_onylDatabase: bool = False):
 
     else:          
         if string_to_search is None:
-            string_to_search = msg.ask(f"\n[purple]Insert word to search in [green]{SITE_NAME}").strip()
+            string_to_search = msg.ask(f"\n[purple]Insert word to search in [green]{site_constant.SITE_NAME}").strip()
 
     # Search on database
     len_database = title_search(quote_plus(string_to_search))
@@ -67,7 +67,7 @@ def search(string_to_search: str = None, get_onylDatabase: bool = False):
         download_film(select_title)
 
     else:
-        if TELEGRAM_BOT:
+        if site_constant.TELEGRAM_BOT:
             bot.send_message(f"Nessun risultato trovato riprova", None)
           
         console.print(f"\n[red]Nothing matching was found for[white]: [purple]{string_to_search}")

@@ -16,12 +16,12 @@ from StreamingCommunity.TelegramHelp.telegram_bot import get_bot_instance
 
 
 # Logic class
+from StreamingCommunity.Api.Template.config_loader import site_constant
 from StreamingCommunity.Api.Template.Util import search_domain
 from StreamingCommunity.Api.Template.Class.SearchType import MediaManager
 
 
 # Variable
-from .costant import SITE_NAME, DOMAIN_NOW, TELEGRAM_BOT
 media_search_manager = MediaManager()
 table_show_manager = TVShowManager()
 max_timeout = config_manager.get_int("REQUESTS", "timeout")
@@ -103,19 +103,19 @@ def title_search(title: str) -> int:
     Returns:
         - int: A number containing the length of media search manager.
     """
-    if TELEGRAM_BOT:  
+    if site_constant.TELEGRAM_BOT:  
         bot = get_bot_instance()
     
     media_search_manager.clear()
     table_show_manager.clear()
 
     # Get token and session value from configuration
-    domain_to_use = DOMAIN_NOW
+    domain_to_use = site_constant.DOMAIN_NOW
     
     if not disable_searchDomain:
-        domain_to_use, base_url = search_domain(SITE_NAME, f"https://www.{SITE_NAME}.{DOMAIN_NOW}")
+        domain_to_use, base_url = search_domain(site_constant.SITE_NAME, f"https://www.{site_constant.SITE_NAME}.{site_constant.DOMAIN_NOW}")
     
-    data = get_token(SITE_NAME, domain_to_use)
+    data = get_token(site_constant.SITE_NAME, domain_to_use)
 
     # Prepare cookies to be used in the request
     cookies = {
@@ -138,7 +138,7 @@ def title_search(title: str) -> int:
     # Send a POST request to the API endpoint for live search
     try:
         response = httpx.post(
-            url=f'https://www.{SITE_NAME}.{domain_to_use}/livesearch', 
+            url=f'https://www.{site_constant.SITE_NAME}.{domain_to_use}/livesearch', 
             cookies=cookies, 
             headers=headers, 
             json=json_data,
@@ -147,10 +147,10 @@ def title_search(title: str) -> int:
         response.raise_for_status()
 
     except Exception as e:
-        console.print(f"Site: {SITE_NAME}, request search error: {e}")
+        console.print(f"Site: {site_constant.SITE_NAME}, request search error: {e}")
 
     # Inizializza la lista delle scelte
-    if TELEGRAM_BOT:
+    if site_constant.TELEGRAM_BOT:
         choices = []
 
     for dict_title in response.json()['records']:
@@ -168,15 +168,15 @@ def title_search(title: str) -> int:
                 'episodes_count': dict_title.get('episodes_count')
             })
 
-            if TELEGRAM_BOT:
-              # Crea una stringa formattata per ogni scelta con numero
-              choice_text = f"{len(choices)} - {dict_title.get('name')} ({dict_title.get('type')}) - Episodi: {dict_title.get('episodes_count')}"
-              choices.append(choice_text)
+            if site_constant.TELEGRAM_BOT:
+                # Crea una stringa formattata per ogni scelta con numero
+                choice_text = f"{len(choices)} - {dict_title.get('name')} ({dict_title.get('type')}) - Episodi: {dict_title.get('episodes_count')}"
+                choices.append(choice_text)
 
         except Exception as e:
             print(f"Error parsing a film entry: {e}")
 
-    if TELEGRAM_BOT:
+    if site_constant.TELEGRAM_BOT:
         if choices:
             bot.send_message(f"Lista dei risultati:", choices)
 

@@ -19,16 +19,13 @@ from StreamingCommunity.Api.Template.Util import (
     validate_episode_selection, 
     display_episodes_list
 )
+from StreamingCommunity.Api.Template.config_loader import site_constant
 from StreamingCommunity.Api.Template.Class.SearchType import MediaItem
 
 
 # Player
 from .util.ScrapeSerie import GetSerieInfo
 from StreamingCommunity.Api.Player.supervideo import VideoSource
-
-
-# Variable
-from .costant import SERIES_FOLDER
 
 
 
@@ -54,7 +51,7 @@ def download_video(index_season_selected: int, index_episode_selected: int, scap
 
     # Define filename and path for the downloaded video
     mp4_name = f"{map_episode_title(scape_info_serie.tv_name, index_season_selected, index_episode_selected, obj_episode.get('name'))}.mp4"
-    mp4_path = os.path.join(SERIES_FOLDER, scape_info_serie.tv_name, f"S{index_season_selected}")
+    mp4_path = os.path.join(site_constant.SERIES_FOLDER, scape_info_serie.tv_name, f"S{index_season_selected}")
 
     # Setup video source
     video_source = VideoSource(obj_episode.get('url'))

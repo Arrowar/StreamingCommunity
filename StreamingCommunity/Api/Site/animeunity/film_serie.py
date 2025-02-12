@@ -15,6 +15,7 @@ from StreamingCommunity.TelegramHelp.telegram_bot import TelegramSession, get_bo
 
 # Logic class
 from .util.ScrapeSerie import ScrapeSerieAnime
+from StreamingCommunity.Api.Template.config_loader import site_constant
 from StreamingCommunity.Api.Template.Util import manage_selection, dynamic_format_number
 from StreamingCommunity.Api.Template.Class.SearchType import MediaItem
 
@@ -24,7 +25,6 @@ from StreamingCommunity.Api.Player.vixcloud import VideoSourceAnime
 
 
 # Variable
-from .costant import SITE_NAME, ANIME_FOLDER, MOVIE_FOLDER, TELEGRAM_BOT
 KILL_HANDLER = bool(False)
 
 
@@ -40,7 +40,7 @@ def download_episode(index_select: int, scrape_serie: ScrapeSerieAnime, video_so
         - str: output path
         - bool: kill handler status
     """
-    if TELEGRAM_BOT:
+    if site_constant.TELEGRAM_BOT:
         bot = get_bot_instance()
 
     # Get information about the selected episode
@@ -52,7 +52,7 @@ def download_episode(index_select: int, scrape_serie: ScrapeSerieAnime, video_so
         console.print(f"[yellow]Download:  [red]EP_{obj_episode.number} \n")
         console.print("[cyan]You can safely stop the download with [bold]Ctrl+c[bold] [cyan] \n")
 
-        if TELEGRAM_BOT:
+        if site_constant.TELEGRAM_BOT:
             bot.send_message(f"Download in corso:\nTitolo:{scrape_serie.series_name}\nEpisodio: {obj_episode.number}", None)
 
             # Get script_id
@@ -67,10 +67,10 @@ def download_episode(index_select: int, scrape_serie: ScrapeSerieAnime, video_so
         title_name = f"{scrape_serie.series_name}_EP_{dynamic_format_number(int(obj_episode.number))}.mp4"
 
         if scrape_serie.is_series:
-            mp4_path = os_manager.get_sanitize_path(os.path.join(ANIME_FOLDER, scrape_serie.series_name))
+            mp4_path = os_manager.get_sanitize_path(os.path.join(site_constant.ANIME_FOLDER, scrape_serie.series_name))
 
         else:
-            mp4_path = os_manager.get_sanitize_path(os.path.join(MOVIE_FOLDER, scrape_serie.series_name))
+            mp4_path = os_manager.get_sanitize_path(os.path.join(site_constant.MOVIE_FOLDER, scrape_serie.series_name))
 
         # Create output folder
         os_manager.create_path(mp4_path)
@@ -97,11 +97,11 @@ def download_series(select_title: MediaItem):
     """
     start_message()
 
-    if TELEGRAM_BOT:
+    if site_constant.TELEGRAM_BOT:
         bot = get_bot_instance()
 
-    scrape_serie = ScrapeSerieAnime(SITE_NAME)
-    video_source = VideoSourceAnime(SITE_NAME)
+    scrape_serie = ScrapeSerieAnime(site_constant.SITE_NAME)
+    video_source = VideoSourceAnime(site_constant.SITE_NAME)
 
     # Set up video source
     scrape_serie.setup(None, select_title.id, select_title.slug)
@@ -110,7 +110,7 @@ def download_series(select_title: MediaItem):
     episoded_count = scrape_serie.get_count_episodes()
     console.print(f"[cyan]Episodes find: [red]{episoded_count}")
 
-    if TELEGRAM_BOT:
+    if site_constant.TELEGRAM_BOT:
         console.print(f"\n[cyan]Insert media [red]index [yellow]or [red](*) [cyan]to download all media [yellow]or [red][1-2] [cyan]or [red][3-*] [cyan]for a range of media")
         bot.send_message(f"Episodi trovati: {episoded_count}", None)
 
@@ -141,7 +141,7 @@ def download_series(select_title: MediaItem):
                 break
             _, kill_handler = download_episode(i_episode-1, scrape_serie, video_source)
 
-    if TELEGRAM_BOT:
+    if site_constant.TELEGRAM_BOT:
         bot.send_message(f"Finito di scaricare tutte le serie e episodi", None)
 
         # Get script_id
@@ -160,8 +160,8 @@ def download_film(select_title: MediaItem):
     """
 
     # Init class
-    scrape_serie = ScrapeSerieAnime(SITE_NAME)
-    video_source = VideoSourceAnime(SITE_NAME)
+    scrape_serie = ScrapeSerieAnime(site_constant.SITE_NAME)
+    video_source = VideoSourceAnime(site_constant.SITE_NAME)
 
     # Set up video source
     scrape_serie.setup(None, select_title.id, select_title.slug)

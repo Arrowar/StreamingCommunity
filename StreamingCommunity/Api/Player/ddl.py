@@ -14,17 +14,16 @@ from StreamingCommunity.Util.headers import get_headers
 
 
 # Variable
-from StreamingCommunity.Api.Site.ddlstreamitaly.costant import COOKIE
 max_timeout = config_manager.get_int("REQUESTS", "timeout")
 
 
 class VideoSource:
-    def __init__(self) -> None:
+    def __init__(self, cookie) -> None:
         """
         Initializes the VideoSource object with default values.
         """
         self.headers = {'user-agent': get_headers()}
-        self.cookie = COOKIE
+        self.cookie = cookie
 
     def setup(self, url: str) -> None:
         """

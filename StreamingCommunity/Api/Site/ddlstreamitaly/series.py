@@ -86,8 +86,8 @@ def download_thread(dict_serie: MediaItem):
     start_message()
 
     # Init class
-    scape_info_serie = GetSerieInfo(dict_serie)
-    video_source = VideoSource()
+    scape_info_serie = GetSerieInfo(dict_serie, site_constant.COOKIE)
+    video_source = VideoSource(site_constant.COOKIE)
 
     # Collect information about thread
     list_dict_episode = scape_info_serie.get_episode_number()

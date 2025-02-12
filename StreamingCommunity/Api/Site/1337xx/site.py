@@ -71,6 +71,7 @@ def title_search(word_to_search: str) -> int:
                 'date': tr.find_all("td")[-3].get_text(strip=True).replace("'", ""),
                 'size': tr.find_all("td")[-2].get_text(strip=True)
             }
+            media_search_manager.add_media(title_info)
 
         except Exception as e:
             print(f"Error parsing a film entry: {e}")

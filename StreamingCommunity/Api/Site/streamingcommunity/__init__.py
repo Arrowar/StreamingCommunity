@@ -50,7 +50,7 @@ def search(string_to_search: str = None, get_onylDatabase: bool = False):
     
     else:
         if string_to_search is None:
-            string_to_search = msg.ask(f"\n[purple]Insert word to search in [green]{SITE_NAME}").strip()
+            string_to_search = msg.ask(f"\n[purple]Insert word to search in [green]{site_constant.SITE_NAME}").strip()
 
     # Get site domain and version and get result of the search
     site_version, domain = get_version_and_domain()

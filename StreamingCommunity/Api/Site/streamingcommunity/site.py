@@ -60,7 +60,7 @@ def title_search(title_search: str) -> int:
 
     try:
         response = httpx.get(
-            url=f"{site_constant.FULL_URL}/api/search?q={title_search}", 
+            url=search_url, 
             headers={'user-agent': get_userAgent()}, 
             timeout=max_timeout
         )

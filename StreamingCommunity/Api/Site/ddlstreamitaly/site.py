@@ -56,7 +56,6 @@ def title_search(word_to_search: str) -> int:
     search_url = f"{site_constant.FULL_URL}/search/?&q={word_to_search}&quick=1&type=videobox_video&nodes=11"
     console.print(f"[cyan]Search url: [yellow]{search_url}")
 
-
     try:
         response = httpx.get(
             url=search_url,

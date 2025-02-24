@@ -24,6 +24,7 @@
         "telegram_bot": false
     },
     "REQUESTS": {
+        "verify": false,
         "timeout": 20,
         "max_retry": 8,
         "proxy_start_min": 0.1,

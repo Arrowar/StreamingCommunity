@@ -55,14 +55,16 @@ def title_search(title_search: str) -> int:
     media_search_manager.clear()
     table_show_manager.clear()
 
-    search_url = f"{site_constant.FULL_URL}/api/search?q={title_search}", 
+    search_url = f"{site_constant.FULL_URL}/api/search?q={title_search}"
     console.print(f"[cyan]Search url: [yellow]{search_url}")
 
     try:
         response = httpx.get(
             url=search_url, 
             headers={'user-agent': get_userAgent()}, 
-            timeout=max_timeout
+            timeout=max_timeout,
+            verify=site_constant.VERIFY,
+            follow_redirects=True
         )
         response.raise_for_status()
 

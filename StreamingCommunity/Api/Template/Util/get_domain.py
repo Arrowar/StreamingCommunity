@@ -15,6 +15,9 @@ from StreamingCommunity.Util.console import console
 from StreamingCommunity.Util._jsonConfig import config_manager
 
 
+# Variable
+VERIFY = config_manager.get("REQUESTS", "verify")
+
 
 def get_tld(url_str):
     """Extract the TLD (Top-Level Domain) from the URL."""
@@ -79,7 +82,7 @@ def validate_url(url, base_url, max_timeout, max_retries=2, sleep=1):
         return False, None
 
     client = httpx.Client(
-        verify=False,
+        verify=VERIFY,
         headers=get_headers(),
         timeout=max_timeout
     )

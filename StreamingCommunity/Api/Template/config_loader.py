@@ -32,6 +32,10 @@ class SiteConstant:
         return config_manager.get('DEFAULT', 'root_path')
     
     @property
+    def VERIFY(self):
+        return config_manager.get('REQUESTS', 'verify')
+    
+    @property
     def DOMAIN_NOW(self):
         return config_manager.get_site(self.SITE_NAME, 'domain')
     

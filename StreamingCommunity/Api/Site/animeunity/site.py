@@ -148,7 +148,8 @@ def title_search(title: str) -> int:
             cookies=cookies, 
             headers=headers, 
             json=json_data,
-            timeout=max_timeout
+            timeout=max_timeout,
+            verify=site_constant.VERIFY
         )
         response.raise_for_status()
 

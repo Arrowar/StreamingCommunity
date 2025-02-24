@@ -3,6 +3,7 @@ bs4
 rich
 tqdm
 m3u8
+certifi
 psutil
 unidecode
 jsbeautifier
@@ -11,5 +12,4 @@ pycryptodomex
 ua-generator
 qbittorrent-api
 python-qbittorrent
-Pillow
 pyTelegramBotAPI

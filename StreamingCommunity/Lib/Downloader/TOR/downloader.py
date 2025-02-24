@@ -18,7 +18,7 @@ from StreamingCommunity.Util._jsonConfig import config_manager
 
 # External libraries
 from tqdm import tqdm
-from qbittorrent import Client
+import qbittorrentapi
 
 
 # Tor config
@@ -38,18 +38,24 @@ class TOR_downloader:
     def __init__(self):
         """
         Initializes the TorrentManager instance.
-
+        
         Parameters:
             - host (str): IP address or hostname of the qBittorrent Web UI.
-            - port (int): Port number of the qBittorrent Web UI.
-            - username (str): Username for logging into qBittorrent.
-            - password (str): Password for logging into qBittorrent.
+            - port (int): Port of the qBittorrent Web UI.
+            - username (str): Username for accessing qBittorrent.
+            - password (str): Password for accessing qBittorrent.
         """
         try:
             console.print(f"[cyan]Connect to: [green]{HOST}:{PORT}")
-            self.qb = Client(f'http://{HOST}:{PORT}/')
-        except: 
-            logging.error("Start qbitorrent first.")
+            self.qb = qbittorrentapi.Client(
+                host=HOST,
+                port=PORT,
+                username=USERNAME,
+                password=PASSWORD
+            )
+
+        except:
+            logging.error("Start qbittorrent first.")
             sys.exit(0)
         
         self.username = USERNAME
@@ -65,7 +71,7 @@ class TOR_downloader:
         Logs into the qBittorrent Web UI.
         """
         try:
-            self.qb.login(self.username, self.password)
+            self.qb.auth_log_in()
             self.logged_in = True
             logging.info("Successfully logged in to qBittorrent.")
 
@@ -74,95 +80,86 @@ class TOR_downloader:
             self.logged_in = False
 
     def delete_magnet(self, torrent_info):
-
-        if (int(torrent_info.get('dl_speed')) == 0 and 
-            int(torrent_info.get('peers')) == 0 and 
-            int(torrent_info.get('seeds')) == 0):
+        """
+        Deletes a torrent if it is not downloadable (no seeds/peers).
+        
+        Parameters:
+            - torrent_info: Object containing torrent information obtained from the qBittorrent API.
+        """
+        if (int(torrent_info.dlspeed) == 0 and 
+            int(torrent_info.num_leechs) == 0 and 
+            int(torrent_info.num_seeds) == 0):
             
-            # Elimina il torrent appena aggiunto
-            console.print(f"[bold red]⚠️ Torrent non scaricabile. Rimozione in corso...[/bold red]")
-            
+            console.print(f"[bold red]⚠️ Torrent not downloadable. Removing...[/bold red]")
             try:
-                # Rimuovi il torrent
-                self.qb.delete_permanently(torrent_info['hash'])
-
+                self.qb.torrents_delete(delete_files=True, torrent_hashes=torrent_info.hash)
             except Exception as delete_error:
-                logging.error(f"Errore durante la rimozione del torrent: {delete_error}")
+                logging.error(f"Error while removing torrent: {delete_error}")
             
-            # Resetta l'ultimo hash
             self.latest_torrent_hash = None
 
     def add_magnet_link(self, magnet_link):
         """
-        Aggiunge un magnet link e recupera le informazioni dettagliate.
-
-        Args:
-            magnet_link (str): Magnet link da aggiungere
+        Adds a magnet link and retrieves detailed torrent information.
+        
+        Arguments:
+            magnet_link (str): Magnet link to add.
         
         Returns:
-            dict: Informazioni del torrent aggiunto, o None se fallisce
+            dict: Information about the added torrent, or None in case of error.
         """
-
-        # Estrai l'hash dal magnet link
         magnet_hash_match = re.search(r'urn:btih:([0-9a-fA-F]+)', magnet_link)
-        
         if not magnet_hash_match:
-            raise ValueError("Hash del magnet link non trovato")
+            raise ValueError("Magnet link hash not found")
         
         magnet_hash = magnet_hash_match.group(1).lower()
         
-        # Estrai il nome del file dal magnet link (se presente)
+        # Extract the torrent name, if available
         name_match = re.search(r'dn=([^&]+)', magnet_link)
-        torrent_name = name_match.group(1).replace('+', ' ') if name_match else "Nome non disponibile"
+        torrent_name = name_match.group(1).replace('+', ' ') if name_match else "Name not available"
         
-        # Salva il timestamp prima di aggiungere il torrent
+        # Save the timestamp before adding the torrent
         before_add_time = time.time()
         
-        # Aggiungi il magnet link
-        console.print(f"[cyan]Aggiunta magnet link[/cyan]: [red]{magnet_link}")
-        self.qb.download_from_link(magnet_link)
+        console.print(f"[cyan]Adding magnet link ...")
+        self.qb.torrents_add(urls=magnet_link)
         
-        # Aspetta un attimo per essere sicuri che il torrent sia stato aggiunto
         time.sleep(1)
         
-        # Cerca il torrent
-        torrents = self.qb.torrents()
+        torrents = self.qb.torrents_info()
         matching_torrents = [
             t for t in torrents 
-            if (t['hash'].lower() == magnet_hash) or (t.get('added_on', 0) > before_add_time)
+            if (t.hash.lower() == magnet_hash) or (getattr(t, 'added_on', 0) > before_add_time)
         ]
         
         if not matching_torrents:
-            raise ValueError("Nessun torrent corrispondente trovato")
+            raise ValueError("No matching torrent found")
         
-        # Prendi il primo torrent corrispondente
         torrent_info = matching_torrents[0]
         
-        # Formatta e stampa le informazioni
-        console.print("\n[bold green]🔗 Dettagli Torrent Aggiunto:[/bold green]")
-        console.print(f"[yellow]Name:[/yellow] {torrent_info.get('name', torrent_name)}")
-        console.print(f"[yellow]Hash:[/yellow] {torrent_info['hash']}")
+        console.print("\n[bold green]🔗 Added Torrent Details:[/bold green]")
+        console.print(f"[yellow]Name:[/yellow] {torrent_info.name or torrent_name}")
+        console.print(f"[yellow]Hash:[/yellow] {torrent_info.hash}")
         print()
 
-        # Salva l'hash per usi successivi e il path
-        self.latest_torrent_hash = torrent_info['hash']
-        self.output_file = torrent_info['content_path']
-        self.file_name = torrent_info['name']
+        self.latest_torrent_hash = torrent_info.hash
+        self.output_file = torrent_info.content_path
+        self.file_name = torrent_info.name
 
-        # Controlla che sia possibile il download
+        # Wait and verify if the download is possible
         time.sleep(5)
-        self.delete_magnet(self.qb.get_torrent(self.latest_torrent_hash))
+        self.delete_magnet(self.qb.torrents_info(torrent_hashes=self.latest_torrent_hash)[0])
         
         return torrent_info
 
     def start_download(self):
         """
-        Starts downloading the latest added torrent and monitors progress.
-        """    
+        Starts downloading the added torrent and monitors its progress.
+        """
         if self.latest_torrent_hash is not None:
             try:
-            
-                # Custom bar for mobile and pc
+
+                # Custom progress bar for mobile and PC
                 if USE_LARGE_BAR:
                     bar_format = (
                         f"{Colors.YELLOW}[TOR] {Colors.WHITE}({Colors.CYAN}video{Colors.WHITE}): "
@@ -189,34 +186,41 @@ class TOR_downloader:
                 with progress_bar as pbar:
                     while True:
 
-                        # Get variable from qtorrent
-                        torrent_info = self.qb.get_torrent(self.latest_torrent_hash)
-                        self.save_path = torrent_info['save_path']
-                        self.torrent_name = torrent_info['name']
+                        torrent_info = self.qb.torrents_info(torrent_hashes=self.latest_torrent_hash)[0]
+                        self.save_path = torrent_info.save_path
+                        self.torrent_name = torrent_info.name
 
-                        # Fetch important variable
-                        pieces_have = torrent_info['pieces_have']
-                        pieces_num = torrent_info['pieces_num']
-                        progress = (pieces_have / pieces_num) * 100 if pieces_num else 0
+                        progress = torrent_info.progress * 100
                         pbar.n = progress
 
-                        download_speed = torrent_info['dl_speed']
-                        total_size = torrent_info['total_size']
-                        downloaded_size = torrent_info['total_downloaded']
+                        download_speed = torrent_info.dlspeed
+                        total_size = torrent_info.size
+                        downloaded_size = torrent_info.downloaded
 
-                        # Format variable
+                        # Format the downloaded size
                         downloaded_size_str = internet_manager.format_file_size(downloaded_size)
                         downloaded_size = downloaded_size_str.split(' ')[0]
 
+                        # Safely format the total size
                         total_size_str = internet_manager.format_file_size(total_size)
-                        total_size = total_size_str.split(' ')[0]
-                        total_size_unit = total_size_str.split(' ')[1]
+                        total_size_parts = total_size_str.split(' ')
+                        if len(total_size_parts) >= 2:
+                            total_size = total_size_parts[0]
+                            total_size_unit = total_size_parts[1]
+                        else:
+                            total_size = total_size_str
+                            total_size_unit = ""
 
+                        # Safely format the average download speed
                         average_internet_str = internet_manager.format_transfer_speed(download_speed)
-                        average_internet = average_internet_str.split(' ')[0]
-                        average_internet_unit = average_internet_str.split(' ')[1]
+                        average_internet_parts = average_internet_str.split(' ')
+                        if len(average_internet_parts) >= 2:
+                            average_internet = average_internet_parts[0]
+                            average_internet_unit = average_internet_parts[1]
+                        else:
+                            average_internet = average_internet_str
+                            average_internet_unit = ""
 
-                        # Update the progress bar's postfix
                         if USE_LARGE_BAR:
                             pbar.set_postfix_str(
                                 f"{Colors.WHITE}[ {Colors.GREEN}{downloaded_size} {Colors.WHITE}< {Colors.GREEN}{total_size} {Colors.RED}{total_size_unit} "
@@ -231,7 +235,6 @@ class TOR_downloader:
                         pbar.refresh()
                         time.sleep(0.2)
 
-                        # Break at the end
                         if int(progress) == 100:
                             break
 
@@ -239,7 +242,15 @@ class TOR_downloader:
                 logging.info("Download process interrupted.")
 
     def is_file_in_use(self, file_path: str) -> bool:
-        """Check if a file is in use by any process."""
+        """
+        Checks if a file is being used by any process.
+        
+        Parameters:
+            - file_path (str): The file path to check.
+            
+        Returns:
+            - bool: True if the file is in use, False otherwise.
+        """
         for proc in psutil.process_iter(['open_files']):
             try:
                 if any(file_path == f.path for f in proc.info['open_files'] or []):
@@ -251,21 +262,20 @@ class TOR_downloader:
 
     def move_downloaded_files(self, destination: str):
         """
-        Moves downloaded files of the latest torrent to another location.
-
+        Moves the downloaded files of the most recent torrent to a new location.
+        
         Parameters:
-            - destination (str): Destination directory to move files.
-
+            - destination (str): Destination folder.
+            
         Returns:
-            - bool: True if files are moved successfully, False otherwise.
+            - bool: True if the move was successful, False otherwise.
         """
         console.print(f"[cyan]Destination folder: [red]{destination}")
         
         try:
-
-            # Ensure the file is not in use
-            timeout = 3
+            timeout = 5
             elapsed = 0
+            
             while self.is_file_in_use(self.output_file) and elapsed < timeout:
                 time.sleep(1)
                 elapsed += 1
@@ -273,24 +283,20 @@ class TOR_downloader:
             if elapsed == timeout:
                 raise Exception(f"File '{self.output_file}' is in use and could not be moved.")
 
-            # Ensure destination directory exists
             os.makedirs(destination, exist_ok=True)
 
-            # Perform the move operation
             try:
                 shutil.move(self.output_file, destination)
-
             except OSError as e:
-                if e.errno == 17:  # Cross-disk move error
-                    # Perform copy and delete manually
+                if e.errno == 17:  # Error when moving between different disks
                     shutil.copy2(self.output_file, destination)
                     os.remove(self.output_file)
                 else:
                     raise
 
-            # Delete the torrent data
             time.sleep(5)
-            self.qb.delete_permanently(self.qb.torrents()[-1]['hash'])
+            last_torrent = self.qb.torrents_info()[-1]
+            self.qb.torrents_delete(delete_files=True, torrent_hashes=last_torrent.hash)
             return True
 
         except Exception as e:

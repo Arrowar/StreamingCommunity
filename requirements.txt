@@ -11,5 +11,4 @@ pathvalidate
 pycryptodomex
 ua-generator
 qbittorrent-api
-python-qbittorrent
 pyTelegramBotAPI

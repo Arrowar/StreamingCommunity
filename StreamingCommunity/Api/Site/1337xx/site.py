@@ -51,10 +51,12 @@ def title_search(word_to_search: str) -> int:
         console.print("[yellow]The service might be temporarily unavailable or the domain may have changed.[/yellow]")
         sys.exit(1)
 
-    # Construct the full site URL and load the search page
+    search_url = f"{site_constant.FULL_URL}/search/{word_to_search}/1/"
+    console.print(f"[cyan]Search url: [yellow]{search_url}")
+
     try:
         response = httpx.get(
-            url=f"{site_constant.FULL_URL}/search/{word_to_search}/1/", 
+            url=search_url, 
             headers={'user-agent': get_userAgent()}, 
             follow_redirects=True,
             timeout=max_timeout

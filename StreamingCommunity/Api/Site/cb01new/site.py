@@ -51,12 +51,19 @@ def title_search(word_to_search: str) -> int:
         console.print("[yellow]The service might be temporarily unavailable or the domain may have changed.[/yellow]")
         sys.exit(1)
 
-    response = httpx.get(
-        url=f"{site_constant.FULL_URL}/?s={word_to_search}",
-        headers={'user-agent': get_userAgent()},
-        timeout=max_timeout
-    )
-    response.raise_for_status()
+    search_url = f"{site_constant.FULL_URL}/?s={word_to_search}"
+    console.print(f"[cyan]Search url: [yellow]{search_url}")
+
+    try:
+        response = httpx.get(
+            url=f"{site_constant.FULL_URL}/?s={word_to_search}",
+            headers={'user-agent': get_userAgent()},
+            timeout=max_timeout
+        )
+        response.raise_for_status()
+
+    except Exception as e:
+        console.print(f"Site: {site_constant.SITE_NAME}, request search error: {e}")
 
     # Create soup and find table
     soup = BeautifulSoup(response.text, "html.parser")

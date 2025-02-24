@@ -53,10 +53,13 @@ def title_search(word_to_search: str) -> int:
         console.print("[yellow]The service might be temporarily unavailable or the domain may have changed.[/yellow]")
         sys.exit(1)
 
-    # Send request to search for titles
+    search_url = f"{site_constant.FULL_URL}/search/?&q={word_to_search}&quick=1&type=videobox_video&nodes=11"
+    console.print(f"[cyan]Search url: [yellow]{search_url}")
+
+
     try:
         response = httpx.get(
-            url=f"{site_constant.FULL_URL}/search/?&q={word_to_search}&quick=1&type=videobox_video&nodes=11", 
+            url=search_url,
             headers={'user-agent': get_userAgent()},
             timeout=max_timeout
         )

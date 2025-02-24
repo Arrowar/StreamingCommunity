@@ -46,33 +46,37 @@ def move_content(source: str, destination: str):
 
 def keep_specific_items(directory: str, keep_folder: str, keep_file: str):
     """
-    Delete all items in the directory except for the specified folder and file.
+    Deletes all items in the given directory except for the specified folder, 
+    the specified file, and the '.git' directory.
 
     Parameters:
         - directory (str): The path to the directory.
         - keep_folder (str): The name of the folder to keep.
         - keep_file (str): The name of the file to keep.
     """
-    try:
-        if not os.path.exists(directory) or not os.path.isdir(directory):
-            raise ValueError(f"Error: '{directory}' is not a valid directory.")
+    if not os.path.exists(directory) or not os.path.isdir(directory):
+        console.print(f"[red]Error: '{directory}' is not a valid directory.")
+        return
 
-        # Iterate through items in the directory
-        for item in os.listdir(directory):
-            item_path = os.path.join(directory, item)
+    # Define folders and files to skip
+    skip_folders = {keep_folder, ".git"}
+    skip_files = {keep_file}
 
-            # Check if the item is the specified folder or file
-            if os.path.isdir(item_path) and item != keep_folder:
+    # Iterate through items in the directory
+    for item in os.listdir(directory):
+        if item in skip_folders or item in skip_files:
+            continue
+
+        item_path = os.path.join(directory, item)
+        try:
+            if os.path.isdir(item_path):
                 shutil.rmtree(item_path)
-
-            elif os.path.isfile(item_path) and item != keep_file:
+                console.log(f"[green]Removed directory: {item_path}")
+            elif os.path.isfile(item_path):
                 os.remove(item_path)
-
-    except PermissionError as pe:
-        console.print(f"[red]PermissionError: {pe}. Check permissions and try again.")
-
-    except Exception as e:
-        console.print(f"[red]Error: {e}")
+                console.log(f"[green]Removed file: {item_path}")
+        except Exception as e:
+            console.log(f"[yellow]Skipping {item_path} due to error: {e}")
 
 
 def print_commit_info(commit_info: dict):
@@ -177,14 +181,14 @@ def main_upload():
     Main function to upload the latest commit of a GitHub repository.
     """
     cmd_insert = Prompt.ask(
-        "[bold red]Are you sure you want to delete all files? (Only 'Video' folder and 'update_version.py' will remain)",
+        "[bold red]Are you sure you want to delete all files? (Only 'Video' folder and 'update.py' will remain)",
         choices=['y', 'n'],
         default='y',
         show_choices=True
     )
 
     if cmd_insert.lower().strip() == 'y' or cmd_insert.lower().strip() == 'yes':
-        console.print("[red]Deleting all files except 'Video' folder and 'update_version.py'...")
+        console.print("[red]Deleting all files except 'Video' folder and 'update.py'...")
         keep_specific_items(".", "Video", "upload.py")
         download_and_extract_latest_commit()
     else:

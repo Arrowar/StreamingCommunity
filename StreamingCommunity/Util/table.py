@@ -16,8 +16,8 @@ from rich.style import Style
 
 
 # Internal utilities
+from .os import get_call_stack
 from .message import start_message
-from .call_stack import get_call_stack
 
 
 # Telegram bot instance

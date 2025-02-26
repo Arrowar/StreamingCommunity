@@ -11,10 +11,10 @@ from rich.console import Console
 
 
 # Internal utilities
-from StreamingCommunity.Util.os import os_manager
+from StreamingCommunity.Util.os import os_manager, get_call_stack
 from StreamingCommunity.Util.message import start_message
 from StreamingCommunity.Util.headers import get_userAgent
-from StreamingCommunity.Util.table import TVShowManager, get_call_stack
+from StreamingCommunity.Util.table import TVShowManager
 from StreamingCommunity.Lib.Downloader import HLS_Downloader
 
 

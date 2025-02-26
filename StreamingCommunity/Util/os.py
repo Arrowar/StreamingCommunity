@@ -9,6 +9,7 @@ import shutil
 import hashlib
 import logging
 import platform
+import inspect
 import subprocess
 import contextlib
 import importlib.metadata
@@ -493,20 +494,31 @@ def suppress_output():
         yield
 
 def compute_sha1_hash(input_string: str) -> str:
-    """
-    Computes the SHA-1 hash of the input string.
+    """Computes the SHA-1 hash of the input string."""
+    return hashlib.sha1(input_string.encode()).hexdigest()
 
-    Parameters:
-        - input_string (str): The string to be hashed.
+def get_call_stack():
+    """Retrieves the current call stack with details about each call."""
+    stack = inspect.stack()
+    call_stack = []
 
-    Returns:
-        str: The SHA-1 hash of the input string.
-    """
-    # Compute the SHA-1 hash
-    hashed_string = hashlib.sha1(input_string.encode()).hexdigest()
+    for frame_info in stack:
+        function_name = frame_info.function
+        filename = frame_info.filename
+        lineno = frame_info.lineno
+        folder_name = os.path.dirname(filename)
+        folder_base = os.path.basename(folder_name)
+        script_name = os.path.basename(filename)
 
-    # Return the hashed string
-    return hashed_string
+        call_stack.append({
+            "function": function_name,
+            "folder": folder_name,
+            "folder_base": folder_base,
+            "script": script_name,
+            "line": lineno
+        })
+        
+    return call_stack
 
 def get_ffmpeg_path():
     """Returns the path of FFmpeg."""

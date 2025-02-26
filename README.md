@@ -78,20 +78,25 @@ Install directly from PyPI:
 pip install StreamingCommunity
 ```
 
-### Creating a Run Script
-
-Create `run_streaming.py`:
-
-```python
-from StreamingCommunity.run import main
-
-if __name__ == "__main__":
-    main()
-```
+### Running Script
 
 Run the script:
 ```bash
 python run_streaming.py
+```
+
+### Running the gui
+
+Install requirements:
+
+```bash
+pip install -r requirements.txt
+```
+
+Run the gui:
+
+```bash
+python streaming_gui.py
 ```
 
 ### Updating via PyPI

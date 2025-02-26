@@ -12,3 +12,4 @@ pycryptodomex
 ua-generator
 qbittorrent-api
 pyTelegramBotAPI
+PyQt5

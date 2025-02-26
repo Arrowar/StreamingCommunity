@@ -99,7 +99,7 @@ class PathManager:
         Creates a hash-based filename if no path is provided.
         """
         if not path:
-            root = config_manager.get('DEFAULT', 'root_path')
+            root = config_manager.get('OUT_FOLDER', 'root_path')
             hash_name = compute_sha1_hash(self.m3u8_url) + ".mp4"
             return os.path.join(root, "undefined", hash_name)
 

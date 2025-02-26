@@ -4,23 +4,28 @@
         "show_message": true,
         "clean_console": true,
         "show_trending": true,
+        "use_api": true,
+        "not_close": false,
+        "telegram_bot": false
+    },
+    "OUT_FOLDER": {
         "root_path": "Video",
         "movie_folder_name": "Movie",
         "serie_folder_name": "Serie",
         "anime_folder_name": "Anime",
         "map_episode_name": "E%(episode)_%(episode_name)",
-        "use_api": true,
-        "add_siteName": false,
-        "disable_searchDomain": false,
-        "not_close": false,
-        "telegram_bot": false
+        "add_siteName": false
+    },
+    "QBIT_CONFIG": {
+        "host": "192.168.1.51",
+        "port": "6666",
+        "user": "admin",
+        "pass": "adminadmin"
     },
     "REQUESTS": {
         "verify": false,
         "timeout": 20,
-        "max_retry": 8,
-        "proxy_start_min": 0.1,
-        "proxy_start_max": 0.5
+        "max_retry": 8
     },
     "M3U8_DOWNLOAD": {
         "tqdm_delay": 0.01,
@@ -58,11 +63,5 @@
             "ips4_member_id": "",
             "ips4_login_key": ""
         }
-    },
-    "QBIT_CONFIG": {
-        "host": "192.168.1.51",
-        "port": "6666",
-        "user": "admin",
-        "pass": "adminadmin"
     }
 }

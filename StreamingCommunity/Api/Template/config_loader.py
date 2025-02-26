@@ -29,7 +29,7 @@ class SiteConstant:
     
     @property
     def ROOT_PATH(self):
-        return config_manager.get('DEFAULT', 'root_path')
+        return config_manager.get('OUT_FOLDER', 'root_path')
     
     @property
     def DOMAIN_NOW(self):
@@ -42,23 +42,23 @@ class SiteConstant:
     @property
     def SERIES_FOLDER(self):
         base_path = self.ROOT_PATH
-        if config_manager.get_bool("DEFAULT", "add_siteName"):
+        if config_manager.get_bool("OUT_FOLDER", "add_siteName"):
             base_path = os.path.join(base_path, self.SITE_NAME)
-        return os.path.join(base_path, config_manager.get('DEFAULT', 'serie_folder_name'))
+        return os.path.join(base_path, config_manager.get('OUT_FOLDER', 'serie_folder_name'))
     
     @property
     def MOVIE_FOLDER(self):
         base_path = self.ROOT_PATH
-        if config_manager.get_bool("DEFAULT", "add_siteName"):
+        if config_manager.get_bool("OUT_FOLDER", "add_siteName"):
             base_path = os.path.join(base_path, self.SITE_NAME)
-        return os.path.join(base_path, config_manager.get('DEFAULT', 'movie_folder_name'))
+        return os.path.join(base_path, config_manager.get('OUT_FOLDER', 'movie_folder_name'))
     
     @property
     def ANIME_FOLDER(self):
         base_path = self.ROOT_PATH
-        if config_manager.get_bool("DEFAULT", "add_siteName"):
+        if config_manager.get_bool("OUT_FOLDER", "add_siteName"):
             base_path = os.path.join(base_path, self.SITE_NAME)
-        return os.path.join(base_path, config_manager.get('DEFAULT', 'anime_folder_name'))
+        return os.path.join(base_path, config_manager.get('OUT_FOLDER', 'anime_folder_name'))
     
     @property
     def COOKIE(self):

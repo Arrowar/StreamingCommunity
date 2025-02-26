@@ -26,7 +26,6 @@ from StreamingCommunity.Api.Template.Class.SearchType import MediaManager
 media_search_manager = MediaManager()
 table_show_manager = TVShowManager()
 max_timeout = config_manager.get_int("REQUESTS", "timeout")
-disable_searchDomain = config_manager.get_bool("DEFAULT", "disable_searchDomain")
 
 
 def title_search(title_search: str) -> int:
@@ -39,10 +38,7 @@ def title_search(title_search: str) -> int:
     Returns:
         int: The number of titles found.
     """
-    domain_to_use = site_constant
-
-    if not disable_searchDomain:
-        domain_to_use, base_url = search_domain(site_constant.SITE_NAME, site_constant.FULL_URL)
+    domain_to_use, base_url = search_domain(site_constant.SITE_NAME, site_constant.FULL_URL)
 
     if domain_to_use is None or base_url is None:
         console.print("[bold red]Error: Unable to determine valid domain or base URL.[/bold red]")

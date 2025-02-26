@@ -13,7 +13,7 @@ from StreamingCommunity.Util.table import TVShowManager
 
 
 # Config
-MAP_EPISODE = config_manager.get('DEFAULT', 'map_episode_name')
+MAP_EPISODE = config_manager.get('OUT_FOLDER', 'map_episode_name')
 
 
 def dynamic_format_number(n: int) -> str:

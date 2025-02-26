@@ -213,9 +213,6 @@ def main(script_id = 0):
         '--add_siteName', type=bool, help='Enable or disable adding the site name to the file name (e.g., true/false).'
     )
     parser.add_argument(
-        '--disable_searchDomain', type=bool, help='Enable or disable searching in configured domains (e.g., true/false).'
-    )
-    parser.add_argument(
         '--not_close', type=bool, help='If set to true, the script will not close the console after execution (e.g., true/false).'
     )
 
@@ -260,8 +257,6 @@ def main(script_id = 0):
 
     if args.add_siteName is not None:
         config_updates['DEFAULT.add_siteName'] = args.add_siteName
-    if args.disable_searchDomain is not None:
-        config_updates['DEFAULT.disable_searchDomain'] = args.disable_searchDomain
     if args.not_close is not None:
         config_updates['DEFAULT.not_close'] = args.not_close
     if args.default_video_worker is not None:

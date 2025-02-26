@@ -268,13 +268,39 @@ The configuration file is divided into several main sections:
 
 ```json
 {
-    "root_path": "Video",
-    "movie_folder_name": "Movie",
-    "serie_folder_name": "TV",
-    "map_episode_name": "%(tv_name)_S%(season)E%(episode)_%(episode_name)",
-    "add_siteName": false,
-    "disable_searchDomain": false,
-    "not_close": false
+    "DEFAULT": {
+        "debug": false,
+        "show_message": true,
+        "clean_console": true,
+        "show_trending": true,
+        "use_api": true,
+        "not_close": false,
+        "telegram_bot": false
+    }
+}
+```
+
+- `debug`: Enables debug logging
+- `show_message`: Displays informational messages
+- `clean_console`: Clears the console between operations
+- `show_trending`: Shows trending content
+- `use_api`: Uses API for domain updates instead of local configuration
+- `not_close`: If set to true, keeps the program running after download is complete
+  * Can be changed from terminal with `--not_close true/false`
+- `telegram_bot`: Enables Telegram bot integration
+
+## OUT_FOLDER Settings
+
+```json
+{
+    "OUT_FOLDER": {
+        "root_path": "Video",
+        "movie_folder_name": "Movie",
+        "serie_folder_name": "Serie",
+        "anime_folder_name": "Anime",
+        "map_episode_name": "E%(episode)_%(episode_name)",
+        "add_siteName": false
+    }
 }
 ```
 
@@ -283,17 +309,21 @@ The configuration file is divided into several main sections:
   ### Path examples:
   * Windows: `C:\\MyLibrary\\Folder` or `\\\\MyServer\\MyLibrary` (if you want to use a network folder)
   * Linux/MacOS: `Desktop/MyLibrary/Folder`
-    `<br/><br/>`
+    <br/><br/>
 
-- `movie_folder_name`: The name of the subdirectory where movies will be stored.
+- `movie_folder_name`: The name of the subdirectory where movies will be stored
   * Can be changed from terminal with `--movie_folder_name`
     <br/><br/>
 
-- `serie_folder_name`: The name of the subdirectory where TV series will be stored.
+- `serie_folder_name`: The name of the subdirectory where TV series will be stored
   * Can be changed from terminal with `--serie_folder_name`
     <br/><br/>
 
-- `map_episode_name`: Template for TV series episode filenames
+- `anime_folder_name`: The name of the subdirectory where anime will be stored
+  * Can be changed from terminal with `--anime_folder_name`
+    <br/><br/>
+
+- `map_episode_name`: Template for episode filenames
 
   ### Episode name usage:
 
@@ -302,59 +332,66 @@ The configuration file is divided into several main sections:
   * `%(season)` : Is the number of the season
   * `%(episode)` : Is the number of the episode
   * `%(episode_name)` : Is the name of the episode
-    `<br/><br/>`
   * Can be changed from terminal with `--map_episode_name`
-    <br/><br/>
+    <br><br>
 
-- `add_siteName`: If set to true, appends the site_name to the root path before the movie and serie folders.
+- `add_siteName`: If set to true, appends the site_name to the root path before the movie and serie folders
   * Can be changed from terminal with `--add_siteName true/false`
     <br/><br/>
 
-- `disable_searchDomain`: If set to true, disables the search for a new domain for all sites.
-  * Can be changed from terminal with `--disable_searchDomain true/false`
-    <br/><br/>
+## QBIT_CONFIG Settings
 
-- `not_close`: If set to true, keeps the program running after the download is complete.
-  * Can be changed from terminal with `--not_close true/false`
-    <br/><br/>
-
-    ### qBittorrent Configuration
-
-    ```json
-    {
-        "config_qbit_tor": {
-            "host": "192.168.1.59",
-            "port": "8080",
-            "user": "admin",
-            "pass": "adminadmin"
-        }
+```json
+{
+    "QBIT_CONFIG": {
+        "host": "192.168.1.51",
+        "port": "6666",
+        "user": "admin",
+        "pass": "adminadmin"
     }
-    ```
+}
+```
 
-    To enable qBittorrent integration, follow the setup guide [here](https://github.com/lgallard/qBittorrent-Controller/wiki/How-to-enable-the-qBittorrent-Web-UI).
-
+To enable qBittorrent integration, follow the setup guide [here](https://github.com/lgallard/qBittorrent-Controller/wiki/How-to-enable-the-qBittorrent-Web-UI).
 
 ## REQUESTS Settings
 
 ```json
 {
-    "timeout": 20,
-    "max_retry": 3
+    "REQUESTS": {
+        "verify": false,
+        "timeout": 20,
+        "max_retry": 8
+    }
 }
 ```
 
+- `verify`: Verifies SSL certificates
 - `timeout`: Maximum timeout (in seconds) for each request
 - `max_retry`: Number of retry attempts per segment during M3U8 index download
-
 
 ## M3U8_DOWNLOAD Settings
 
 ```json
 {
-    "tqdm_delay": 0.01,
-    "default_video_workser": 12,
-    "default_audio_workser": 12,
-    "cleanup_tmp_folder": true
+    "M3U8_DOWNLOAD": {
+        "tqdm_delay": 0.01,
+        "default_video_workser": 12,
+        "default_audio_workser": 12,
+        "segment_timeout": 8,
+        "download_audio": true,
+        "merge_audio": true,
+        "specific_list_audio": [
+            "ita"
+        ],
+        "download_subtitle": true,
+        "merge_subs": true,
+        "specific_list_subtitles": [
+            "ita",
+            "eng"
+        ],
+        "cleanup_tmp_folder": true
+    }
 }
 ```
 
@@ -367,66 +404,88 @@ The configuration file is divided into several main sections:
   * Can be changed from terminal with `--default_audio_worker <number>`
     <br/><br/>
 
+- `segment_timeout`: Timeout for downloading individual segments
+- `download_audio`: Whether to download audio tracks
+- `merge_audio`: Whether to merge audio with video
+- `specific_list_audio`: List of audio languages to download
+  * Can be changed from terminal with `--specific_list_audio ita,eng`
+    <br/><br/>
+
+- `download_subtitle`: Whether to download subtitles
+- `merge_subs`: Whether to merge subtitles with video
+- `specific_list_subtitles`: List of subtitle languages to download
+  * Can be changed from terminal with `--specific_list_subtitles ita,eng`
+    <br/><br/>
+
 - `cleanup_tmp_folder`: Remove temporary .ts files after download
 
+## Available Language Codes
 
+| European        | Asian           | Middle Eastern  | Others          |
+|-----------------|-----------------|-----------------|-----------------|
+| ita - Italian   | chi - Chinese   | ara - Arabic    | eng - English   |
+| spa - Spanish   | jpn - Japanese  | heb - Hebrew    | por - Portuguese|
+| fre - French    | kor - Korean    | tur - Turkish   | fil - Filipino  |
+| ger - German    | hin - Hindi     |                 | ind - Indonesian|
+| rus - Russian   | mal - Malayalam |                 | may - Malay     |
+| swe - Swedish   | tam - Tamil     |                 | vie - Vietnamese|
+| pol - Polish    | tel - Telugu    |                 |                 |
+| ukr - Ukrainian | tha - Thai      |                 |                 |
 
-### Language Settings
+## M3U8_CONVERSION Settings
 
-The following codes can be used for `specific_list_audio` and `specific_list_subtitles`:
-* Can be changed from terminal with `--specific_list_audio ita,eng` for audio
-* Can be changed from terminal with `--specific_list_subtitles eng,spa` for subtitles
-
-
+```json
+{
+    "M3U8_CONVERSION": {
+        "use_codec": false,
+        "use_vcodec": true,
+        "use_acodec": true,
+        "use_bitrate": true,
+        "use_gpu": false,
+        "default_preset": "ultrafast"
+    }
+}
 ```
-ara - Arabic       eng - English      ita - Italian     por - Portuguese
-baq - Basque       fil - Filipino     jpn - Japanese    rum - Romanian
-cat - Catalan      fin - Finnish      kan - Kannada     rus - Russian
-chi - Chinese      fre - French       kor - Korean      spa - Spanish
-cze - Czech        ger - German       mal - Malayalam   swe - Swedish
-dan - Danish       glg - Galician     may - Malay       tam - Tamil
-dut - Dutch        gre - Greek        nob - Norw. Bokm  tel - Telugu
-                   heb - Hebrew       nor - Norwegian    tha - Thai
-forced-ita         hin - Hindi        pol - Polish      tur - Turkish
-                   hun - Hungarian                       ukr - Ukrainian
-                   ind - Indonesian                      vie - Vietnamese
-```
 
-> [!NOTE]
-> When using subtitles on Windows, please note that the default Windows Media Player may not display them correctly. We recommend using VLC Media Player for proper subtitle display and optimal playback experience.
+- `use_codec`: Use specific codec settings
+- `use_vcodec`: Use specific video codec
+- `use_acodec`: Use specific audio codec
+- `use_bitrate`: Apply bitrate settings
+- `use_gpu`: Enable GPU acceleration (if available)
+- `default_preset`: FFmpeg encoding preset (ultrafast, fast, medium, slow, etc.)
 
+### Advanced M3U8 Conversion Options
 
-> [!IMPORTANT]
-> Language code availability may vary by site. Some platforms might:
->
-> - Use different language codes
-> - Support only a subset of these languages
-> - Offer additional languages not listed here
->
-> Check the specific site's available options if downloads fail.
+The software supports various advanced encoding options via FFmpeg:
 
-> [!TIP]
-> You can configure multiple languages by adding them to the lists:
->
-> ```json
-> "specific_list_audio": ["ita", "eng", "spa"],
-> "specific_list_subtitles": ["ita", "eng", "spa"]
-> ```
+#### Encoding Presets
+The `default_preset` configuration can be set to one of the following values:
+- `ultrafast`: Extremely fast conversion but larger file size
+- `superfast`: Very fast with good quality/size ratio
+- `veryfast`: Fast with good compression
+- `faster`: Optimal balance for most users
+- `fast`: Good compression, moderate time
+- `medium`: FFmpeg default setting
+- `slow`: High quality, slower process
+- `slower`: Very high quality, slow process
+- `veryslow`: Maximum quality, very slow process
 
-For the best viewing experience, we recommend using VLC Media Player:
-- Supports all video formats and codecs
-- Properly displays embedded subtitles
-- Available for all major operating systems
-- Free and open-source
+#### GPU Acceleration
+When `use_gpu` is enabled, the system will use available hardware acceleration:
+- NVIDIA: NVENC 
+- AMD: AMF
+- Intel: QSV
 
-You can download VLC Media Player from the [official website](https://www.videolan.org/vlc/).
+You need to have updated drivers and FFmpeg compiled with hardware acceleration support.
 
 ## M3U8_PARSER Settings
 
 ```json
 {
-    "force_resolution": "1080p",
-    "get_only_link": false
+    "M3U8_PARSER": {
+        "force_resolution": "Best",
+        "get_only_link": false
+    }
 }
 ```
 
@@ -446,7 +505,25 @@ You can download VLC Media Player from the [official website](https://www.videol
 
 - `get_only_link`: Return M3U8 playlist/index URL instead of downloading
 
+## SITE_EXTRA Settings
 
+```json
+{
+    "SITE_EXTRA": {
+        "ddlstreamitaly": {
+            "ips4_device_key": "",
+            "ips4_member_id": "",
+            "ips4_login_key": ""
+        }
+    }
+}
+```
+
+- Site-specific configuration for `ddlstreamitaly`:
+  - `ips4_device_key`: Device key for authentication
+  - `ips4_member_id`: Member ID for authentication
+  - `ips4_login_key`: Login key for authentication
+  
 ## Update Domains
 
 There are two ways to update the domains for the supported websites:
@@ -506,9 +583,6 @@ python test_run.py --specific_list_audio ita,eng --specific_list_subtitles eng,s
 
 # Keep console open after download
 python test_run.py --not_close true
-
-# Disable domain search and add site name
-python test_run.py --disable_searchDomain true --add_siteName true
 ```
 
 # Docker

@@ -6,7 +6,7 @@ from logging.handlers import RotatingFileHandler
 
 
 # Internal utilities
-from StreamingCommunity.Util._jsonConfig import config_manager
+from StreamingCommunity.Util.config_json import config_manager
 
 
 class Logger:

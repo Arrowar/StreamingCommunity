@@ -12,7 +12,7 @@ from rich.prompt import Prompt
 
 # Internal utilities
 from StreamingCommunity.Util.os import os_manager
-from StreamingCommunity.Util._jsonConfig import config_manager
+from StreamingCommunity.Util.config_json import config_manager
 from StreamingCommunity.Util.table import TVShowManager
 
 

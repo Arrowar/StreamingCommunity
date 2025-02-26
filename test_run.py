@@ -5,7 +5,7 @@ import sys
 
 # Internal utilities
 from StreamingCommunity.run import main
-from StreamingCommunity.Util._jsonConfig import config_manager
+from StreamingCommunity.Util.config_json import config_manager
 from StreamingCommunity.TelegramHelp.telegram_bot import TelegramRequestManager, TelegramSession
 
 

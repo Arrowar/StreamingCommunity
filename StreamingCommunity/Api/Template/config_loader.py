@@ -5,7 +5,7 @@ import inspect
 
 
 # Internal utilities
-from StreamingCommunity.Util._jsonConfig import config_manager
+from StreamingCommunity.Util.config_json import config_manager
 
 
 def get_site_name_from_stack():

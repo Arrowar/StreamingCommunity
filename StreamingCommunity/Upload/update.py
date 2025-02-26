@@ -12,7 +12,7 @@ from rich.console import Console
 
 # Internal utilities
 from .version import __version__, __author__, __title__
-from StreamingCommunity.Util._jsonConfig import config_manager
+from StreamingCommunity.Util.config_json import config_manager
 from StreamingCommunity.Util.headers import get_userAgent
 
 

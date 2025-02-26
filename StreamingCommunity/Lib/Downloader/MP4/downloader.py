@@ -20,7 +20,7 @@ from rich.panel import Panel
 # Internal utilities
 from StreamingCommunity.Util.headers import get_userAgent
 from StreamingCommunity.Util.color import Colors
-from StreamingCommunity.Util._jsonConfig import config_manager
+from StreamingCommunity.Util.config_json import config_manager
 from StreamingCommunity.Util.os import internet_manager
 from StreamingCommunity.TelegramHelp.telegram_bot import get_bot_instance
 

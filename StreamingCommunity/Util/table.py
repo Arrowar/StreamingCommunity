@@ -22,7 +22,7 @@ from .call_stack import get_call_stack
 
 # Telegram bot instance
 from StreamingCommunity.TelegramHelp.telegram_bot import get_bot_instance
-from StreamingCommunity.Util._jsonConfig import config_manager
+from StreamingCommunity.Util.config_json import config_manager
 TELEGRAM_BOT = config_manager.get_bool('DEFAULT', 'telegram_bot')
 
 

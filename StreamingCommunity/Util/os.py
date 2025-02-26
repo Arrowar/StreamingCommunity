@@ -507,3 +507,11 @@ def compute_sha1_hash(input_string: str) -> str:
 
     # Return the hashed string
     return hashed_string
+
+def get_ffmpeg_path():
+    """Returns the path of FFmpeg."""
+    return os_summary.ffmpeg_path
+
+def get_ffprobe_path():
+    """Returns the path of FFprobe."""
+    return os_summary.ffprobe_path

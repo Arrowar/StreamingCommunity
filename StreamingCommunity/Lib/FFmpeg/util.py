@@ -13,11 +13,10 @@ from rich.console import Console
 
 
 # Internal utilities
-from StreamingCommunity.Util.os import os_summary
+from StreamingCommunity.Util.os import get_ffprobe_path
 
 
 # Variable
-FFPROB_PATH = os_summary.ffprobe_path
 console = Console()
 
 
@@ -32,7 +31,7 @@ def has_audio_stream(video_path: str) -> bool:
         has_audio (bool): True if the input video has an audio stream, False otherwise.
     """
     try:
-        ffprobe_cmd = [FFPROB_PATH, '-v', 'error', '-print_format', 'json', '-select_streams', 'a', '-show_streams', video_path]
+        ffprobe_cmd = [get_ffprobe_path(), '-v', 'error', '-print_format', 'json', '-select_streams', 'a', '-show_streams', video_path]
         logging.info(f"FFmpeg command: {ffprobe_cmd}")
 
         with subprocess.Popen(ffprobe_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) as proc:
@@ -60,7 +59,7 @@ def get_video_duration(file_path: str) -> float:
     """
 
     try:
-        ffprobe_cmd = [FFPROB_PATH, '-v', 'error', '-show_format', '-print_format', 'json', file_path]
+        ffprobe_cmd = [get_ffprobe_path(), '-v', 'error', '-show_format', '-print_format', 'json', file_path]
         logging.info(f"FFmpeg command: {ffprobe_cmd}")
 
         # Use a with statement to ensure the subprocess is cleaned up properly
@@ -144,7 +143,7 @@ def get_ffprobe_info(file_path):
     """
     try:
         result = subprocess.run(
-            [FFPROB_PATH, '-v', 'error', '-show_format', '-show_streams', '-print_format', 'json', file_path],
+            [get_ffprobe_path(), '-v', 'error', '-show_format', '-show_streams', '-print_format', 'json', file_path],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True
         )
         output = result.stdout

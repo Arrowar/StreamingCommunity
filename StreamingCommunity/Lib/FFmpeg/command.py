@@ -12,7 +12,7 @@ from rich.console import Console
 
 # Internal utilities
 from StreamingCommunity.Util._jsonConfig import config_manager
-from StreamingCommunity.Util.os import os_manager, os_summary, suppress_output
+from StreamingCommunity.Util.os import os_manager, suppress_output, get_ffmpeg_path
 
 
 # Logic class
@@ -34,7 +34,6 @@ FFMPEG_DEFAULT_PRESET = config_manager.get("M3U8_CONVERSION", "default_preset")
 
 # Variable
 USE_LARGE_BAR = not ("android" in sys.platform or "ios" in sys.platform)
-FFMPEG_PATH = os_summary.ffmpeg_path
 console = Console()
 
 
@@ -48,7 +47,7 @@ def check_subtitle_encoders() -> Tuple[Optional[bool], Optional[bool]]:
     """
     try:
         result = subprocess.run(
-            [FFMPEG_PATH, '-encoders'],
+            [get_ffmpeg_path(), '-encoders'],
             capture_output=True,
             text=True,
             check=True
@@ -102,7 +101,7 @@ def join_video(video_path: str, out_path: str, codec: M3U8_Codec = None):
         - out_path (str): The path to save the output file.
         - codec (M3U8_Codec): The video codec to use. Defaults to 'copy'.
     """
-    ffmpeg_cmd = [FFMPEG_PATH]
+    ffmpeg_cmd = [get_ffmpeg_path()]
 
     # Enabled the use of gpu
     if USE_GPU:
@@ -185,7 +184,7 @@ def join_audios(video_path: str, audio_tracks: List[Dict[str, str]], out_path: s
     video_audio_same_duration = check_duration_v_a(video_path, audio_tracks[0].get('path'))
 
     # Start command with locate ffmpeg
-    ffmpeg_cmd = [FFMPEG_PATH]
+    ffmpeg_cmd = [get_ffmpeg_path()]
 
     # Enabled the use of gpu
     if USE_GPU:
@@ -278,7 +277,7 @@ def join_subtitle(video_path: str, subtitles_list: List[Dict[str, str]], out_pat
             Each dictionary should contain the 'path' key with the path to the subtitle file and the 'name' key with the name of the subtitle.
         - out_path (str): The path to save the output file.
     """
-    ffmpeg_cmd = [FFMPEG_PATH, "-i", video_path]
+    ffmpeg_cmd = [get_ffmpeg_path(), "-i", video_path]
 
     # Add subtitle input files first
     for subtitle in subtitles_list:

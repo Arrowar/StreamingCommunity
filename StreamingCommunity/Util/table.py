@@ -32,20 +32,10 @@ class TVShowManager:
         """Initialize TVShowManager with default values."""
         self.console = Console()
         self.tv_shows: List[Dict[str, Any]] = []
-        self.slice_start: int = 0
-        self.slice_end: int = 5
-        self.step: int = self.slice_end
+        self.slice_start = 0
+        self.slice_end = 10
+        self.step = self.slice_end
         self.column_info = []
-
-    def set_slice_end(self, new_slice: int) -> None:
-        """
-        Set the end of the slice for displaying TV shows.
-
-        Parameters:
-            - new_slice (int): The new value for the slice end.
-        """
-        self.slice_end = new_slice
-        self.step = new_slice
 
     def add_column(self, column_info: Dict[str, Dict[str, str]]) -> None:
         """

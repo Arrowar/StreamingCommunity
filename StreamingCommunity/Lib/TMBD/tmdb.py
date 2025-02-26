@@ -29,11 +29,6 @@ def get_select_title(table_show_manager, generic_obj):
     Returns:
         dict: The selected media item.
     """
-
-    # Set up table for displaying titles
-    table_show_manager.set_slice_end(10)
-
-    # Check if the generic_obj list is empty
     if not generic_obj:
         console.print("\n[red]No media items available.")
         return None

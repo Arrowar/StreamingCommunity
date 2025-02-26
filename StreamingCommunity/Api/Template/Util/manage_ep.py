@@ -201,7 +201,6 @@ def display_episodes_list(episodes_manager) -> str:
     """
     # Set up table for displaying episodes
     table_show_manager = TVShowManager()
-    table_show_manager.set_slice_end(10)
 
     # Add columns to the table
     column_info = {

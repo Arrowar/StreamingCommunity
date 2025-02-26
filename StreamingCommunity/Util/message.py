@@ -3,12 +3,17 @@
 import os
 import platform
 
+
+# External library
+from rich.console import Console
+
+
 # Internal utilities
-from StreamingCommunity.Util.console import console
 from StreamingCommunity.Util._jsonConfig import config_manager
 
 
 # Variable
+console = Console()
 CLEAN = config_manager.get_bool('DEFAULT', 'clean_console')
 SHOW = config_manager.get_bool('DEFAULT', 'show_message')
 

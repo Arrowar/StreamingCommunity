@@ -6,12 +6,16 @@ import threading
 import subprocess
 
 
+# External library
+from rich.console import Console
+
+
 # Internal utilities
-from StreamingCommunity.Util.console import console
 from StreamingCommunity.Util.os import internet_manager
 
 
 # Variable
+console = Console()
 terminate_flag = threading.Event()
 
 

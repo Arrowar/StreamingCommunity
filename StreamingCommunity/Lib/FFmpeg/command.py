@@ -6,10 +6,13 @@ import subprocess
 from typing import List, Dict, Tuple, Optional
 
 
+# External library
+from rich.console import Console
+
+
 # Internal utilities
 from StreamingCommunity.Util._jsonConfig import config_manager
 from StreamingCommunity.Util.os import os_manager, os_summary, suppress_output
-from StreamingCommunity.Util.console import console
 
 
 # Logic class
@@ -32,7 +35,7 @@ FFMPEG_DEFAULT_PRESET = config_manager.get("M3U8_CONVERSION", "default_preset")
 # Variable
 USE_LARGE_BAR = not ("android" in sys.platform or "ios" in sys.platform)
 FFMPEG_PATH = os_summary.ffmpeg_path
-
+console = Console()
 
 
 def check_subtitle_encoders() -> Tuple[Optional[bool], Optional[bool]]:

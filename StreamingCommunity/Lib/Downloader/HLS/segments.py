@@ -17,11 +17,11 @@ from typing import Dict
 # External libraries
 import httpx
 from tqdm import tqdm
+from rich.console import Console
 
 
 # Internal utilities
 from StreamingCommunity.Util.color import Colors
-from StreamingCommunity.Util.console import console
 from StreamingCommunity.Util.headers import get_userAgent
 from StreamingCommunity.Util._jsonConfig import config_manager
 from StreamingCommunity.Util.os import os_manager
@@ -47,6 +47,9 @@ MAX_INTERRUPT_COUNT = 3
 SEGMENT_MAX_TIMEOUT = config_manager.get_int("M3U8_DOWNLOAD", "segment_timeout")
 TELEGRAM_BOT = config_manager.get_bool('DEFAULT', 'telegram_bot')
 
+
+# Variable
+console = Console()
 
 
 class M3U8_Segments:

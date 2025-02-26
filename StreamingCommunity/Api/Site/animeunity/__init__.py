@@ -4,8 +4,12 @@ import sys
 import subprocess
 
 
+# External library
+from rich.console import Console
+from rich.prompt import Prompt
+
+
 # Internal utilities
-from StreamingCommunity.Util.console import console, msg
 from StreamingCommunity.Api.Template import get_select_title
 from StreamingCommunity.TelegramHelp.telegram_bot import get_bot_instance
 
@@ -22,6 +26,9 @@ _useFor = "anime"
 _deprecate = False
 _priority = 2
 _engineDownload = "mp4"
+
+msg = Prompt()
+console = Console()
 
 
 def search(string_to_search: str = None, get_onylDatabase: bool = False):

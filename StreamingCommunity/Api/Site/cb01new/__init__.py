@@ -3,8 +3,12 @@
 from urllib.parse import quote_plus
 
 
+# External library
+from rich.console import Console
+from rich.prompt import Prompt
+
+
 # Internal utilities
-from StreamingCommunity.Util.console import console, msg
 from StreamingCommunity.Api.Template import get_select_title
 
 
@@ -20,6 +24,9 @@ _useFor = "film"
 _deprecate = False
 _priority = 2
 _engineDownload = "mp4"
+
+msg = Prompt()
+console = Console()
 
 
 def search(string_to_search: str = None, get_onylDatabase: bool = False):

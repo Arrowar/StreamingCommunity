@@ -9,10 +9,13 @@ import psutil
 import logging
 
 
+# External library
+from rich.console import Console
+
+
 # Internal utilities
 from StreamingCommunity.Util.color import Colors
 from StreamingCommunity.Util.os import internet_manager
-from StreamingCommunity.Util.console import console
 from StreamingCommunity.Util._jsonConfig import config_manager
 
 
@@ -28,10 +31,10 @@ USERNAME = config_manager.get_dict('QBIT_CONFIG', 'user')
 PASSWORD = config_manager.get_dict('QBIT_CONFIG', 'pass')
 
 
-# Config
+# Variable
 USE_LARGE_BAR = not ("android" in sys.platform or "ios" in sys.platform)
 REQUEST_TIMEOUT = config_manager.get_float('REQUESTS', 'timeout')
-
+console = Console()
 
 
 class TOR_downloader:

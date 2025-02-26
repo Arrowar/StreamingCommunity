@@ -3,8 +3,9 @@
 from urllib.parse import quote_plus
 
 
-# Internal utilities
-from StreamingCommunity.Util.console import console, msg
+# External library
+from rich.console import Console
+from rich.prompt import Prompt, Confirm
 
 
 # Logic class
@@ -19,6 +20,9 @@ _useFor = "film"
 _deprecate = False
 _priority = 2
 _engineDownload = "hls"
+
+msg = Prompt()
+console = Console()
 
 
 def search(string_to_search: str = None, get_onylDatabase: bool = False):

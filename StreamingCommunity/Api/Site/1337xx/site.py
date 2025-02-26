@@ -5,10 +5,10 @@ import sys
 # External libraries
 import httpx
 from bs4 import BeautifulSoup
+from rich.console import Console
 
 
 # Internal utilities
-from StreamingCommunity.Util.console import console
 from StreamingCommunity.Util._jsonConfig import config_manager
 from StreamingCommunity.Util.headers import get_userAgent
 from StreamingCommunity.Util.table import TVShowManager
@@ -21,6 +21,7 @@ from StreamingCommunity.Api.Template.Class.SearchType import MediaManager
 
 
 # Variable
+console = Console()
 media_search_manager = MediaManager()
 table_show_manager = TVShowManager()
 max_timeout = config_manager.get_int("REQUESTS", "timeout")

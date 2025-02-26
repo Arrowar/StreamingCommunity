@@ -18,13 +18,18 @@ from pathlib import Path
 # External library
 import httpx
 from unidecode import unidecode
+from rich.console import Console
+from rich.prompt import Prompt
 from pathvalidate import sanitize_filename, sanitize_filepath
 
 
 # Internal utilities
 from .ffmpeg_installer import check_ffmpeg
-from StreamingCommunity.Util.console import console, msg
 
+
+# Variable
+msg = Prompt()
+console = Console()
 
 
 class OsManager:

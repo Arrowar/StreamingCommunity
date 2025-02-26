@@ -4,8 +4,12 @@ import os
 from typing import Tuple
 
 
+# External library
+from rich.console import Console
+from rich.prompt import Prompt
+
+
 # Internal utilities
-from StreamingCommunity.Util.console import console, msg
 from StreamingCommunity.Util.message import start_message
 from StreamingCommunity.Lib.Downloader import HLS_Downloader
 
@@ -27,6 +31,10 @@ from StreamingCommunity.Api.Template.Class.SearchType import MediaItem
 from .util.ScrapeSerie import GetSerieInfo
 from StreamingCommunity.Api.Player.supervideo import VideoSource
 
+
+# Variable
+msg = Prompt()
+console = Console()
 
 
 def download_video(index_season_selected: int, index_episode_selected: int, scape_info_serie: GetSerieInfo) -> Tuple[str,bool]:

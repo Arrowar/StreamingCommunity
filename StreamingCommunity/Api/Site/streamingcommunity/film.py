@@ -3,8 +3,11 @@
 import os
 
 
+# External library
+from rich.console import Console
+
+
 # Internal utilities
-from StreamingCommunity.Util.console import console
 from StreamingCommunity.Util.os import os_manager
 from StreamingCommunity.Util.message import start_message
 from StreamingCommunity.Lib.Downloader import HLS_Downloader
@@ -18,6 +21,10 @@ from StreamingCommunity.Api.Template.Class.SearchType import MediaItem
 
 # Player
 from StreamingCommunity.Api.Player.vixcloud import VideoSource
+
+
+# Variable
+console = Console()
 
 
 def download_film(select_title: MediaItem) -> str:

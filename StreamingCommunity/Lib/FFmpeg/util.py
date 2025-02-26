@@ -8,14 +8,17 @@ import logging
 from typing import Tuple
 
 
+# External library
+from rich.console import Console
+
+
 # Internal utilities
-from StreamingCommunity.Util.console import console
 from StreamingCommunity.Util.os import os_summary
 
 
 # Variable
 FFPROB_PATH = os_summary.ffprobe_path
-
+console = Console()
 
 
 def has_audio_stream(video_path: str) -> bool:

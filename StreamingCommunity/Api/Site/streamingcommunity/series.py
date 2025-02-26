@@ -4,8 +4,12 @@ import os
 from typing import Tuple
 
 
+# External library
+from rich.console import Console
+from rich.prompt import Prompt, Confirm
+
+
 # Internal utilities
-from StreamingCommunity.Util.console import console, msg
 from StreamingCommunity.Util.message import start_message
 from StreamingCommunity.Lib.Downloader import HLS_Downloader
 from StreamingCommunity.TelegramHelp.telegram_bot import TelegramSession, get_bot_instance
@@ -26,6 +30,11 @@ from StreamingCommunity.Api.Template.Class.SearchType import MediaItem
 
 # Player
 from StreamingCommunity.Api.Player.vixcloud import VideoSource
+
+
+# Variable
+msg = Prompt()
+console = Console()
 
 
 def download_video(index_season_selected: int, index_episode_selected: int, scrape_serie: ScrapeSerie, video_source: VideoSource) -> Tuple[str,bool]:

@@ -16,7 +16,7 @@ from rich.table import Table
 
 
 # Variable
-max_timeout = 20
+max_timeout = 15
 console = Console()
 local_path = os.path.join(".")
 from StreamingCommunity.Upload.version import __author__, __title__

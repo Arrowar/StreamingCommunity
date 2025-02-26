@@ -5,8 +5,11 @@ from urllib.parse import urlparse
 from typing import Tuple
 
 
+# External library
+from rich.console import Console
+
+
 # Internal utilities
-from StreamingCommunity.Util.console import console
 from StreamingCommunity.Util.message import start_message
 from StreamingCommunity.Util.os import os_manager
 from StreamingCommunity.Lib.Downloader import MP4_downloader
@@ -27,6 +30,9 @@ from StreamingCommunity.Api.Template.config_loader import site_constant
 from .util.ScrapeSerie import GetSerieInfo
 from StreamingCommunity.Api.Player.ddl import VideoSource
 
+
+# Variable
+console = Console()
 
 
 def download_video(index_episode_selected: int, scape_info_serie: GetSerieInfo, video_source: VideoSource) -> Tuple[str,bool]:

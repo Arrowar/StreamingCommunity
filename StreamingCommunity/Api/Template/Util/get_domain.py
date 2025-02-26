@@ -7,15 +7,16 @@ from urllib.parse import urlparse, unquote
 
 # External libraries
 import httpx
+from rich.console import Console
 
 
 # Internal utilities
 from StreamingCommunity.Util.headers import get_headers
-from StreamingCommunity.Util.console import console
 from StreamingCommunity.Util._jsonConfig import config_manager
 
 
 # Variable
+console = Console()
 VERIFY = config_manager.get("REQUESTS", "verify")
 
 

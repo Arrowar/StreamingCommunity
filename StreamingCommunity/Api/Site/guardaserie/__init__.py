@@ -3,13 +3,17 @@
 from urllib.parse import quote_plus
 
 
+# External library
+from rich.console import Console
+from rich.prompt import Prompt
+
+
 # Internal utilities
-from StreamingCommunity.Util.console import console, msg
 from StreamingCommunity.Api.Template import get_select_title
+from StreamingCommunity.Api.Template.config_loader import site_constant
 
 
 # Logic class
-from StreamingCommunity.Api.Template.config_loader import site_constant
 from .site import title_search, media_search_manager, table_show_manager
 from .series import download_series
 
@@ -20,6 +24,9 @@ _useFor = "serie"
 _deprecate = False
 _priority = 2
 _engineDownload = "hls"
+
+msg = Prompt()
+console = Console()
 
 
 def search(string_to_search: str = None, get_onylDatabase: bool = False):

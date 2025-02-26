@@ -12,12 +12,14 @@ from functools import partial
 # External libraries
 import httpx
 from tqdm import tqdm
+from rich.console import Console
+from rich.prompt import Prompt
+from rich.panel import Panel
 
 
 # Internal utilities
 from StreamingCommunity.Util.headers import get_userAgent
 from StreamingCommunity.Util.color import Colors
-from StreamingCommunity.Util.console import console, Panel
 from StreamingCommunity.Util._jsonConfig import config_manager
 from StreamingCommunity.Util.os import internet_manager
 from StreamingCommunity.TelegramHelp.telegram_bot import get_bot_instance
@@ -33,6 +35,10 @@ GET_ONLY_LINK = config_manager.get_bool('M3U8_PARSER', 'get_only_link')
 REQUEST_TIMEOUT = config_manager.get_float('REQUESTS', 'timeout')
 TELEGRAM_BOT = config_manager.get_bool('DEFAULT', 'telegram_bot')
 
+
+# Variable
+msg = Prompt()
+console = Console()
 
 
 class InterruptHandler:

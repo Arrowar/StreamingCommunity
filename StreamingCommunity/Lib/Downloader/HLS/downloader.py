@@ -10,17 +10,14 @@ from typing import Any, Dict, List, Optional
 
 # External libraries
 import httpx
+from rich.console import Console
+from rich.panel import Panel
 
 
 # Internal utilities
 from StreamingCommunity.Util._jsonConfig import config_manager
 from StreamingCommunity.Util.headers import get_userAgent
-from StreamingCommunity.Util.console import console, Panel
-from StreamingCommunity.Util.os import (
-    compute_sha1_hash,
-    os_manager,
-    internet_manager
-)
+from StreamingCommunity.Util.os import compute_sha1_hash, os_manager, internet_manager
 from StreamingCommunity.TelegramHelp.telegram_bot import get_bot_instance
 
 
@@ -49,6 +46,7 @@ RETRY_LIMIT = config_manager.get_int('REQUESTS', 'max_retry')
 MAX_TIMEOUT = config_manager.get_int("REQUESTS", "timeout")
 TELEGRAM_BOT = config_manager.get_bool('DEFAULT', 'telegram_bot')
 
+console = Console()
 
 
 class HLSClient:

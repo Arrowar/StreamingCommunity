@@ -6,11 +6,12 @@ import logging
 import importlib.util
 
 
-# Internal utilities
-from StreamingCommunity.Util.console import console
+# External library
+from rich.console import Console
 
 
 # Check if Cryptodome module is installed
+console = Console()
 crypto_spec = importlib.util.find_spec("Cryptodome")
 crypto_installed = crypto_spec is not None
 

@@ -7,10 +7,10 @@ import logging
 # External libraries
 import httpx
 from bs4 import BeautifulSoup
+from rich.console import Console
 
 
 # Internal utilities
-from StreamingCommunity.Util.console import console
 from StreamingCommunity.Util._jsonConfig import config_manager
 from StreamingCommunity.Util.table import TVShowManager
 from StreamingCommunity.TelegramHelp.telegram_bot import get_bot_instance
@@ -23,6 +23,7 @@ from StreamingCommunity.Api.Template.Class.SearchType import MediaManager
 
 
 # Variable
+console = Console()
 media_search_manager = MediaManager()
 table_show_manager = TVShowManager()
 max_timeout = config_manager.get_int("REQUESTS", "timeout")

@@ -7,11 +7,11 @@ import time
 
 # External library
 import httpx
+from rich.console import Console
 
 
 # Internal utilities
 from .version import __version__, __author__, __title__
-from StreamingCommunity.Util.console import console
 from StreamingCommunity.Util._jsonConfig import config_manager
 from StreamingCommunity.Util.headers import get_userAgent
 
@@ -22,6 +22,7 @@ if getattr(sys, 'frozen', False):  # Modalità PyInstaller
     base_path = os.path.join(sys._MEIPASS, "StreamingCommunity")
 else:
     base_path = os.path.dirname(__file__)
+console = Console()
 
 
 def update():

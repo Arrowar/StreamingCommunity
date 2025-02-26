@@ -6,10 +6,10 @@ import os
 # External libraries
 import httpx
 from bs4 import BeautifulSoup
+from rich.console import Console
 
 
 # Internal utilities
-from StreamingCommunity.Util.console import console
 from StreamingCommunity.Util.os import os_manager
 from StreamingCommunity.Util.message import start_message
 from StreamingCommunity.Util.headers import get_userAgent
@@ -20,6 +20,9 @@ from StreamingCommunity.Lib.Downloader import TOR_downloader
 from StreamingCommunity.Api.Template.config_loader import site_constant
 from StreamingCommunity.Api.Template.Class.SearchType import MediaItem
 
+
+# Variable
+console = Console()
 
 
 def download_title(select_title: MediaItem):

@@ -6,20 +6,20 @@ from typing import Dict
 
 # External libraries
 import httpx
+from rich.console import Console
 
 
 # Internal utilities
 from .obj_tmbd import Json_film
-from StreamingCommunity.Util.console import console
 from StreamingCommunity.Util._jsonConfig import config_manager
 from StreamingCommunity.Util.table import TVShowManager
 
 
 # Variable
+console = Console()
 table_show_manager = TVShowManager()
 api_key = "a800ed6c93274fb857ea61bd9e7256c5"
 MAX_TIMEOUT = config_manager.get_int("REQUESTS", "timeout")
-
 
 
 def get_select_title(table_show_manager, generic_obj):

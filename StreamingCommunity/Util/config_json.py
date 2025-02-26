@@ -406,3 +406,16 @@ class ConfigManager:
 
 config_manager = ConfigManager()
 config_manager.read_config()
+
+
+import sys
+
+def get_use_large_bar():
+    """
+    Determines whether the large bar feature should be enabled.
+
+    Returns:
+        bool: True if running on a PC (Windows, macOS, Linux),
+              False if running on Android or iOS.
+    """
+    return not any(platform in sys.platform for platform in ("android", "ios"))

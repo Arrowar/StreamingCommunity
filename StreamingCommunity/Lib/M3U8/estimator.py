@@ -14,11 +14,8 @@ from tqdm import tqdm
 
 # Internal utilities
 from StreamingCommunity.Util.color import Colors
+from StreamingCommunity.Util.config_json import get_use_large_bar
 from StreamingCommunity.Util.os import internet_manager
-
-
-# Variable
-USE_LARGE_BAR = not ("android" in sys.platform or "ios" in sys.platform)
 
 
 class M3U8_Ts_Estimator:
@@ -36,7 +33,7 @@ class M3U8_Ts_Estimator:
         self.lock = threading.Lock()
         self.speed = {"upload": "N/A", "download": "N/A"}
 
-        if USE_LARGE_BAR:
+        if get_use_large_bar():
             logging.debug("USE_LARGE_BAR is True, starting speed capture thread")
             self.speed_thread = threading.Thread(target=self.capture_speed)
             self.speed_thread.daemon = True
@@ -110,7 +107,7 @@ class M3U8_Ts_Estimator:
             number_file_total_size = file_total_size.split(' ')[0]
             units_file_total_size = file_total_size.split(' ')[1]
             
-            if USE_LARGE_BAR:
+            if get_use_large_bar():
                 speed_data = self.speed['download'].split(" ")
                 
                 if len(speed_data) >= 2:
@@ -122,16 +119,16 @@ class M3U8_Ts_Estimator:
                 
                 retry_count = self.segments_instance.active_retries if self.segments_instance else 0
                 progress_str = (
-                    f"{Colors.GREEN}{number_file_total_size} {Colors.RED}{units_file_total_size}"
+                    f"{Colors.GREEN}{number_file_total_size} {Colors.WHITE}< {Colors.RED}{units_file_total_size}"
                     f"{Colors.WHITE} {Colors.CYAN}{average_internet_speed} {Colors.RED}{average_internet_unit}"
-                    f"{Colors.WHITE} {Colors.GREEN}CRR {Colors.RED}{retry_count} "
+                    f"{Colors.WHITE}, {Colors.GREEN}CRR {Colors.RED}{retry_count} "
                 )
                 
             else:
                 retry_count = self.segments_instance.active_retries if self.segments_instance else 0
                 progress_str = (
-                    f"{Colors.GREEN}{number_file_total_size} {Colors.RED}{units_file_total_size}"
-                    f"{Colors.WHITE} {Colors.GREEN}CRR {Colors.RED}{retry_count} "
+                    f"{Colors.GREEN}{number_file_total_size} {Colors.WHITE}< {Colors.RED}{units_file_total_size}"
+                    f"{Colors.WHITE}, {Colors.GREEN}CRR {Colors.RED}{retry_count} "
                 )
             
             progress_counter.set_postfix_str(progress_str)

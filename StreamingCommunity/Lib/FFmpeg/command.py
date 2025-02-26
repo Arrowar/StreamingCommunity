@@ -11,7 +11,7 @@ from rich.console import Console
 
 
 # Internal utilities
-from StreamingCommunity.Util.config_json import config_manager
+from StreamingCommunity.Util.config_json import config_manager, get_use_large_bar
 from StreamingCommunity.Util.os import os_manager, suppress_output, get_ffmpeg_path
 
 
@@ -33,7 +33,6 @@ FFMPEG_DEFAULT_PRESET = config_manager.get("M3U8_CONVERSION", "default_preset")
 
 
 # Variable
-USE_LARGE_BAR = not ("android" in sys.platform or "ios" in sys.platform)
 console = Console()
 
 
@@ -158,7 +157,7 @@ def join_video(video_path: str, out_path: str, codec: M3U8_Codec = None):
         subprocess.run(ffmpeg_cmd, check=True)
     else:
 
-        if USE_LARGE_BAR:
+        if get_use_large_bar():
             capture_ffmpeg_real_time(ffmpeg_cmd, "[cyan]Join video")
             print()
 
@@ -254,7 +253,7 @@ def join_audios(video_path: str, audio_tracks: List[Dict[str, str]], out_path: s
         subprocess.run(ffmpeg_cmd, check=True)
     else:
 
-        if USE_LARGE_BAR:
+        if get_use_large_bar():
             capture_ffmpeg_real_time(ffmpeg_cmd, "[cyan]Join audio")
             print()
 
@@ -307,9 +306,9 @@ def join_subtitle(video_path: str, subtitles_list: List[Dict[str, str]], out_pat
     # Run join
     if DEBUG_MODE:
         subprocess.run(ffmpeg_cmd, check=True)
-    else:
 
-        if USE_LARGE_BAR:
+    else:
+        if get_use_large_bar():
             capture_ffmpeg_real_time(ffmpeg_cmd, "[cyan]Join subtitle")
             print()
 

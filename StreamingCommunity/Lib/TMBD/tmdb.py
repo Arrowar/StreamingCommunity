@@ -153,7 +153,7 @@ class TheMovieDB:
         
         # Join with colored arrows and print with proper category label
         console.print(
-            f"[bold purple]{category}:[/] {' [red]→[/] '.join(colored_items)}"
+            f"[bold purple]{category}:[/] {' [red][/] '.join(colored_items)}"
         )
 
     def display_trending_tv_shows(self):

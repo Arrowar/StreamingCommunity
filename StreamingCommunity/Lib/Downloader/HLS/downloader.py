@@ -438,13 +438,13 @@ class HLS_Downloader:
                 return response
             
             if GET_ONLY_LINK:
-                console.print(f"URL: {self.m3u8_url}[/bold red]")
+                console.print(f"URL: [bold red]{self.m3u8_url}[/bold red]")
                 return {
                     'path': None,
                     'url': self.m3u8_url,
                     'is_master': getattr(self.m3u8_manager, 'is_master', None),
                     'msg': None,
-                    'error': error_msg,
+                    'error': None,
                     'stopped': True
                 }
 

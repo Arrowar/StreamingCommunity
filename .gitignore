@@ -41,6 +41,10 @@ ENV/
 env.bak/
 venv.bak/
 
+# IDEs
+.idea
+.vscode
+
 # Other
 Video
 note.txt

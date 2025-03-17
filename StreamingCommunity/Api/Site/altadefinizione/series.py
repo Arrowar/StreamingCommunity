@@ -8,10 +8,12 @@ from typing import Tuple
 from rich.console import Console
 from rich.prompt import Prompt
 
-from StreamingCommunity.TelegramHelp.telegram_bot import get_bot_instance, TelegramSession
+
 # Internal utilities
 from StreamingCommunity.Util.message import start_message
 from StreamingCommunity.Lib.Downloader import HLS_Downloader
+from StreamingCommunity.TelegramHelp.telegram_bot import get_bot_instance, TelegramSession
+
 
 # Logic class
 from .util.ScrapeSerie import GetSerieInfo

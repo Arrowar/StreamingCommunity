@@ -51,10 +51,8 @@ def get_token() -> dict:
     
     for html_meta in soup.find_all("meta"):
         if html_meta.get('name') == "csrf-token":
-
             find_csrf_token = html_meta.get('content')
 
-    logging.info(f"Extract: ('animeunity_session': {response.cookies['animeunity_session']}, 'csrf_token': {find_csrf_token})")
     return {
         'animeunity_session': response.cookies['animeunity_session'],
         'csrf_token': find_csrf_token
@@ -64,9 +62,6 @@ def get_token() -> dict:
 def get_real_title(record):
     """
     Get the real title from a record.
-
-    This function takes a record, which is assumed to be a dictionary representing a row of JSON data.
-    It looks for a title in the record, prioritizing English over Italian titles if available.
     
     Parameters:
         - record (dict): A dictionary representing a row of JSON data.
@@ -84,7 +79,7 @@ def get_real_title(record):
 
 def title_search(query: str) -> int:
     """
-    Function to perform an anime search using a provided query.
+    Function to perform an anime search using both APIs and combine results.
 
     Parameters:
         - query (str): The query to search for.
@@ -97,43 +92,85 @@ def title_search(query: str) -> int:
     
     media_search_manager.clear()
     table_show_manager.clear()
+    seen_titles = set()
+    choices = [] if site_constant.TELEGRAM_BOT else None
 
     # Create parameter for request
     data = get_token()
-    cookies = {'animeunity_session': data.get('animeunity_session')}
+    cookies = {
+        'animeunity_session': data.get('animeunity_session')
+    }
     headers = {
         'user-agent': get_userAgent(),
         'x-csrf-token': data.get('csrf_token')
     }
-    json_data =  {'title': query}
 
-    # Send a POST request to the API endpoint for live search
+    # First API call - livesearch
     try:
-        response = httpx.post(
-            f'{site_constant.FULL_URL}/livesearch', 
-            cookies=cookies, 
-            headers=headers, 
+        response1 = httpx.post(
+            f'{site_constant.FULL_URL}/livesearch',
+            cookies=cookies,
+            headers=headers,
+            json={'title': query},
+            timeout=max_timeout
+        )
+        
+        response1.raise_for_status()
+        process_results(response1.json()['records'], seen_titles, media_search_manager, choices)
+
+    except Exception as e:
+        console.print(f"Site: {site_constant.SITE_NAME}, livesearch error: {e}")
+
+    # Second API call - archivio
+    try:
+        json_data = {
+            'title': query,
+            'type': False,
+            'year': False,
+            'order': 'Lista A-Z',
+            'status': False,
+            'genres': False,
+            'offset': 0,
+            'dubbed': False,
+            'season': False
+        }
+
+        response2 = httpx.post(
+            f'{site_constant.FULL_URL}/archivio/get-animes',
+            cookies=cookies,
+            headers=headers,
             json=json_data,
             timeout=max_timeout
         )
-        response.raise_for_status()
+
+        response2.raise_for_status()
+        process_results(response2.json()['records'], seen_titles, media_search_manager, choices)
 
     except Exception as e:
-        console.print(f"Site: {site_constant.SITE_NAME}, request search error: {e}")
-        return 0
+        console.print(f"Site: {site_constant.SITE_NAME}, archivio search error: {e}")
 
-    # Inizializza la lista delle scelte
-    if site_constant.TELEGRAM_BOT:
-        choices = []
+    if site_constant.TELEGRAM_BOT and choices and len(choices) > 0:
+        bot.send_message(f"Lista dei risultati:", choices)
+    
+    result_count = media_search_manager.get_length()
+    if result_count == 0:
+        console.print(f"Nothing matching was found for: {query}")
+    
+    return result_count
 
-    for dict_title in response.json()['records']:
+def process_results(records: list, seen_titles: set, media_manager: MediaManager, choices: list = None) -> None:
+    """Helper function to process search results and add unique entries."""
+    for dict_title in records:
         try:
-
-            # Rename keys for consistency
+            title_id = dict_title.get('id')
+            if title_id in seen_titles:
+                continue
+                
+            seen_titles.add(title_id)
             dict_title['name'] = get_real_title(dict_title)
 
-            media_search_manager.add_media({
-                'id': dict_title.get('id'),
+            media_manager.add_media({
+                'id': title_id,
                 'slug': dict_title.get('slug'),
                 'name': dict_title.get('name'),
                 'type': dict_title.get('type'),
@@ -142,18 +179,9 @@ def title_search(query: str) -> int:
                 'image': dict_title.get('imageurl')
             })
 
-            if site_constant.TELEGRAM_BOT:
-                
-                # Crea una stringa formattata per ogni scelta con numero
+            if choices is not None:
                 choice_text = f"{len(choices)} - {dict_title.get('name')} ({dict_title.get('type')}) - Episodi: {dict_title.get('episodes_count')}"
                 choices.append(choice_text)
 
         except Exception as e:
-            print(f"Error parsing a film entry: {e}")
-
-    if site_constant.TELEGRAM_BOT:
-        if choices:
-            bot.send_message(f"Lista dei risultati:", choices)
-
-    # Return the length of media search manager
-    return media_search_manager.get_length()
+            print(f"Error parsing a title entry: {e}")

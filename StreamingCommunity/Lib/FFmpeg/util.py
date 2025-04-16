@@ -130,61 +130,62 @@ def print_duration_table(file_path: str, description: str = "Duration", return_s
 
 
 def get_ffprobe_info(file_path):
-    """
-    Get format and codec information for a media file using ffprobe.
-
-    Parameters:
-        - file_path (str): Path to the media file.
-
-    Returns:
-        dict: A dictionary containing the format name and a list of codec names.
-              Returns None if file does not exist or ffprobe crashes.
-    """
+    """Get format and codec information for a media file using ffprobe."""
     if not os.path.exists(file_path):
         logging.error(f"File not found: {file_path}")
         return None
-        
+
+    # Get ffprobe path and verify it exists
+    ffprobe_path = get_ffprobe_path()
+    if not ffprobe_path or not os.path.exists(ffprobe_path):
+        logging.error(f"FFprobe not found at path: {ffprobe_path}")
+        return None
+
+    # Verify file permissions
     try:
-        # Use subprocess.Popen instead of run to better handle crashes
-        cmd = [get_ffprobe_path(), '-v', 'error', '-show_format', '-show_streams', '-print_format', 'json', file_path]
-        logging.info(f"FFmpeg command: {cmd}")
+        file_stat = os.stat(file_path)
+        logging.info(f"File permissions: {oct(file_stat.st_mode)}")
+        if not os.access(file_path, os.R_OK):
+            logging.error(f"No read permission for file: {file_path}")
+            return None
+    except OSError as e:
+        logging.error(f"Cannot access file {file_path}: {e}")
+        return None
+
+    try:
+        cmd = [ffprobe_path, '-v', 'error', '-show_format', '-show_streams', '-print_format', 'json', file_path]
+        logging.info(f"Running FFprobe command: {' '.join(cmd)}")
         
-        with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) as proc:
-            stdout, stderr = proc.communicate()
-            
-            if proc.returncode != 0:
-                logging.error(f"FFprobe failed with return code {proc.returncode} for file {file_path}")
-                if stderr:
-                    logging.error(f"FFprobe stderr: {stderr}")
-                return {
-                    'format_name': None,
-                    'codec_names': []
-                }
-            
-            # Make sure we have valid JSON before parsing
-            if not stdout or not stdout.strip():
-                logging.warning(f"FFprobe returned empty output for file {file_path}")
-                return {
-                    'format_name': None,
-                    'codec_names': []
-                }
-                
-            info = json.loads(stdout)
-            
-            format_name = info['format']['format_name'] if 'format' in info else None
-            codec_names = [stream['codec_name'] for stream in info['streams']] if 'streams' in info else []
-            
+        # Use subprocess.run instead of Popen for better error handling
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            check=False  # Don't raise exception on non-zero exit
+        )
+
+        if result.returncode != 0:
+            logging.error(f"FFprobe failed with return code {result.returncode}")
+            logging.error(f"FFprobe stderr: {result.stderr}")
+            logging.error(f"FFprobe stdout: {result.stdout}")
+            logging.error(f"Command: {' '.join(cmd)}")
+            logging.error(f"FFprobe path permissions: {oct(os.stat(ffprobe_path).st_mode)}")
+            return None
+
+        # Parse JSON output
+        try:
+            info = json.loads(result.stdout)
             return {
-                'format_name': format_name,
-                'codec_names': codec_names
+                'format_name': info.get('format', {}).get('format_name'),
+                'codec_names': [stream.get('codec_name') for stream in info.get('streams', [])]
             }
-    
+        except json.JSONDecodeError as e:
+            logging.error(f"Failed to parse FFprobe output: {e}")
+            return None
+
     except Exception as e:
-        logging.error(f"Failed to get ffprobe info for file {file_path}: {e}")
-        return {
-            'format_name': None,
-            'codec_names': []
-        }
+        logging.error(f"FFprobe execution failed: {e}")
+        return None
 
 
 def is_png_format_or_codec(file_info):

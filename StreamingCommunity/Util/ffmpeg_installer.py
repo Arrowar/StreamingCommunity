@@ -219,13 +219,26 @@ class FFMPEGDownloader:
                 with open(final_path, 'wb') as f_out:
                     shutil.copyfileobj(f_in, f_out)
 
-            # Set executable permissions
-            os.chmod(final_path, 0o755)
-            logging.info(f"Successfully extracted {gz_path} to {final_path}")
-            
-            # Remove the gzip file
-            os.remove(gz_path)
-            return True
+                # Set executable permissions with more explicit error handling
+                try:
+                    current_perms = os.stat(final_path).st_mode
+                    new_perms = current_perms | 0o755  # Add execute permission while preserving other bits
+                    os.chmod(final_path, new_perms)
+                    logging.info(f"Successfully set permissions {oct(new_perms)} for {final_path}")
+                except OSError as e:
+                    logging.error(f"Failed to set executable permissions on {final_path}: {e}")
+                    return False
+
+                # Verify the file is executable
+                if not os.access(final_path, os.X_OK):
+                    logging.error(f"File {final_path} is not executable after chmod")
+                    return False
+
+                logging.info(f"Successfully extracted {gz_path} to {final_path}")
+                
+                # Remove the gzip file
+                os.remove(gz_path)
+                return True
 
         except Exception as e:
             logging.error(f"Extraction error for {gz_path}: {e}")

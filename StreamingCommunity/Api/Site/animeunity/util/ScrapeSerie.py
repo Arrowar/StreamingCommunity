@@ -29,6 +29,7 @@ class ScrapeSerieAnime:
         self.is_series = False
         self.headers = {'user-agent': get_userAgent()}
         self.url = url
+        self.episodes_cache = None
 
     def setup(self, version: str = None, media_id: int = None, series_name: str = None):
         self.version = version
@@ -62,38 +63,41 @@ class ScrapeSerieAnime:
             logging.error(f"Error fetching episode count: {e}")
             return None
     
-    def get_info_episode(self, index_ep: int) -> Episode:
+    def _fetch_all_episodes(self):
         """
-        Fetch detailed information for a specific episode.
-        
-        Args:
-            index_ep (int): Zero-based index of the target episode
-        
-        Returns:
-            Episode: Detailed episode information
+        Fetch all episodes data at once and cache it
         """
         try:
-
-            params = {
-                "start_range": index_ep, 
-                "end_range": index_ep + 1
-            }
+            count = self.get_count_episodes()
+            if not count:
+                return
 
             response = httpx.get(
-                url=f"{self.url}/info_api/{self.media_id}/{index_ep}", 
-                headers=self.headers, 
-                params=params, 
+                url=f"{self.url}/info_api/{self.media_id}/1",
+                params={
+                    "start_range": 1,
+                    "end_range": count
+                },
+                headers=self.headers,
                 timeout=max_timeout
             )
             response.raise_for_status()
-
-            # Return information about the episode
-            json_data = response.json()["episodes"][-1]
-            return Episode(json_data)
-        
+            
+            self.episodes_cache = response.json()["episodes"]
         except Exception as e:
-            logging.error(f"Error fetching episode information: {e}")
-            return None
+            logging.error(f"Error fetching all episodes: {e}")
+            self.episodes_cache = None
+
+    def get_info_episode(self, index_ep: int) -> Episode:
+        """
+        Get episode info from cache
+        """
+        if self.episodes_cache is None:
+            self._fetch_all_episodes()
+            
+        if self.episodes_cache and 0 <= index_ep < len(self.episodes_cache):
+            return Episode(self.episodes_cache[index_ep])
+        return None
 
 
     # ------------- FOR GUI -------------

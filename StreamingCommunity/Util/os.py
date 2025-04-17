@@ -104,16 +104,14 @@ class OsManager:
         if not path:
             return path
 
-        # Decode unicode characters
+        # Decode unicode characters and perform basic sanitization
         decoded = unidecode(path)
-
-        # Basic path sanitization
         sanitized = sanitize_filepath(decoded)
 
         if self.system == 'windows':
             # Handle network paths (UNC or IP-based)
-            if path.startswith('\\\\') or path.startswith('//'):
-                parts = path.replace('/', '\\').split('\\')
+            if sanitized.startswith('\\\\') or sanitized.startswith('//'):
+                parts = sanitized.replace('/', '\\').split('\\')
                 # Keep server/IP and share name as is
                 sanitized_parts = parts[:4]
                 # Sanitize remaining parts
@@ -126,9 +124,9 @@ class OsManager:
                 return '\\'.join(sanitized_parts)
 
             # Handle drive letters
-            elif len(path) >= 2 and path[1] == ':':
-                drive = path[:2]
-                rest = path[2:].lstrip('\\').lstrip('/')
+            elif len(sanitized) >= 2 and sanitized[1] == ':':
+                drive = sanitized[:2]
+                rest = sanitized[2:].lstrip('\\').lstrip('/')
                 path_parts = [drive] + [
                     self.get_sanitize_file(part)
                     for part in rest.replace('/', '\\').split('\\')
@@ -138,12 +136,12 @@ class OsManager:
 
             # Regular path
             else:
-                parts = path.replace('/', '\\').split('\\')
+                parts = sanitized.replace('/', '\\').split('\\')
                 return '\\'.join(p for p in parts if p)
         else:
             # Handle Unix-like paths (Linux and macOS)
-            is_absolute = path.startswith('/')
-            parts = path.replace('\\', '/').split('/')
+            is_absolute = sanitized.startswith('/')
+            parts = sanitized.replace('\\', '/').split('/')
             sanitized_parts = [
                 self.get_sanitize_file(part)
                 for part in parts

@@ -219,26 +219,13 @@ class FFMPEGDownloader:
                 with open(final_path, 'wb') as f_out:
                     shutil.copyfileobj(f_in, f_out)
 
-                # Set executable permissions with more explicit error handling
-                try:
-                    current_perms = os.stat(final_path).st_mode
-                    new_perms = current_perms | 0o755  # Add execute permission while preserving other bits
-                    os.chmod(final_path, new_perms)
-                    logging.info(f"Successfully set permissions {oct(new_perms)} for {final_path}")
-                except OSError as e:
-                    logging.error(f"Failed to set executable permissions on {final_path}: {e}")
-                    return False
-
-                # Verify the file is executable
-                if not os.access(final_path, os.X_OK):
-                    logging.error(f"File {final_path} is not executable after chmod")
-                    return False
-
-                logging.info(f"Successfully extracted {gz_path} to {final_path}")
-                
-                # Remove the gzip file
-                os.remove(gz_path)
-                return True
+            # Set executable permissions
+            os.chmod(final_path, 0o755)
+            logging.info(f"Successfully extracted {gz_path} to {final_path}")
+            
+            # Remove the gzip file
+            os.remove(gz_path)
+            return True
 
         except Exception as e:
             logging.error(f"Extraction error for {gz_path}: {e}")
@@ -251,6 +238,31 @@ class FFMPEGDownloader:
         Returns:
             Tuple[Optional[str], Optional[str], Optional[str]]: Paths to ffmpeg, ffprobe, and ffplay executables.
         """
+        if self.os_name == 'linux':
+            try:
+                # Attempt to install FFmpeg using apt
+                console.print("[bold blue]Trying to install FFmpeg using 'sudo apt install ffmpeg'[/]")
+                result = subprocess.run(
+                    ['sudo', 'apt', 'install', '-y', 'ffmpeg'],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True
+                )
+                if result.returncode == 0:
+                    ffmpeg_path = shutil.which('ffmpeg')
+                    ffprobe_path = shutil.which('ffprobe')
+
+                    if ffmpeg_path and ffprobe_path:
+                        console.print("[bold green]FFmpeg successfully installed via apt[/]")
+                        return ffmpeg_path, ffprobe_path, None
+                else:
+                    console.print("[bold yellow]Failed to install FFmpeg via apt. Proceeding with static download.[/]")
+                    
+            except Exception as e:
+                logging.error(f"Error during 'sudo apt install ffmpeg': {e}")
+                console.print("[bold red]Error during 'sudo apt install ffmpeg'. Proceeding with static download.[/]")
+
+        # Proceed with static download if apt installation fails or is not applicable
         config = FFMPEG_CONFIGURATION[self.os_name]
         executables = [exe.format(arch=self.arch) for exe in config['executables']]
         successful_extractions = []

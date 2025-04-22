@@ -130,7 +130,14 @@ def print_duration_table(file_path: str, description: str = "Duration", return_s
 
 
 def get_ffprobe_info(file_path):
-    """Get format and codec information for a media file using ffprobe."""
+    """
+    Get format and codec information for a media file using ffprobe.
+    Parameters:
+        - file_path (str): Path to the media file.
+    Returns:
+        dict: A dictionary containing the format name and a list of codec names.
+              Returns None if file does not exist or ffprobe crashes.
+    """
     if not os.path.exists(file_path):
         logging.error(f"File not found: {file_path}")
         return None

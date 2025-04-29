@@ -41,8 +41,8 @@ def download_film(select_title: MediaItem) -> str:
     console.print(f"[bold yellow]Download:[/bold yellow] [red]{site_constant.SITE_NAME}[/red] → [cyan]{select_title.name}[/cyan] \n")
 
     # Get master playlists
-    video_source = VideoSource()
-    master_playlist = video_source.get_m3u8_url(select_title.url)
+    video_source = VideoSource(select_title.url)
+    master_playlist = video_source.get_m3u8_url()
 
     # Define the filename and path for the downloaded film
     title_name = os_manager.get_sanitize_file(select_title.name) + ".mp4"

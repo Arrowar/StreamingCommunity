@@ -78,7 +78,7 @@ def title_search(query: str) -> int:
         )
 
     except Exception as e:
-        console.print(f"Site: {site_constant.SITE_NAME}, request search error: {e}")
+        console.print(f"[red]Site: {site_constant.SITE_NAME}, request search error: {e}")
         return 0
 
     # Create soup istance

@@ -55,7 +55,7 @@ def title_search(query: str) -> int:
         response.raise_for_status()
 
     except Exception as e:
-        console.print(f"Site: {site_constant.SITE_NAME}, request search error: {e}")
+        console.print(f"[red]Site: {site_constant.SITE_NAME}, request search error: {e}")
         if site_constant.TELEGRAM_BOT:
             bot.send_message(f"ERRORE\n\nErrore nella richiesta di ricerca:\n\n{e}", None)
         return 0

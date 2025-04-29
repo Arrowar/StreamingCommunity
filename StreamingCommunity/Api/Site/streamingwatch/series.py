@@ -60,8 +60,8 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
     mp4_path = os.path.join(site_constant.SERIES_FOLDER, scrape_serie.series_name, f"S{index_season_selected}")
 
     # Retrieve scws and if available master playlist
-    video_source = VideoSource()
-    master_playlist = video_source.get_m3u8_url(obj_episode.url)
+    video_source = VideoSource(obj_episode.url)
+    master_playlist = video_source.get_m3u8_url()
 
     # Download the episode
     r_proc = HLS_Downloader(

@@ -26,7 +26,7 @@ console = Console()
 media_search_manager = MediaManager()
 table_show_manager = TVShowManager()
 max_timeout = config_manager.get_int("REQUESTS", "timeout")
-MAX_THREADS = 4
+MAX_THREADS = 12
 
 
 def determine_media_type(title):
@@ -134,7 +134,7 @@ def title_search(query: str) -> int:
         response.raise_for_status()
 
     except Exception as e:
-        console.print(f"Site: {site_constant.SITE_NAME}, request search error: {e}")
+        console.print(f"[red]Site: {site_constant.SITE_NAME}, request search error: {e}")
         return 0
 
     # Limit to only 15 results for performance

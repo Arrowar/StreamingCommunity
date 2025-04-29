@@ -53,7 +53,7 @@ def title_search(query: str) -> int:
         response.raise_for_status()
 
     except Exception as e:
-        console.print(f"Site: {site_constant.SITE_NAME}, request search error: {e}")
+        console.print(f"[red]Site: {site_constant.SITE_NAME}, request search error: {e}")
         return 0
 
     # Create soup and find table

@@ -119,7 +119,8 @@ def title_search(query: str) -> int:
         process_results(response1.json()['records'], seen_titles, media_search_manager, choices)
 
     except Exception as e:
-        console.print(f"Site: {site_constant.SITE_NAME}, livesearch error: {e}")
+        console.print(f"[red]Site: {site_constant.SITE_NAME}, request search error: {e}")
+        return 0
 
     # Second API call - archivio
     try:

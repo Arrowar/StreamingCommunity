@@ -7,6 +7,7 @@ from rich.prompt import Prompt
 
 # Internal utilities
 from StreamingCommunity.Api.Template import get_select_title
+from StreamingCommunity.Lib.Proxies.proxy import ProxyFinder
 from StreamingCommunity.Api.Template.config_loader import site_constant
 from StreamingCommunity.Api.Template.Class.SearchType import MediaItem
 
@@ -20,7 +21,7 @@ from .series import download_series
 # Variable
 indice = 8
 _useFor = "film_serie"
-_priority = 0
+_priority = 10          # !!! MOLTO LENTO
 _engineDownload = "hls"
 
 msg = Prompt()
@@ -35,7 +36,7 @@ def get_user_input(string_to_search: str = None):
     string_to_search = msg.ask(f"\n[purple]Insert a word to search in [green]{site_constant.SITE_NAME}").strip()
     return string_to_search
 
-def process_search_result(select_title, selections=None):
+def process_search_result(select_title, selections=None, proxy=None):
     """
     Handles the search result and initiates the download for either a film or series.
     
@@ -52,10 +53,10 @@ def process_search_result(select_title, selections=None):
             season_selection = selections.get('season')
             episode_selection = selections.get('episode')
 
-        download_series(select_title, season_selection, episode_selection)
+        download_series(select_title, season_selection, episode_selection, proxy)
 
     else:
-        download_film(select_title)
+        download_film(select_title, proxy)
 
 def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_item: dict = None, selections: dict = None):
     """
@@ -70,13 +71,15 @@ def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_
     """
     if direct_item:
         select_title = MediaItem(**direct_item)
-        process_search_result(select_title, selections)
+        process_search_result(select_title, selections) # DONT SUPPORT PROXY FOR NOW
         return
 
     if string_to_search is None:
         string_to_search = msg.ask(f"\n[purple]Insert a word to search in [green]{site_constant.SITE_NAME}").strip()
     
-    len_database = title_search(string_to_search)
+    finder = ProxyFinder(url=f"{site_constant.FULL_URL}/serie/euphoria/")
+    proxy, response_serie, _ = finder.find_fast_proxy()
+    len_database = title_search(string_to_search, [proxy, response_serie])
 
     # If only the database is needed, return the manager
     if get_onlyDatabase:
@@ -84,7 +87,7 @@ def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_
     
     if len_database > 0:
         select_title = get_select_title(table_show_manager, media_search_manager)
-        process_search_result(select_title, selections)
+        process_search_result(select_title, selections, proxy)
     
     else:
         # If no results are found, ask again

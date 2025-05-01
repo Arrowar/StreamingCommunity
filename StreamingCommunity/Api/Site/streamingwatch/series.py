@@ -36,7 +36,7 @@ msg = Prompt()
 console = Console()
 
 
-def download_video(index_season_selected: int, index_episode_selected: int, scrape_serie: GetSerieInfo) -> Tuple[str,bool]:
+def download_video(index_season_selected: int, index_episode_selected: int, scrape_serie: GetSerieInfo, proxy=None) -> Tuple[str,bool]:
     """
     Downloads a specific episode from a specified season.
 
@@ -60,8 +60,8 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
     mp4_path = os.path.join(site_constant.SERIES_FOLDER, scrape_serie.series_name, f"S{index_season_selected}")
 
     # Retrieve scws and if available master playlist
-    video_source = VideoSource(obj_episode.url)
-    master_playlist = video_source.get_m3u8_url()
+    video_source = VideoSource(proxy)
+    master_playlist = video_source.get_m3u8_url(obj_episode.url)
 
     # Download the episode
     r_proc = HLS_Downloader(
@@ -76,7 +76,7 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
     return r_proc['path'], r_proc['stopped']
     
 
-def download_episode(index_season_selected: int, scrape_serie: GetSerieInfo, download_all: bool = False, episode_selection: str = None) -> None:
+def download_episode(index_season_selected: int, scrape_serie: GetSerieInfo, download_all: bool = False, episode_selection: str = None, proxy = None) -> None:
     """
     Handle downloading episodes for a specific season.
 
@@ -92,7 +92,7 @@ def download_episode(index_season_selected: int, scrape_serie: GetSerieInfo, dow
 
     if download_all:
         for i_episode in range(1, episodes_count + 1):
-            path, stopped = download_video(index_season_selected, i_episode, scrape_serie)
+            path, stopped = download_video(index_season_selected, i_episode, scrape_serie, proxy)
 
             if stopped:
                 break
@@ -113,12 +113,12 @@ def download_episode(index_season_selected: int, scrape_serie: GetSerieInfo, dow
 
         # Download selected episodes if not stopped
         for i_episode in list_episode_select:
-            path, stopped = download_video(index_season_selected, i_episode, scrape_serie)
+            path, stopped = download_video(index_season_selected, i_episode, scrape_serie, proxy)
 
             if stopped:
                 break
 
-def download_series(select_season: MediaItem, season_selection: str = None, episode_selection: str = None) -> None:
+def download_series(select_season: MediaItem, season_selection: str = None, episode_selection: str = None, proxy = None) -> None:
     """
     Handle downloading a complete series.
 
@@ -127,7 +127,7 @@ def download_series(select_season: MediaItem, season_selection: str = None, epis
         - season_selection (str, optional): Pre-defined season selection that bypasses manual input
         - episode_selection (str, optional): Pre-defined episode selection that bypasses manual input
     """
-    scrape_serie = GetSerieInfo(select_season.url)
+    scrape_serie = GetSerieInfo(select_season.url, proxy)
 
     # Get total number of seasons 
     seasons_count = scrape_serie.getNumberSeason()
@@ -154,7 +154,7 @@ def download_series(select_season: MediaItem, season_selection: str = None, epis
     for i_season in list_season_select:
         if len(list_season_select) > 1 or index_season_selected == "*":
             # Download all episodes if multiple seasons are selected or if '*' is used
-            download_episode(i_season, scrape_serie, download_all=True)
+            download_episode(i_season, scrape_serie, download_all=True, proxy=proxy)
         else:
             # Otherwise, let the user select specific episodes for the single season
-            download_episode(i_season, scrape_serie, download_all=False, episode_selection=episode_selection)
+            download_episode(i_season, scrape_serie, download_all=False, episode_selection=episode_selection, proxy=proxy)

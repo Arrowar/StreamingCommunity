@@ -53,3 +53,4 @@ bot_config.json
 scripts.json
 active_requests.json
 domains.json
+working_proxies.json

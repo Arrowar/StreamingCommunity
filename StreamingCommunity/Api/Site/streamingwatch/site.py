@@ -38,7 +38,7 @@ def extract_nonce(response_) -> str:
     return ""
 
 
-def title_search(query: str) -> int:
+def title_search(query: str, additionalData: list) -> int:
     """
     Search for titles based on a search query.
       
@@ -51,16 +51,12 @@ def title_search(query: str) -> int:
     media_search_manager.clear()
     table_show_manager.clear()
 
+    proxy, response_serie = additionalData
     search_url = f"{site_constant.FULL_URL}/wp-admin/admin-ajax.php"
     console.print(f"[cyan]Search url: [yellow]{search_url}")
 
     try:
-        nonce_response = httpx.get(
-            "https://www.streamingwatch.org/serie/euphoria/", 
-            timeout=max_timeout,
-            headers={'user-agent': get_userAgent()}
-        )
-        _wpnonce = extract_nonce(nonce_response)
+        _wpnonce = extract_nonce(response_serie)
         
         if not _wpnonce:
             console.print("[red]Error: Failed to extract nonce")
@@ -79,7 +75,8 @@ def title_search(query: str) -> int:
                 'user-agent': get_userAgent()
             },
             data=data,
-            timeout=max_timeout
+            timeout=max_timeout,
+            proxy=proxy
         )
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')

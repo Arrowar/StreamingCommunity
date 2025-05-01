@@ -19,19 +19,20 @@ max_timeout = config_manager.get_int("REQUESTS", "timeout")
 
 
 class GetSerieInfo:
-    def __init__(self, url, media_id: int = None, series_name: str = None):
+    def __init__(self, url, proxy: str = None):
         self.headers = {'user-agent': get_userAgent()}
         self.url = url
-        self.media_id = media_id
         self.seasons_manager = SeasonManager()
-        self.series_name = series_name
+        self.series_name = None
+        
+        self.client = httpx.Client(headers=self.headers, proxy=proxy, timeout=max_timeout)
 
     def collect_info_season(self) -> None:
         """
         Retrieve all series information including episodes and seasons.
         """
         try:
-            response = httpx.get(self.url, headers=self.headers, timeout=max_timeout)
+            response = self.client.get(self.url)
             response.raise_for_status()
             soup = BeautifulSoup(response.text, 'html.parser')
             

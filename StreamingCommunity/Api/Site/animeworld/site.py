@@ -31,7 +31,11 @@ def get_session_and_csrf() -> dict:
     Get the session ID and CSRF token from the website's cookies and HTML meta data.
     """
     # Send an initial GET request to the website
-    response = httpx.get(site_constant.FULL_URL, headers=get_headers())
+    response = httpx.get(
+        site_constant.FULL_URL, 
+        headers=get_headers(), 
+        verify=False
+    )
 
     # Extract the sessionId from the cookies
     session_id = response.cookies.get('sessionId')

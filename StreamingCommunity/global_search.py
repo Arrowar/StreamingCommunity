@@ -58,7 +58,10 @@ def load_search_functions():
             # Get 'indice' from the module
             indice = getattr(mod, 'indice', 0)
             use_for = getattr(mod, '_useFor', 'other')
-            modules.append((module_name, indice, use_for))
+            priority = getattr(mod, '_priority', 0)
+
+            if priority == 0:
+                modules.append((module_name, indice, use_for))
 
         except Exception as e:
             console.print(f"[red]Failed to import module {module_name}: {str(e)}")
@@ -296,17 +299,26 @@ def process_selected_item(selected_item, search_functions):
     console.print(f"\n[bold green]Processing selection from:[/bold green] {selected_item.get('source')}")
     
     # Extract necessary information to pass to the site's search function
-    item_id = selected_item.get('id', selected_item.get('media_id'))
+    item_id = None
+    for id_field in ['id', 'media_id', 'ID', 'item_id', 'url']:
+        item_id = selected_item.get(id_field)
+        if item_id:
+            break
+            
     item_type = selected_item.get('type', selected_item.get('media_type', 'unknown'))
     item_title = selected_item.get('title', selected_item.get('name', 'Unknown'))
     
     if item_id:
         console.print(f"[bold green]Selected item:[/bold green] {item_title} (ID: {item_id}, Type: {item_type})")
         
-        # Call the site's search function with direct_item parameter to process download
         try:
             func(direct_item=selected_item)
+
         except Exception as e:
             console.print(f"[bold red]Error processing download:[/bold red] {str(e)}")
+            logging.exception("Download processing error")
+            
     else:
-        console.print("[bold red]Error: Item ID not found.[/bold red]")
+        console.print("[bold red]Error: Item ID not found. Available fields:[/bold red]")
+        for key in selected_item.keys():
+            console.print(f"[yellow]- {key}: {selected_item[key]}[/yellow]")

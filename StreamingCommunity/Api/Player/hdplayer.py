@@ -2,14 +2,13 @@
 
 import re
 
-
 # External library
 import httpx
 from bs4 import BeautifulSoup
 
 
 # Internal utilities
-from StreamingCommunity.Util.headers import get_headers
+from StreamingCommunity.Util.headers import get_userAgent
 from StreamingCommunity.Util.config_json import config_manager
 
 
@@ -19,7 +18,7 @@ MAX_TIMEOUT = config_manager.get_int("REQUESTS", "timeout")
 
 class VideoSource:
     def __init__(self, proxy=None):
-        self.client = httpx.Client(headers=get_headers(), timeout=MAX_TIMEOUT, proxy=proxy)
+        self.client = httpx.Client(headers={'user-agent': get_userAgent()}, timeout=MAX_TIMEOUT, proxy=proxy)
 
     def extractLinkHdPlayer(self, response):
         """Extract iframe source from the page."""
@@ -34,6 +33,9 @@ class VideoSource:
         Extract m3u8 URL from hdPlayer page.
         """
         try:
+            base_domain = re.match(r'https?://(?:www\.)?([^/]+)', page_url).group(0)
+            self.client.headers.update({'referer': base_domain})
+            
             # Get the page content
             response = self.client.get(page_url)
             
@@ -41,19 +43,17 @@ class VideoSource:
             iframe_url = self.extractLinkHdPlayer(response)
             if not iframe_url:
                 return None
-
+            
             # Get HDPlayer page content
             response_hdplayer = self.client.get(iframe_url)
             if response_hdplayer.status_code != 200:
                 return None
+                
+            sources_pattern = r'file:"([^"]+)"'
+            match = re.search(sources_pattern, response_hdplayer.text)
 
-            soup = BeautifulSoup(response_hdplayer.text, 'html.parser')
-
-            # Find m3u8 URL in scripts
-            for script in soup.find_all("script"):
-                match = re.search(r'sources:\s*\[\{\s*file:\s*"([^"]+)"', script.text)
-                if match:
-                    return match.group(1)
+            if match:
+                return match.group(1)
 
             return None
 

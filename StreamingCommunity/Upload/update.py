@@ -3,7 +3,7 @@
 import os
 import sys
 import time
-
+import asyncio
 
 # External library
 import httpx
@@ -24,32 +24,33 @@ else:
     base_path = os.path.dirname(__file__)
 console = Console()
 
+async def fetch_github_data(client, url):
+    """Helper function to fetch data from GitHub API"""
+    response = await client.get(
+        url=url,
+        headers={'user-agent': get_userAgent()},
+        timeout=config_manager.get_int("REQUESTS", "timeout"),
+        follow_redirects=True
+    )
+    return response.json()
+
+async def async_github_requests():
+    """Make concurrent GitHub API requests"""
+    async with httpx.AsyncClient() as client:
+        tasks = [
+            fetch_github_data(client, f"https://api.github.com/repos/{__author__}/{__title__}"),
+            fetch_github_data(client, f"https://api.github.com/repos/{__author__}/{__title__}/releases"),
+            fetch_github_data(client, f"https://api.github.com/repos/{__author__}/{__title__}/commits")
+        ]
+        return await asyncio.gather(*tasks)
 
 def update():
     """
     Check for updates on GitHub and display relevant information.
     """
     try:
-        response_reposity = httpx.get(
-            url=f"https://api.github.com/repos/{__author__}/{__title__}", 
-            headers={'user-agent': get_userAgent()}, 
-            timeout=config_manager.get_int("REQUESTS", "timeout"), 
-            follow_redirects=True
-        ).json()
-
-        response_releases = httpx.get(
-            url=f"https://api.github.com/repos/{__author__}/{__title__}/releases",
-            headers={'user-agent': get_userAgent()}, 
-            timeout=config_manager.get_int("REQUESTS", "timeout"), 
-            follow_redirects=True
-        ).json()
-
-        response_commits = httpx.get(
-            url=f"https://api.github.com/repos/{__author__}/{__title__}/commits",
-            headers={'user-agent': get_userAgent()}, 
-            timeout=config_manager.get_int("REQUESTS", "timeout"), 
-            follow_redirects=True
-        ).json()
+        # Run async requests concurrently
+        response_reposity, response_releases, response_commits = asyncio.run(async_github_requests())
         
     except Exception as e:
         console.print(f"[red]Error accessing GitHub API: {e}")
@@ -92,4 +93,4 @@ def update():
     console.print(f"\n[red]{__title__} has been downloaded [yellow]{total_download_count} [red]times, but only [yellow]{percentual_stars}% [red]of users have starred it.\n\
         [cyan]Help the repository grow today by leaving a [yellow]star [cyan]and [yellow]sharing [cyan]it with others online!")
     
-    time.sleep(3)
+    time.sleep(4)

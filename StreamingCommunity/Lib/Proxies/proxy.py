@@ -103,7 +103,7 @@ class ProxyFinder:
         return proxies
 
     def fetch_proxies_from_sources(self) -> list:
-        print("[cyan]Fetching proxies from sources...[/cyan]")
+        #print("[cyan]Fetching proxies from sources...[/cyan]")
         with ThreadPoolExecutor(max_workers=3) as executor:
             proxyscrape_future = executor.submit(self.fetch_proxyscrape)
             geonode_future = executor.submit(self.fetch_geonode)

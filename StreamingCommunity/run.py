@@ -202,12 +202,13 @@ def main(script_id = 0):
     initialize()
     
     if not internet_manager.check_dns_provider():
-        console.print("[yellow]⚠️ WARNING: DNS not properly configured!")
-        console.print("[yellow]Some sites may not work correctly.")
-        console.print("[yellow]Recommended DNS servers:")
+        console.print("[red]❌ ERROR: DNS configuration is required!")
+        console.print("[red]The program cannot function correctly without proper DNS settings.")
+        console.print("[yellow]Please configure one of these DNS servers:")
         console.print("[blue]• Cloudflare (1.1.1.1)")
         console.print("[blue]• Quad9 (9.9.9.9)")
-        time.sleep(5)
+        console.print("\n[yellow]⚠️ The program will not work until you configure your DNS settings.")
+        input("[yellow]Press Enter to exit...")
 
     # Load search functions
     search_functions = load_search_functions()

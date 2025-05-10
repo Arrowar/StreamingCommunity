@@ -19,6 +19,7 @@ from unidecode import unidecode
 from rich.console import Console
 from rich.prompt import Prompt
 from pathvalidate import sanitize_filename, sanitize_filepath
+from dns.resolver import dns
 
 
 # Internal utilities

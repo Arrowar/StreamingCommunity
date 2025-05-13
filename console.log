@@ -1,0 +1,57 @@
+[selector_events.py:64 -             __init__() ] 2025-05-13 00:00:52,928 - DEBUG - Using selector: EpollSelector
+[config_json.py:381 -                  get() ] 2025-05-13 00:00:52,936 - INFO - Reading key: config.REQUESTS.timeout
+[config_json.py:381 -                  get() ] 2025-05-13 00:00:52,940 - INFO - Reading key: config.REQUESTS.timeout
+[config_json.py:381 -                  get() ] 2025-05-13 00:00:52,941 - INFO - Reading key: config.REQUESTS.timeout
+[run.py:85 - load_search_functions() ] 2025-05-13 00:00:57,298 - INFO - Load module name: guardaserie
+[config_json.py:381 -                  get() ] 2025-05-13 00:00:57,371 - INFO - Reading key: config.REQUESTS.timeout
+[config_json.py:381 -                  get() ] 2025-05-13 00:00:57,372 - INFO - Reading key: config.OUT_FOLDER.map_episode_name
+[config_json.py:381 -                  get() ] 2025-05-13 00:00:57,372 - INFO - Reading key: config.REQUESTS.timeout
+[config_json.py:381 -                  get() ] 2025-05-13 00:00:57,379 - INFO - Reading key: config.REQUESTS.timeout
+[run.py:85 - load_search_functions() ] 2025-05-13 00:00:57,379 - INFO - Load module name: animeunity
+[config_json.py:381 -                  get() ] 2025-05-13 00:00:57,380 - INFO - Reading key: config.REQUESTS.timeout
+[config_json.py:381 -                  get() ] 2025-05-13 00:00:57,382 - INFO - Reading key: config.REQUESTS.timeout
+[config_json.py:381 -                  get() ] 2025-05-13 00:00:57,383 - INFO - Reading key: config.REQUESTS.timeout
+[run.py:85 - load_search_functions() ] 2025-05-13 00:00:57,383 - INFO - Load module name: animeworld
+[config_json.py:381 -                  get() ] 2025-05-13 00:00:57,384 - INFO - Reading key: config.REQUESTS.timeout
+[config_json.py:381 -                  get() ] 2025-05-13 00:00:57,385 - INFO - Reading key: config.REQUESTS.timeout
+[config_json.py:381 -                  get() ] 2025-05-13 00:00:57,385 - INFO - Reading key: config.REQUESTS.timeout
+[run.py:85 - load_search_functions() ] 2025-05-13 00:00:57,386 - INFO - Load module name: streamingwatch
+[config_json.py:381 -                  get() ] 2025-05-13 00:00:57,387 - INFO - Reading key: config.REQUESTS.timeout
+[config_json.py:381 -                  get() ] 2025-05-13 00:00:57,387 - INFO - Reading key: config.REQUESTS.timeout
+[config_json.py:381 -                  get() ] 2025-05-13 00:00:57,388 - INFO - Reading key: config.REQUESTS.timeout
+[config_json.py:381 -                  get() ] 2025-05-13 00:00:57,388 - INFO - Reading key: config.REQUESTS.timeout
+[run.py:85 - load_search_functions() ] 2025-05-13 00:00:57,389 - INFO - Load module name: 1337xx
+[config_json.py:381 -                  get() ] 2025-05-13 00:00:57,390 - INFO - Reading key: config.REQUESTS.timeout
+[run.py:85 - load_search_functions() ] 2025-05-13 00:00:57,390 - INFO - Load module name: ddlstreamitaly
+[config_json.py:381 -                  get() ] 2025-05-13 00:00:57,391 - INFO - Reading key: config.REQUESTS.timeout
+[config_json.py:381 -                  get() ] 2025-05-13 00:00:57,391 - INFO - Reading key: config.REQUESTS.timeout
+[config_json.py:381 -                  get() ] 2025-05-13 00:00:57,392 - INFO - Reading key: config.REQUESTS.timeout
+[run.py:85 - load_search_functions() ] 2025-05-13 00:00:57,392 - INFO - Load module name: raiplay
+[config_json.py:381 -                  get() ] 2025-05-13 00:00:57,392 - INFO - Reading key: config.REQUESTS.timeout
+[config_json.py:381 -                  get() ] 2025-05-13 00:00:57,393 - INFO - Reading key: config.REQUESTS.timeout
+[config_json.py:381 -                  get() ] 2025-05-13 00:00:57,393 - INFO - Reading key: config.REQUESTS.timeout
+[run.py:85 - load_search_functions() ] 2025-05-13 00:00:57,394 - INFO - Load module name: altadefinizione
+[config_json.py:381 -                  get() ] 2025-05-13 00:00:57,394 - INFO - Reading key: config.REQUESTS.timeout
+[config_json.py:381 -                  get() ] 2025-05-13 00:00:57,395 - INFO - Reading key: config.REQUESTS.timeout
+[config_json.py:381 -                  get() ] 2025-05-13 00:00:57,396 - INFO - Reading key: config.REQUESTS.timeout
+[run.py:85 - load_search_functions() ] 2025-05-13 00:00:57,397 - INFO - Load module name: streamingcommunity
+[config_json.py:381 -                  get() ] 2025-05-13 00:00:57,398 - INFO - Reading key: config.REQUESTS.timeout
+[config_json.py:381 -                  get() ] 2025-05-13 00:00:57,400 - INFO - Reading key: config.REQUESTS.timeout
+[run.py:215 -                 main() ] 2025-05-13 00:00:57,401 - INFO - Load module in: 4.730632543563843 s
+[config_json.py:531 -          save_config() ] 2025-05-13 00:00:57,402 - INFO - Configuration saved to: /mnt/data/docker-compose/media-stack/StreamingCommunity/config.json
+[config_json.py:381 -                  get() ] 2025-05-13 00:00:59,886 - INFO - Reading key: config.DEFAULT.telegram_bot
+[config_json.py:381 -                  get() ] 2025-05-13 00:00:59,886 - INFO - Reading key: config.DEFAULT.telegram_bot
+[config_json.py:381 -                  get() ] 2025-05-13 00:01:03,667 - INFO - Reading key: config.DEFAULT.telegram_bot
+[config_json.py:381 -                  get() ] 2025-05-13 00:01:03,669 - INFO - Reading key: site.streamingcommunity.full_url
+[config_json.py:381 -                  get() ] 2025-05-13 00:01:03,991 - INFO - Reading key: site.streamingcommunity.full_url
+[config_json.py:381 -                  get() ] 2025-05-13 00:01:03,992 - INFO - Reading key: site.streamingcommunity.full_url
+[config_json.py:381 -                  get() ] 2025-05-13 00:01:04,098 - INFO - Reading key: config.DEFAULT.telegram_bot
+[config_json.py:381 -                  get() ] 2025-05-13 00:01:04,099 - INFO - Reading key: site.streamingcommunity.full_url
+[config_json.py:381 -                  get() ] 2025-05-13 00:01:04,099 - INFO - Reading key: config.DEFAULT.telegram_bot
+[config_json.py:381 -                  get() ] 2025-05-13 00:01:04,100 - INFO - Reading key: site.streamingcommunity.full_url
+[config_json.py:381 -                  get() ] 2025-05-13 00:01:04,100 - INFO - Reading key: config.DEFAULT.telegram_bot
+[config_json.py:381 -                  get() ] 2025-05-13 00:01:04,102 - INFO - Reading key: site.streamingcommunity.full_url
+[config_json.py:381 -                  get() ] 2025-05-13 00:01:04,102 - INFO - Reading key: config.DEFAULT.telegram_bot
+[config_json.py:381 -                  get() ] 2025-05-13 00:01:04,102 - INFO - Reading key: config.DEFAULT.telegram_bot
+[config_json.py:381 -                  get() ] 2025-05-13 00:01:04,102 - INFO - Reading key: config.DEFAULT.telegram_bot
+[config_json.py:381 -                  get() ] 2025-05-13 00:01:04,102 - INFO - Reading key: config.DEFAULT.telegram_bot

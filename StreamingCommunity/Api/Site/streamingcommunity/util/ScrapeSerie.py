@@ -98,15 +98,17 @@ class GetSerieInfo:
                 return
     
             response = httpx.get(
-                url=f'{self.url}/titles/{self.media_id}-{self.series_name}/stagione-{number_season}', 
+                url=f'{self.url}/titles/{self.media_id}-{self.series_name}/season-{number_season}', 
                 headers={
-                    'User-Agent': get_userAgent(),
-                    'x-inertia': 'true', 
+                    'accept': 'text/html, application/xhtml+xml',
+                    'accept-language': 'it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7',
+                    'User-Agent': self.headers['user-agent'],
+                    'x-inertia': 'true',
                     'x-inertia-version': self.version,
                 },
                 timeout=max_timeout
             )
-            response.raise_for_status()
+            #response.raise_for_status()
 
             # Extract episodes from JSON response
             json_response = response.json().get('props', {}).get('loadedSeason', {}).get('episodes', [])

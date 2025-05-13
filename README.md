@@ -35,7 +35,7 @@
 <summary>📦 Installation</summary>
 
 - 🔄 [Update Domains](#update-domains)
-- 🌐 [Available Sites](https://arrowar.github.io/StreamingDirectory/)
+- 🌐 [Available Sites](https://arrowar.github.io/StreamingCommunity/)
 - 🛠️ [Installation](#installation)
     - 📦 [PyPI Installation](#1-pypi-installation)
     - 🔄 [Automatic Installation](#2-automatic-installation)

@@ -97,7 +97,21 @@ def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_
         return
 
     if string_to_search is None:
-        string_to_search = msg.ask(f"\n[purple]Insert a word to search in [green]{site_constant.SITE_NAME}").strip()
+        if site_constant.TELEGRAM_BOT:
+            bot = get_bot_instance()
+            string_to_search = bot.ask(
+                "key_search",
+                f"Enter the search term\nor type 'back' to return to the menu: ",
+                None
+            )
+
+            if string_to_search == 'back':
+
+                # Restart the script
+                subprocess.Popen([sys.executable] + sys.argv)
+                sys.exit()
+        else:
+            string_to_search = msg.ask(f"\n[purple]Insert a word to search in [green]{site_constant.SITE_NAME}").strip()
 
     # Search on database
     len_database = title_search(string_to_search)

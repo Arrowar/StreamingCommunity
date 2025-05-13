@@ -4,6 +4,7 @@ import json
 
 
 # External libraries
+import json
 import httpx
 from bs4 import BeautifulSoup
 from rich.console import Console

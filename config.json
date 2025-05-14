@@ -6,7 +6,7 @@
         "show_trending": true,
         "use_api": true,
         "not_close": false,
-        "telegram_bot": true,
+        "telegram_bot": false,
         "download_site_data": true,
         "validate_github_config": true
     },

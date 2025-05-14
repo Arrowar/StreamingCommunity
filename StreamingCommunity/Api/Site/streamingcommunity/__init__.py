@@ -124,22 +124,7 @@ def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_
     # CORREZIONE BUG 1: Usa get_user_input per ottenere il termine di ricerca
     # string_to_search qui è quello passato come argomento alla funzione search.
     actual_search_query = get_user_input(string_to_search)
-    if string_to_search is None:
-        if site_constant.TELEGRAM_BOT:
-            bot = get_bot_instance()
-            string_to_search = bot.ask(
-                "key_search",
-                f"Enter the search term\nor type 'back' to return to the menu: ",
-                None
-            )
-
-            if string_to_search == 'back':
-
-                # Restart the script
-                subprocess.Popen([sys.executable] + sys.argv)
-                sys.exit()
-        else:
-            string_to_search = msg.ask(f"\n[purple]Insert a word to search in [green]{site_constant.SITE_NAME}").strip()
+    # rimosso il blocco 'if string_to_search is None:' get_user_input è già progettata per gestire il caso in cui string_to_search sia None
 
     if not actual_search_query: # Se l'utente ha scritto 'back' (gestito da get_user_input) o input vuoto/timeout
         if bot: # Invia messaggio solo se è in modalità bot e non è già stato gestito da 'back'

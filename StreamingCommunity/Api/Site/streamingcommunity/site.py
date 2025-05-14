@@ -46,7 +46,7 @@ def title_search(query: str) -> int:
 
     try:
         response = httpx.get(
-            site_constant.FULL_URL, 
+            f"{site_constant.FULL_URL}/it", 
             headers={'user-agent': get_userAgent()}, 
             timeout=max_timeout
         )
@@ -59,7 +59,7 @@ def title_search(query: str) -> int:
         console.print(f"[red]Site: {site_constant.SITE_NAME} version, request error: {e}")
         return 0
 
-    search_url = f"{site_constant.FULL_URL}/search?q={query}"
+    search_url = f"{site_constant.FULL_URL}/it/search?q={query}"
     console.print(f"[cyan]Search url: [yellow]{search_url}")
 
     try:

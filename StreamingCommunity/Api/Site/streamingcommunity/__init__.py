@@ -38,22 +38,94 @@ def get_user_input(string_to_search: str = None):
     Asks the user to input a search term.
     Handles both Telegram bot input and direct input.
     """
-    if string_to_search is None:
-        if site_constant.TELEGRAM_BOT:
-            bot = get_bot_instance()
-            string_to_search = bot.ask(
-                "key_search",
-                f"Enter the search term\nor type 'back' to return to the menu: ",
-                None
-            )
+    # Se string_to_search è già fornito (es. da riga di comando o chiamata precedente), usalo.
+    if string_to_search is not None:
+        return string_to_search.strip()
 
-            if string_to_search == 'back':
+    # Altrimenti, chiedi all'utente
+    if site_constant.TELEGRAM_BOT:
+        bot = get_bot_instance()
+        user_response = bot.ask(
+            "key_search", # Tipo di richiesta
+            "Enter the search term\nor type 'back' to return to the menu: ", # Messaggio per l'utente
+            None # Nessuna scelta predefinita, l'utente digita
+        )
 
-                # Restart the script
+        if user_response is None: # Timeout o nessun input
+            bot.send_message("Timeout: Nessun termine di ricerca inserito.", None)
+            return None # Indica che non c'è input
+
+        if user_response.lower() == 'back':
+            bot.send_message("Ritorno al menu principale...", None)
+            # Gestire il "back" qui è complesso perché Popen e sys.exit terminano lo script corrente.
+            # Idealmente, la logica di "back" dovrebbe essere gestita dal chiamante (run.py)
+            # o restituendo un valore speciale. Per ora, manteniamo il riavvio ma è subottimale.
+            try:
                 subprocess.Popen([sys.executable] + sys.argv)
                 sys.exit()
+            except Exception as e:
+                bot.send_message(f"Errore durante il tentativo di riavvio: {e}", None)
+                return None # Non continuare se il riavvio fallisce
+        
+        return user_response.strip()
+    else:
+        # Input da console
+        return msg.ask(f"\n[purple]Insert a word to search in [green]{site_constant.SITE_NAME}").strip()
+
+def process_search_result(select_title, selections=None):
+    """
+    Handles the search result and initiates the download for either a film or series.
+    
+    Parameters:
+        select_title (MediaItem): The selected media item. Può essere None se la selezione fallisce.
+        selections (dict, optional): Dictionary containing selection inputs that bypass manual input
+                                    {'season': season_selection, 'episode': episode_selection}
+    """
+    if not select_title: # Se select_title è None (es. l'utente non ha scelto o errore in get_select_title)
+        if site_constant.TELEGRAM_BOT:
+            bot = get_bot_instance()
+            bot.send_message("Nessun titolo selezionato o selezione annullata.", None)
         else:
-            string_to_search = msg.ask(f"\n[purple]Insert a word to search in [green]{site_constant.SITE_NAME}").strip()
+            console.print("[yellow]Nessun titolo selezionato o selezione annullata.")
+        return # Esce se non c'è un titolo valido
+
+    if select_title.type == 'tv':
+        season_selection = None
+        episode_selection = None
+        
+        if selections:
+            season_selection = selections.get('season')
+            episode_selection = selections.get('episode')
+
+        download_series(select_title, season_selection, episode_selection)
+    else:
+        download_film(select_title)
+
+def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_item: dict = None, selections: dict = None):
+    """
+    Main function of the application for search.
+
+    Parameters:
+        string_to_search (str, optional): String to search for. Può essere passato da run.py.
+        get_onlyDatabase (bool, optional): If True, return only the database object.
+        direct_item (dict, optional): Direct item to process (bypass search).
+        selections (dict, optional): Dictionary containing selection inputs that bypass manual input.
+    """
+    bot = None # Inizializza bot a None
+    if site_constant.TELEGRAM_BOT:
+        bot = get_bot_instance()
+
+    if direct_item:
+        # Se un item è fornito direttamente, lo processa e esce.
+        # Utile per test o integrazioni future.
+        select_title_obj = MediaItem(**direct_item)
+        process_search_result(select_title_obj, selections)
+        return
+
+    # CORREZIONE BUG 1: Usa get_user_input per ottenere il termine di ricerca
+    # string_to_search qui è quello passato come argomento alla funzione search.
+    actual_search_query = get_user_input(string_to_search)
+    # rimosso il blocco 'if string_to_search is None:' get_user_input è già progettata per gestire il caso in cui string_to_search sia None
 
     return string_to_search
 

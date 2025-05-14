@@ -18,10 +18,11 @@ from .film import download_film
 
 
 # Variable
-indice = 8
-_useFor = "anime"
+indice = 6
+_useFor = "Anime"
 _priority = 0
 _engineDownload = "mp4"
+_deprecate = False
 
 msg = Prompt()
 console = Console()

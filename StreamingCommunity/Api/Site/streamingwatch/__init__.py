@@ -19,10 +19,11 @@ from .series import download_series
 
 
 # Variable
-indice = 8
-_useFor = "film_serie"
+indice = 7
+_useFor = "Film_&_Serie"
 _priority = 10          # !!! MOLTO LENTO
 _engineDownload = "hls"
+_deprecate = False
 
 msg = Prompt()
 console = Console()

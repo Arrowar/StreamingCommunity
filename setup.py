@@ -10,7 +10,7 @@ with open(os.path.join(os.path.dirname(__file__), "requirements.txt"), "r", enco
 
 setup(
     name="StreamingCommunity",
-    version="3.0.4",
+    version="3.0.6",
     long_description=read_readme(),
     long_description_content_type="text/markdown",
     author="Lovi-0",

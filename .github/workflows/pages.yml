@@ -25,7 +25,7 @@ jobs:
       - name: Copy site files
         run: |
           mkdir -p _site
-          cp -r Test/.site/* _site/
+          cp -r .github/.site/* _site/
           ls -la _site/
 
       - name: Upload artifact

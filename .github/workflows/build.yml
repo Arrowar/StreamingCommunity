@@ -51,7 +51,7 @@ jobs:
 
   build:
     if: startsWith(github.ref_name, 'v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_pypi == 'false')
-    
+
     strategy:
       matrix:
         include:
@@ -59,17 +59,17 @@ jobs:
             artifact_name: StreamingCommunity_win
             executable: StreamingCommunity_win.exe
             separator: ';'
-          
+
           - os: macos-latest
             artifact_name: StreamingCommunity_mac
             executable: StreamingCommunity_mac
             separator: ':'
-          
+
           - os: ubuntu-latest
             artifact_name: StreamingCommunity_linux_latest
             executable: StreamingCommunity_linux_latest
             separator: ':'
-          
+
           - os: ubuntu-22.04
             artifact_name: StreamingCommunity_linux_previous
             executable: StreamingCommunity_linux_previous

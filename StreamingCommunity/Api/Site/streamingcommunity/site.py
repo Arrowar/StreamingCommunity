@@ -1,5 +1,7 @@
 # 10.12.23
 
+import json
+
 
 # External libraries
 import json
@@ -43,10 +45,9 @@ def title_search(query: str) -> int:
     media_search_manager.clear()
     table_show_manager.clear()
 
-    #search_url = f"{site_constant.FULL_URL}/api/search?q={query}"
     try:
         response = httpx.get(
-            site_constant.FULL_URL, 
+            f"{site_constant.FULL_URL}/it", 
             headers={'user-agent': get_userAgent()}, 
             timeout=max_timeout
         )
@@ -59,19 +60,13 @@ def title_search(query: str) -> int:
         console.print(f"[red]Site: {site_constant.SITE_NAME} version, request error: {e}")
         return 0
 
-    search_url = f"{site_constant.FULL_URL}/search?q={query}"
+    search_url = f"{site_constant.FULL_URL}/it/search?q={query}"
     console.print(f"[cyan]Search url: [yellow]{search_url}")
 
     try:
         response = httpx.get(
             search_url, 
-            #headers={'user-agent': get_userAgent()}, 
-            #timeout=max_timeout, 
-            #follow_redirects=True, 
-            #verify=False
             headers = {
-                'accept': 'text/html, application/xhtml+xml',
-                'accept-language': 'it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7',
                 'referer': site_constant.FULL_URL,
                 'user-agent': get_userAgent(),
                 'x-inertia': 'true',
@@ -93,7 +88,6 @@ def title_search(query: str) -> int:
 
     # Collect json data
     try:
-        #data = response.json().get('data', [])
         data = response.json().get('props').get('titles')
     except Exception as e:
         console.log(f"Error parsing JSON response: {e}")

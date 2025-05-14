@@ -61,7 +61,8 @@ def load_search_functions():
             priority = getattr(mod, '_priority', 0)
 
             if priority == 0:
-                modules.append((module_name, indice, use_for))
+                if not getattr(mod, '_deprecate'):
+                    modules.append((module_name, indice, use_for))
 
         except Exception as e:
             console.print(f"[red]Failed to import module {module_name}: {str(e)}")

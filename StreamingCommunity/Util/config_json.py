@@ -36,8 +36,13 @@ class ConfigManager:
             base_path = os.path.dirname(sys.executable)
 
         else:
-            # Use the current directory where the script is executed
-            base_path = os.getcwd()
+          
+            # Get the actual path of the module file
+            current_file_path = os.path.abspath(__file__)
+            # Navigate upwards to find the project root
+            # Assuming this file is in a package structure like StreamingCommunity/Util/config_json.py
+            # We need to go up 2 levels to reach the project root
+            base_path = os.path.dirname(os.path.dirname(os.path.dirname(current_file_path)))
             
         # Initialize file paths
         self.file_path = os.path.join(base_path, file_name)
@@ -166,7 +171,6 @@ class ConfigManager:
                 raise Exception(f"Error downloading reference configuration. Code: {response.status_code}")
             
             reference_config = response.json()
-            console.print(f"[bold cyan]Reference configuration downloaded:[/bold cyan] [green]{len(reference_config)} keys available[/green]")
             
             # Compare and update missing keys
             merged_config = self._deep_merge_configs(self.config, reference_config)
@@ -285,7 +289,6 @@ class ConfigManager:
                     self.configSite = data[0]['data']
                     
                     site_count = len(self.configSite) if isinstance(self.configSite, dict) else 0
-                    console.print(f"[bold green]Site data retrieved:[/bold green] {site_count} streaming services available")
                     
                 else:
                     console.print("[bold yellow]API returned an empty data set[/bold yellow]")

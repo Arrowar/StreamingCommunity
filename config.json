@@ -11,9 +11,9 @@
         "validate_github_config": true
     },
     "OUT_FOLDER": {
-        "root_path": "/mnt/data/media/",
-        "movie_folder_name": "films",
-        "serie_folder_name": "serie_tv",
+        "root_path": "Video",
+        "movie_folder_name": "Movie",
+        "serie_folder_name": "Serie",
         "anime_folder_name": "Anime",
         "map_episode_name": "E%(episode)_%(episode_name)",
         "add_siteName": false

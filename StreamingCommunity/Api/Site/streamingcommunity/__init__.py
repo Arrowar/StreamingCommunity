@@ -58,9 +58,6 @@ def get_user_input(string_to_search: str = None):
         if user_response.lower() == 'back':
             bot.send_message("Ritorno al menu principale...", None)
             
-            # Gestire il "back" qui è complesso perché Popen e sys.exit terminano lo script corrente.
-            # Idealmente, la logica di "back" dovrebbe essere gestita dal chiamante (run.py)
-            # o restituendo un valore speciale. Per ora, manteniamo il riavvio ma è subottimale.
             try:
                 subprocess.Popen([sys.executable] + sys.argv)
                 sys.exit()

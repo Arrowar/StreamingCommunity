@@ -1,26 +1,23 @@
 # 19.06.24
-# Modifiche per integrare l'input da Telegram Bot
 
 import sys
 
+
 # External library
-from rich.console import Console # Usata per output console
+from rich.console import Console
+
 
 # Internal utilities
-# È necessario importare site_constant e get_bot_instance se non sono già globali
-# o passate come argomenti, il che è una pratica migliore.
-# Assumiamo che siano accessibili come nel resto del codice.
 from StreamingCommunity.Api.Template.config_loader import site_constant
 from StreamingCommunity.TelegramHelp.telegram_bot import get_bot_instance
 
 # Variable
 console = Console()
 available_colors = ['red', 'magenta', 'yellow', 'cyan', 'green', 'blue', 'white']
-# column_to_hide non è usato nella logica di selezione del bot, ma lo lasciamo per la parte console
 column_to_hide = ['Slug', 'Sub_ita', 'Last_air_date', 'Seasons_count', 'Url', 'Image', 'Path_id']
 
 
-def get_select_title(table_show_manager, media_search_manager, num_results_available): # Aggiunto num_results_available
+def get_select_title(table_show_manager, media_search_manager, num_results_available):
     """
     Display a selection of titles and prompt the user to choose one.
     Handles both console and Telegram bot input.
@@ -34,24 +31,16 @@ def get_select_title(table_show_manager, media_search_manager, num_results_avail
         MediaItem: The selected media item, or None if no selection is made or an error occurs.
     """
     if not media_search_manager.media_list:
-        # Questo messaggio è già gestito in streamingcommunity/__init__.py
-        # console.print("\n[red]No media items available.")
         return None
 
     if site_constant.TELEGRAM_BOT:
         bot = get_bot_instance()
-        # La lista dei titoli è già stata inviata da .site.title_search()
-        # Ora chiediamo solo il numero.
-        
-        # Costruisci un prompt chiaro per l'utente del bot
-        # La lista dei titoli è già stata mostrata da site.py (title_search)
-        # Quindi qui chiediamo solo il numero.
         prompt_message = f"Inserisci il numero del titolo che vuoi selezionare (da 0 a {num_results_available - 1}):"
         
         user_input_str = bot.ask(
-            "select_title_from_list_number", # Tipo di richiesta univoco
+            "select_title_from_list_number",
             prompt_message,
-            None # L'utente deve digitare il numero
+            None
         )
 
         if user_input_str is None: # Timeout da bot.ask()
@@ -61,10 +50,10 @@ def get_select_title(table_show_manager, media_search_manager, num_results_avail
         try:
             chosen_index = int(user_input_str)
             if 0 <= chosen_index < num_results_available:
-                selected_item = media_search_manager.get(chosen_index) # Assumendo che .get() prenda un indice
+                selected_item = media_search_manager.get(chosen_index)
                 if selected_item:
-                    # bot.send_message(f"Hai selezionato: {selected_item.name}", None) # Messaggio di conferma opzionale
                     return selected_item
+                    
                 else:
                     # Questo caso non dovrebbe accadere se l'indice è valido e media_search_manager è corretto
                     bot.send_message(f"Errore interno: Impossibile recuperare il titolo con indice {chosen_index}.", None)
@@ -72,16 +61,19 @@ def get_select_title(table_show_manager, media_search_manager, num_results_avail
             else:
                 bot.send_message(f"Selezione '{chosen_index}' non valida. Inserisci un numero compreso tra 0 e {num_results_available - 1}.", None)
                 return None
+                
         except ValueError:
             bot.send_message(f"Input '{user_input_str}' non valido. Devi inserire un numero.", None)
             return None
+            
         except Exception as e:
             bot.send_message(f"Si è verificato un errore durante la selezione: {e}", None)
             return None
 
     else:
+        
         # Logica originale per la console
-        if not media_search_manager.media_list: # Controllo ridondante ma innocuo
+        if not media_search_manager.media_list:
             console.print("\n[red]No media items available.")
             return None
         
@@ -114,22 +106,21 @@ def get_select_title(table_show_manager, media_search_manager, num_results_avail
         last_command_str = table_show_manager.run(force_int_input=True, max_int_input=len(media_search_manager.media_list))
         table_show_manager.clear()
 
-        if last_command_str is None or last_command_str.lower() in ["q", "quit"]: # table_show_manager.run potrebbe restituire None
+        if last_command_str is None or last_command_str.lower() in ["q", "quit"]:
             console.print("\n[red]Selezione annullata o uscita.")
-            # sys.exit(0) # Evita sys.exit qui, lascia che il chiamante gestisca il flusso
             return None 
 
         try:
-            # force_int_input=True dovrebbe garantire un intero, ma una doppia verifica non fa male
-            # o se restituisce una stringa che deve essere convertita.
-            # Assumiamo che table_show_manager.run gestisca già la validazione base.
             selected_index = int(last_command_str)
+            
             if 0 <= selected_index < len(media_search_manager.media_list):
                 return media_search_manager.get(selected_index)
+                
             else:
                 console.print("\n[red]Indice errato o non valido.")
                 # sys.exit(0)
                 return None
+                
         except ValueError:
             console.print("\n[red]Input non numerico ricevuto dalla tabella.")
             # sys.exit(0)

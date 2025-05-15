@@ -24,11 +24,6 @@
         "user": "admin",
         "pass": "adminadmin"
     },
-    "REQUESTS": {
-        "verify": false,
-        "timeout": 20,
-        "max_retry": 8
-    },
     "M3U8_DOWNLOAD": {
         "tqdm_delay": 0.01,
         "default_video_workser": 12,
@@ -59,11 +54,9 @@
         "force_resolution": "Best",
         "get_only_link": false
     },
-    "SITE_EXTRA": {
-        "ddlstreamitaly": {
-            "ips4_device_key": "",
-            "ips4_member_id": "",
-            "ips4_login_key": ""
-        }
+    "REQUESTS": {
+        "verify": false,
+        "timeout": 20,
+        "max_retry": 8
     }
 }

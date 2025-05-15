@@ -1,13 +1,13 @@
 # 19.06.24
-# Modifiche per integrare l'input da Telegram Bot
 
 import sys
 
+
 # External library
-from rich.console import Console # Usata per output console
+from rich.console import Console
+
 
 # Internal utilities
-
 from StreamingCommunity.Api.Template.config_loader import site_constant
 from StreamingCommunity.TelegramHelp.telegram_bot import get_bot_instance
 
@@ -37,13 +37,12 @@ def get_select_title(table_show_manager, media_search_manager, num_results_avail
 
     if site_constant.TELEGRAM_BOT:
         bot = get_bot_instance()
-        
         prompt_message = f"Inserisci il numero del titolo che vuoi selezionare (da 0 a {num_results_available - 1}):"
         
         user_input_str = bot.ask(
-            "select_title_from_list_number", 
+            "select_title_from_list_number",
             prompt_message,
-            None 
+            None
         )
 
         if user_input_str is None: 
@@ -53,25 +52,29 @@ def get_select_title(table_show_manager, media_search_manager, num_results_avail
         try:
             chosen_index = int(user_input_str)
             if 0 <= chosen_index < num_results_available:
-                selected_item = media_search_manager.get(chosen_index) 
+                selected_item = media_search_manager.get(chosen_index)
                 if selected_item:
-                    # bot.send_message(f"Hai selezionato: {selected_item.name}", None) # Messaggio di conferma opzionale
                     return selected_item
+                    
                 else:
                     bot.send_message(f"Errore interno: Impossibile recuperare il titolo con indice {chosen_index}.", None)
                     return None
             else:
                 bot.send_message(f"Selezione '{chosen_index}' non valida. Inserisci un numero compreso tra 0 e {num_results_available - 1}.", None)
                 return None
+                
         except ValueError:
             bot.send_message(f"Input '{user_input_str}' non valido. Devi inserire un numero.", None)
             return None
+            
         except Exception as e:
             bot.send_message(f"Si è verificato un errore durante la selezione: {e}", None)
             return None
 
     else:
-        if not media_search_manager.media_list: 
+        
+        # Logica originale per la console
+        if not media_search_manager.media_list:
             console.print("\n[red]No media items available.")
             return None
         
@@ -111,12 +114,15 @@ def get_select_title(table_show_manager, media_search_manager, num_results_avail
         try:
            
             selected_index = int(last_command_str)
+            
             if 0 <= selected_index < len(media_search_manager.media_list):
                 return media_search_manager.get(selected_index)
+                
             else:
                 console.print("\n[red]Indice errato o non valido.")
                 # sys.exit(0)
                 return None
+                
         except ValueError:
             console.print("\n[red]Input non numerico ricevuto dalla tabella.")
             # sys.exit(0)

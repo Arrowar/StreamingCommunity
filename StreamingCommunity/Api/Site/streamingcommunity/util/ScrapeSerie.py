@@ -20,7 +20,7 @@ max_timeout = config_manager.get_int("REQUESTS", "timeout")
 
 
 class GetSerieInfo:
-    def __init__(self, url, media_id: int = None, series_name: str = None):
+    def __init__(self, url, media_id: int = None, series_name: str = None, proxy = None):
         """
         Initialize the GetSerieInfo class for scraping TV series information.
         
@@ -32,6 +32,7 @@ class GetSerieInfo:
         self.is_series = False
         self.headers = {'user-agent': get_userAgent()}
         self.url = url
+        self.proxy = proxy
         self.media_id = media_id
         self.seasons_manager = SeasonManager()
 
@@ -50,7 +51,8 @@ class GetSerieInfo:
             response = httpx.get(
                 url=f"{self.url}/titles/{self.media_id}-{self.series_name}",
                 headers=self.headers,
-                timeout=max_timeout
+                timeout=max_timeout,
+                proxy=self.proxy
             )
             response.raise_for_status()
 
@@ -104,7 +106,8 @@ class GetSerieInfo:
                     'x-inertia': 'true',
                     'x-inertia-version': self.version,
                 },
-                timeout=max_timeout
+                timeout=max_timeout,
+                proxy=self.proxy
             )
 
             # Extract episodes from JSON response

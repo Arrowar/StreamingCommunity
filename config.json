@@ -57,6 +57,7 @@
     "REQUESTS": {
         "verify": false,
         "timeout": 20,
-        "max_retry": 8
+        "max_retry": 8,
+        "proxy": ""
     }
 }

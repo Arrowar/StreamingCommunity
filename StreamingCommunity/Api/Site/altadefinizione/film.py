@@ -1,6 +1,7 @@
 # 16.03.25
 
 import os
+import re
 
 
 # External library
@@ -56,51 +57,30 @@ def download_film(select_title: MediaItem) -> str:
 
     start_message()
     console.print(f"[bold yellow]Download:[/bold yellow] [red]{site_constant.SITE_NAME}[/red] → [cyan]{select_title.name}[/cyan] \n")
-
-    # Extract mostraguarda link
+    
+    # Extract mostraguarda URL
     try:
         response = httpx.get(select_title.url, headers=get_headers(), timeout=10)
-        response.raise_for_status()
-
-    except Exception as e:
-        console.print(f"[red]Error fetching the page: {e}")
-
-        if site_constant.TELEGRAM_BOT:
-            bot.send_message(f"ERRORE\n\nErrore durante il recupero della pagina.\n\n{e}", None)
-        return None
+        soup = BeautifulSoup(response.text, 'html.parser')
+        iframes = soup.find_all('iframe')
+        mostraguarda = iframes[0]['src']
     
-    # Create mostraguarda url
-    soup = BeautifulSoup(response.text, "html.parser")
-    iframe_tag = soup.find_all("iframe")
-    url_mostraGuarda = iframe_tag[0].get('data-src')
-    if not url_mostraGuarda:
-        console.print("Error: data-src attribute not found in iframe.")
-        if site_constant.TELEGRAM_BOT:
-            bot.send_message(f"ERRORE\n\nErrore: attributo data-src non trovato nell'iframe", None)
+    except Exception as e:
+        console.print(f"[red]Site: {site_constant.SITE_NAME}, request error: {e}, get mostraguarda")
 
     # Extract supervideo URL
     try:
-        response = httpx.get(url_mostraGuarda, headers=get_headers(), timeout=10)
-        response.raise_for_status()
+        response = httpx.get(mostraguarda, headers=get_headers(), timeout=10)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        pattern = r'//supervideo\.[^/]+/[a-z]/[a-zA-Z0-9]+'
+        supervideo_match = re.search(pattern, response.text)
+        supervideo_url = 'https:' + supervideo_match.group(0)
 
     except Exception as e:
-        console.print(f"[red]Error fetching mostraguarda link: {e}")
-        console.print("[yellow]Missing access credentials. This part of the code is still under development.")
-        if site_constant.TELEGRAM_BOT:
-            bot.send_message(f"ERRORE\n\nErrore durante il recupero del link mostra/guarda.\n\n{e}", None)
-            bot.send_message(f"ERRORE\n\nCredenziali di accesso mancanti.\nQuesta parte del codice è ancora in fase di sviluppo.", None)
-        return None
-
-    # Create supervio URL
-    soup = BeautifulSoup(response.text, "html.parser")
-    player_links = soup.find("ul", class_="_player-mirrors")
-    player_items = player_links.find_all("li")
-    supervideo_url = "https:" + player_items[0].get("data-link")
-    if not supervideo_url:
-        return None
+        console.print(f"[red]Site: {site_constant.SITE_NAME}, request error: {e}, get supervideo URL")
 
     # Init class
-    video_source = VideoSource(url=supervideo_url)
+    video_source = VideoSource(supervideo_url)
     master_playlist = video_source.get_playlist()
 
     # Define the filename and path for the downloaded film

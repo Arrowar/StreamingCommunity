@@ -470,7 +470,11 @@ To enable qBittorrent integration, follow the setup guide [here](https://github.
     "REQUESTS": {
         "verify": false,
         "timeout": 20,
-        "max_retry": 8
+        "max_retry": 8,
+        "proxy": {
+            "http": "http://username:password@host:port",
+            "https": "https://username:password@host:port"
+        }
     }
 }
 ```
@@ -478,6 +482,22 @@ To enable qBittorrent integration, follow the setup guide [here](https://github.
 - `verify`: Verifies SSL certificates
 - `timeout`: Maximum timeout (in seconds) for each request
 - `max_retry`: Number of retry attempts per segment during M3U8 index download
+- `proxy`: Proxy configuration for HTTP/HTTPS requests
+  * Set to empty string `""` to disable proxies (default)
+  * Example with authentication:
+    ```json
+    "proxy": {
+        "http": "http://username:password@host:port",
+        "https": "https://username:password@host:port"
+    }
+    ```
+  * Example without authentication:
+    ```json
+    "proxy": {
+        "http": "http://host:port",
+        "https": "https://host:port"
+    }
+    ```
 </details>
 
 <details>

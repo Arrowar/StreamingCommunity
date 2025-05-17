@@ -21,7 +21,7 @@ from .series import download_series
 # Variable
 indice = 7
 _useFor = "Film_&_Serie"
-_priority = 10          # !!! MOLTO LENTO
+_priority = 0
 _engineDownload = "hls"
 _deprecate = False
 
@@ -79,8 +79,8 @@ def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_
         string_to_search = msg.ask(f"\n[purple]Insert a word to search in [green]{site_constant.SITE_NAME}").strip()
     
     finder = ProxyFinder(url=f"{site_constant.FULL_URL}/serie/euphoria/")
-    proxy, response_serie, _ = finder.find_fast_proxy()
-    len_database = title_search(string_to_search, [proxy, response_serie])
+    proxy = finder.find_fast_proxy()
+    len_database = title_search(string_to_search, proxy)
 
     # If only the database is needed, return the manager
     if get_onlyDatabase:

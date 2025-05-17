@@ -27,9 +27,16 @@ table_show_manager = TVShowManager()
 max_timeout = config_manager.get_int("REQUESTS", "timeout")
 
 
-def extract_nonce(response_) -> str:
+def extract_nonce(proxy) -> str:
     """Extract nonce value from the page script"""
-    soup = BeautifulSoup(response_.content, 'html.parser')
+    response = httpx.get(
+        site_constant.FULL_URL, 
+        headers={'user-agent': get_userAgent()}, 
+        timeout=max_timeout,
+        proxy=proxy
+    )
+    
+    soup = BeautifulSoup(response.content, 'html.parser')
     script = soup.find('script', id='live-search-js-extra')
     if script:
         match = re.search(r'"admin_ajax_nonce":"([^"]+)"', script.text)
@@ -38,7 +45,7 @@ def extract_nonce(response_) -> str:
     return ""
 
 
-def title_search(query: str, additionalData: list) -> int:
+def title_search(query: str, proxy: str) -> int:
     """
     Search for titles based on a search query.
       
@@ -51,12 +58,11 @@ def title_search(query: str, additionalData: list) -> int:
     media_search_manager.clear()
     table_show_manager.clear()
 
-    proxy, response_serie = additionalData
     search_url = f"{site_constant.FULL_URL}/wp-admin/admin-ajax.php"
     console.print(f"[cyan]Search url: [yellow]{search_url}")
 
     try:
-        _wpnonce = extract_nonce(response_serie)
+        _wpnonce = extract_nonce(proxy)
         
         if not _wpnonce:
             console.print("[red]Error: Failed to extract nonce")
@@ -82,6 +88,7 @@ def title_search(query: str, additionalData: list) -> int:
         soup = BeautifulSoup(response.text, 'html.parser')
 
     except Exception as e:
+        if "WinError" in str(e) or "Errno" in str(e): console.print("\n[bold yellow]Please make sure you have enabled and configured a valid proxy.[/bold yellow]")
         console.print(f"[red]Site: {site_constant.SITE_NAME}, request search error: {e}")
         return 0
 

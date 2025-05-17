@@ -96,7 +96,7 @@ def process_search_result(select_title, selections=None):
             season_selection = selections.get('season')
             episode_selection = selections.get('episode')
 
-        download_series(select_title, season_selection, episode_selection)
+        download_series(select_title, season_selection, episode_selection, proxy)
         
     else:
         download_film(select_title)
@@ -128,8 +128,10 @@ def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_
                 bot.send_message("Termine di ricerca non fornito. Ritorno al menu precedente.", None)
         return
 
-    # title_search (da site.py) MOSTRA la lista dei risultati all'utente via bot.
-    len_database = title_search(actual_search_query)
+    # Search on database
+    finder = ProxyFinder(site_constant.FULL_URL)
+    proxy = finder.find_fast_proxy()
+    len_database = title_search(actual_search_query, proxy)
 
     if string_to_search == 'back':
 
@@ -157,7 +159,7 @@ def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_
             len_database
         )
         
-        process_search_result(select_title_obj, selections)
+        process_search_result(select_title_obj, selections, proxy)
     
     else:
         no_results_message = f"Nessun risultato trovato per: '{actual_search_query}'"

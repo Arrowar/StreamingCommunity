@@ -17,12 +17,10 @@ from StreamingCommunity.Api.Template.config_loader import site_constant
 from StreamingCommunity.Api.Template.Class.SearchType import MediaItem
 from StreamingCommunity.TelegramHelp.telegram_bot import get_bot_instance
 
-
 # Logic class
 from .site import title_search, table_show_manager, media_search_manager
 from .film import download_film
 from .series import download_series
-
 
 # Variable
 indice = 0
@@ -79,7 +77,7 @@ def process_search_result(select_title, selections=None, proxy=None):
         download_series(select_title, season_selection, episode_selection, proxy)
 
     else:
-        download_film(select_title)
+        download_film(select_title, proxy) # Assuming download_film also needs proxy
 
 def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_item: dict = None, selections: dict = None):
     """

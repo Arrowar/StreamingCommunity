@@ -29,7 +29,7 @@
         "default_video_workser": 12,
         "default_audio_workser": 12,
         "segment_timeout": 8,
-        "download_audio": false,
+        "download_audio": true,
         "merge_audio": true,
         "specific_list_audio": [
             "ita"

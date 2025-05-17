@@ -71,7 +71,7 @@ def get_user_input(string_to_search: str = None):
     else:
         return msg.ask(f"\n[purple]Insert a word to search in [green]{site_constant.SITE_NAME}").strip()
 
-def process_search_result(select_title, selections=None):
+def process_search_result(select_title, selections=None, proxy=None):
     """
     Handles the search result and initiates the download for either a film or series.
     
@@ -151,15 +151,8 @@ def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_
         return media_search_manager
     
     if len_database > 0:
-        
-        # Se ci sono risultati, chiama get_select_title per chiedere all'utente quale selezionare.
-        select_title_obj = get_select_title(
-            table_show_manager,
-            media_search_manager,
-            len_database
-        )
-        
-        process_search_result(select_title_obj, selections, proxy)
+        select_title = get_select_title(table_show_manager, media_search_manager)
+        process_search_result(select_title, selections, proxy)
     
     else:
         no_results_message = f"Nessun risultato trovato per: '{actual_search_query}'"

@@ -1,0 +1,62 @@
+{
+    "DEFAULT": {
+        "debug": false,
+        "show_message": true,
+        "clean_console": true,
+        "show_trending": true,
+        "use_api": true,
+        "not_close": false,
+        "telegram_bot": true,
+        "download_site_data": true,
+        "validate_github_config": true
+    },
+    "OUT_FOLDER": {
+        "root_path": "/mnt/data/media/",
+        "movie_folder_name": "films",
+        "serie_folder_name": "serie_tv",
+        "anime_folder_name": "Anime",
+        "map_episode_name": "E%(episode)_%(episode_name)",
+        "add_siteName": false
+    },
+    "QBIT_CONFIG": {
+        "host": "192.168.1.51",
+        "port": "6666",
+        "user": "admin",
+        "pass": "adminadmin"
+    },
+    "M3U8_DOWNLOAD": {
+        "tqdm_delay": 0.01,
+        "default_video_workser": 12,
+        "default_audio_workser": 12,
+        "segment_timeout": 8,
+        "download_audio": true,
+        "merge_audio": true,
+        "specific_list_audio": [
+            "ita"
+        ],
+        "download_subtitle": true,
+        "merge_subs": true,
+        "specific_list_subtitles": [
+            "ita",
+            "eng"
+        ],
+        "cleanup_tmp_folder": true
+    },
+    "M3U8_CONVERSION": {
+        "use_codec": false,
+        "use_vcodec": true,
+        "use_acodec": true,
+        "use_bitrate": true,
+        "use_gpu": false,
+        "default_preset": "ultrafast"
+    },
+    "M3U8_PARSER": {
+        "force_resolution": "Best",
+        "get_only_link": false
+    },
+    "REQUESTS": {
+        "verify": false,
+        "timeout": 20,
+        "max_retry": 8
+    }
+}

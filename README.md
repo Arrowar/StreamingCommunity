@@ -747,6 +747,33 @@ The `run-container` command mounts also the `config.json` file, so any change to
 
 The bot was created to replace terminal commands and allow interaction via Telegram. Each download runs within a screen session, enabling multiple downloads to run simultaneously.
 
+To set up and run the Telegram bot, follow these steps:
+
+1.  **Create the `.env` file:** In the root directory of the project, create a file named `.env`. This file will store your sensitive credentials.
+2.  **Add your Telegram credentials to `.env`:** Open the `.env` file and add the following lines, replacing the placeholder values with your actual Telegram bot token and your authorized user ID:
+
+    ```
+    TOKEN_TELEGRAM=IlTuo2131TOKEN$12D3Telegram
+    AUTHORIZED_USER_ID=12345678
+    DEBUG=False
+    ```
+    * `TOKEN_TELEGRAM`: Obtain this token from the BotFather on Telegram.
+    * `AUTHORIZED_USER_ID`: Your unique Telegram user ID. Only this user will be authorized to interact with the bot.
+    * `DEBUG`: Set to `True` for detailed logging (optional).
+
+3.  **Configure `config.json` files:** Ensure that in **both** `config.json` files within your repository (there might be one in the root and one in a subdirectory like `StreamingCommunity` or `TelegramHelp`), you set the `telegram_bot` option to `true`.
+
+    ```json
+    "telegram_bot": true
+    ```
+    *Make sure this setting is correctly applied in all relevant configuration files.*
+
+4.  **Start the Telegram bot script:** Navigate to the `StreamingCommunity/TelegramHelp/` directory in your terminal and run the `telegram_bot.py` script.
+
+    ```bash
+    python3 telegram_bot.py
+    ```
+
 To run the bot in the background, simply start it inside a screen session and then press Ctrl + A, followed by D, to detach from the session without stopping the bot.
 </details>
 
@@ -755,26 +782,17 @@ To run the bot in the background, simply start it inside a screen session and th
 
 Command Functions:
 
-🔹 /start – Starts a new search for a download. This command performs the same operations as manually running the script in the terminal with test_run.py.
+🔹 `/start` – Starts a new search for a download. This command performs the same operations as manually running the script in the terminal with `test_run.py`.
 
-🔹 /list – Displays the status of active downloads, with options to:
-- Stop an incorrect download using /stop <ID>
-- View the real-time output of a download using /screen <ID>
+🔹 `/list` – Displays the status of active downloads, with options to:
 
-⚠ Warning: If a download is interrupted, incomplete files may remain in the folder specified in config.json. These files must be deleted manually to avoid storage or management issues.
-</details>
+Stop an incorrect download using `/stop <ID>`.
 
-<details>
-<summary>🔧 Environment Setup</summary>
+View the real-time output of a download using `/screen <ID>`.
 
-Create an `.env` file with:
+⚠ Warning: If a download is interrupted, incomplete files may remain in the folder specified in `config.json`. These files must be deleted manually to avoid storage or management issues.
 
-```
-TOKEN_TELEGRAM=IlTuo2131TOKEN$12D3Telegram
-AUTHORIZED_USER_ID=12345678
-DEBUG=False
-```
-</details>
+🛠 Configuration: Currently, the bot's settings are stored in the `config.json` file, which is located in the same directory as the `telegram_bot.py` script, as well as potentially in the root of the repository. Ensure the `telegram_bot: true` setting is consistent across all relevant `config.json` files.
 
 <details>
 <summary>📥 Dependencies & Launch</summary>

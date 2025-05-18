@@ -315,7 +315,7 @@ class InternManager():
                 for provider, ips in dns_providers.items():
                     if server in ips:
                         return True
-            return True
+            return False
             
         except Exception:
             return False

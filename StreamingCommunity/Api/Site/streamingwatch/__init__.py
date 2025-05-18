@@ -84,6 +84,8 @@ def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_
         string_to_search = msg.ask(f"\n[purple]Insert a word to search in [green]{site_constant.SITE_NAME}").strip()
     
     # Perform search on the database using the obtained query
+    finder = ProxyFinder(url=f"{site_constant.FULL_URL}/serie/euphoria/")
+    proxy = finder.find_fast_proxy()
     len_database = title_search(string_to_search, proxy)
 
     # If only the database is needed, return the manager

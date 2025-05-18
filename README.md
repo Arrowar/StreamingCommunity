@@ -748,26 +748,24 @@ The `run-container` command mounts also the `config.json` file, so any change to
 The bot was created to replace terminal commands and allow interaction via Telegram. Each download runs within a screen session, enabling multiple downloads to run simultaneously.
 
 To run the bot in the background, simply start it inside a screen session and then press Ctrl + A, followed by D, to detach from the session without stopping the bot.
-</details>
-
-<details>
-<summary>🤖 Bot Commands</summary>
 
 Command Functions:
 
 🔹 /start – Starts a new search for a download. This command performs the same operations as manually running the script in the terminal with test_run.py.
 
 🔹 /list – Displays the status of active downloads, with options to:
-- Stop an incorrect download using /stop <ID>
-- View the real-time output of a download using /screen <ID>
+
+Stop an incorrect download using /stop <ID>.
+
+View the real-time output of a download using /screen <ID>.
 
 ⚠ Warning: If a download is interrupted, incomplete files may remain in the folder specified in config.json. These files must be deleted manually to avoid storage or management issues.
-</details>
 
-<details>
-<summary>🔧 Environment Setup</summary>
+🛠 Configuration: Currently, the bot's settings are stored in the config.json file, which is located in the same directory as the telegram_bot.py script.
 
-Create an `.env` file with:
+## .env Example:
+
+You need to create an .env file and enter your Telegram token and user ID to authorize only one user to use it
 
 ```
 TOKEN_TELEGRAM=IlTuo2131TOKEN$12D3Telegram

@@ -575,6 +575,10 @@ class TelegramBot:
             cleaned_output = cleaned_output.replace(
                 "\n\n", "\n"
             )  # Rimuovi newline multipli
+                    
+            # Inizializza le variabili
+            cleaned_output_0 = None  # o ""
+            cleaned_output_1 = None  # o ""
 
             # Dentro cleaned_output c'è una stringa recupero quello che si trova tra ## ##
             download_section = re.search(r"##(.*?)##", cleaned_output, re.DOTALL)

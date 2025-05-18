@@ -43,40 +43,38 @@ class ScrapeSerieAnime:
     def get_count_episodes(self):
         """
         Retrieve total number of episodes for the selected media.
+        This includes partial episodes (like episode 6.5).
         
         Returns:
-            int: Total episode count
+            int: Total episode count including partial episodes
         """
-        try:
-
-            response = httpx.get(
-                url=f"{self.url}/info_api/{self.media_id}/", 
-                headers=self.headers, 
-                timeout=max_timeout
-            )
-            response.raise_for_status()
-
-            # Parse JSON response and return episode count
-            return response.json()["episodes_count"]
-        
-        except Exception as e:
-            logging.error(f"Error fetching episode count: {e}")
-            return None
+        if self.episodes_cache is None:
+            self._fetch_all_episodes()
+            
+        if self.episodes_cache:
+            return len(self.episodes_cache)
+        return None
     
     def _fetch_all_episodes(self):
         """
         Fetch all episodes data at once and cache it
         """
         try:
-            all_episodes = []
-            count = self.get_count_episodes()
-            if not count:
-                return
+            # Get initial episode count
+            response = httpx.get(
+                url=f"{self.url}/info_api/{self.media_id}/",
+                headers=self.headers,
+                timeout=max_timeout
+            )
+            response.raise_for_status()
+            initial_count = response.json()["episodes_count"]
             
-            # Fetch episodes
+            all_episodes = []
             start_range = 1
-            while start_range <= count:
-                end_range = min(start_range + 119, count)
+            
+            # Fetch episodes in chunks
+            while start_range <= initial_count:
+                end_range = min(start_range + 119, initial_count)
                 
                 response = httpx.get(
                     url=f"{self.url}/info_api/{self.media_id}/1",

@@ -32,7 +32,7 @@ class ProxyFinder:
         proxy, source = proxy_info
         try:
             start = time.time()
-            print(f"[yellow]Testing proxy...")
+            print(f"[yellow]Testing proxy for URL: {self.url}...")
 
             with httpx.Client(proxy=proxy, timeout=self.timeout_threshold) as client:
                 response = client.get(self.url, headers=get_headers())

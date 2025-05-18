@@ -27,7 +27,7 @@ from StreamingCommunity.Api.Player.vixcloud import VideoSource
 console = Console()
 
 
-def download_film(select_title: MediaItem) -> str:
+def download_film(select_title: MediaItem, proxy: str = None) -> str:
     """
     Downloads a film using the provided film ID, title name, and domain.
 
@@ -55,7 +55,7 @@ def download_film(select_title: MediaItem) -> str:
     console.print(f"[bold yellow]Download:[/bold yellow] [red]{site_constant.SITE_NAME}[/red] → [cyan]{select_title.name}[/cyan] \n")
 
     # Init class
-    video_source = VideoSource(f"{site_constant.FULL_URL}/it", False, select_title.id)
+    video_source = VideoSource(f"{site_constant.FULL_URL}/it", False, select_title.id, proxy)
 
     # Retrieve scws and if available master playlist
     video_source.get_iframe(select_title.id)

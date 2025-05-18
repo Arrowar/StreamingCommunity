@@ -1,6 +1,6 @@
 # 01.03.24
 
-import sys
+import time
 import logging
 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 
@@ -24,7 +24,7 @@ console = Console()
 
 
 class VideoSource:
-    def __init__(self, url: str, is_series: bool, media_id: int = None):
+    def __init__(self, url: str, is_series: bool, media_id: int = None, proxy: str = None):
         """
         Initialize video source for streaming site.
         
@@ -35,6 +35,7 @@ class VideoSource:
         """
         self.headers = {'user-agent': get_userAgent()}
         self.url = url
+        self.proxy = proxy
         self.is_series = is_series
         self.media_id = media_id
         self.iframe_src = None
@@ -55,7 +56,7 @@ class VideoSource:
             }
 
         try:
-            response = httpx.get(f"{self.url}/iframe/{self.media_id}", params=params, timeout=MAX_TIMEOUT)
+            response = httpx.get(f"{self.url}/iframe/{self.media_id}", headers=self.headers, params=params, timeout=MAX_TIMEOUT, proxy=self.proxy)
             response.raise_for_status()
 
             # Parse response with BeautifulSoup to get iframe source
@@ -81,6 +82,7 @@ class VideoSource:
             self.window_video = WindowVideo(converter.get('video'))
             self.window_streams = StreamsCollection(converter.get('streams'))
             self.window_parameter = WindowParameter(converter.get('masterPlaylist'))
+            time.sleep(0.5)
 
         except Exception as e:
             logging.error(f"Error parsing script: {e}")

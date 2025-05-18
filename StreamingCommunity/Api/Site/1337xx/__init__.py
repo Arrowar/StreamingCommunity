@@ -24,7 +24,7 @@ indice = 3
 _useFor = "Torrent"
 _priority = 0
 _engineDownload = "Torrent"
-_deprecate = False
+_deprecate = True
 
 console = Console()
 msg = Prompt()

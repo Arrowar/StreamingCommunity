@@ -33,6 +33,7 @@ _deprecate = False
 
 msg = Prompt()
 console = Console()
+proxy = None
 
 
 def get_user_input(string_to_search: str = None):
@@ -101,8 +102,8 @@ def process_search_result(select_title, selections=None, proxy=None):
 
         download_series(select_title, season_selection, episode_selection, proxy)
         
-    else: # 'movie' or other types assumed to be film-like
-        download_film(select_title, proxy) # Assuming download_film might also need proxy
+    else:
+        download_film(select_title, proxy)
 
 def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_item: dict = None, selections: dict = None):
     """
@@ -122,12 +123,12 @@ def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_
 
     if direct_item:
         select_title_obj = MediaItem(**direct_item)
-        # Note: If direct_item processing requires a proxy, it should be fetched here.
-        # For now, assuming process_search_result handles proxy=None if not provided.
-        finder = ProxyFinder(site_constant.FULL_URL) # Get proxy for direct item too
-        proxy = finder.find_fast_proxy()
         process_search_result(select_title_obj, selections, proxy)
         return
+    
+    # Check proxy if not already set
+    finder = ProxyFinder(site_constant.FULL_URL)
+    proxy = finder.find_fast_proxy()
 
     actual_search_query = get_user_input(string_to_search)
 
@@ -136,12 +137,9 @@ def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_
         if bot:
              if actual_search_query is None: # Specifically for timeout from bot.ask or failed restart
                 bot.send_message("Search term not provided or operation cancelled. Returning.", None)
-        # If not bot, or empty string, just return; will likely lead to no results or previous menu.
         return
 
     # Perform search on the database using the obtained query
-    finder = ProxyFinder(site_constant.FULL_URL)
-    proxy = finder.find_fast_proxy()
     len_database = title_search(actual_search_query, proxy)
 
     # If only the database object (media_search_manager populated by title_search) is needed
@@ -149,12 +147,10 @@ def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_
         return media_search_manager 
     
     if len_database > 0:
-        # *** THE FIX IS HERE: Added len_database as the third argument ***
         select_title = get_select_title(table_show_manager, media_search_manager, len_database)
-        process_search_result(select_title, selections, proxy) # Pass proxy
+        process_search_result(select_title, selections, proxy)
     
     else:
-        # No results found
         no_results_message = f"No results found for: '{actual_search_query}'"
         if bot:
             bot.send_message(no_results_message, None)

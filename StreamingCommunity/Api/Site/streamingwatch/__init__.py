@@ -27,6 +27,7 @@ _deprecate = False
 
 msg = Prompt()
 console = Console()
+proxy = None
 
 
 def get_user_input(string_to_search: str = None):
@@ -74,12 +75,15 @@ def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_
         select_title = MediaItem(**direct_item)
         process_search_result(select_title, selections) # DONT SUPPORT PROXY FOR NOW
         return
+    
+    # Check proxy if not already set
+    finder = ProxyFinder(site_constant.FULL_URL)
+    proxy = finder.find_fast_proxy()
 
     if string_to_search is None:
         string_to_search = msg.ask(f"\n[purple]Insert a word to search in [green]{site_constant.SITE_NAME}").strip()
     
-    finder = ProxyFinder(url=f"{site_constant.FULL_URL}/serie/euphoria/")
-    proxy = finder.find_fast_proxy()
+    # Perform search on the database using the obtained query
     len_database = title_search(string_to_search, proxy)
 
     # If only the database is needed, return the manager

@@ -154,7 +154,7 @@ def download_series(select_season: MediaItem, season_selection: str = None, epis
     start_message()
 
     # Init class
-    video_source = VideoSource(f"{site_constant.FULL_URL}/it", True, select_season.id)
+    video_source = VideoSource(f"{site_constant.FULL_URL}/it", True, select_season.id, proxy)
     scrape_serie = GetSerieInfo(f"{site_constant.FULL_URL}/it", select_season.id, select_season.slug, proxy)
 
     # Collect information about season

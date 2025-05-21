@@ -121,14 +121,16 @@ def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_
     if site_constant.TELEGRAM_BOT:
         bot = get_bot_instance()
 
+    # Check proxy if not already set
+    finder = ProxyFinder(site_constant.FULL_URL)
+    proxy = finder.find_fast_proxy()
+    
     if direct_item:
         select_title_obj = MediaItem(**direct_item)
         process_search_result(select_title_obj, selections, proxy)
         return
     
-    # Check proxy if not already set
-    finder = ProxyFinder(site_constant.FULL_URL)
-    proxy = finder.find_fast_proxy()
+
 
     actual_search_query = get_user_input(string_to_search)
 

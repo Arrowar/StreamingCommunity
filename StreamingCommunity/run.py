@@ -210,7 +210,19 @@ def main(script_id = 0):
     log_not = Logger()
     initialize()
     
-    if not internet_manager.check_dns_provider():
+    # if not internet_manager.check_dns_provider():
+    #     print()
+    #     console.print("[red]❌ ERROR: DNS configuration is required!")
+    #     console.print("[red]The program cannot function correctly without proper DNS settings.")
+    #     console.print("[yellow]Please configure one of these DNS servers:")
+    #     console.print("[blue]• Cloudflare (1.1.1.1) 'https://developers.cloudflare.com/1.1.1.1/setup/windows/'")
+    #     console.print("[blue]• Quad9 (9.9.9.9) 'https://docs.quad9.net/Setup_Guides/Windows/Windows_10/'")
+    #     console.print("\n[yellow]⚠️ The program will not work until you configure your DNS settings.")
+
+    #     time.sleep(2)        
+    #     msg.ask("[yellow]Press Enter to continue ...")
+
+    if not internet_manager.check_dns_resolve():
         print()
         console.print("[red]❌ ERROR: DNS configuration is required!")
         console.print("[red]The program cannot function correctly without proper DNS settings.")
@@ -219,8 +231,7 @@ def main(script_id = 0):
         console.print("[blue]• Quad9 (9.9.9.9) 'https://docs.quad9.net/Setup_Guides/Windows/Windows_10/'")
         console.print("\n[yellow]⚠️ The program will not work until you configure your DNS settings.")
 
-        time.sleep(2)        
-        msg.ask("[yellow]Press Enter to continue ...")
+        os._exit(0)
 
     # Load search functions
     search_functions = load_search_functions()

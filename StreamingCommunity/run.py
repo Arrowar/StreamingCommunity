@@ -29,9 +29,9 @@ from StreamingCommunity.TelegramHelp.telegram_bot import get_bot_instance, Teleg
 
 
 # Config
-SHOW_TRENDING = config_manager.get_bool('DEFAULT', 'show_trending')
-NOT_CLOSE_CONSOLE = config_manager.get_bool('DEFAULT', 'not_close')
-TELEGRAM_BOT = config_manager.get_bool('DEFAULT', 'telegram_bot')
+# SHOW_TRENDING = config_manager.get_bool('DEFAULT', 'show_trending')
+# NOT_CLOSE_CONSOLE = config_manager.get_bool('DEFAULT', 'not_close')
+# TELEGRAM_BOT = config_manager.get_bool('DEFAULT', 'telegram_bot')
 
 
 # Variable
@@ -61,7 +61,7 @@ def load_search_functions():
     loaded_functions = {}
 
     # Lista dei siti da escludere se TELEGRAM_BOT è attivo
-    excluded_sites = {"cb01new", "guardaserie", "ilcorsaronero", "mostraguarda"} if TELEGRAM_BOT else set()
+    excluded_sites = {"cb01new", "guardaserie", "ilcorsaronero", "mostraguarda"} if config_manager.get_bool('DEFAULT', 'telegram_bot') else set()
 
     # Find api home directory
     if getattr(sys, 'frozen', False):  # Modalità PyInstaller
@@ -142,7 +142,8 @@ def initialize():
         sys.exit(0)
 
     # Trending tmbd
-    if SHOW_TRENDING:
+    # SHOW_TRENDING
+    if config_manager.get_bool('DEFAULT', 'show_trending'):
         print()
         tmdb.display_trending_films()
         tmdb.display_trending_tv_shows()
@@ -200,10 +201,6 @@ def main(script_id = 0):
         "torrent": "white"
     }
 
-    if TELEGRAM_BOT:
-        bot = get_bot_instance()
-        bot.send_message(f"Avviato script {script_id}", None)
-
     start = time.time()
 
     # Create logger
@@ -244,6 +241,11 @@ def main(script_id = 0):
 
     parser.add_argument("script_id", nargs="?", default="unknown", help="ID dello script")
 
+    # Add arguments for the custom config file
+    parser.add_argument(
+        '--config', type=str, help='Load custom config file name (e.g., custom_config.json).'
+    )
+
     # Add arguments for the main configuration parameters
     parser.add_argument(
         '--add_siteName', type=bool, help='Enable or disable adding the site name to the file name (e.g., true/false).'
@@ -278,6 +280,16 @@ def main(script_id = 0):
     
     # Parse command-line arguments
     args = parser.parse_args()
+
+    # If custom config file is specified, update config_manager
+    if args.config:
+        config_manager.__init__(args.config)
+
+    # TELEGRAM_BOT:
+    if config_manager.get_bool('DEFAULT', 'telegram_bot'):
+        bot = get_bot_instance()
+        bot.send_message(f"Avviato script {script_id}", None)
+
 
     search_terms = args.search
     # Map command-line arguments to the config values
@@ -332,7 +344,8 @@ def main(script_id = 0):
          for key, label in choice_labels.items()]
     ) + "[white])"
 
-    if TELEGRAM_BOT:
+    # TELEGRAM_BOT
+    if config_manager.get_bool('DEFAULT', 'telegram_bot'):
         category_legend_str = "Categorie: \n" + " | ".join([
             f"{category.capitalize()}" for category in color_map.keys()
         ])
@@ -357,18 +370,21 @@ def main(script_id = 0):
         run_function(input_to_function[category], search_terms=search_terms)
         
     else:
-        if TELEGRAM_BOT:
+        # TELEGRAM_BOT
+        if config_manager.get_bool('DEFAULT', 'telegram_bot'):
             bot.send_message(f"Categoria non valida", None)
 
         console.print("[red]Invalid category.")
 
-        if NOT_CLOSE_CONSOLE:
+        # NOT_CLOSE_CONSOLE
+        if config_manager.get_bool('DEFAULT', 'not_close'):
             restart_script()
 
         else:
             force_exit()
 
-            if TELEGRAM_BOT:
+            # TELEGRAM_BOT
+            if config_manager.get_bool('DEFAULT', 'telegram_bot'):
                 bot.send_message(f"Chiusura in corso", None)
 
                 # Delete script_id

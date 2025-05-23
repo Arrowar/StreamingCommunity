@@ -30,20 +30,27 @@ class ConfigManager:
         Args:
             file_name (str, optional): Configuration file name. Default: 'config.json'.
         """
-        # Determine the base path - use the current working directory
-        if getattr(sys, 'frozen', False):
-            # If the application is frozen (e.g., PyInstaller)
-            base_path = os.path.dirname(sys.executable)
 
-        else:
-          
-            # Get the actual path of the module file
-            current_file_path = os.path.abspath(__file__)
-            # Navigate upwards to find the project root
-            # Assuming this file is in a package structure like StreamingCommunity/Util/config_json.py
-            # We need to go up 2 levels to reach the project root
-            base_path = os.path.dirname(os.path.dirname(os.path.dirname(current_file_path)))
+        # Check if the file name is a full path or just a file name
+        if os.path.basename(file_name) == file_name:
+            # Determine the base path - use the current working directory
+            if getattr(sys, 'frozen', False):
+                # If the application is frozen (e.g., PyInstaller)
+                base_path = os.path.dirname(sys.executable)
+
+            else:
             
+                # Get the actual path of the module file
+                current_file_path = os.path.abspath(__file__)
+                # Navigate upwards to find the project root
+                # Assuming this file is in a package structure like StreamingCommunity/Util/config_json.py
+                # We need to go up 2 levels to reach the project root
+                base_path = os.path.dirname(os.path.dirname(os.path.dirname(current_file_path)))
+            
+        else:
+            base_path = os.path.dirname(os.path.abspath(file_name))
+            file_name = os.path.basename(file_name)
+
         # Initialize file paths
         self.file_path = os.path.join(base_path, file_name)
         self.domains_path = os.path.join(base_path, 'domains.json')

@@ -323,17 +323,20 @@ class InternManager():
     def check_dns_resolve(self):
         """
         Check if the system's current DNS server can resolve a domain name.
+        Works on both Windows and Unix-like systems.
         
         Returns:
             bool: True if the current DNS server can resolve a domain name,
                     False if can't resolve or in case of errors
         """
+        
+        test_domains = ["github.com", "google.com", "microsoft.com", "amazon.com"]
         try:
-            resolver = dns.resolver.Resolver()
-            # Simple DNS resolution test - will raise an exception if it fails
-            resolver.resolve("github.com")
+            for domain in test_domains:
+                # socket.gethostbyname() works consistently across all platforms
+                os.socket.gethostbyname(domain)
             return True
-        except Exception:
+        except (os.socket.gaierror, os.socket.error):
             return False
 
 class OsSummary:

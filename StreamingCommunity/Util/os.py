@@ -12,7 +12,7 @@ import inspect
 import subprocess
 import contextlib
 import importlib.metadata
-
+import socket
 
 # External library
 from unidecode import unidecode
@@ -334,9 +334,9 @@ class InternManager():
         try:
             for domain in test_domains:
                 # socket.gethostbyname() works consistently across all platforms
-                os.socket.gethostbyname(domain)
+                socket.gethostbyname(domain)
             return True
-        except (os.socket.gaierror, os.socket.error):
+        except (socket.gaierror, socket.error):
             return False
 
 class OsSummary:

@@ -13,3 +13,4 @@ pycryptodomex
 ua-generator
 qbittorrent-api
 pyTelegramBotAPI
+cloudscraper

@@ -32,7 +32,9 @@
         "download_audio": true,
         "merge_audio": true,
         "specific_list_audio": [
-            "ita"
+            "ita",
+            "eng",
+            "jpn"
         ],
         "download_subtitle": true,
         "merge_subs": true,

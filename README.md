@@ -112,17 +112,17 @@ pip install --upgrade StreamingCommunity
 
 Create a simple script (`run_streaming.py`) to launch the main application:
 
-```python
-from StreamingCommunity.run import main
+Install requirements:
 
-if __name__ == "__main__":
-    main()
+```bash
+pip install -r requirements.txt
 ```
 
 Run the script:
 
+
 ```bash
-python run_streaming.py
+python streaming_gui.py
 ```
 
 ## Modules

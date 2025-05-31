@@ -1,32 +1,82 @@
 document.documentElement.setAttribute('data-theme', 'dark');
 
-function initGridControls() {
-  const gridSize = document.getElementById('grid-size');
-  const siteGrid = document.querySelector('.site-grid');
-  
-  gridSize.addEventListener('change', function() {
-    switch(this.value) {
-      case 'small':
-        siteGrid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(200px, 1fr))';
-        break;
-      case 'medium':
-        siteGrid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(300px, 1fr))';
-        break;
-      case 'large':
-        siteGrid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(400px, 1fr))';
-        break;
-    }
-    localStorage.setItem('preferredGridSize', this.value);
-  });
+let statusIndicator = null;
+let checkingSites = new Map();
+let totalSites = 0;
+let completedSites = 0;
 
-  const savedSize = localStorage.getItem('preferredGridSize');
-  if (savedSize) {
-    gridSize.value = savedSize;
-    gridSize.dispatchEvent(new Event('change'));
+function createStatusIndicator() {
+  statusIndicator = document.createElement('div');
+  statusIndicator.className = 'status-indicator';
+  statusIndicator.innerHTML = `
+    <div class="status-header">
+      <div class="status-icon"></div>
+      <span class="status-title">Loading Sites...</span>
+    </div>
+    <div class="status-text">Initializing site checks...</div>
+    <div class="progress-bar">
+      <div class="progress-fill"></div>
+    </div>
+    <div class="checking-sites"></div>
+  `;
+  document.body.appendChild(statusIndicator);
+  return statusIndicator;
+}
+
+function updateStatusIndicator(status, text, progress = 0) {
+  if (!statusIndicator) return;
+  
+  const statusIcon = statusIndicator.querySelector('.status-icon');
+  const statusTitle = statusIndicator.querySelector('.status-title');
+  const statusText = statusIndicator.querySelector('.status-text');
+  const progressFill = statusIndicator.querySelector('.progress-fill');
+  
+  statusTitle.textContent = status;
+  statusText.textContent = text;
+  progressFill.style.width = `${progress}%`;
+  
+  if (status === 'Ready') {
+    statusIcon.classList.add('ready');
+    setTimeout(() => {
+      statusIndicator.classList.add('hidden');
+      setTimeout(() => statusIndicator.remove(), 300);
+    }, 2000);
   }
 }
 
-async function checkSiteStatus(url) {
+function addSiteToCheck(siteName, siteUrl) {
+  if (!statusIndicator) return;
+  
+  const checkingSitesContainer = statusIndicator.querySelector('.checking-sites');
+  const siteElement = document.createElement('div');
+  siteElement.className = 'checking-site';
+  siteElement.innerHTML = `
+    <span class="site-name">${siteName}</span>
+    <div class="site-status-icon checking"></div>
+  `;
+  checkingSitesContainer.appendChild(siteElement);
+  checkingSites.set(siteName, siteElement);
+}
+
+function updateSiteStatus(siteName, isOnline) {
+  const siteElement = checkingSites.get(siteName);
+  if (!siteElement) return;
+  
+  const statusIcon = siteElement.querySelector('.site-status-icon');
+  statusIcon.classList.remove('checking');
+  statusIcon.classList.add(isOnline ? 'online' : 'offline');
+  siteElement.classList.add('completed', isOnline ? 'online' : 'offline');
+  
+  completedSites++;
+  const progress = (completedSites / totalSites) * 100;
+  updateStatusIndicator(
+    'Checking Sites...', 
+    `Checked ${completedSites}/${totalSites} sites`,
+    progress
+  );
+}
+
+async function checkSiteStatus(url, siteName) {
   try {
     console.log(`Checking status for: ${url}`);
     const controller = new AbortController();
@@ -46,66 +96,75 @@ async function checkSiteStatus(url) {
 
     const isOnline = response.type === 'opaque';
     console.log(`Site ${url} is ${isOnline ? 'online' : 'offline'} (Type: ${response.type})`);
+    
+    if (siteName) {
+      updateSiteStatus(siteName, isOnline);
+    }
+    
     return isOnline;
   } catch (error) {
     console.log(`Error checking ${url}:`, error.message);
+    
+    if (siteName) {
+      updateSiteStatus(siteName, false);
+    }
+    
     return false;
   }
 }
 
-const supabaseUrl = 'https://zvfngpoxwrgswnzytadh.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp2Zm5ncG94d3Jnc3duenl0YWRoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDAxNTIxNjMsImV4cCI6MjA1NTcyODE2M30.FNTCCMwi0QaKjOu8gtZsT5yQttUW8QiDDGXmzkn89QE';
+const domainsJsonUrl = 'https://raw.githubusercontent.com/Arrowar/StreamingCommunity/refs/heads/main/.github/.domain/domains.json';
 
 async function loadSiteData() {
   try {
-    console.log('Starting to load site data...');
+    console.log('Starting to load site data from GitHub...');
+    
+    createStatusIndicator();
+    updateStatusIndicator('Loading...', 'Fetching site data from GitHub repository...', 0);
+    
     const siteList = document.getElementById('site-list');
-    siteList.innerHTML = '<div class="loader"></div>';
-
-    const headers = {
-      'accept': '*/*',
-      'accept-language': 'it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7',
-      'apikey': supabaseKey,
-      'authorization': `Bearer ${supabaseKey}`,
-      'content-type': 'application/json',
-      'cache-control': 'no-cache',
-      'pragma': 'no-cache',
-      'range': '0-9'
-    };
-
-    console.log('Fetching from Supabase with headers:', headers);
-    const response = await fetch(`${supabaseUrl}/rest/v1/public?select=*`, {
-      method: 'GET',
-      headers: headers
-    });
+    
+    console.log(`Fetching from GitHub: ${domainsJsonUrl}`);
+    const response = await fetch(domainsJsonUrl);
 
     if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
     
-    const data = await response.json();
+    const configSite = await response.json(); // Directly get the site data object
     
-    siteList.innerHTML = '';    if (data && data.length > 0) {
-      console.log('Raw data from Supabase:', data);
-      const configSite = data[0].data;
-      console.log('Parsed config site:', configSite);
-      let totalSites = Object.keys(configSite).length;
+    siteList.innerHTML = '';
+
+    if (configSite && Object.keys(configSite).length > 0) { // Check if configSite is a non-empty object
+      totalSites = Object.keys(configSite).length;
+      completedSites = 0;
       let latestUpdate = new Date(0);
       
       document.getElementById('sites-count').textContent = totalSites;
+      
+      updateStatusIndicator('Checking Sites...', `Starting checks for ${totalSites} sites...`, 0);
+      
+      Object.entries(configSite).forEach(([siteName, site]) => {
+        addSiteToCheck(siteName, site.full_url);
+      });
 
-      for (const siteName in configSite) {
-        const site = configSite[siteName];
+      const statusChecks = Object.entries(configSite).map(async ([siteName, site]) => {
+        const isOnline = await checkSiteStatus(site.full_url, siteName);
+        return { siteName, site, isOnline };
+      });
+
+      const results = await Promise.all(statusChecks);
+      
+      updateStatusIndicator('Ready', 'All sites checked successfully!', 100);
+
+      results.forEach(({ siteName, site, isOnline }) => {
         const siteItem = document.createElement('div');
         siteItem.className = 'site-item';
         siteItem.style.cursor = 'pointer';
 
-        // Add status indicator
         const statusDot = document.createElement('div');
         statusDot.className = 'site-status';
-        const isOnline = await checkSiteStatus(site.full_url);
         if (!isOnline) statusDot.classList.add('offline');
         siteItem.appendChild(statusDot);
 
-        // Update latest update time
         const updateTime = new Date(site.time_change);
         if (updateTime > latestUpdate) {
           latestUpdate = updateTime;
@@ -133,7 +192,9 @@ async function loadSiteData() {
           oldDomain.className = 'old-domain';
           oldDomain.innerHTML = `<i class="fas fa-history"></i> ${site.old_domain}`;
           siteInfo.appendChild(oldDomain);
-        }        siteItem.addEventListener('click', function() {
+        }
+
+        siteItem.addEventListener('click', function() {
           window.open(site.full_url, '_blank', 'noopener,noreferrer');
         });
 
@@ -150,7 +211,7 @@ async function loadSiteData() {
         siteItem.appendChild(siteTitle);
         siteItem.appendChild(siteInfo);
         siteList.appendChild(siteItem);
-      }
+      });
 
       const formattedDate = latestUpdate.toLocaleDateString('it-IT', {
         year: 'numeric',
@@ -162,6 +223,7 @@ async function loadSiteData() {
       document.getElementById('last-update-time').textContent = formattedDate;
     } else {
       siteList.innerHTML = '<div class="no-sites">No sites available</div>';
+      updateStatusIndicator('Ready', 'No sites found in the JSON file.', 100);
     }
   } catch (error) {
     console.error('Errore:', error);
@@ -171,6 +233,10 @@ async function loadSiteData() {
         <button onclick="loadSiteData()" class="retry-button">Riprova</button>
       </div>
     `;
+    if (statusIndicator) {
+      updateStatusIndicator('Error', `Failed to load: ${error.message}`, 0);
+      statusIndicator.querySelector('.status-icon').style.background = '#f44336';
+    }
   }
 }
 

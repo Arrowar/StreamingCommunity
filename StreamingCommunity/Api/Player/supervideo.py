@@ -8,6 +8,7 @@ import logging
 import httpx
 import jsbeautifier
 from bs4 import BeautifulSoup
+import cloudscraper
 
 
 # Internal utilities
@@ -42,7 +43,8 @@ class VideoSource:
             - str: The response content if successful, None otherwise.
         """
         try:
-            response = self.client.get(url, headers=self.headers, timeout=MAX_TIMEOUT, follow_redirects=True)
+            cloudflare = cloudscraper.create_scraper()
+            response = cloudflare.get(url=url)
             response.raise_for_status()
             return response.text
         

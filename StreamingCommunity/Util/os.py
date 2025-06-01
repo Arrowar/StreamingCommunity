@@ -12,7 +12,7 @@ import inspect
 import subprocess
 import contextlib
 import importlib.metadata
-
+import socket
 
 # External library
 from unidecode import unidecode
@@ -323,17 +323,32 @@ class InternManager():
     def check_dns_resolve(self):
         """
         Check if the system's current DNS server can resolve a domain name.
+<<<<<<< HEAD
+=======
+        Works on both Windows and Unix-like systems.
+>>>>>>> b8e28a30c0a58ff74e7fbfab03cf03810421cd90
         
         Returns:
             bool: True if the current DNS server can resolve a domain name,
                     False if can't resolve or in case of errors
         """
+<<<<<<< HEAD
         try:
             resolver = dns.resolver.Resolver()
             # Simple DNS resolution test - will raise an exception if it fails
             resolver.resolve("github.com")
             return True
         except Exception:
+=======
+        test_domains = ["github.com", "google.com", "microsoft.com", "amazon.com"]
+        
+        try:
+            for domain in test_domains:
+                # socket.gethostbyname() works consistently across all platforms
+                socket.gethostbyname(domain)
+            return True
+        except (socket.gaierror, socket.error):
+>>>>>>> b8e28a30c0a58ff74e7fbfab03cf03810421cd90
             return False
 
 class OsSummary:

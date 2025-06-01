@@ -12,7 +12,7 @@ import inspect
 import subprocess
 import contextlib
 import importlib.metadata
-
+import socket
 
 # External library
 from unidecode import unidecode
@@ -283,37 +283,61 @@ class InternManager():
         else:
             return f"{bytes / (1024 * 1024):.2f} MB/s"
 
-    def check_dns_provider(self):
+    # def check_dns_provider(self):
+    #     """
+    #     Check if the system's current DNS server matches any known DNS providers.
+        
+    #     Returns:
+    #         bool: True if the current DNS server matches a known provider,
+    #               False if no match is found or in case of errors
+    #     """
+    #     dns_providers = {
+    #         "Cloudflare": ["1.1.1.1", "1.0.0.1"],
+    #         "Google": ["8.8.8.8", "8.8.4.4"],
+    #         "OpenDNS": ["208.67.222.222", "208.67.220.220"],
+    #         "Quad9": ["9.9.9.9", "149.112.112.112"],
+    #         "AdGuard": ["94.140.14.14", "94.140.15.15"],
+    #         "Comodo": ["8.26.56.26", "8.20.247.20"],
+    #         "Level3": ["209.244.0.3", "209.244.0.4"],
+    #         "Norton": ["199.85.126.10", "199.85.127.10"],
+    #         "CleanBrowsing": ["185.228.168.9", "185.228.169.9"],
+    #         "Yandex": ["77.88.8.8", "77.88.8.1"]
+    #     }
+        
+    #     try:
+    #         resolver = dns.resolver.Resolver()
+    #         nameservers = resolver.nameservers
+            
+    #         if not nameservers:
+    #             return False
+                
+    #         for server in nameservers:
+    #             for provider, ips in dns_providers.items():
+    #                 if server in ips:
+    #                     return True
+    #         return False
+            
+    #     except Exception:
+    #         return False
+
+    def check_dns_resolve(self):
         """
-        Check if the system's current DNS server matches any known DNS providers.
+        Check if the system's current DNS server can resolve a domain name.
+        Works on both Windows and Unix-like systems.
         
         Returns:
-            bool: True if the current DNS server matches a known provider,
-                  False if no match is found or in case of errors
+            bool: True if the current DNS server can resolve a domain name,
+                    False if can't resolve or in case of errors
         """
-        dns_providers = {
-            "Cloudflare": ["1.1.1.1", "1.0.0.1"],
-            "Google": ["8.8.8.8", "8.8.4.4"],
-            "OpenDNS": ["208.67.222.222", "208.67.220.220"],
-            "Quad9": ["9.9.9.9", "149.112.112.112"],
-        }
+        test_domains = ["github.com", "google.com", "microsoft.com", "amazon.com"]
         
         try:
-            resolver = dns.resolver.Resolver()
-            nameservers = resolver.nameservers
-            
-            if not nameservers:
-                return False
-                
-            for server in nameservers:
-                for provider, ips in dns_providers.items():
-                    if server in ips:
-                        return True
+            for domain in test_domains:
+                # socket.gethostbyname() works consistently across all platforms
+                socket.gethostbyname(domain)
+            return True
+        except (socket.gaierror, socket.error):
             return False
-            
-        except Exception:
-            return False
-
 
 class OsSummary:
     def __init__(self):

@@ -113,43 +113,27 @@ async function checkSiteStatus(url, siteName) {
   }
 }
 
-const supabaseUrl = 'https://zvfngpoxwrgswnzytadh.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp2Zm5ncG94d3Jnc3duenl0YWRoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDAxNTIxNjMsImV4cCI6MjA1NTcyODE2M30.FNTCCMwi0QaKjOu8gtZsT5yQttUW8QiDDGXmzkn89QE';
+const domainsJsonUrl = 'https://raw.githubusercontent.com/Arrowar/StreamingCommunity/refs/heads/main/.github/.domain/domains.json';
 
 async function loadSiteData() {
   try {
-    console.log('Starting to load site data...');
+    console.log('Starting to load site data from GitHub...');
     
     createStatusIndicator();
-    updateStatusIndicator('Loading...', 'Fetching site data from database...', 0);
+    updateStatusIndicator('Loading...', 'Fetching site data from GitHub repository...', 0);
     
     const siteList = document.getElementById('site-list');
     
-    const headers = {
-      'accept': '*/*',
-      'accept-language': 'it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7',
-      'apikey': supabaseKey,
-      'authorization': `Bearer ${supabaseKey}`,
-      'content-type': 'application/json',
-      'cache-control': 'no-cache',
-      'pragma': 'no-cache',
-      'range': '0-9'
-    };
-
-    console.log('Fetching from Supabase with headers:', headers);
-    const response = await fetch(`${supabaseUrl}/rest/v1/public?select=*`, {
-      method: 'GET',
-      headers: headers
-    });
+    console.log(`Fetching from GitHub: ${domainsJsonUrl}`);
+    const response = await fetch(domainsJsonUrl);
 
     if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
     
-    const data = await response.json();
+    const configSite = await response.json(); // Directly get the site data object
     
     siteList.innerHTML = '';
 
-    if (data && data.length > 0) {
-      const configSite = data[0].data;
+    if (configSite && Object.keys(configSite).length > 0) { // Check if configSite is a non-empty object
       totalSites = Object.keys(configSite).length;
       completedSites = 0;
       let latestUpdate = new Date(0);
@@ -239,7 +223,7 @@ async function loadSiteData() {
       document.getElementById('last-update-time').textContent = formattedDate;
     } else {
       siteList.innerHTML = '<div class="no-sites">No sites available</div>';
-      updateStatusIndicator('Ready', 'No sites found in database', 100);
+      updateStatusIndicator('Ready', 'No sites found in the JSON file.', 100);
     }
   } catch (error) {
     console.error('Errore:', error);

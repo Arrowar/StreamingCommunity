@@ -1,0 +1,49 @@
+name: Update domains
+
+on:
+  schedule:
+    - cron: "0 */2 * * *"
+  workflow_dispatch:
+
+jobs:
+  update-domains:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'      
+          
+      - name: Install dependencies
+        run: |
+          pip install httpx ua-generator requests
+          pip install --upgrade pip setuptools wheel
+
+      - name: Configure DNS
+        run: |
+          sudo sh -c 'echo "nameserver 9.9.9.9" > /etc/resolv.conf'
+          cat /etc/resolv.conf
+
+      - name: Execute domain update script
+        run: python .github/.domain/domain_update.py
+
+      - name: Commit and push changes (if any)
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          
+          # Check if domains.json was modified
+          if ! git diff --quiet .github/.domain/domains.json; then
+            git add .github/.domain/domains.json
+            git commit -m "Automatic domain update [skip ci]"
+            echo "Changes committed. Attempting to push..."
+            git push
+          else
+            echo "No changes to .github/.domain/domains.json to commit."
+          fi

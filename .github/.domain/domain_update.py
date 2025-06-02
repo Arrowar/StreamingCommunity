@@ -1,5 +1,3 @@
-# 20.04.2024
-
 import re
 import os
 import json
@@ -45,6 +43,90 @@ def get_new_tld(full_url):
     except Exception:
         pass
 
+    return None
+
+def get_enhanced_headers():
+    ua = ua_generator.generate(device='desktop', browser='chrome')
+    headers = ua.headers.get()
+    
+    additional_headers = {
+        'DNT': '1',
+        'Upgrade-Insecure-Requests': '1',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9,it;q=0.8',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Cache-Control': 'max-age=0',
+        'Connection': 'keep-alive',
+        'Referer': 'https://www.google.com/',
+    }
+    
+    headers.update(additional_headers)
+    return headers
+
+def extract_redirect_from_403(response, original_url):
+    redirect_headers = ['location', 'refresh', 'x-redirect-to', 'x-location', 'redirect']
+    for header in redirect_headers:
+        if header in response.headers:
+            return response.headers[header]
+    
+    try:
+        content = response.text
+        
+        js_patterns = [
+            r'window\.location\.href\s*=\s*["\']([^"\']+)["\']',
+            r'window\.location\s*=\s*["\']([^"\']+)["\']',
+            r'location\.href\s*=\s*["\']([^"\']+)["\']',
+            r'document\.location\s*=\s*["\']([^"\']+)["\']',
+            r'top\.location\.href\s*=\s*["\']([^"\']+)["\']',
+            r'parent\.location\s*=\s*["\']([^"\']+)["\']'
+        ]
+        
+        for pattern in js_patterns:
+            match = re.search(pattern, content, re.IGNORECASE)
+            if match:
+                return match.group(1)
+        
+        meta_patterns = [
+            r'<meta[^>]*http-equiv=["\']?refresh["\']?[^>]*content=["\'][^"\']*url=([^"\'>\s]+)',
+            r'<meta[^>]*content=["\'][^"\']*url=([^"\'>\s]+)[^>]*http-equiv=["\']?refresh["\']?'
+        ]
+        
+        for pattern in meta_patterns:
+            match = re.search(pattern, content, re.IGNORECASE)
+            if match:
+                return match.group(1)
+        
+        text_patterns = [
+            r'[Rr]edirect(?:ed)?\s+to:?\s*([^\s<>"\']+)',
+            r'[Nn]ew\s+[Uu][Rr][Ll]:?\s*([^\s<>"\']+)',
+            r'[Mm]oved\s+to:?\s*([^\s<>"\']+)',
+            r'[Ff]ound\s+at:?\s*([^\s<>"\']+)',
+            r'[Gg]o\s+to:?\s*([^\s<>"\']+)',
+            r'[Vv]isit:?\s*([^\s<>"\']+)',
+            r'https?://[^\s<>"\']+\.[a-z]{2,}[^\s<>"\']*'
+        ]
+        
+        for pattern in text_patterns:
+            match = re.search(pattern, content)
+            if match:
+                potential_url = match.group(1) if '(' in pattern else match.group(0)
+                if potential_url.startswith(('http://', 'https://', '//')):
+                    return potential_url
+        
+        link_patterns = [
+            r'<a[^>]*href=["\']([^"\']+)["\'][^>]*>(?:click here|continue|proceed|go here)',
+            r'<link[^>]*rel=["\']?canonical["\']?[^>]*href=["\']([^"\']+)["\']',
+            r'<base[^>]*href=["\']([^"\']+)["\']'
+        ]
+        
+        for pattern in link_patterns:
+            match = re.search(pattern, content, re.IGNORECASE)
+            if match:
+                return match.group(1)
+    
+    except Exception:
+        pass
+    
     return None
 
 def extract_domain_from_response(response, original_url):
@@ -108,7 +190,10 @@ def extract_domain_from_response(response, original_url):
     
     return None
 
-def try_url(url_to_try, headers, timeout=15):
+def try_url(url_to_try, headers=None, timeout=15):
+    if headers is None:
+        headers = get_enhanced_headers()
+    
     try:
         with httpx.Client(headers=headers, timeout=timeout, follow_redirects=False) as client:
             response = client.get(url_to_try)
@@ -136,7 +221,20 @@ def try_url(url_to_try, headers, timeout=15):
                             request=response.request
                         )
             
-            elif response.status_code in [403, 409, 429, 503]:
+            elif response.status_code == 403:
+                print(f"    [!] HTTP 403 - attempting enhanced extraction")
+                
+                redirect_url = extract_redirect_from_403(response, url_to_try)
+                if redirect_url:
+                    print(f"    [+] Found redirect URL in 403 response: {redirect_url}")
+                    return httpx.Response(
+                        status_code=200,
+                        headers={"location": redirect_url},
+                        content=b"",
+                        request=response.request
+                    )
+            
+            elif response.status_code in [409, 429, 503]:
                 print(f"    [!] HTTP {response.status_code} - attempting to extract redirect info")
                 
                 location = response.headers.get('location')
@@ -194,15 +292,12 @@ def update_domain_entries(data):
             print(f"  [!] 'full_url' missing. Skipped.")
             continue
 
-        ua = ua_generator.generate(device=('desktop', 'mobile'), browser=('chrome', 'edge', 'firefox', 'safari'))
-        current_headers = ua.headers.get()
-
         print(f"  [] Stored URL: {original_full_url}")
         if original_domain_in_entry:
             print(f"  [] Stored Domain (TLD): {original_domain_in_entry}")
         
         print(f"  [] Testing URL: {original_full_url}")
-        response = try_url(original_full_url, current_headers)
+        response = try_url(original_full_url)
 
         if response:
             final_url_from_request = str(response.url)

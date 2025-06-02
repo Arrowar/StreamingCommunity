@@ -30,28 +30,48 @@ class GetSerieInfo:
         try:
             program_url = f"{self.base_url}/programmi/{self.program_name}.json"
             response = httpx.get(url=program_url, headers=get_headers(), timeout=max_timeout)
+            
+            # If 404, content is not yet available
+            if response.status_code == 404:
+                logging.info(f"Content not yet available: {self.program_name}")
+                return
+                
             response.raise_for_status()
-
             json_data = response.json()
             
             # Look for seasons in the 'blocks' property
-            for block in json_data.get('blocks'):
-                if block.get('type') == 'RaiPlay Multimedia Block' and block.get('name', '').lower() == 'episodi':
-                    self.publishing_block_id = block.get('id')
-                    
-                    # Extract seasons from sets array
-                    for season_set in block.get('sets', []):
-                        if 'stagione' in season_set.get('name', '').lower():
-                            self.seasons_manager.add_season({
-                                'id': season_set.get('id', ''),
-                                'number': len(self.seasons_manager.seasons) + 1,
-                                'name': season_set.get('name', ''),
-                                'path': season_set.get('path_id', ''),
-                                'episodes_count': season_set.get('episode_size', {}).get('number', 0)
-                            })
+            for block in json_data.get('blocks', []):
 
-        except Exception as e:
+                # Check if block is a season block or episodi block
+                if block.get('type') == 'RaiPlay Multimedia Block':
+                    if block.get('name', '').lower() == 'episodi':
+                        self.publishing_block_id = block.get('id')
+
+                        # Extract seasons from sets array
+                        for season_set in block.get('sets', []):
+                            if 'stagione' in season_set.get('name', '').lower():
+                                self._add_season(season_set, block.get('id'))
+                                
+                    elif 'stagione' in block.get('name', '').lower():
+                        self.publishing_block_id = block.get('id')
+
+                        # Extract season directly from block's sets
+                        for season_set in block.get('sets', []):
+                            self._add_season(season_set, block.get('id'))
+
+        except httpx.HTTPError as e:
             logging.error(f"Error collecting series info: {e}")
+        except Exception as e:
+            logging.error(f"Unexpected error collecting series info: {e}")
+
+    def _add_season(self, season_set: dict, block_id: str):
+        self.seasons_manager.add_season({
+            'id': season_set.get('id', ''),
+            'number': len(self.seasons_manager.seasons) + 1,
+            'name': season_set.get('name', ''),
+            'path': season_set.get('path_id', ''),
+            'episodes_count': season_set.get('episode_size', {}).get('number', 0)
+        })
 
     def collect_info_season(self, number_season: int) -> None:
         """Get episodes for a specific season."""

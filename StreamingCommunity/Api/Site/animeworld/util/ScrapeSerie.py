@@ -31,7 +31,8 @@ class ScrapSerie:
         self.client = httpx.Client(
             cookies={"sessionId": self.session_id},
             headers={"User-Agent": get_userAgent(), "csrf-token": self.csrf_token},
-            base_url=full_url
+            base_url=full_url,
+            verify=False
         )
 
         try:

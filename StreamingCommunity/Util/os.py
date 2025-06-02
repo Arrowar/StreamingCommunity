@@ -341,14 +341,6 @@ class InternManager():
         except (socket.gaierror, socket.error):
             return False
 
-        try:
-            resolver = dns.resolver.Resolver()
-            # Simple DNS resolution test - will raise an exception if it fails
-            resolver.resolve("github.com")
-            return True
-        except Exception:
-            return False
-
 class OsSummary:
     def __init__(self):
         self.ffmpeg_path = None

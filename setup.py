@@ -1,4 +1,5 @@
 import os
+import re
 from setuptools import setup, find_packages
 
 def read_readme():
@@ -8,9 +9,21 @@ def read_readme():
 with open(os.path.join(os.path.dirname(__file__), "requirements.txt"), "r", encoding="utf-8-sig") as f:
     required_packages = f.read().splitlines()
 
+def get_version():
+    try:
+        import pkg_resources
+        return pkg_resources.get_distribution('StreamingCommunity').version
+    except:
+        version_file_path = os.path.join(os.path.dirname(__file__), "StreamingCommunity", "Upload", "version.py")
+        with open(version_file_path, "r", encoding="utf-8") as f:
+            version_match = re.search(r"^__version__\s*=\s*['\"]([^'\"]*)['\"]", f.read(), re.M)
+        if version_match:
+            return version_match.group(1)
+        raise RuntimeError("Unable to find version string in StreamingCommunity/Upload/version.py.")
+
 setup(
     name="StreamingCommunity",
-    version="3.0.9",
+    version=get_version(),
     long_description=read_readme(),
     long_description_content_type="text/markdown",
     author="Lovi-0",
@@ -29,4 +42,4 @@ setup(
         "Bug Reports": "https://github.com/Lovi-0/StreamingCommunity/issues",
         "Source": "https://github.com/Lovi-0/StreamingCommunity",
     }
-) 
+)

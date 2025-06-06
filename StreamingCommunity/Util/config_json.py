@@ -30,17 +30,27 @@ class ConfigManager:
         Args:
             file_name (str, optional): Configuration file name. Default: 'config.json'.
         """
-        # Determine the base path - use the current working directory
-        if getattr(sys, 'frozen', False):
-            # If the application is frozen (e.g., PyInstaller)
-            base_path = os.path.dirname(sys.executable)
 
-        else:
-          
-            # Get the actual path of the module file
-            current_file_path = os.path.abspath(__file__)
-            base_path = os.path.dirname(os.path.dirname(os.path.dirname(current_file_path)))
+        # Check if the file name is a full path or just a file name
+        if os.path.basename(file_name) == file_name:
+            # Determine the base path - use the current working directory
+            if getattr(sys, 'frozen', False):
+                # If the application is frozen (e.g., PyInstaller)
+                base_path = os.path.dirname(sys.executable)
+
+            else:
             
+                # Get the actual path of the module file
+                current_file_path = os.path.abspath(__file__)
+                # Navigate upwards to find the project root
+                # Assuming this file is in a package structure like StreamingCommunity/Util/config_json.py
+                # We need to go up 2 levels to reach the project root
+                base_path = os.path.dirname(os.path.dirname(os.path.dirname(current_file_path)))
+            
+        else:
+            base_path = os.path.dirname(os.path.abspath(file_name))
+            file_name = os.path.basename(file_name)
+
         # Initialize file paths
         self.file_path = os.path.join(base_path, file_name)
         self.domains_path = os.path.join(base_path, 'domains.json')
@@ -268,32 +278,33 @@ class ConfigManager:
             self._load_site_data_from_file()
     
     def _load_site_data_from_api(self) -> None:
-        """Load site data from GitHub."""
-        domains_github_url = "https://raw.githubusercontent.com/Arrowar/StreamingCommunity/refs/heads/main/.github/.domain/domains.json"
+        """Load site data from API."""
         headers = {
-            "User-Agent": get_userAgent()
+            "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp2Zm5ncG94d3Jnc3duenl0YWRoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDAxNTIxNjMsImV4cCI6MjA1NTcyODE2M30.FNTCCMwi0QaKjOu8gtZsT5yQttUW8QiDDGXmzkn89QE",
+            "Authorization": f"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp2Zm5ncG94d3Jnc3duenl0YWRoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDAxNTIxNjMsImV4cCI6MjA1NTcyODE2M30.FNTCCMwi0QaKjOu8gtZsT5yQttUW8QiDDGXmzkn89QE",
+            "Content-Type": "application/json",
+            "User-Agent":  get_userAgent()
         }
         
         try:
-            console.print(f"[bold cyan]Retrieving site data from GitHub:[/bold cyan] [green]{domains_github_url}[/green]")
-            response = requests.get(domains_github_url, timeout=8, headers=headers)
+            console.print("[bold cyan]Retrieving site data from API...[/bold cyan]")
+            response = requests.get("https://zvfngpoxwrgswnzytadh.supabase.co/rest/v1/public", timeout=8, headers=headers)
 
             if response.ok:
-                self.configSite = response.json()
-                
-                site_count = len(self.configSite) if isinstance(self.configSite, dict) else 0
-                console.print(f"[bold green]Site data loaded from GitHub:[/bold green] {site_count} streaming services found.")
-                
+                data = response.json()
+                if data and len(data) > 0:
+                    self.configSite = data[0]['data']
+                    
+                    site_count = len(self.configSite) if isinstance(self.configSite, dict) else 0
+                    
+                else:
+                    console.print("[bold yellow]API returned an empty data set[/bold yellow]")
             else:
-                console.print(f"[bold red]GitHub request failed:[/bold red] HTTP {response.status_code}, {response.text[:100]}")
+                console.print(f"[bold red]API request failed:[/bold red] HTTP {response.status_code}, {response.text[:100]}")
                 self._handle_site_data_fallback()
         
-        except json.JSONDecodeError as e:
-            console.print(f"[bold red]Error parsing JSON from GitHub:[/bold red] {str(e)}")
-            self._handle_site_data_fallback()
-            
         except Exception as e:
-            console.print(f"[bold red]GitHub connection error:[/bold red] {str(e)}")
+            console.print(f"[bold red]API connection error:[/bold red] {str(e)}")
             self._handle_site_data_fallback()
     
     def _load_site_data_from_file(self) -> None:
@@ -558,6 +569,7 @@ class ConfigManager:
         return section in config_source
 
 
+# Helper function to check the platform
 def get_use_large_bar():
     """
     Determine if the large bar feature should be enabled.

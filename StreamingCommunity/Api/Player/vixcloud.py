@@ -39,6 +39,7 @@ class VideoSource:
         self.is_series = is_series
         self.media_id = media_id
         self.iframe_src = None
+        self.window_parameter = None
 
     def get_iframe(self, episode_id: int) -> None:
         """
@@ -109,41 +110,45 @@ class VideoSource:
                 # Parse script to get video information
                 self.parse_script(script_text=script)
 
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                console.print("[yellow]This content will be available soon![/yellow]")
+                return
+            
+            logging.error(f"Error getting content: {e}")
+            raise
+
         except Exception as e:
             logging.error(f"Error getting content: {e}")
             raise
 
-    def get_playlist(self) -> str:
+    def get_playlist(self) -> str | None:
         """
         Generate authenticated playlist URL.
 
         Returns:
-            str: Fully constructed playlist URL with authentication parameters
+            str | None: Fully constructed playlist URL with authentication parameters, or None if content unavailable
         """
+        if not self.window_parameter:
+            return None
+            
         params = {}
 
-        # Add 'h' parameter if video quality is 1080p
         if self.canPlayFHD:
             params['h'] = 1
 
-        # Parse the original URL
         parsed_url = urlparse(self.window_parameter.url)
         query_params = parse_qs(parsed_url.query)
 
-        # Check specifically for 'b=1' in the query parameters
         if 'b' in query_params and query_params['b'] == ['1']:
             params['b'] = 1
 
-        # Add authentication parameters (token and expiration)
         params.update({
             "token": self.window_parameter.token,
             "expires": self.window_parameter.expires
         })
 
-        # Build the updated query string
         query_string = urlencode(params)
-
-        # Construct the new URL with updated query parameters
         return urlunparse(parsed_url._replace(query=query_string))
 
 

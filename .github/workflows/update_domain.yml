@@ -2,7 +2,7 @@ name: Update domains
 
 on:
   schedule:
-    - cron: "0 */3 * * *"
+    - cron: "0 7-21 * * *"
   workflow_dispatch:
 
 jobs:
@@ -22,7 +22,8 @@ jobs:
           
       - name: Install dependencies
         run: |
-          pip install httpx ua-generator requests
+          pip install httpx tldextract ua-generator dnspython
+
           pip install --upgrade pip setuptools wheel
 
       - name: Configure DNS

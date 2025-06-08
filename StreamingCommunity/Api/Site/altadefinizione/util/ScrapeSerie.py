@@ -38,38 +38,52 @@ class GetSerieInfo:
         soup = BeautifulSoup(response.text, "html.parser")
         self.series_name = soup.find("title").get_text(strip=True).split(" - ")[0]
 
-        # Process all seasons
-        season_items = soup.find_all('div', class_='accordion-item')
-    
-        for season_idx, season_item in enumerate(season_items, 1):
-            season_header = season_item.find('div', class_='accordion-header')
-            if not season_header:
-                continue
-                
-            season_name = season_header.get_text(strip=True)
+        # Find all season dropdowns
+        seasons_dropdown = soup.find('div', class_='dropdown seasons')
+        if not seasons_dropdown:
+            return
+
+        # Get all season items
+        season_items = seasons_dropdown.find_all('span', {'data-season': True})
+        
+        for season_item in season_items:
+            season_num = int(season_item['data-season'])
+            season_name = season_item.get_text(strip=True)
             
-            # Create a new season and get a reference to it
+            # Create a new season
             current_season = self.seasons_manager.add_season({
-                'number': season_idx, 
+                'number': season_num,
                 'name': season_name
             })
             
-            # Find episodes for this season
-            episode_divs = season_item.find_all('div', class_='down-episode')
-            for ep_idx, ep_div in enumerate(episode_divs, 1):
-                episode_name_tag = ep_div.find('b')
-                if not episode_name_tag:
+            # Find all episodes for this season
+            episodes_container = soup.find('div', {'class': 'dropdown mirrors', 'data-season': str(season_num)})
+            if not episodes_container:
+                continue
+                
+            # Get all episode mirrors for this season
+            episode_mirrors = soup.find_all('div', {'class': 'dropdown mirrors', 
+                                                   'data-season': str(season_num)})
+            
+            for mirror in episode_mirrors:
+                episode_data = mirror.get('data-episode', '').split('-')
+                if len(episode_data) != 2:
                     continue
                     
-                episode_name = episode_name_tag.get_text(strip=True)
-                link_tag = ep_div.find('a', string=lambda text: text and "Supervideo" in text)
-                episode_url = link_tag['href'] if link_tag else None
+                ep_num = int(episode_data[1])
+                
+                # Find supervideo link
+                supervideo_span = mirror.find('span', {'data-id': 'supervideo'})
+                if not supervideo_span:
+                    continue
+                    
+                episode_url = supervideo_span.get('data-link', '')
                 
                 # Add episode to the season
                 if current_season:
                     current_season.episodes.add({
-                        'number': ep_idx,
-                        'name': episode_name,
+                        'number': ep_num,
+                        'name': f"Episodio {ep_num}",
                         'url': episode_url
                     })
 

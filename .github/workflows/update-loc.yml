@@ -16,12 +16,12 @@ jobs:
       - name: Count Lines of Code
         run: |
           LOC=$(cloc . --json | jq '.SUM.code')
-          echo "{\"schemaVersion\": 1, \"label\": \"Lines of Code\", \"message\": \"$LOC\", \"color\": \"green\"}" > .github/media/loc-badge.json
+          echo "{\"schemaVersion\": 1, \"label\": \"Lines of Code\", \"message\": \"$LOC\", \"color\": \"green\"}" > .github/.domain/loc-badge.json
 
       - name: Commit and Push LOC Badge
         run: |
           git config --local user.name "GitHub Actions"
           git config --local user.email "actions@github.com"
-          git add .github/media/loc-badge.json
+          git add .github/.domain/loc-badge.json
           git commit -m "Update lines of code badge" || echo "No changes to commit"
           git push

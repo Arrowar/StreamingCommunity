@@ -157,7 +157,7 @@ def global_search(search_terms: str = None, selected_sites: list = None):
     
     # Display progress information
     console.print(f"\n[bold green]Searching for:[/bold green] [yellow]{search_terms}[/yellow]")
-    console.print(f"[bold green]Searching across:[/bold green] {len(selected_sites)} sites")
+    console.print(f"[bold green]Searching across:[/bold green] {len(selected_sites)} sites \n")
     
     with Progress() as progress:
         search_task = progress.add_task("[cyan]Searching...", total=len(selected_sites))
@@ -188,7 +188,7 @@ def global_search(search_terms: str = None, selected_sites: list = None):
                         item_dict['source_alias'] = alias
                         all_results[alias].append(item_dict)
                         
-                    console.print(f"[green]Found {len(database.media_list)} results from {site_name}")
+                    console.print(f"\n[green]Found {len(database.media_list)} results from {site_name}")
 
             except Exception as e:
                 console.print(f"[bold red]Error searching {site_name}:[/bold red] {str(e)}")

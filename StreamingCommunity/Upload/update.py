@@ -4,6 +4,7 @@ import os
 import sys
 import time
 import asyncio
+import importlib.metadata
 
 # External library
 import httpx
@@ -11,7 +12,7 @@ from rich.console import Console
 
 
 # Internal utilities
-from .version import __version__, __author__, __title__
+from .version import __version__ as source_code_version, __author__, __title__
 from StreamingCommunity.Util.config_json import config_manager
 from StreamingCommunity.Util.headers import get_userAgent
 
@@ -75,7 +76,11 @@ def update():
         percentual_stars = 0
 
     # Get the current version (installed version)
-    current_version = __version__
+    try:
+        current_version = importlib.metadata.version(__title__)
+    except importlib.metadata.PackageNotFoundError:
+        #console.print(f"[yellow]Warning: Could not determine installed version for '{__title__}' via importlib.metadata. Falling back to source version.[/yellow]")
+        current_version = source_code_version
 
     # Get commit details
     latest_commit = response_commits[0] if response_commits else None

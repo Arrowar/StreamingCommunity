@@ -62,6 +62,10 @@ def download_film(select_title: MediaItem, proxy: str = None) -> str:
     video_source.get_content()
     master_playlist = video_source.get_playlist()
 
+    if master_playlist is None:
+        console.print(f"[red]Site: {site_constant.SITE_NAME}, error: No master playlist found[/red]")
+        return None
+
     # Define the filename and path for the downloaded film
     title_name = os_manager.get_sanitize_file(select_title.name) + ".mp4"
     mp4_path = os.path.join(site_constant.MOVIE_FOLDER, title_name.replace(".mp4", ""))

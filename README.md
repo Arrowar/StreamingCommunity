@@ -25,7 +25,7 @@
     <img src="https://img.shields.io/pypi/dm/streamingcommunity?style=for-the-badge" alt="PyPI Downloads"/>
   </a>
   <a href="https://github.com/Arrowar/StreamingCommunity">
-    <img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/Arrowar/StreamingCommunity/main/.github/media/loc-badge.json&style=for-the-badge" alt="Lines of Code"/>
+    <img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/Arrowar/StreamingCommunity/main/.github/.domain/loc-badge.json&style=for-the-badge" alt="Lines of Code"/>
   </a>
 </p>
 
@@ -518,7 +518,7 @@ To enable qBittorrent integration, follow the setup guide [here](https://github.
         "download_subtitle": true,
         "merge_subs": true,
         "specific_list_subtitles": [
-            "ita",
+            "ita",    // Specify language codes or use ["*"] to download all available subtitles
             "eng"
         ],
         "cleanup_tmp_folder": true
@@ -544,6 +544,8 @@ To enable qBittorrent integration, follow the setup guide [here](https://github.
 - `download_subtitle`: Whether to download subtitles
 - `merge_subs`: Whether to merge subtitles with video
 - `specific_list_subtitles`: List of subtitle languages to download
+  * Use `["*"]` to download all available subtitles
+  * Or specify individual languages like `["ita", "eng"]`
   * Can be changed with `--specific_list_subtitles ita,eng`
 
 #### Cleanup

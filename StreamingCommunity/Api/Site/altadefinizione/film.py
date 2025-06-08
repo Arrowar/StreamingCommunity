@@ -61,16 +61,22 @@ def download_film(select_title: MediaItem) -> str:
     # Extract mostraguarda URL
     try:
         response = httpx.get(select_title.url, headers=get_headers(), timeout=10)
+        response.raise_for_status()
+
         soup = BeautifulSoup(response.text, 'html.parser')
         iframes = soup.find_all('iframe')
         mostraguarda = iframes[0]['src']
     
     except Exception as e:
         console.print(f"[red]Site: {site_constant.SITE_NAME}, request error: {e}, get mostraguarda")
+        return None
 
     # Extract supervideo URL
+    supervideo_url = None
     try:
         response = httpx.get(mostraguarda, headers=get_headers(), timeout=10)
+        response.raise_for_status()
+
         soup = BeautifulSoup(response.text, 'html.parser')
         pattern = r'//supervideo\.[^/]+/[a-z]/[a-zA-Z0-9]+'
         supervideo_match = re.search(pattern, response.text)
@@ -78,7 +84,9 @@ def download_film(select_title: MediaItem) -> str:
 
     except Exception as e:
         console.print(f"[red]Site: {site_constant.SITE_NAME}, request error: {e}, get supervideo URL")
-
+        console.print("[yellow]This content will be available soon![/yellow]")
+        return None
+    
     # Init class
     video_source = VideoSource(supervideo_url)
     master_playlist = video_source.get_playlist()

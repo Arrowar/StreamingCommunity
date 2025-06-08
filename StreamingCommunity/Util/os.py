@@ -320,18 +320,19 @@ class InternManager():
     #     except Exception:
     #         return False
 
-    def check_dns_resolve(self):
+    def check_dns_resolve(self, domains_list: list = None):
         """
         Check if the system's current DNS server can resolve a domain name.
         Works on both Windows and Unix-like systems.
         
+        Args:
+            domains_list (list, optional): List of domains to test. Defaults to common domains.
+
         Returns:
             bool: True if the current DNS server can resolve a domain name,
                     False if can't resolve or in case of errors
-            bool: True if the current DNS server can resolve a domain name,
-                    False if can't resolve or in case of errors
         """
-        test_domains = ["github.com", "google.com", "microsoft.com", "amazon.com"]
+        test_domains = domains_list or ["github.com", "google.com", "microsoft.com", "amazon.com"]
         
         try:
             for domain in test_domains:

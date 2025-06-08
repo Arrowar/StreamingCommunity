@@ -222,7 +222,9 @@ def main(script_id = 0):
     #     time.sleep(2)        
     #     msg.ask("[yellow]Press Enter to continue ...")
 
-    if not internet_manager.check_dns_resolve():
+    domains_list = [site_info['full_url'].replace('http://', '').replace('https://', '').strip('/') for site_info in config_manager.configSite.values()]
+
+    if not internet_manager.check_dns_resolve(domains_list):
         print()
         console.print("[red]❌ ERROR: DNS configuration is required!")
         console.print("[red]The program cannot function correctly without proper DNS settings.")

@@ -9,6 +9,7 @@ import platform
 import argparse
 import importlib
 import threading, asyncio
+from urllib.parse import urlparse
 from typing import Callable
 
 
@@ -153,6 +154,7 @@ def initialize():
     except:
         console.log("[red]Error with loading github.")
 
+
 def restart_script():
     """Riavvia lo script con gli stessi argomenti della riga di comando."""
     print("\nRiavvio dello script...\n")
@@ -191,6 +193,11 @@ def force_exit():
     os._exit(0)
 
 
+def _extract_hostname(url_string: str) -> str:
+    """Safely extracts the hostname from a URL string."""
+    return urlparse(url_string).hostname
+
+
 def main(script_id = 0):
 
     color_map = {
@@ -209,22 +216,11 @@ def main(script_id = 0):
     # Create logger
     log_not = Logger()
     initialize()
-    
-    # if not internet_manager.check_dns_provider():
-    #     print()
-    #     console.print("[red]❌ ERROR: DNS configuration is required!")
-    #     console.print("[red]The program cannot function correctly without proper DNS settings.")
-    #     console.print("[yellow]Please configure one of these DNS servers:")
-    #     console.print("[blue]• Cloudflare (1.1.1.1) 'https://developers.cloudflare.com/1.1.1.1/setup/windows/'")
-    #     console.print("[blue]• Quad9 (9.9.9.9) 'https://docs.quad9.net/Setup_Guides/Windows/Windows_10/'")
-    #     console.print("\n[yellow]⚠️ The program will not work until you configure your DNS settings.")
 
-    #     time.sleep(2)        
-    #     msg.ask("[yellow]Press Enter to continue ...")
+    # Get all site hostname
+    hostname_list = [hostname for site_info in config_manager.configSite.values() if (hostname := _extract_hostname(site_info.get('full_url')))]
 
-    domains_list = [site_info['full_url'].replace('http://', '').replace('https://', '').strip('/') for site_info in config_manager.configSite.values()]
-
-    if not internet_manager.check_dns_resolve(domains_list):
+    if not internet_manager.check_dns_resolve(hostname_list):
         print()
         console.print("[red]❌ ERROR: DNS configuration is required!")
         console.print("[red]The program cannot function correctly without proper DNS settings.")

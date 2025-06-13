@@ -241,6 +241,8 @@ def main(script_id = 0):
     )
 
     parser.add_argument("script_id", nargs="?", default="unknown", help="ID dello script")
+    parser.add_argument('-s', '--search', default=None, help='Search terms')
+    parser.add_argument('--site', type=str, help='Specify site to search (e.g., streamingcommunity, eurostreaming)')
 
     # Add arguments for the main configuration parameters
     parser.add_argument(
@@ -271,13 +273,11 @@ def main(script_id = 0):
         '--global', action='store_true', help='Perform a global search across multiple sites.'
     )
 
-    # Add arguments for search functions
-    parser.add_argument('-s', '--search', default=None, help='Search terms')
-    
     # Parse command-line arguments
     args = parser.parse_args()
-
     search_terms = args.search
+    specified_site = args.site
+
     # Map command-line arguments to the config values
     config_updates = {}
 
@@ -304,6 +304,25 @@ def main(script_id = 0):
     # Check if global search is requested
     if getattr(args, 'global'):
         global_search(search_terms)
+        return
+
+    # Modify the site selection logic:
+    if specified_site:
+        # Look for the specified site in the loaded functions
+        site_found = False
+        for alias, (func, use_for) in search_functions.items():
+            module_name = alias.split("_")[0]
+            if module_name.lower() == specified_site.lower():
+                run_function(func, search_terms=search_terms)
+                site_found = True
+                break
+        
+        if not site_found:
+            console.print(f"[red]Error: Site '{specified_site}' not found or not supported.")
+            if NOT_CLOSE_CONSOLE:
+                restart_script()
+            else:
+                force_exit()
         return
 
     # Create mappings using module indice

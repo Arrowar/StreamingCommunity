@@ -17,7 +17,7 @@ from StreamingCommunity.Util.headers import get_userAgent
 
 # Variable
 MAX_TIMEOUT = config_manager.get_int("REQUESTS", "timeout")
-
+REQUEST_VERIFY = config_manager.get_bool('REQUESTS', 'verify')
 
 class VideoSource:
     STAYONLINE_BASE_URL = "https://stayonline.pro"
@@ -45,7 +45,7 @@ class VideoSource:
     def get_redirect_url(self) -> str:
         """Extract the stayonline redirect URL from the initial page."""
         try:
-            response = httpx.get(self.url, headers=self.headers, follow_redirects=True, timeout=MAX_TIMEOUT)
+            response = httpx.get(self.url, headers=self.headers, follow_redirects=True, timeout=MAX_TIMEOUT, verify=REQUEST_VERIFY)
             response.raise_for_status()
             soup = BeautifulSoup(response.text, "html.parser")
             
@@ -68,7 +68,7 @@ class VideoSource:
             raise ValueError("Redirect URL not set. Call get_redirect_url first.")
 
         try:
-            response = httpx.get(self.redirect_url, headers=self.headers, follow_redirects=True, timeout=MAX_TIMEOUT)
+            response = httpx.get(self.redirect_url, headers=self.headers, follow_redirects=True, timeout=MAX_TIMEOUT, verify=REQUEST_VERIFY)
             response.raise_for_status()
             soup = BeautifulSoup(response.text, "html.parser")
             
@@ -89,7 +89,7 @@ class VideoSource:
             self.headers['referer'] = f'{self.STAYONLINE_BASE_URL}/l/{link_id}/'
             data = {'id': link_id, 'ref': ''}
             
-            response = httpx.post(f'{self.STAYONLINE_BASE_URL}/ajax/linkView.php', headers=self.headers, data=data, timeout=MAX_TIMEOUT)
+            response = httpx.post(f'{self.STAYONLINE_BASE_URL}/ajax/linkView.php', headers=self.headers, data=data, timeout=MAX_TIMEOUT, verify=REQUEST_VERIFY)
             response.raise_for_status()
             return response.json()['data']['value']
             
@@ -128,7 +128,8 @@ class VideoSource:
         response = httpx.get(
             f'{self.MIXDROP_BASE_URL}/e/{video_id}',
             headers=self._get_mixdrop_headers(),
-            timeout=MAX_TIMEOUT
+            timeout=MAX_TIMEOUT,
+            verify=REQUEST_VERIFY
         )
         response.raise_for_status()
         soup = BeautifulSoup(response.text, "html.parser")

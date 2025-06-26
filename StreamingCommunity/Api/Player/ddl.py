@@ -15,6 +15,7 @@ from StreamingCommunity.Util.headers import get_userAgent
 
 # Variable
 max_timeout = config_manager.get_int("REQUESTS", "timeout")
+REQUEST_VERIFY = config_manager.get_bool('REQUESTS', 'verify')
 
 
 class VideoSource:
@@ -41,7 +42,8 @@ class VideoSource:
                 url=url, 
                 headers=self.headers, 
                 cookies=self.cookie,
-                timeout=max_timeout
+                timeout=max_timeout,
+                verify=REQUEST_VERIFY
             )
             response.raise_for_status()
 

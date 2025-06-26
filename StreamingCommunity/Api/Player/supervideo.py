@@ -17,6 +17,7 @@ from StreamingCommunity.Util.headers import get_headers
 
 # Variable
 MAX_TIMEOUT = config_manager.get_int("REQUESTS", "timeout")
+REQUEST_VERIFY = config_manager.get_bool('REQUESTS', 'verify')
 
 
 class VideoSource:
@@ -41,7 +42,7 @@ class VideoSource:
             - str: The response content if successful, None otherwise.
         """
         try:
-            response = requests.get(url, headers=self.headers, timeout=MAX_TIMEOUT, impersonate="chrome110")
+            response = requests.get(url, headers=self.headers, timeout=MAX_TIMEOUT, impersonate="chrome110", verify=REQUEST_VERIFY)
             if response.status_code >= 400:
                 logging.error(f"Request failed with status code: {response.status_code}")
                 return None

@@ -14,7 +14,7 @@ from StreamingCommunity.Util.headers import get_userAgent
 
 # Variable
 MAX_TIMEOUT = config_manager.get_int("REQUESTS", "timeout")
-
+REQUEST_VERIFY = config_manager.get_bool('REQUESTS', 'verify')
 
 class VideoSource:
     def __init__(self, full_url, episode_data, session_id, csrf_token):
@@ -30,7 +30,8 @@ class VideoSource:
             cookies={"sessionId": session_id},
             headers={"User-Agent": get_userAgent(), "csrf-token": csrf_token},
             base_url=full_url,
-            timeout=MAX_TIMEOUT
+            timeout=MAX_TIMEOUT,
+            verify=REQUEST_VERIFY
         )
 
     def get_playlist(self):

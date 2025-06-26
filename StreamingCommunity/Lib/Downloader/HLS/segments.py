@@ -110,7 +110,7 @@ class M3U8_Segments:
         self.key_base_url = f"{parsed_url.scheme}://{parsed_url.netloc}/"
         
         try:
-            client_params = {'headers': {'User-Agent': get_userAgent()}, 'timeout': MAX_TIMEOOUT}
+            client_params = {'headers': {'User-Agent': get_userAgent()}, 'timeout': MAX_TIMEOOUT, 'verify': REQUEST_VERIFY}
             response = httpx.get(url=key_uri, **client_params)
             response.raise_for_status()
 
@@ -158,7 +158,7 @@ class M3U8_Segments:
         """
         if self.is_index_url:
             try:
-                client_params = {'headers': {'User-Agent': get_userAgent()}, 'timeout': MAX_TIMEOOUT}
+                client_params = {'headers': {'User-Agent': get_userAgent()}, 'timeout': MAX_TIMEOOUT, 'verify': REQUEST_VERIFY}
                 response = httpx.get(self.url, **client_params, follow_redirects=True)
                 response.raise_for_status()
                 
@@ -202,7 +202,8 @@ class M3U8_Segments:
             'headers': {'User-Agent': get_userAgent()},
             'timeout': SEGMENT_MAX_TIMEOUT,
             'follow_redirects': True,
-            'http2': False
+            'http2': False,
+            'verify': REQUEST_VERIFY
         }
         return httpx.Client(**client_params)
                             

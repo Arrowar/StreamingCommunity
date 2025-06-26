@@ -12,7 +12,7 @@ from StreamingCommunity.Util.headers import get_headers
 
 # Variable
 MAX_TIMEOUT = config_manager.get_int("REQUESTS", "timeout")
-
+REQUEST_VERIFY = config_manager.get_bool('REQUESTS', 'verify')
 
 class VideoSource:
    
@@ -29,7 +29,7 @@ class VideoSource:
                 return "Error: Unable to determine video JSON URL"
                         
         try:
-            response = httpx.get(video_url, headers=get_headers(), timeout=MAX_TIMEOUT)
+            response = httpx.get(video_url, headers=get_headers(), timeout=MAX_TIMEOUT, verify=REQUEST_VERIFY)
             if response.status_code != 200:
                 return f"Error: Failed to fetch video data (Status: {response.status_code})"
                 
@@ -50,7 +50,7 @@ class VideoSource:
                 'cont': element_key,
                 'output': '62',
             }
-            stream_response = httpx.get('https://mediapolisvod.rai.it/relinker/relinkerServlet.htm', params=params, headers=get_headers(), timeout=MAX_TIMEOUT)
+            stream_response = httpx.get('https://mediapolisvod.rai.it/relinker/relinkerServlet.htm', params=params, headers=get_headers(), timeout=MAX_TIMEOUT, verify=REQUEST_VERIFY)
             
             if stream_response.status_code != 200:
                 return f"Error: Failed to fetch stream URL (Status: {stream_response.status_code})"

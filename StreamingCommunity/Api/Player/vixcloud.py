@@ -20,6 +20,7 @@ from .Helper.Vixcloud.js_parser import JavaScriptParser
 
 # Variable
 MAX_TIMEOUT = config_manager.get_int("REQUESTS", "timeout")
+REQUEST_VERIFY = config_manager.get_bool('REQUESTS', 'verify')
 console = Console()
 
 
@@ -57,7 +58,7 @@ class VideoSource:
             }
 
         try:
-            response = httpx.get(f"{self.url}/iframe/{self.media_id}", headers=self.headers, params=params, timeout=MAX_TIMEOUT, proxy=self.proxy)
+            response = httpx.get(f"{self.url}/iframe/{self.media_id}", headers=self.headers, params=params, timeout=MAX_TIMEOUT, proxy=self.proxy, verify=REQUEST_VERIFY)
             response.raise_for_status()
 
             # Parse response with BeautifulSoup to get iframe source
@@ -100,7 +101,7 @@ class VideoSource:
         """
         try:
             if self.iframe_src is not None:
-                response = httpx.get(self.iframe_src, headers=self.headers, timeout=MAX_TIMEOUT)
+                response = httpx.get(self.iframe_src, headers=self.headers, timeout=MAX_TIMEOUT, verify=REQUEST_VERIFY)
                 response.raise_for_status()
 
                 # Parse response with BeautifulSoup to get content
@@ -178,7 +179,7 @@ class VideoSourceAnime(VideoSource):
             str: Parsed script content
         """
         try:
-            response = httpx.get(f"{self.url}/embed-url/{episode_id}", headers=self.headers, timeout=MAX_TIMEOUT)
+            response = httpx.get(f"{self.url}/embed-url/{episode_id}", headers=self.headers, timeout=MAX_TIMEOUT, verify=REQUEST_VERIFY)
             response.raise_for_status()
 
             # Extract and clean embed URL
@@ -186,7 +187,7 @@ class VideoSourceAnime(VideoSource):
             self.iframe_src = embed_url
 
             # Fetch video content using embed URL
-            video_response = httpx.get(embed_url)
+            video_response = httpx.get(embed_url, verify=REQUEST_VERIFY)
             video_response.raise_for_status()
 
             # Parse response with BeautifulSoup to get content of the scriot

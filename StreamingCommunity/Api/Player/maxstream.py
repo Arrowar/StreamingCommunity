@@ -18,7 +18,7 @@ from StreamingCommunity.Util.headers import get_userAgent
 
 # Variable
 MAX_TIMEOUT = config_manager.get_int("REQUESTS", "timeout")
-
+REQUEST_VERIFY = config_manager.get_bool('REQUESTS', 'verify')
 
 class VideoSource:
     def __init__(self, url: str):
@@ -39,7 +39,7 @@ class VideoSource:
         Sends a request to the initial URL and extracts the redirect URL.
         """
         try:
-            response = httpx.get(self.url, headers=self.headers, follow_redirects=True, timeout=MAX_TIMEOUT)
+            response = httpx.get(self.url, headers=self.headers, follow_redirects=True, timeout=MAX_TIMEOUT, verify=REQUEST_VERIFY)
             response.raise_for_status()
 
             # Extract the redirect URL from the HTML
@@ -58,7 +58,7 @@ class VideoSource:
         Sends a request to the redirect URL and extracts the Maxstream URL.
         """
         try:
-            response = httpx.get(self.redirect_url, headers=self.headers, follow_redirects=True, timeout=MAX_TIMEOUT)
+            response = httpx.get(self.redirect_url, headers=self.headers, follow_redirects=True, timeout=MAX_TIMEOUT, verify=REQUEST_VERIFY)
             response.raise_for_status()
 
             # Extract the Maxstream URL from the HTML
@@ -77,12 +77,12 @@ class VideoSource:
 
                 # Make request to stayonline api
                 data = {'id': self.redirect_url.split("/")[-2], 'ref': ''}
-                response = httpx.post('https://stayonline.pro/ajax/linkEmbedView.php', headers=headers, data=data)
+                response = httpx.post('https://stayonline.pro/ajax/linkEmbedView.php', headers=headers, data=data, verify=REQUEST_VERIFY)
                 response.raise_for_status()
                 uprot_url = response.json()['data']['value']
 
                 # Retry getting maxtstream url
-                response = httpx.get(uprot_url, headers=self.headers, follow_redirects=True, timeout=MAX_TIMEOUT)
+                response = httpx.get(uprot_url, headers=self.headers, follow_redirects=True, timeout=MAX_TIMEOUT, verify=REQUEST_VERIFY)
                 response.raise_for_status()
                 soup = BeautifulSoup(response.text, "html.parser")
                 maxstream_url = soup.find("a").get("href")
@@ -104,7 +104,7 @@ class VideoSource:
         Sends a request to the Maxstream URL and extracts the .m3u8 file URL.
         """
         try:
-            response = httpx.get(self.maxstream_url, headers=self.headers, follow_redirects=True, timeout=MAX_TIMEOUT)
+            response = httpx.get(self.maxstream_url, headers=self.headers, follow_redirects=True, timeout=MAX_TIMEOUT, verify=REQUEST_VERIFY)
             response.raise_for_status() 
             soup = BeautifulSoup(response.text, "html.parser")
 

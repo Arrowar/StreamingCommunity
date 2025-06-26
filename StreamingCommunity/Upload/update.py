@@ -31,7 +31,7 @@ async def fetch_github_data(client, url):
         url=url,
         headers={'user-agent': get_userAgent()},
         timeout=config_manager.get_int("REQUESTS", "timeout"),
-        allow_redirects=True
+        follow_redirects=True
     )
     return response.json()
 

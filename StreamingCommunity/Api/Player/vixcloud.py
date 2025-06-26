@@ -20,6 +20,7 @@ from .Helper.Vixcloud.js_parser import JavaScriptParser
 
 # Variable
 MAX_TIMEOUT = config_manager.get_int("REQUESTS", "timeout")
+REQUEST_VERIFY = config_manager.get_bool('REQUESTS', 'verify')
 console = Console()
 
 

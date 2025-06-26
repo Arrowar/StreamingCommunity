@@ -88,7 +88,7 @@ def MP4_downloader(url: str, path: str, referer: str = None, headers_: dict = No
         return None, False
 
     if GET_ONLY_LINK:
-        console.print(f"URL: {url}[/bold red]")
+        console.print(f"[bold red]URL: {url}[/bold red]")
         return path, True
 
     if not (url.lower().startswith('http://') or url.lower().startswith('https://')):

@@ -18,7 +18,7 @@ from StreamingCommunity.Util.headers import get_userAgent
 
 # Variable
 MAX_TIMEOUT = config_manager.get_int("REQUESTS", "timeout")
-
+REQUEST_VERIFY = config_manager.get_bool('REQUESTS', 'verify')
 
 class VideoSource:
     def __init__(self, url: str):

@@ -115,7 +115,7 @@ def MP4_downloader(url: str, path: str, referer: str = None, headers_: dict = No
     os.makedirs(os.path.dirname(path), exist_ok=True)
 
     try:
-        with httpx.Client() as client:
+        with httpx.Client(verify=REQUEST_VERIFY) as client:
             with client.stream("GET", url, headers=headers) as response:
                 response.raise_for_status()
                 total = int(response.headers.get('content-length', 0))

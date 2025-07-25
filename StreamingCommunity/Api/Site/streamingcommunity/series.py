@@ -200,11 +200,11 @@ def download_series(select_season: MediaItem, season_selection: str = None, epis
 
     # Loop through the selected seasons and download episodes
     for i_season in list_season_select:
-        season = None
-        for s in scrape_serie.seasons_manager.seasons:
-            if s.number == i_season:
-                season = s
-                break
+        try:
+            season = scrape_serie.seasons_manager.seasons[i_season - 1]
+        except IndexError:
+            console.print(f"[red]Season index {i_season} not found! Available seasons: {[s.number for s in scrape_serie.seasons_manager.seasons]}")
+            continue
         season_number = season.number
 
         if len(list_season_select) > 1 or index_season_selected == "*":

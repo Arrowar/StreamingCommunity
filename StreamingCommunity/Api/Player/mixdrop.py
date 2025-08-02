@@ -25,7 +25,7 @@ class VideoSource:
 
     def __init__(self, url: str):
         self.url = url
-        self.redirect_url: str | None = None
+        self.redirect_url: str = None
         self._init_headers()
 
     def _init_headers(self) -> None:

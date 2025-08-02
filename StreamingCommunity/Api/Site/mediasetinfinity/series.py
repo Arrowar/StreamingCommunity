@@ -1,4 +1,4 @@
-# 29.04.25
+# 16.03.25
 
 import os
 from typing import Tuple
@@ -11,7 +11,10 @@ from rich.prompt import Prompt
 
 # Internal utilities
 from StreamingCommunity.Util.message import start_message
-from StreamingCommunity.Lib.Downloader import HLS_Downloader
+from StreamingCommunity.Util.os import os_manager
+from StreamingCommunity.Util.headers import get_headers
+from StreamingCommunity.Util.os import get_wvd_path
+from StreamingCommunity.Lib.Downloader.DASH.downloader import DASH_Download
 
 
 # Logic class
@@ -28,7 +31,8 @@ from StreamingCommunity.Api.Template.Class.SearchType import MediaItem
 
 
 # Player
-from StreamingCommunity.Api.Player.hdplayer import VideoSource
+from .util.fix_mpd import get_manifest
+from .util.get_license import get_bearer_token, get_playback_url, get_tracking_info, generate_license_url
 
 
 # Variable
@@ -57,23 +61,36 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
 
     # Define filename and path for the downloaded video
     mp4_name = f"{map_episode_title(scrape_serie.series_name, index_season_selected, index_episode_selected, obj_episode.name)}.mp4"
-    mp4_path = os.path.join(site_constant.SERIES_FOLDER, scrape_serie.series_name, f"S{index_season_selected}")
+    mp4_path = os_manager.get_sanitize_path(os.path.join(site_constant.SERIES_FOLDER, scrape_serie.series_name, f"S{index_season_selected}"))
 
-    # Retrieve scws and if available master playlist
-    video_source = VideoSource()
-    master_playlist = video_source.get_m3u8_url(obj_episode.url)
+    # Generate mpd and license URLs
+    bearer = get_bearer_token()
+    playback_json = get_playback_url(bearer, obj_episode.url.split('_')[-1])
+    tracking_info = get_tracking_info(bearer, playback_json)[0]
+
+    license_url = generate_license_url(bearer, tracking_info)
+    mpd_url = get_manifest(tracking_info['video_src'])
 
     # Download the episode
-    r_proc = HLS_Downloader(
-        m3u8_url=master_playlist,
-        output_path=os.path.join(mp4_path, mp4_name)
-    ).start()
+    r_proc = DASH_Download(
+        cdm_device=get_wvd_path(),
+        license_url=license_url,
+        mpd_url=mpd_url,
+        output_path=os.path.join(mp4_path, mp4_name),
+    )
+    r_proc.parse_manifest(custom_headers=get_headers())
 
-    if r_proc['error'] is not None:
-        try: os.remove(r_proc['path'])
-        except: pass
+    if r_proc.download_and_decrypt():
+        r_proc.finalize_output()
 
-    return r_proc['path'], r_proc['stopped']
+    # Get final output path and status
+    status = r_proc.get_status()
+
+    if status['error'] is not None and status['path']:
+        try: os.remove(status['path'])
+        except Exception: pass
+
+    return status['path'], status['stopped']
     
 
 def download_episode(index_season_selected: int, scrape_serie: GetSerieInfo, download_all: bool = False, episode_selection: str = None) -> None:
@@ -131,7 +148,7 @@ def download_series(select_season: MediaItem, season_selection: str = None, epis
 
     # Get total number of seasons 
     seasons_count = scrape_serie.getNumberSeason()
-    
+
     # Prompt user for season selection and download episodes
     console.print(f"\n[green]Seasons found: [red]{seasons_count}")
 

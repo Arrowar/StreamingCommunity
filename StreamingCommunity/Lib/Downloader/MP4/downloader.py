@@ -31,7 +31,6 @@ from ...FFmpeg import print_duration_table
 
 # Config
 REQUEST_VERIFY = config_manager.get_bool('REQUESTS', 'verify')
-GET_ONLY_LINK = config_manager.get_bool('M3U8_PARSER', 'get_only_link')
 REQUEST_TIMEOUT = config_manager.get_float('REQUESTS', 'timeout')
 TELEGRAM_BOT = config_manager.get_bool('DEFAULT', 'telegram_bot')
 
@@ -86,10 +85,6 @@ def MP4_downloader(url: str, path: str, referer: str = None, headers_: dict = No
         if TELEGRAM_BOT:
             bot.send_message(f"Contenuto già scaricato!", None)
         return None, False
-
-    if GET_ONLY_LINK:
-        console.print(f"[bold red]URL: {url}[/bold red]")
-        return path, True
 
     if not (url.lower().startswith('http://') or url.lower().startswith('https://')):
         logging.error(f"Invalid URL: {url}")

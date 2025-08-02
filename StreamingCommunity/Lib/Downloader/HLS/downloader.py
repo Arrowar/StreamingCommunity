@@ -41,7 +41,6 @@ MERGE_AUDIO = config_manager.get_bool('M3U8_DOWNLOAD', 'merge_audio')
 MERGE_SUBTITLE = config_manager.get_bool('M3U8_DOWNLOAD', 'merge_subs')
 CLEANUP_TMP = config_manager.get_bool('M3U8_DOWNLOAD', 'cleanup_tmp_folder')
 FILTER_CUSTOM_REOLUTION = str(config_manager.get('M3U8_PARSER', 'force_resolution')).strip().lower()
-GET_ONLY_LINK = config_manager.get_bool('M3U8_PARSER', 'get_only_link')
 RETRY_LIMIT = config_manager.get_int('REQUESTS', 'max_retry')
 MAX_TIMEOUT = config_manager.get_int("REQUESTS", "timeout")
 TELEGRAM_BOT = config_manager.get_bool('DEFAULT', 'telegram_bot')
@@ -445,19 +444,7 @@ class HLS_Downloader:
                 if TELEGRAM_BOT:
                     bot.send_message(f"Contenuto già scaricato!", None)
                 return response
-            
-            if GET_ONLY_LINK:
-                console.print(f"URL: [bold red]{self.m3u8_url}[/bold red]")
-                return {
-                    'path': None,
-                    'url': self.m3u8_url,
-                    'is_master': getattr(self.m3u8_manager, 'is_master', None),
-                    'msg': None,
-                    'error': None,
-                    'stopped': True
-                }
-
-
+        
             self.path_manager.setup_directories()
 
             # Parse M3U8 and determine if it's a master playlist

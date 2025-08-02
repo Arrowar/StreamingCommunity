@@ -27,13 +27,12 @@ table_show_manager = TVShowManager()
 max_timeout = config_manager.get_int("REQUESTS", "timeout")
 
 
-def extract_nonce(proxy) -> str:
+def extract_nonce() -> str:
     """Extract nonce value from the page script"""
     response = httpx.get(
         site_constant.FULL_URL, 
         headers={'user-agent': get_userAgent()}, 
-        timeout=max_timeout,
-        proxy=proxy
+        timeout=max_timeout
     )
     
     soup = BeautifulSoup(response.content, 'html.parser')
@@ -45,7 +44,7 @@ def extract_nonce(proxy) -> str:
     return ""
 
 
-def title_search(query: str, proxy: str) -> int:
+def title_search(query: str) -> int:
     """
     Search for titles based on a search query.
       
@@ -62,7 +61,7 @@ def title_search(query: str, proxy: str) -> int:
     console.print(f"[cyan]Search url: [yellow]{search_url}")
 
     try:
-        _wpnonce = extract_nonce(proxy)
+        _wpnonce = extract_nonce()
         
         if not _wpnonce:
             console.print("[red]Error: Failed to extract nonce")
@@ -81,8 +80,7 @@ def title_search(query: str, proxy: str) -> int:
                 'user-agent': get_userAgent()
             },
             data=data,
-            timeout=max_timeout,
-            proxy=proxy
+            timeout=max_timeout
         )
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')

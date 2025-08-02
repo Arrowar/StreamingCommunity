@@ -90,9 +90,13 @@ class SeasonManager:
         Parameters:
             - number (int): The season number (1-based index)
         """
+        if len(self.seasons) == 1:
+            return self.seasons[0]
+        
         for season in self.seasons:
             if season.number == number:
                 return season
+            
         return None
     
     def __len__(self) -> int:

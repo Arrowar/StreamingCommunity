@@ -30,13 +30,13 @@ def capture_output(process: subprocess.Popen, description: str) -> None:
     try:
         max_length = 0
 
-        for line in iter(process.stdout.readline, ''):
+        for line in iter(process.stdout.readline, ''):          
             try:
                 line = line.strip()
+                logging.info(f"CAPTURE ffmpeg line: {line}")
+
                 if not line:
                     continue
-
-                logging.info(f"CAPTURE ffmpeg line: {line}")
 
                 # Check if termination is requested
                 if terminate_flag.is_set():

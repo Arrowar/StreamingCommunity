@@ -251,8 +251,8 @@ def join_audios(video_path: str, audio_tracks: List[Dict[str, str]], out_path: s
     # Run join
     if DEBUG_MODE:
         subprocess.run(ffmpeg_cmd, check=True)
+        
     else:
-
         if get_use_large_bar():
             capture_ffmpeg_real_time(ffmpeg_cmd, "[cyan]Join audio")
             print()

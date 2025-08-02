@@ -26,7 +26,7 @@ from StreamingCommunity.Api.Player.hdplayer import VideoSource
 console = Console()
 
 
-def download_film(select_title: MediaItem, proxy) -> str:
+def download_film(select_title: MediaItem) -> str:
     """
     Downloads a film using the provided film ID, title name, and domain.
 
@@ -41,7 +41,7 @@ def download_film(select_title: MediaItem, proxy) -> str:
     console.print(f"[bold yellow]Download:[/bold yellow] [red]{site_constant.SITE_NAME}[/red] → [cyan]{select_title.name}[/cyan] \n")
 
     # Get master playlists
-    video_source = VideoSource(proxy)
+    video_source = VideoSource()
     master_playlist = video_source.get_m3u8_url(select_title.url)
 
     # Define the filename and path for the downloaded film

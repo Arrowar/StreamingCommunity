@@ -1,7 +1,8 @@
-# 29.04.25
+# 16.03.25
 
 import os
 from typing import Tuple
+from urllib.parse import urlparse, parse_qs
 
 
 # External library
@@ -11,7 +12,9 @@ from rich.prompt import Prompt
 
 # Internal utilities
 from StreamingCommunity.Util.message import start_message
-from StreamingCommunity.Lib.Downloader import HLS_Downloader
+from StreamingCommunity.Util.os import os_manager
+from StreamingCommunity.Util.os import get_wvd_path
+from StreamingCommunity.Lib.Downloader.DASH.downloader import DASH_Download
 
 
 # Logic class
@@ -28,7 +31,7 @@ from StreamingCommunity.Api.Template.Class.SearchType import MediaItem
 
 
 # Player
-from StreamingCommunity.Api.Player.hdplayer import VideoSource
+from .util.get_license import get_playback_session, get_auth_token, generate_device_id
 
 
 # Variable
@@ -53,28 +56,46 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
 
     # Get episode information
     obj_episode = scrape_serie.selectEpisode(index_season_selected, index_episode_selected-1)
-    console.print(f"[bold yellow]Download:[/bold yellow] [red]{site_constant.SITE_NAME}[/red] → [bold magenta]{obj_episode.name}[/bold magenta] ([cyan]S{index_season_selected}E{index_episode_selected}[/cyan]) \n")
+    console.print(f"[bold yellow]Download:[/bold yellow] [red]{site_constant.SITE_NAME}[/red] → [bold magenta]{obj_episode.get('name')}[/bold magenta] ([cyan]S{index_season_selected}E{index_episode_selected}[/cyan]) \n")
 
     # Define filename and path for the downloaded video
-    mp4_name = f"{map_episode_title(scrape_serie.series_name, index_season_selected, index_episode_selected, obj_episode.name)}.mp4"
-    mp4_path = os.path.join(site_constant.SERIES_FOLDER, scrape_serie.series_name, f"S{index_season_selected}")
+    mp4_name = f"{map_episode_title(scrape_serie.series_name, index_season_selected, index_episode_selected, obj_episode.get('name'))}.mp4"
+    mp4_path = os_manager.get_sanitize_path(os.path.join(site_constant.SERIES_FOLDER, scrape_serie.series_name, f"S{index_season_selected}"))
 
-    # Retrieve scws and if available master playlist
-    video_source = VideoSource()
-    master_playlist = video_source.get_m3u8_url(obj_episode.url)
+    # Generate mpd and license URLs
+    url_id = obj_episode.get('url').split('/')[-1]
+    device_id = generate_device_id()
+    mpd_url, mpd_headers = get_playback_session(get_auth_token(device_id), device_id, url_id)
+    parsed_url = urlparse(mpd_url)
+    query_params = parse_qs(parsed_url.query)
 
     # Download the episode
-    r_proc = HLS_Downloader(
-        m3u8_url=master_playlist,
-        output_path=os.path.join(mp4_path, mp4_name)
-    ).start()
+    r_proc = DASH_Download(
+        cdm_device=get_wvd_path(),
+        license_url='https://www.crunchyroll.com/license/v1/license/widevine',
+        mpd_url=mpd_url,
+        output_path=os.path.join(mp4_path, mp4_name),
+    )
+    r_proc.parse_manifest(custom_headers=mpd_headers)
 
-    if r_proc['error'] is not None:
-        try: os.remove(r_proc['path'])
-        except: pass
+    # Create headers for license request
+    license_headers = mpd_headers.copy()
+    license_headers.update({
+        "x-cr-content-id": url_id,
+        "x-cr-video-token": query_params['playbackGuid'][0],
+    })
 
-    return r_proc['path'], r_proc['stopped']
-    
+    if r_proc.download_and_decrypt(custom_headers=license_headers):
+        r_proc.finalize_output()
+
+    # Get final output path and status
+    status = r_proc.get_status()
+
+    if status['error'] is not None and status['path']:
+        try: os.remove(status['path'])
+        except Exception: pass
+
+    return status['path'], status['stopped']
 
 def download_episode(index_season_selected: int, scrape_serie: GetSerieInfo, download_all: bool = False, episode_selection: str = None) -> None:
     """
@@ -127,7 +148,7 @@ def download_series(select_season: MediaItem, season_selection: str = None, epis
         - season_selection (str, optional): Pre-defined season selection that bypasses manual input
         - episode_selection (str, optional): Pre-defined episode selection that bypasses manual input
     """
-    scrape_serie = GetSerieInfo(select_season.url)
+    scrape_serie = GetSerieInfo(select_season.url.split("/")[-1])
 
     # Get total number of seasons 
     seasons_count = scrape_serie.getNumberSeason()
@@ -155,6 +176,7 @@ def download_series(select_season: MediaItem, season_selection: str = None, epis
         if len(list_season_select) > 1 or index_season_selected == "*":
             # Download all episodes if multiple seasons are selected or if '*' is used
             download_episode(i_season, scrape_serie, download_all=True)
+            
         else:
             # Otherwise, let the user select specific episodes for the single season
             download_episode(i_season, scrape_serie, download_all=False, episode_selection=episode_selection)

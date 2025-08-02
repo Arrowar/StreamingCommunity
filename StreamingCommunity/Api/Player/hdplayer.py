@@ -18,8 +18,8 @@ REQUEST_VERIFY = config_manager.get_bool('REQUESTS', 'verify')
 
 
 class VideoSource:
-    def __init__(self, proxy=None):
-        self.client = httpx.Client(headers={'user-agent': get_userAgent()}, timeout=MAX_TIMEOUT, proxy=proxy, verify=REQUEST_VERIFY)
+    def __init__(self):
+        self.client = httpx.Client(headers={'user-agent': get_userAgent()}, timeout=MAX_TIMEOUT, verify=REQUEST_VERIFY)
 
     def extractLinkHdPlayer(self, response):
         """Extract iframe source from the page."""

@@ -25,9 +25,8 @@
         "pass": "adminadmin"
     },
     "M3U8_DOWNLOAD": {
-        "tqdm_delay": 0.01,
-        "default_video_workser": 12,
-        "default_audio_workser": 12,
+        "default_video_workers": 12,
+        "default_audio_workers": 12,
         "segment_timeout": 8,
         "download_audio": true,
         "merge_audio": true,
@@ -51,8 +50,7 @@
         "default_preset": "ultrafast"
     },
     "M3U8_PARSER": {
-        "force_resolution": "Best",
-        "get_only_link": false
+        "force_resolution": "Best"
     },
     "REQUESTS": {
         "verify": false,

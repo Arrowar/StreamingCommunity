@@ -28,7 +28,7 @@ table_show_manager = TVShowManager()
 max_timeout = config_manager.get_int("REQUESTS", "timeout")
 
 
-def title_search(query: str, proxy: str) -> int:
+def title_search(query: str) -> int:
     """
     Search for titles based on a search query.
       
@@ -49,7 +49,6 @@ def title_search(query: str, proxy: str) -> int:
             f"{site_constant.FULL_URL}/it", 
             headers={'user-agent': get_userAgent()}, 
             timeout=max_timeout,
-            proxy=proxy,
 	    follow_redirects=True
         )
         response.raise_for_status()
@@ -74,8 +73,7 @@ def title_search(query: str, proxy: str) -> int:
                 'x-inertia': 'true',
                 'x-inertia-version': version
             },
-            timeout=max_timeout,
-            proxy=proxy
+            timeout=max_timeout
         )
         response.raise_for_status()
 

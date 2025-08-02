@@ -14,4 +14,4 @@ pycryptodomex
 ua-generator
 qbittorrent-api
 pyTelegramBotAPI
-beautifulsoup4
+pywidevine

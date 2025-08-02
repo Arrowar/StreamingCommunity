@@ -229,7 +229,7 @@ def main(script_id = 0):
 
     if not internet_manager.check_dns_resolve(hostname_list):
         print()
-        console.print("[red]❌ ERROR: DNS configuration is required!")
+        console.print("[red] ERROR: DNS configuration is required!")
         console.print("[red]The program cannot function correctly without proper DNS settings.")
         console.print("[yellow]Please configure one of these DNS servers:")
         console.print("[blue]• Cloudflare (1.1.1.1) 'https://developers.cloudflare.com/1.1.1.1/setup/windows/'")

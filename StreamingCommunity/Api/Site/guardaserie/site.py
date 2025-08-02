@@ -59,9 +59,8 @@ def title_search(query: str) -> int:
 
     # Create soup and find table
     soup = BeautifulSoup(response.text, "html.parser")
-    table_content = soup.find('div', class_="recent-posts")
 
-    for serie_div in table_content.find_all('div', class_='post-thumb'):
+    for serie_div in soup.find_all('div', class_='entry'):
         try:
             
             title = serie_div.find('a').get("title")

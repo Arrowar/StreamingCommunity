@@ -40,26 +40,27 @@ class GetSerieInfo:
         Retrieves the number of seasons of a TV series.
 
         Returns:
-            int: Number of seasons of the TV series.
+            int: Number of seasons of the TV series. Returns -1 if parsing fails.
         """
         try:
-
             # Make an HTTP request to the series URL
             response = httpx.get(self.url, headers=self.headers, timeout=max_timeout, follow_redirects=True)
             response.raise_for_status()
 
+            # Find the seasons container
             soup = BeautifulSoup(response.text, "html.parser")
-
             table_content = soup.find('div', class_="tt_season")
             seasons_number = len(table_content.find_all("li"))
-            self.tv_name = soup.find("h1", class_="entry-title").get_text(strip=True)
+            
+            # Try to get the title, with fallback
+            title_element = soup.find("h1", class_="entry-title")
+            self.tv_name = title_element.get_text(strip=True) if title_element else "Unknown Title"
 
             return seasons_number
 
         except Exception as e:
-            logging.error(f"Error parsing HTML page: {e}")
-
-        return -1
+            logging.error(f"Error parsing HTML page: {str(e)}")
+            return -1
 
     def get_episode_number(self, n_season: int) -> List[Dict[str, str]]:
         """
@@ -88,7 +89,7 @@ class GetSerieInfo:
             for episode_div in episode_content:
                 index = episode_div.find("a").get("data-num")
                 link = episode_div.find("a").get("data-link")
-                name = episode_div.find("a").get("data-title")
+                name = episode_div.find("a").get("data-num")
 
                 obj_episode = {
                     'number': index,

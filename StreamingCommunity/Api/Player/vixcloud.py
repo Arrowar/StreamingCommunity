@@ -25,7 +25,7 @@ console = Console()
 
 
 class VideoSource:
-    def __init__(self, url: str, is_series: bool, media_id: int = None, proxy: str = None):
+    def __init__(self, url: str, is_series: bool, media_id: int = None):
         """
         Initialize video source for streaming site.
         
@@ -36,7 +36,6 @@ class VideoSource:
         """
         self.headers = {'user-agent': get_userAgent()}
         self.url = url
-        self.proxy = proxy
         self.is_series = is_series
         self.media_id = media_id
         self.iframe_src = None
@@ -58,7 +57,7 @@ class VideoSource:
             }
 
         try:
-            response = httpx.get(f"{self.url}/iframe/{self.media_id}", headers=self.headers, params=params, timeout=MAX_TIMEOUT, proxy=self.proxy, verify=REQUEST_VERIFY)
+            response = httpx.get(f"{self.url}/iframe/{self.media_id}", headers=self.headers, params=params, timeout=MAX_TIMEOUT, verify=REQUEST_VERIFY)
             response.raise_for_status()
 
             # Parse response with BeautifulSoup to get iframe source
@@ -123,12 +122,12 @@ class VideoSource:
             logging.error(f"Error getting content: {e}")
             raise
 
-    def get_playlist(self) -> str | None:
+    def get_playlist(self) -> str:
         """
         Generate authenticated playlist URL.
 
         Returns:
-            str | None: Fully constructed playlist URL with authentication parameters, or None if content unavailable
+            str: Fully constructed playlist URL with authentication parameters, or None if content unavailable
         """
         if not self.window_parameter:
             return None

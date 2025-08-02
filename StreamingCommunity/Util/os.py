@@ -14,6 +14,7 @@ import contextlib
 import importlib.metadata
 import socket
 
+
 # External library
 from unidecode import unidecode
 from rich.console import Console
@@ -512,3 +513,23 @@ def get_ffmpeg_path():
 def get_ffprobe_path():
     """Returns the path of FFprobe."""
     return os_summary.ffprobe_path
+
+def get_wvd_path():
+    """
+    Searches the system's binary folder and returns the path of the first file ending with 'wvd'.
+    Returns None if not found.
+    """
+    system = platform.system().lower()
+    home = os.path.expanduser('~')
+    if system == 'windows':
+        binary_dir = os.path.join(os.path.splitdrive(home)[0] + os.path.sep, 'binary')
+    elif system == 'darwin':
+        binary_dir = os.path.join(home, 'Applications', 'binary')
+    else:
+        binary_dir = os.path.join(home, '.local', 'bin', 'binary')
+    if not os.path.exists(binary_dir):
+        return None
+    for file in os.listdir(binary_dir):
+        if file.lower().endswith('wvd'):
+            return os.path.join(binary_dir, file)
+    return None

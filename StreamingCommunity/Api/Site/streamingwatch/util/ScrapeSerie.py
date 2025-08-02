@@ -19,13 +19,13 @@ max_timeout = config_manager.get_int("REQUESTS", "timeout")
 
 
 class GetSerieInfo:
-    def __init__(self, url, proxy: str = None):
+    def __init__(self, url):
         self.headers = {'user-agent': get_userAgent()}
         self.url = url
         self.seasons_manager = SeasonManager()
         self.series_name = None
         
-        self.client = httpx.Client(headers=self.headers, proxy=proxy, timeout=max_timeout)
+        self.client = httpx.Client(headers=self.headers, timeout=max_timeout)
 
     def collect_info_season(self) -> None:
         """

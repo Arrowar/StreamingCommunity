@@ -12,7 +12,6 @@ from rich.prompt import Prompt
 
 # Internal utilities
 from StreamingCommunity.Api.Template import get_select_title
-from StreamingCommunity.Lib.Proxies.proxy import ProxyFinder
 from StreamingCommunity.Api.Template.config_loader import site_constant
 from StreamingCommunity.Api.Template.Class.SearchType import MediaItem
 from StreamingCommunity.TelegramHelp.telegram_bot import get_bot_instance
@@ -33,7 +32,6 @@ _deprecate = False
 
 msg = Prompt()
 console = Console()
-proxy = None
 
 
 def get_user_input(string_to_search: str = None):
@@ -74,7 +72,7 @@ def get_user_input(string_to_search: str = None):
     else:
         return msg.ask(f"\n[purple]Insert a word to search in [green]{site_constant.SITE_NAME}").strip()
 
-def process_search_result(select_title, selections=None, proxy=None):
+def process_search_result(select_title, selections=None):
     """
     Handles the search result and initiates the download for either a film or series.
     
@@ -82,7 +80,6 @@ def process_search_result(select_title, selections=None, proxy=None):
         select_title (MediaItem): The selected media item. Can be None if selection fails.
         selections (dict, optional): Dictionary containing selection inputs that bypass manual input
                                     e.g., {'season': season_selection, 'episode': episode_selection}
-        proxy (str, optional): The proxy to use for downloads.
     """
     if not select_title:
         if site_constant.TELEGRAM_BOT:
@@ -100,10 +97,10 @@ def process_search_result(select_title, selections=None, proxy=None):
             season_selection = selections.get('season')
             episode_selection = selections.get('episode')
 
-        download_series(select_title, season_selection, episode_selection, proxy)
+        download_series(select_title, season_selection, episode_selection)
         
     else:
-        download_film(select_title, proxy)
+        download_film(select_title)
 
 def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_item: dict = None, selections: dict = None):
     """
@@ -121,17 +118,11 @@ def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_
     if site_constant.TELEGRAM_BOT:
         bot = get_bot_instance()
 
-    # Check proxy if not already set
-    finder = ProxyFinder(site_constant.FULL_URL)
-    proxy = finder.find_fast_proxy()
-    
     if direct_item:
         select_title_obj = MediaItem(**direct_item)
-        process_search_result(select_title_obj, selections, proxy)
+        process_search_result(select_title_obj, selections)
         return
     
-
-
     actual_search_query = get_user_input(string_to_search)
 
     # Handle cases where user input is empty, or 'back' was handled (sys.exit or None return)
@@ -142,9 +133,7 @@ def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_
         return
 
     # Perform search on the database using the obtained query
-    finder = ProxyFinder(site_constant.FULL_URL)
-    proxy = finder.find_fast_proxy()
-    len_database = title_search(actual_search_query, proxy)
+    len_database = title_search(actual_search_query)
 
     # If only the database object (media_search_manager populated by title_search) is needed
     if get_onlyDatabase:
@@ -152,7 +141,7 @@ def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_
     
     if len_database > 0:
         select_title = get_select_title(table_show_manager, media_search_manager, len_database)
-        process_search_result(select_title, selections, proxy)
+        process_search_result(select_title, selections)
     
     else:
         no_results_message = f"No results found for: '{actual_search_query}'"

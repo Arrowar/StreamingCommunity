@@ -243,9 +243,31 @@ def main(script_id = 0):
     search_functions = load_search_functions()
     logging.info(f"Load module in: {time.time() - start} s")
 
+    # Build dynamic help epilog with available sites
+    module_name_to_index_help = {}
+    for alias, (_func, _use_for) in search_functions.items():
+        module_name_help = alias.split("_")[0].lower()
+        try:
+            mod_help = importlib.import_module(f'StreamingCommunity.Api.Site.{module_name_help}')
+            module_index_help = int(getattr(mod_help, 'indice'))
+            module_name_to_index_help[module_name_help] = module_index_help
+        except Exception:
+            # If any error, skip adding to help mapping
+            continue
+
+    available_names_str = ", ".join(sorted(module_name_to_index_help.keys()))
+    available_indices_str = ", ".join(
+        [f"{idx}={name.capitalize()}" for name, idx in sorted(module_name_to_index_help.items(), key=lambda x: x[1])]
+    )
+
     # Create argument parser
     parser = argparse.ArgumentParser(
-        description='Script to download movies and series from the internet. Use these commands to configure the script and control its behavior.'
+        description='Script to download movies and series from the internet. Use these commands to configure the script and control its behavior.',
+        formatter_class=argparse.RawTextHelpFormatter,
+        epilog=(
+            "Available sites by name: " + available_names_str +
+            "\nAvailable sites by index: " + available_indices_str
+        )
     )
 
     parser.add_argument("script_id", nargs="?", default="unknown", help="ID dello script")

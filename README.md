@@ -669,6 +669,9 @@ python test_run.py --site streamingcommunity --search "interstellar"
 # Run a specific site by numeric index (as shown in -h help)
 python test_run.py --site 0 --search "interstellar"
 
+# Auto-download the first result from search (requires --site and --search)
+python test_run.py --site streamingcommunity --search "interstellar" --auto-first
+
 # Show help (includes available sites by name and by index)
 python test_run.py -h
 
@@ -691,7 +694,7 @@ python test_run.py --category 3       # Search in series
 python test_run.py --category 4       # Search in torrent category
 
 # If installed via pip, you can also use the entrypoint directly
-streamingcommunity --site streamingcommunity --search "interstellar"
+streamingcommunity --site streamingcommunity --search "interstellar" --auto-first
 ```
 
 # Docker

@@ -309,6 +309,10 @@ def main(script_id = 0):
     # Add arguments for search functions
     parser.add_argument('-s', '--search', default=None, help='Search terms')
     parser.add_argument(
+        '--auto-first', action='store_true',
+        help='Automatically download the first search result. Use together with --site and --search.'
+    )
+    parser.add_argument(
         '--site', type=str,
         help='Select site by name (folder name, e.g. streamingcommunity) or by index as shown in the menu.'
     )
@@ -376,6 +380,27 @@ def main(script_id = 0):
             func_to_run = module_name_to_function[site_key]
 
         if func_to_run is not None:
+            # If auto-first is requested and search terms are provided, fetch first result and process directly
+            if args.auto_first:
+                if not search_terms:
+                    console.print("[red]--auto-first requires also --search to be provided.[/red]")
+                else:
+                    try:
+                        database = func_to_run(search_terms, get_onlyDatabase=True)
+                        if database and hasattr(database, 'media_list') and len(database.media_list) > 0:
+                            first_item = database.media_list[0]
+                            if hasattr(first_item, '__dict__'):
+                                item_dict = first_item.__dict__.copy()
+                            else:
+                                item_dict = {}
+                            func_to_run(direct_item=item_dict)
+                            return
+                        else:
+                            console.print("[yellow]No results found to auto-download. Falling back to interactive mode.[/yellow]")
+                    except Exception as e:
+                        console.print(f"[red]Auto-first failed:[/red] {str(e)}")
+
+            # Default behavior: run function (interactive selection will follow inside)
             run_function(func_to_run, search_terms=search_terms)
             return
 

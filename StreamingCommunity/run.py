@@ -286,6 +286,10 @@ def main(script_id = 0):
 
     # Add arguments for search functions
     parser.add_argument('-s', '--search', default=None, help='Search terms')
+    parser.add_argument(
+        '--site', type=str,
+        help='Select site by name (folder name, e.g. streamingcommunity) or by index as shown in the menu.'
+    )
     
     # Parse command-line arguments
     args = parser.parse_args()
@@ -322,6 +326,7 @@ def main(script_id = 0):
     # Create mappings using module indice
     input_to_function = {}
     choice_labels = {}
+    module_name_to_function = {}
     
     for alias, (func, use_for) in search_functions.items():
         module_name = alias.split("_")[0]
@@ -330,8 +335,31 @@ def main(script_id = 0):
             site_index = str(getattr(mod, 'indice'))
             input_to_function[site_index] = func
             choice_labels[site_index] = (module_name.capitalize(), use_for.lower())
+            module_name_to_function[module_name.lower()] = func
         except Exception as e:
             console.print(f"[red]Error mapping module {module_name}: {str(e)}")
+
+    # If a specific site is provided via CLI, run it directly
+    if args.site:
+        site_key = str(args.site).strip().lower()
+
+        func_to_run = None
+
+        # Allow selection by numeric index (indice)
+        if site_key in input_to_function:
+            func_to_run = input_to_function[site_key]
+
+        # Or by module (folder) name
+        if func_to_run is None and site_key in module_name_to_function:
+            func_to_run = module_name_to_function[site_key]
+
+        if func_to_run is not None:
+            run_function(func_to_run, search_terms=search_terms)
+            return
+
+        # If site not found, show helpful message and fall back to interactive selection
+        available_sites = ", ".join(sorted({name for name in module_name_to_function.keys()}))
+        console.print(f"[red]Unknown site:[/red] '{args.site}'. Available sites by name: [yellow]{available_sites}[/yellow]")
 
     if args.category:
         selected_category = category_map.get(args.category)

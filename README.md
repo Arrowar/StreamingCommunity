@@ -663,6 +663,15 @@ The Global Search can be configured from the command line:
 # Examples of terminal usage
 
 ```bash
+# Run a specific site by name with a search term
+python test_run.py --site streamingcommunity --search "interstellar"
+
+# Run a specific site by numeric index (as shown in -h help)
+python test_run.py --site 0 --search "interstellar"
+
+# Show help (includes available sites by name and by index)
+python test_run.py -h
+
 # Change video and audio workers
 python test_run.py --default_video_worker 8 --default_audio_worker 8
 
@@ -680,6 +689,9 @@ python test_run.py --category 1       # Search in anime category
 python test_run.py --category 2       # Search in movies & series
 python test_run.py --category 3       # Search in series
 python test_run.py --category 4       # Search in torrent category
+
+# If installed via pip, you can also use the entrypoint directly
+streamingcommunity --site streamingcommunity --search "interstellar"
 ```
 
 # Docker

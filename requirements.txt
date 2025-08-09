@@ -14,3 +14,4 @@ ua-generator
 qbittorrent-api
 pyTelegramBotAPI
 pywidevine
+ruff

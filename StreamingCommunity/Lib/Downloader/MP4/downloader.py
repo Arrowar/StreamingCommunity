@@ -19,6 +19,7 @@ from rich.panel import Panel
 
 # Internal utilities
 from StreamingCommunity.Util.headers import get_userAgent
+from StreamingCommunity.Util.http_client import create_client
 from StreamingCommunity.Util.color import Colors
 from StreamingCommunity.Util.config_json import config_manager
 from StreamingCommunity.Util.os import internet_manager, os_manager
@@ -110,7 +111,8 @@ def MP4_downloader(url: str, path: str, referer: str = None, headers_: dict = No
     os.makedirs(os.path.dirname(path), exist_ok=True)
 
     try:
-        with httpx.Client(verify=REQUEST_VERIFY) as client:
+        # Use unified HTTP client (verify/timeout/proxy from config)
+        with create_client() as client:
             with client.stream("GET", url, headers=headers) as response:
                 response.raise_for_status()
                 total = int(response.headers.get('content-length', 0))

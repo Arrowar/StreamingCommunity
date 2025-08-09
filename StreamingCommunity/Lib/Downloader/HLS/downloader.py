@@ -17,6 +17,7 @@ from rich.panel import Panel
 # Internal utilities
 from StreamingCommunity.Util.config_json import config_manager
 from StreamingCommunity.Util.headers import get_userAgent
+from StreamingCommunity.Util.http_client import create_client
 from StreamingCommunity.Util.os import os_manager, internet_manager
 from StreamingCommunity.TelegramHelp.telegram_bot import get_bot_instance
 
@@ -62,7 +63,8 @@ class HLSClient:
         Returns:
             Response content/text or None if all retries fail
         """
-        client = httpx.Client(headers=self.headers, timeout=MAX_TIMEOUT, follow_redirects=True)
+        # Use unified HTTP client (inherits timeout/verify/proxy from config)
+        client = create_client(headers=self.headers, follow_redirects=True)
 
         for attempt in range(RETRY_LIMIT):
             try:

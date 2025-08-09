@@ -23,6 +23,7 @@ from rich.console import Console
 # Internal utilities
 from StreamingCommunity.Util.color import Colors
 from StreamingCommunity.Util.headers import get_userAgent
+from StreamingCommunity.Util.http_client import create_client
 from StreamingCommunity.Util.config_json import config_manager
 
 
@@ -198,14 +199,8 @@ class M3U8_Segments:
             print("Signal handler must be set in the main thread")
 
     def _get_http_client(self):
-        client_params = {
-            'headers': {'User-Agent': get_userAgent()},
-            'timeout': SEGMENT_MAX_TIMEOUT,
-            'follow_redirects': True,
-            'http2': False,
-            'verify': REQUEST_VERIFY
-        }
-        return httpx.Client(**client_params)
+        # Use unified client respecting global config (verify/timeout/proxy)
+        return create_client(headers={'User-Agent': get_userAgent()}, follow_redirects=True)
                             
     def download_segment(self, ts_url: str, index: int, progress_bar: tqdm, backoff_factor: float = 1.1) -> None:
         """

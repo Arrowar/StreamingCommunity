@@ -13,6 +13,7 @@ from rich.console import Console
 # Internal utilities
 from StreamingCommunity.Util.os import os_manager
 from StreamingCommunity.Util.headers import get_headers
+from StreamingCommunity.Util.http_client import create_client
 from StreamingCommunity.Util.message import start_message
 from StreamingCommunity.Util.config_json import config_manager
 from StreamingCommunity.TelegramHelp.telegram_bot import get_bot_instance, TelegramSession
@@ -60,7 +61,7 @@ def download_film(select_title: MediaItem) -> str:
     
     # Extract mostraguarda URL
     try:
-        response = httpx.get(select_title.url, headers=get_headers(), timeout=10)
+        response = create_client(headers=get_headers()).get(select_title.url)
         response.raise_for_status()
 
         soup = BeautifulSoup(response.text, 'html.parser')
@@ -74,7 +75,7 @@ def download_film(select_title: MediaItem) -> str:
     # Extract supervideo URL
     supervideo_url = None
     try:
-        response = httpx.get(mostraguarda, headers=get_headers(), timeout=10)
+        response = create_client(headers=get_headers()).get(mostraguarda)
         response.raise_for_status()
 
         soup = BeautifulSoup(response.text, 'html.parser')

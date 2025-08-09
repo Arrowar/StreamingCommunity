@@ -10,6 +10,7 @@ import httpx
 # Internal utilities
 from StreamingCommunity.Util.config_json import config_manager
 from StreamingCommunity.Util.headers import get_userAgent
+from StreamingCommunity.Util.http_client import create_client
 
 
 # Variable
@@ -26,12 +27,10 @@ class VideoSource:
         self.link = episode_data['link']
         
         # Create an HTTP client with session cookies, headers, and base URL.
-        self.client = httpx.Client(
+        self.client = create_client(
             cookies={"sessionId": session_id},
             headers={"User-Agent": get_userAgent(), "csrf-token": csrf_token},
             base_url=full_url,
-            timeout=MAX_TIMEOUT,
-            verify=REQUEST_VERIFY
         )
 
     def get_playlist(self):

@@ -11,14 +11,40 @@ from StreamingCommunity.Util.config_json import config_manager
 def get_site_name_from_stack():
     for frame_info in inspect.stack():
         file_path = frame_info.filename
-        
-        if "__init__" in file_path:
-            parts = file_path.split(f"Site{os.sep}")
-            
-            if len(parts) > 1:
-                site_name = parts[1].split(os.sep)[0]
-                return site_name
-    
+
+        # Common case: path contains Api/Site/<site>/__init__.py
+        try:
+            marker = os.path.join('Api', 'Site') + os.sep
+            if marker in file_path and '__init__' in file_path:
+                parts = file_path.split(marker)
+                if len(parts) > 1:
+                    site_name = parts[1].split(os.sep)[0]
+                    return site_name
+        except Exception:
+            pass
+
+        # Fallback: if path contains 'Site' folder, try a more permissive split
+        try:
+            if 'Site' + os.sep in file_path and '__init__' in file_path:
+                parts = file_path.split('Site' + os.sep)
+                if len(parts) > 1:
+                    site_name = parts[1].split(os.sep)[0]
+                    return site_name
+        except Exception:
+            pass
+
+        # Last-resort: try to infer module/package name from the frame
+        try:
+            module = inspect.getmodule(frame_info.frame)
+            if module is not None and hasattr(module, '__package__') and module.__package__:
+                # package typically like 'StreamingCommunity.Api.Site.<site>'
+                pkg = module.__package__
+                if 'Api.Site.' in pkg:
+                    site_name = pkg.split('Api.Site.')[-1].split('.')[0]
+                    return site_name
+        except Exception:
+            pass
+
     return None
 
 

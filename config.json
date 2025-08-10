@@ -2,6 +2,11 @@
     "DEFAULT": {
         "debug": false,
         "show_message": true,
+        "expose_http_api": true,
+        "http_api_port": 8080,
+        "http_api_username": "",
+        "http_api_password": "",
+        "http_api_provider_timeout": 20,
         "clean_console": true,
         "show_trending": true,
         "use_api": true,

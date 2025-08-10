@@ -21,6 +21,7 @@ from StreamingCommunity.TelegramHelp.telegram_bot import get_bot_instance, Teleg
 # Logic class
 from StreamingCommunity.Api.Template.config_loader import site_constant
 from StreamingCommunity.Api.Template.Class.SearchType import MediaItem
+from StreamingCommunity.Api.Template.Util import assert_item_is_movie
 
 
 # Player
@@ -43,6 +44,10 @@ def download_film(select_title: MediaItem) -> str:
     Return:
         - str: output path if successful, otherwise None
     """
+    if not assert_item_is_movie(select_title):
+        console.print("[red]Selected item is not a film.")
+        return None
+
     if site_constant.TELEGRAM_BOT:
         bot = get_bot_instance()
         bot.send_message(f"Download in corso:\n{select_title.name}", None)

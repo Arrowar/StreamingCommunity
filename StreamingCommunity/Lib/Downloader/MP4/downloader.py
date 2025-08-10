@@ -23,6 +23,7 @@ from StreamingCommunity.Util.color import Colors
 from StreamingCommunity.Util.config_json import config_manager
 from StreamingCommunity.Util.os import internet_manager, os_manager
 from StreamingCommunity.TelegramHelp.telegram_bot import get_bot_instance
+from StreamingCommunity.Api.http_api import JOB_MANAGER
 
 
 # Logic class
@@ -147,6 +148,12 @@ def MP4_downloader(url: str, path: str, referer: str = None, headers_: dict = No
                                 size = file.write(chunk)
                                 downloaded += size
                                 bar.update(size)
+                                try:
+                                    # report overall progress for this job (single-phase download)
+                                    percent = (downloaded / float(total)) * 100.0 if total > 0 else 0.0
+                                    JOB_MANAGER.update_progress(percent)
+                                except Exception:
+                                    pass
 
                     except KeyboardInterrupt:
                         if not interrupt_handler.force_quit:

@@ -18,6 +18,7 @@ from .parser import MPDParser
 from .segments import MPD_Segments
 from .decrypt import decrypt_with_mp4decrypt
 from .cdm_helpher import get_widevine_keys
+from StreamingCommunity.Api.http_api import JOB_MANAGER
 
 
 # Config
@@ -43,6 +44,9 @@ class DASH_Downloader:
         self.error = None
         self.stopped = False
         self.output_file = None
+        self.total_segments_all = 0
+        self.segments_downloaded = 0
+        self._progress_lock = None
 
     def _setup_temp_dirs(self):
         """
@@ -99,60 +103,83 @@ class DASH_Downloader:
             if rep:
                 encrypted_path = os.path.join(self.encrypted_dir, f"{rep['id']}_encrypted.m4s")
 
-                downloader = MPD_Segments(
-                    tmp_folder=self.encrypted_dir,
-                    representation=rep,
-                    pssh=self.parser.pssh
-                )
+        # compute total segments for progress aggregation
+        try:
+            total = 0
+            v = self.get_representation_by_type('video')
+            a = self.get_representation_by_type('audio')
+            if v and 'segment_urls' in v:
+                total += len(v.get('segment_urls', [])) + 1
+            if a and 'segment_urls' in a:
+                total += len(a.get('segment_urls', [])) + 1
+            if total <= 0:
+                total = 1
+            self.total_segments_all = total
+            self.segments_downloaded = 0
+            import threading as _th
+            self._progress_lock = _th.Lock()
+        except Exception:
+            self.total_segments_all = 1
+            self.segments_downloaded = 0
+            import threading as _th
+            self._progress_lock = _th.Lock()
 
-                try:
-                    result = downloader.download_streams()
+            downloader = MPD_Segments(
+                tmp_folder=self.encrypted_dir,
+                representation=rep,
+                pssh=self.parser.pssh
+            )
+            # attach progress aggregation reference
+            setattr(downloader, 'progress_parent', self)
 
-                    # Check for interruption or failure
-                    if result.get("stopped"):
-                        self.stopped = True
-                        self.error = "Download interrupted"
-                        return False
-                    
-                    if result.get("nFailed", 0) > 0:
-                        self.error = f"Failed segments: {result['nFailed']}"
-                        return False
-                    
-                except Exception as ex:
-                    self.error = str(ex)
+            try:
+                result = downloader.download_streams()
+
+                # Check for interruption or failure
+                if result.get("stopped"):
+                    self.stopped = True
+                    self.error = "Download interrupted"
                     return False
 
-                if not self.parser.pssh:
-                    print("No PSSH found: segments are not encrypted, skipping decryption.")
-                    self.download_segments(clear=True)
-                    return True
-
-                keys = get_widevine_keys(
-                    pssh=self.parser.pssh,
-                    license_url=self.license_url,
-                    cdm_device_path=self.cdm_device,
-                    headers=custom_headers,
-                    payload=custom_payload
-                )
-                
-                if not keys:
-                    self.error = f"No key found, cannot decrypt {typ}"
-                    print(self.error)
+                if result.get("nFailed", 0) > 0:
+                    self.error = f"Failed segments: {result['nFailed']}"
                     return False
 
-                key = keys[0]
-                KID = key['kid']
-                KEY = key['key']
+            except Exception as ex:
+                self.error = str(ex)
+                return False
 
-                decrypted_path = os.path.join(self.decrypted_dir, f"{typ}.mp4")
-                result_path = decrypt_with_mp4decrypt(
-                    encrypted_path, KID, KEY, output_path=decrypted_path
-                )
+            if not self.parser.pssh:
+                print("No PSSH found: segments are not encrypted, skipping decryption.")
+                self.download_segments(clear=True)
+                return True
 
-                if not result_path:
-                    self.error = f"Decryption of {typ} failed"
-                    print(self.error)
-                    return False
+            keys = get_widevine_keys(
+                pssh=self.parser.pssh,
+                license_url=self.license_url,
+                cdm_device_path=self.cdm_device,
+                headers=custom_headers,
+                payload=custom_payload
+            )
+
+            if not keys:
+                self.error = f"No key found, cannot decrypt {typ}"
+                print(self.error)
+                return False
+
+            key = keys[0]
+            KID = key['kid']
+            KEY = key['key']
+
+            decrypted_path = os.path.join(self.decrypted_dir, f"{typ}.mp4")
+            result_path = decrypt_with_mp4decrypt(
+                encrypted_path, KID, KEY, output_path=decrypted_path
+            )
+
+            if not result_path:
+                self.error = f"Decryption of {typ} failed"
+                print(self.error)
+                return False
 
             else:
                 self.error = f"No {typ} found"

@@ -14,6 +14,7 @@ from StreamingCommunity.Util.headers import get_userAgent
 from StreamingCommunity.Lib.M3U8.estimator import M3U8_Ts_Estimator
 from StreamingCommunity.Util.config_json import config_manager
 from StreamingCommunity.Util.color import Colors
+from StreamingCommunity.Api.http_api import JOB_MANAGER
 
 
 # Config
@@ -143,6 +144,22 @@ class MPD_Segments:
                     estimator.add_ts_file(len(response.content))
 
             progress_bar.update(1)
+            try:
+                parent = getattr(self, 'progress_parent', None)
+                if parent is not None and getattr(parent, 'total_segments_all', 0) > 0:
+                    with parent._progress_lock:
+                        parent.segments_downloaded += 1
+                        downloaded = parent.segments_downloaded
+                        total = parent.total_segments_all
+                    percent = 5.0 + (downloaded / float(total)) * 85.0
+                    if percent > 99.0:
+                        percent = 99.0
+                    try:
+                        JOB_MANAGER.update_progress(percent)
+                    except Exception:
+                        pass
+            except Exception:
+                pass
 
             # Update progress bar with estimated info
             estimator.update_progress_bar(len(response.content), progress_bar)
@@ -188,6 +205,22 @@ class MPD_Segments:
 
                 # Update progress bar with estimated info
                 estimator.update_progress_bar(len(data), progress_bar)
+                try:
+                    parent = getattr(self, 'progress_parent', None)
+                    if parent is not None and getattr(parent, 'total_segments_all', 0) > 0:
+                        with parent._progress_lock:
+                            parent.segments_downloaded += 1
+                            downloaded = parent.segments_downloaded
+                            total = parent.total_segments_all
+                        percent = 5.0 + (downloaded / float(total)) * 85.0
+                        if percent > 99.0:
+                            percent = 99.0
+                        try:
+                            JOB_MANAGER.update_progress(percent)
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
 
             except KeyboardInterrupt:
                 self.download_interrupted = True

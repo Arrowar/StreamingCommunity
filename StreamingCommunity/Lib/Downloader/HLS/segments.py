@@ -243,8 +243,31 @@ class M3U8_Segments:
 
                     self.class_ts_estimator.update_progress_bar(content_size, progress_bar)
                     self.queue.put((index, segment_content))
-                    self.downloaded_segments.add(index)  
+                    self.downloaded_segments.add(index)
                     progress_bar.update(1)
+
+                    # If part of an aggregated download (HLS with audio tracks), report overall job progress
+                    try:
+                        parent = getattr(self, 'progress_parent', None)
+                        if parent is not None and getattr(parent, 'total_segments_all', 0) > 0:
+                            with parent._progress_lock:
+                                parent.segments_downloaded += 1
+                                downloaded = parent.segments_downloaded
+                                total = parent.total_segments_all
+                            # Map segments progress to overall percentage: parsing 5%, download 85%, merge 10%
+                            percent = 5.0 + (downloaded / float(total)) * 85.0
+                            # Guard bounds
+                            if percent < 0:
+                                percent = 0.0
+                            if percent > 99.0:
+                                percent = 99.0
+                            try:
+                                from StreamingCommunity.Api.http_api import JOB_MANAGER
+                                JOB_MANAGER.update_progress(percent)
+                            except Exception:
+                                pass
+                    except Exception:
+                        pass
                     return
 
             except Exception as e:

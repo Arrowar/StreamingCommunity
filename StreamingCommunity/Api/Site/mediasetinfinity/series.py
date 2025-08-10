@@ -24,6 +24,7 @@ from StreamingCommunity.Api.Template.Util import (
     validate_episode_selection, 
     display_episodes_list
 )
+from StreamingCommunity.Api.http_api import JOB_MANAGER
 from StreamingCommunity.Api.Template.config_loader import site_constant
 from StreamingCommunity.Api.Template.Class.SearchType import MediaItem
 
@@ -130,6 +131,8 @@ def download_episode(index_season_selected: int, scrape_serie: GetSerieInfo, dow
             console.print(f"\n[cyan]Using provided episode selection: [yellow]{episode_selection}")
 
         else:
+            if JOB_MANAGER.get_current_job_id() is not None:
+                raise ValueError('No episode selection provided and cannot prompt in non-interactive mode')
             last_command = display_episodes_list(episodes)
         
         # Prompt user for episode selection
@@ -162,6 +165,8 @@ def download_series(select_season: MediaItem, season_selection: str = None, epis
 
     # If season_selection is provided, use it instead of asking for input
     if season_selection is None:
+        if JOB_MANAGER.get_current_job_id() is not None:
+            raise ValueError('No season selection provided and cannot prompt in non-interactive mode')
         index_season_selected = msg.ask(
             "\n[cyan]Insert season number [yellow](e.g., 1), [red]* [cyan]to download all seasons, "
             "[yellow](e.g., 1-2) [cyan]for a range of seasons, or [yellow](e.g., 3-*) [cyan]to download from a specific season to the end"

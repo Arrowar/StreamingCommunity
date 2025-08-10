@@ -27,6 +27,7 @@ from StreamingCommunity.Util.logger import Logger
 from StreamingCommunity.Upload.update import update as git_update
 from StreamingCommunity.Lib.TMBD import tmdb
 from StreamingCommunity.TelegramHelp.telegram_bot import get_bot_instance, TelegramSession
+from StreamingCommunity.Api import http_api
 
 
 # Config
@@ -224,6 +225,28 @@ def main(script_id = 0):
     # Create logger
     log_not = Logger()
     initialize()
+
+    # Optionally expose HTTP API
+    try:
+        if config_manager.get_bool('DEFAULT', 'expose_http_api'):
+            t = threading.Thread(target=http_api.start_api_server, daemon=True)
+            t.start()
+            console.print(f"[green]HTTP API exposed on port {config_manager.get('DEFAULT','http_api_port')}[/green]")
+            # When the HTTP API is exposed the application must run in non-interactive
+            # server-only mode: console output (messages/animations) is still shown
+            # but user input is disabled. The process stays alive to serve HTTP
+            # requests and can be stopped with Ctrl+C.
+            console.print(
+                "[yellow]Non-interactive mode: HTTP API is enabled. Console input is disabled; use the HTTP API only. Press Ctrl+C to exit.[/yellow]"
+            )
+            try:
+                # Keep the main thread alive without accepting console input
+                while True:
+                    time.sleep(1)
+            except KeyboardInterrupt:
+                force_exit()
+    except Exception as e:
+        console.print(f"[yellow]Unable to start HTTP API server: {e}")
 
     # Get all site hostname
     hostname_list = [hostname for site_info in config_manager.configSite.values() if (hostname := _extract_hostname(site_info.get('full_url')))]

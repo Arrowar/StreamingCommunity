@@ -17,7 +17,8 @@ from StreamingCommunity.Util.message import start_message
 # Logic class
 from .util.ScrapeSerie import ScrapSerie
 from StreamingCommunity.Api.Template.config_loader import site_constant
-from StreamingCommunity.Api.Template.Util import manage_selection, dynamic_format_number
+from StreamingCommunity.Api.Template.Util import manage_selection, dynamic_format_number, assert_interactive_allowed
+from StreamingCommunity.Api.http_api import JOB_MANAGER
 from StreamingCommunity.Api.Template.Class.SearchType import MediaItem
 
 
@@ -86,8 +87,16 @@ def download_series(select_title: MediaItem, episode_selection: str = None):
     # Get episode count
     console.print(f"[green]Episodes found:[/green] [red]{len(episodes)}[/red]")
 
+    if len(episodes) == 0:
+        if JOB_MANAGER.get_current_job_id() is not None:
+            raise ValueError('No episodes found for this title (non-interactive mode)')
+        console.print('[red]No episodes found for this title')
+        return
+
     # Display episodes list and get user selection
     if episode_selection is None:
+        if JOB_MANAGER.get_current_job_id() is not None:
+            raise ValueError('No episode selection provided and cannot prompt in non-interactive mode')
         last_command = msg.ask("\n[cyan]Insert media [red]index [yellow]or [red]* [cyan]to download all media [yellow]or [red]1-2 [cyan]or [red]3-* [cyan]for a range of media")
     else:
         last_command = episode_selection

@@ -15,6 +15,7 @@ from StreamingCommunity.Util.message import start_message
 from .util.ScrapeSerie import ScrapSerie
 from StreamingCommunity.Api.Template.config_loader import site_constant
 from StreamingCommunity.Api.Template.Class.SearchType import MediaItem
+from StreamingCommunity.Api.Template.Util import assert_item_is_movie
 
 
 # Player
@@ -34,6 +35,10 @@ def download_film(select_title: MediaItem):
         - id_film (int): The ID of the film.
         - title_name (str): The title of the film.
     """
+    if not assert_item_is_movie(select_title):
+        console.print("[red]Selected item is not a film.")
+        return None, False
+
     start_message()
     
     scrape_serie = ScrapSerie(select_title.url, site_constant.FULL_URL)

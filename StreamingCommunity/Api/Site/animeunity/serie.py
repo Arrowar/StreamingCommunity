@@ -19,6 +19,7 @@ from StreamingCommunity.TelegramHelp.telegram_bot import TelegramSession, get_bo
 from .util.ScrapeSerie import ScrapeSerieAnime
 from StreamingCommunity.Api.Template.config_loader import site_constant
 from StreamingCommunity.Api.Template.Util import manage_selection, dynamic_format_number
+from StreamingCommunity.Api.http_api import JOB_MANAGER
 from StreamingCommunity.Api.Template.Class.SearchType import MediaItem
 
 
@@ -105,9 +106,17 @@ def download_series(select_title: MediaItem, season_selection: str = None, episo
     # Get episode information
     episoded_count = scrape_serie.get_count_episodes()
     console.print(f"[green]Episodes count:[/green] [red]{episoded_count}[/red]")
+
+    if episoded_count == 0:
+        if JOB_MANAGER.get_current_job_id() is not None:
+            raise ValueError('No episodes found for this title (non-interactive mode)')
+        console.print('[red]No episodes found for this title')
+        return
     
     # Telegram bot integration
     if episode_selection is None:
+        if JOB_MANAGER.get_current_job_id() is not None:
+            raise ValueError('No episode selection provided and cannot prompt in non-interactive mode')
         if site_constant.TELEGRAM_BOT:
             console.print(f"\n[cyan]Insert media [red]index [yellow]or [red]* [cyan]to download all media [yellow]or [red]1-2 [cyan]or [red]3-* [cyan]for a range of media")
             bot.send_message(f"Episodi trovati: {episoded_count}", None)

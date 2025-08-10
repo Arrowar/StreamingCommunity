@@ -19,6 +19,7 @@ import qbittorrentapi
 from StreamingCommunity.Util.color import Colors
 from StreamingCommunity.Util.os import internet_manager
 from StreamingCommunity.Util.config_json import config_manager
+from StreamingCommunity.Api.http_api import JOB_MANAGER
 
 
 # Configuration
@@ -353,6 +354,10 @@ class TOR_downloader:
                     # Update progress
                     progress = torrent_info.progress * 100
                     pbar.n = progress
+                    try:
+                        JOB_MANAGER.update_progress(progress)
+                    except Exception:
+                        pass
                     
                     # Get download statistics
                     download_speed = torrent_info.dlspeed

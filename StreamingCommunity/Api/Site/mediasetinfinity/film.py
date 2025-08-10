@@ -17,6 +17,7 @@ from StreamingCommunity.Util.headers import get_headers
 # Logic class
 from StreamingCommunity.Api.Template.config_loader import site_constant
 from StreamingCommunity.Api.Template.Class.SearchType import MediaItem
+from StreamingCommunity.Api.Template.Util import assert_item_is_movie
 
 
 # Player
@@ -39,6 +40,10 @@ def download_film(select_title: MediaItem) -> Tuple[str, bool]:
     Return:
         - str: output path if successful, otherwise None
     """
+    if not assert_item_is_movie(select_title):
+        console.print("[red]Selected item is not a film.")
+        return None, False
+
     start_message()
     console.print(f"[bold yellow]Download:[/bold yellow] [red]{site_constant.SITE_NAME}[/red] → [cyan]{select_title.name}[/cyan] \n")
 

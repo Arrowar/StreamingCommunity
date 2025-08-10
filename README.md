@@ -618,6 +618,12 @@ Note: Requires updated drivers and FFmpeg with hardware acceleration support.
 - `get_only_link`: Return M3U8 playlist/index URL instead of downloading
 </details>
 
+> [!IMPORTANT]
+> If you enable `DEFAULT.expose_http_api` and start the application, it will run in a non-interactive
+> server-only mode: the terminal will still show messages, but you will not be able to
+> type commands or use the interactive prompts. Use the API endpoints to control the application when this
+> option is enabled (see `README_API.md`). Press Ctrl+C to stop the server.
+
 # Global Search
 
 <details>

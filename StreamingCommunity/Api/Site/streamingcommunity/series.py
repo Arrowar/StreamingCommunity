@@ -17,12 +17,14 @@ from StreamingCommunity.TelegramHelp.telegram_bot import TelegramSession, get_bo
 # Logic class
 from .util.ScrapeSerie import GetSerieInfo
 from StreamingCommunity.Api.Template.Util import (
-    manage_selection, 
-    map_episode_title, 
-    validate_selection, 
-    validate_episode_selection, 
-    display_episodes_list
+    manage_selection,
+    map_episode_title,
+    validate_selection,
+    validate_episode_selection,
+    display_episodes_list,
+    assert_interactive_allowed,
 )
+from StreamingCommunity.Api.http_api import JOB_MANAGER
 from StreamingCommunity.Api.Template.config_loader import site_constant
 from StreamingCommunity.Api.Template.Class.SearchType import MediaItem
 
@@ -109,6 +111,8 @@ def download_episode(index_season_selected: int, scrape_serie: GetSerieInfo, vid
     episodes_count = len(episodes)
 
     if episodes_count == 0:
+        if JOB_MANAGER.get_current_job_id() is not None:
+            raise ValueError(f"No episodes found for season {index_season_selected} (non-interactive mode)")
         console.print(f"[red]No episodes found for season {index_season_selected}")
         return
 
@@ -125,6 +129,8 @@ def download_episode(index_season_selected: int, scrape_serie: GetSerieInfo, vid
     else:
         # Display episodes list and manage user selection
         if episode_selection is None:
+            if JOB_MANAGER.get_current_job_id() is not None:
+                raise ValueError('No episode selection provided and cannot prompt in non-interactive mode')
             last_command = display_episodes_list(episodes)
         else:
             last_command = episode_selection
@@ -169,6 +175,9 @@ def download_series(select_season: MediaItem, season_selection: str = None, epis
 
     # If season_selection is provided, use it instead of asking for input
     if season_selection is None:
+        # If we are running as a background job we cannot prompt the user
+        if JOB_MANAGER.get_current_job_id() is not None:
+            raise ValueError("No season selection provided and cannot prompt in non-interactive mode")
         if site_constant.TELEGRAM_BOT:
             console.print("\n[cyan]Insert season number [yellow](e.g., 1), [red]* [cyan]to download all seasons, "
               "[yellow](e.g., 1-2) [cyan]for a range of seasons, or [yellow](e.g., 3-*) [cyan]to download from a specific season to the end")

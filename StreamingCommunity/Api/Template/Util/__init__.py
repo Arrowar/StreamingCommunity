@@ -6,5 +6,7 @@ from .manage_ep import (
     validate_episode_selection, 
     validate_selection, 
     dynamic_format_number,
+    assert_interactive_allowed,
+    assert_item_is_movie,
     display_episodes_list
 )

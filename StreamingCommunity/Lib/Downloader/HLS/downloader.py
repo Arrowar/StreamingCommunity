@@ -2,6 +2,7 @@
 
 import os
 import re
+import threading
 import time
 import logging
 import shutil
@@ -30,6 +31,7 @@ from ...FFmpeg import (
 )
 from ...M3U8 import M3U8_Parser, M3U8_UrlFix
 from .segments import M3U8_Segments
+from StreamingCommunity.Api.http_api import JOB_MANAGER
 
 
 # Config
@@ -253,6 +255,8 @@ class DownloadManager:
         video_tmp_dir = os.path.join(self.temp_dir, 'video')
 
         downloader = M3U8_Segments(url=video_full_url, tmp_folder=video_tmp_dir)
+        # attach reference so segments can report aggregated progress
+        setattr(downloader, 'progress_parent', self)
         result = downloader.download_streams("Video", "video")
         self.missing_segments.append(result)
 
@@ -270,6 +274,7 @@ class DownloadManager:
         audio_tmp_dir = os.path.join(self.temp_dir, 'audio', audio['language'])
 
         downloader = M3U8_Segments(url=audio_full_url, tmp_folder=audio_tmp_dir)
+        setattr(downloader, 'progress_parent', self)
         result = downloader.download_streams(f"Audio {audio['language']}", "audio")
         self.missing_segments.append(result)
 
@@ -300,18 +305,48 @@ class DownloadManager:
         """
         Downloads all selected streams (video, audio, subtitles).
         """
+        # Build a summary of total segments to download across video/audio/subtitles
         return_stopped = False
+        total_segments = 0
+
+        # video
+        try:
+            tmp_video = M3U8_Segments(url=video_url, tmp_folder=os.path.join(self.temp_dir, 'video'))
+            tmp_video.get_info()
+            total_segments += len(tmp_video.segments)
+        except Exception:
+            # If we cannot retrieve info, fallback to 1 to avoid division by zero
+            total_segments += 1
+
+        # audio
+        for audio in audio_streams:
+            try:
+                tmp_audio = M3U8_Segments(url=audio['uri'], tmp_folder=os.path.join(self.temp_dir, 'audio', audio['language']))
+                tmp_audio.get_info()
+                total_segments += len(tmp_audio.segments)
+            except Exception:
+                total_segments += 0
+
+        # subtitles: count as 1 per subtitle file
+        total_segments += len(sub_streams)
+
+        # ensure at least 1
+        if total_segments <= 0:
+            total_segments = 1
+
+        # attach aggregation info to this manager so segment download can report progress
+        self.total_segments_all = total_segments
+        self.segments_downloaded = 0
+        self._progress_lock = threading.Lock()
+
         video_file = os.path.join(self.temp_dir, 'video', '0.ts')
-        
+
         if not os.path.exists(video_file):
             if self.download_video(video_url):
                 if not return_stopped:
                     return_stopped = True
 
         for audio in audio_streams:
-            #if self.stopped:
-            #    break
-
             audio_file = os.path.join(self.temp_dir, 'audio', audio['language'], '0.ts')
             if not os.path.exists(audio_file):
                 if self.download_audio(audio):
@@ -319,9 +354,6 @@ class DownloadManager:
                         return_stopped = True
 
         for sub in sub_streams:
-            #if self.stopped:
-            #    break
-
             sub_file = os.path.join(self.temp_dir, 'subs', f"{sub['language']}.vtt")
             if not os.path.exists(sub_file):
                 if self.download_subtitle(sub):
@@ -444,6 +476,10 @@ class HLS_Downloader:
             self.m3u8_manager.parse()
             self.m3u8_manager.select_streams()
             self.m3u8_manager.log_selection()
+            try:
+                JOB_MANAGER.update_progress(5.0)
+            except Exception:
+                pass
 
             self.download_manager = DownloadManager(
                 temp_dir=self.path_manager.temp_dir,
@@ -466,10 +502,18 @@ class HLS_Downloader:
             )
 
             final_file = self.merge_manager.merge()
+            try:
+                # during merge set near-complete progress
+                JOB_MANAGER.update_progress(95.0)
+            except Exception:
+                pass
             self.path_manager.move_final_file(final_file)
             self._print_summary()
             self.path_manager.cleanup()
-
+            try:
+                JOB_MANAGER.update_progress(100.0)
+            except Exception:
+                pass
             return {
                 'path': self.path_manager.output_path,
                 'url': self.m3u8_url,

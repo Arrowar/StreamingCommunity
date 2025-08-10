@@ -14,6 +14,26 @@ from rich.prompt import Prompt
 from StreamingCommunity.Util.os import os_manager
 from StreamingCommunity.Util.config_json import config_manager
 from StreamingCommunity.Util.table import TVShowManager
+from StreamingCommunity.Api.http_api import JOB_MANAGER
+
+
+def assert_interactive_allowed():
+    """Raise ValueError if current execution is inside a Job (non-interactive)."""
+    if JOB_MANAGER.get_current_job_id() is not None:
+        raise ValueError("Operation requires interactive input but the process is running as a background job")
+
+
+def assert_item_is_movie(item):
+    """If item represents a TV show and we're running in a job, raise ValueError.
+
+    If interactive, returns False so caller can print/handle as needed.
+    """
+    t = getattr(item, 'type', None) if not isinstance(item, dict) else item.get('type')
+    if t == 'tv' or t == 'series':
+        if JOB_MANAGER.get_current_job_id() is not None:
+            raise ValueError('Requested movie download but item is a TV show (non-interactive mode)')
+        return False
+    return True
 
 
 # Variable
@@ -79,6 +99,8 @@ def manage_selection(cmd_insert: str, max_count: int) -> List[int]:
     Returns:
         list_selection (List[int]): List of selected items.
     """
+    # If invoked inside a job (non-interactive), attempt a single pass and raise on invalid input
+    in_job = JOB_MANAGER.get_current_job_id() is not None
     while True:
         list_selection = []
         logging.info(f"Command insert: {cmd_insert}, end index: {max_count + 1}")
@@ -104,6 +126,8 @@ def manage_selection(cmd_insert: str, max_count: int) -> List[int]:
             list_selection = list(range(1, max_count + 1))
             break
 
+        if in_job:
+            raise ValueError(f"Invalid selection command: {cmd_insert}")
         cmd_insert = msg.ask("[red]Invalid input. Please enter a valid command: ")
     
     logging.info(f"List return: {list_selection}")
@@ -157,6 +181,8 @@ def validate_selection(list_season_select: List[int], seasons_count: int) -> Lis
     Returns:
         - List[int]: Adjusted list of valid season numbers.
     """
+    # If called inside a job (non-interactive), validate once and raise on invalid input
+    in_job = JOB_MANAGER.get_current_job_id() is not None
     while True:
         try:
             
@@ -166,6 +192,8 @@ def validate_selection(list_season_select: List[int], seasons_count: int) -> Lis
             # If the list is empty, the input was completely invalid
             if not valid_seasons:
                 logging.error(f"Invalid selection: The selected seasons are outside the available range (1-{seasons_count}). Please try again.")
+                if in_job:
+                    raise ValueError(f"Invalid selection: seasons out of range 1-{seasons_count}")
 
                 # Re-prompt for valid input
                 input_seasons = input(f"Enter valid season numbers (1-{seasons_count}): ")
@@ -176,6 +204,8 @@ def validate_selection(list_season_select: List[int], seasons_count: int) -> Lis
         
         except ValueError:
             logging.error("Error: Please enter valid integers separated by commas.")
+            if in_job:
+                raise
 
             # Prompt the user for valid input again
             input_seasons = input(f"Enter valid season numbers (1-{seasons_count}): ")
@@ -194,6 +224,7 @@ def validate_episode_selection(list_episode_select: List[int], episodes_count: i
     Returns:
         - List[int]: Adjusted list of valid episode numbers.
     """
+    in_job = JOB_MANAGER.get_current_job_id() is not None
     while True:
         try:
 
@@ -203,6 +234,8 @@ def validate_episode_selection(list_episode_select: List[int], episodes_count: i
             # If the list is empty, the input was completely invalid
             if not valid_episodes:
                 logging.error(f"Invalid selection: The selected episodes are outside the available range (1-{episodes_count}). Please try again.")
+                if in_job:
+                    raise ValueError(f"Invalid selection: episodes out of range 1-{episodes_count}")
 
                 # Re-prompt for valid input
                 input_episodes = input(f"Enter valid episode numbers (1-{episodes_count}): ")
@@ -213,7 +246,9 @@ def validate_episode_selection(list_episode_select: List[int], episodes_count: i
         
         except ValueError:
             logging.error("Error: Please enter valid integers separated by commas.")
-            
+            if in_job:
+                raise
+
             # Prompt the user for valid input again
             input_episodes = input(f"Enter valid episode numbers (1-{episodes_count}): ")
             list_episode_select = list(map(int, input_episodes.split(',')))

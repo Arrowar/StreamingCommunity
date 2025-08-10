@@ -1,13 +1,13 @@
 # StreamingCommunity — API HTTP (FastAPI)
 
-Questo documento spiega come usare l'API HTTP esposta da [StreamingCommunity](https://github.com/Arrowar/StreamingCommunity). È pensato per chi integra il servizio in un'app, script o interfaccia grafica.
+Questo documento spiega come usare l'API HTTP esposta. È pensato per chi vuole integrare [StreamingCommunity](https://github.com/Arrowar/StreamingCommunity) in un'app, script o interfaccia grafica.
 
 Troverai esempi pratici (curl e Python), risposte esempio, note di configurazione e suggerimenti per risolvere errori comuni.
 
-[!INFO]
+> [!NOTE]
 > L'API deve essere abilitata nel file `config.json` impostando `DEFAULT.expose_http_api` a `true`. La documentazione interattiva è disponibile su `/docs` quando il server è in esecuzione.
 
-[!IMPORTANT]
+> [!IMPORTANT]
 > Quando `DEFAULT.expose_http_api` è impostato su `true` l'applicazione verrà eseguita in modalità non-interattiva _(server-only mode)_: la console mostrerà comunque le informazioni come di consueto ma l'input della tastiera e tutte le attività interattive saranno disabilitate. Potrai inviare comandi esclusivamente dagli endpoint che l'API offre.
 > 
 > L'unica interazione disponibile è Ctrl+C per fermare l'applicazione.
@@ -35,7 +35,7 @@ Troverai esempi pratici (curl e Python), risposte esempio, note di configurazion
 
 Tutte le chiamate possono essere protette con Basic Auth se sono state inserite `http_api_username` e `http_api_password` in `config.json`.
 
-[!TIP]
+> [!TIP]
 > Dopo aver letto questo documento ti consiglio di mettere le mani in pasta e provare l'API in http://localhost:8080/docs. 
 
 ----
@@ -47,10 +47,10 @@ Tutte le chiamate possono essere protette con Basic Auth se sono state inserite 
 - `DEFAULT.http_api_username`, `DEFAULT.http_api_password`: credenziali Basic Auth (opzionali).
 - `DEFAULT.http_api_provider_timeout`: tempo in secondi per chiamate verso i provider (default: 20).
 
-[!IMPORTANT]
+> [!IMPORTANT]
 > Prima di usare i download assicurati che i provider da cui vuoi scaricare non richiedano credenziali o configurazioni addizionali. Alcuni provider possono restituire errori se non configurati correttamente.
 
-[!NOTE]
+> [!NOTE]
 > Se non hai modificato le impostazioni dell'API, all'avvio sarà esposta all'indirizzo http://localhost:8080/.
 
 ----
@@ -262,10 +262,10 @@ Poi `GET /jobs/42` tipicamente restituisce qualcosa del genere (il campo `payloa
 Se un provider richiede parametri diversi, il job conterrà quelle chiavi; per dubbi controlla il file `StreamingCommunity/Api/Site/<provider>/__init__.py`.
 
 
-[!NOTE]
+> [!NOTE]
 > Se farai più richieste download: i job sono eseguiti uno alla volta (sequenziale). Pollare lo stato con `GET /jobs/{id}` è la pratica raccomandata.
 
-[!IMPORTANT]
+> [!IMPORTANT]
 > L'oggetto `job` che restituisce `GET /jobs` e `GET /jobs/{id}` contiene il campo `progress` (0..100). Questo valore rappresenta il progresso **totale** del _job_ (dall'inizio del download fino alla fase di unione audio/video). Nei providers si possono aggiustare i valori percentuali rappresentati durante il processo utilizzando `JOB_MANAGER.update_progress(percent)` dal codice di ognuno di essi.
 
 ----
@@ -314,7 +314,7 @@ Risposta (esempio)
 { "result": {"status":"ok","title":"Matrix"} }
 ```
 
-[!IMPORTANT]
+> [!IMPORTANT]
 > Seleziona nomi univoci per `expose_api('name')` per evitare conflitti tra moduli.
 
 ----
@@ -376,3 +376,11 @@ while True:
 Se trovi un provider che necessita modifiche per l'uso via API (es. firma funzione non standard, input interattivo), apri una issue o invia una PR con la correzione.
 
 Se pensi che questo documento abbia bisogno di informazioni aggiornate, corrette od organizzate diversamente, invia una PR.
+
+Se invece vuoi contribuire in qualsiasi modo: sei il benvenuto.
+
+## TODO (in ordine di importanza)
+- [ ] Migliorare il progress system, attualmente è implementato in modo molto spartano.
+- [ ] Rendere più efficiente la gestione degli errori e validation. Attualmente molto codice è ripetuto.
+- [ ] Implementare SSE invece di utilizzare Job Polling. Più efficiente, più pulito, ma più complesso da gestire (non solo per chi deve implementarlo, ma anche per chi consuma l'API).
+

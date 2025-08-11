@@ -12,7 +12,7 @@
         "bypass_dns": false
     },
     "OUT_FOLDER": {
-        "root_path": "Video",
+        "root_path": "../Video",
         "movie_folder_name": "Movie",
         "serie_folder_name": "Serie",
         "anime_folder_name": "Anime",

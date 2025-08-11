@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ricerca</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; padding: 24px; }
+    .card { max-width: 720px; margin: 0 auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 12px; }
+    label { display: block; margin: 12px 0 6px; font-weight: 600; }
+    input, select { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; }
+    button { margin-top: 16px; padding: 10px 16px; background: #111827; color: white; border: 0; border-radius: 8px; cursor: pointer; }
+    
+    .messages { max-width: 720px; margin: 0 auto 16px; }
+    .message { padding: 12px 16px; margin-bottom: 8px; border-radius: 8px; }
+    .message.success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+    .message.error { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+    .message.info { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+  </style>
+  {% csrf_token %}
+</head>
+<body>
+  {% if messages %}
+    <div class="messages">
+      {% for message in messages %}
+        <div class="message {% if message.tags %}{{ message.tags }}{% endif %}">
+          {{ message }}
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <div class="card">
+    <h1>Trova e scarica</h1>
+
+    <form action="{% url 'search' %}" method="post">
+      {% csrf_token %}
+      <label for="id_site">Sito</label>
+      {{ form.site }}
+      <label for="id_query">Cosa cerchi?</label>
+      {{ form.query }}
+      <button type="submit">Cerca</button>
+    </form>
+  </div>
+</body>
+</html>
+
+

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Risultati</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; padding: 24px; }
+    .container { max-width: 960px; margin: 0 auto; }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+    .card { border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px; }
+    .muted { color: #6b7280; font-size: 12px; }
+    button { padding: 8px 12px; background: #111827; color: white; border: 0; border-radius: 8px; cursor: pointer; }
+    input, select { width: 100%; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <form action="{% url 'search' %}" method="post">
+        {% csrf_token %}
+        {{ form.site }}
+        {{ form.query }}
+        <button type="submit">Cerca</button>
+      </form>
+      <a href="{% url 'search_home' %}">Nuova ricerca</a>
+    </div>
+
+    {% if results %}
+      <div class="grid">
+        {% for item in results %}
+          <div class="card">
+            <div><strong>{{ item.display_title }}</strong></div>
+            <div class="muted">Tipo: {{ item.display_type }}</div>
+            <div class="muted">Sorgente: {{ item.source }}</div>
+
+            <form class="dl-form" action="{% url 'start_download' %}" method="post">
+              {% csrf_token %}
+              <input type="hidden" name="source_alias" value="{{ item.source_alias }}">
+              <input type="hidden" name="item_payload" value='{{ item.payload_json|escape }}'>
+              <label class="muted">Stagione (opzionale)</label>
+              <input name="season" placeholder="es. 1">
+              <label class="muted">Episodio (opzionale)</label>
+              <input name="episode" placeholder="es. 1-3">
+              <div style="margin-top:8px">
+                <button type="submit">Scarica</button>
+              </div>
+            </form>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p>Nessun risultato.</p>
+    {% endif %}
+  </div>
+
+</body>
+</html>
+
+

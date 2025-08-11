@@ -17,6 +17,42 @@ def _load_site_search(site: str):
     return getattr(mod, "search")
 
 
+def _ensure_direct_item(search_fn, item_payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Garantisce un direct_item valido ricostruendolo dal database se mancano campi chiave."""
+    if item_payload.get("id") and (item_payload.get("slug") or item_payload.get("url")):
+        return item_payload
+
+    query = (
+        item_payload.get("title")
+        or item_payload.get("name")
+        or item_payload.get("slug")
+        or item_payload.get("display_title")
+    )
+    if not query:
+        return item_payload
+
+    try:
+        database = search_fn(query, get_onlyDatabase=True)
+        if (
+            not database
+            or not hasattr(database, "media_list")
+            or not database.media_list
+        ):
+            return item_payload
+
+        # Prova match per slug
+        wanted_slug = item_payload.get("slug")
+        if wanted_slug:
+            for el in database.media_list:
+                if getattr(el, "slug", None) == wanted_slug:
+                    return el.__dict__.copy()
+
+        # Altrimenti primo risultato
+        return database.media_list[0].__dict__.copy()
+    except Exception:
+        return item_payload
+
+
 def _search_results_to_list(
     database_obj: Any, source_alias: str
 ) -> List[Dict[str, Any]]:
@@ -94,6 +130,10 @@ def _run_download_in_thread(
     def _task():
         try:
             search_fn = _load_site_search(site)
+
+            # Assicura direct_item valido
+            direct_item = _ensure_direct_item(search_fn, item_payload)
+
             selections = None
             # Per animeunity consideriamo solo gli episodi
             if site == "animeunity":
@@ -101,7 +141,8 @@ def _run_download_in_thread(
             else:
                 if season or episode:
                     selections = {"season": season or None, "episode": episode or None}
-            search_fn(direct_item=item_payload, selections=selections)
+
+            search_fn(direct_item=direct_item, selections=selections)
         except Exception:
             return
 

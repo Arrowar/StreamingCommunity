@@ -8,8 +8,26 @@ SITE_CHOICES = [
 
 
 class SearchForm(forms.Form):
-    site = forms.ChoiceField(choices=SITE_CHOICES, label="Sito")
-    query = forms.CharField(max_length=200, label="Cosa cerchi?")
+    site = forms.ChoiceField(
+        choices=SITE_CHOICES,
+        label="Sito",
+        widget=forms.Select(
+            attrs={
+                "class": "block w-full appearance-none rounded-lg border border-gray-300 bg-white py-3 pl-12 pr-12 text-gray-900 placeholder-gray-500 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500",
+            }
+        ),
+    )
+    query = forms.CharField(
+        max_length=200,
+        label="Cosa cerchi?",
+        widget=forms.TextInput(
+            attrs={
+                "class": "block w-full rounded-lg border border-gray-300 bg-white py-3 pl-12 pr-12 text-gray-900 placeholder-gray-500 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500",
+                "placeholder": "Cerca titolo...",
+                "autocomplete": "off",
+            }
+        ),
+    )
 
 
 class DownloadForm(forms.Form):

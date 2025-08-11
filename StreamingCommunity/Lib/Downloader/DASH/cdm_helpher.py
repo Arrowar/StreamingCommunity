@@ -2,7 +2,6 @@
 
 import base64
 import logging
-import os
 
 
 # External libraries
@@ -31,16 +30,11 @@ def get_widevine_keys(pssh, license_url, cdm_device_path, headers=None, payload=
         list: List of dicts {'kid': ..., 'key': ...} (only CONTENT keys) or None if error.
     """
 
-    # Check if CDM file exists
-    if not os.path.isfile(cdm_device_path):
-        console.print(f"[bold red] CDM file not found: {cdm_device_path}[/bold red]")
-        return None
-
     # Check if PSSH is a valid base64 string
     try:
         base64.b64decode(pssh)
     except Exception:
-        console.print(f"[bold red] Invalid PSSH base64 string.[/bold red]")
+        console.print("[bold red] Invalid PSSH base64 string.[/bold red]")
         return None
 
     try:
@@ -77,18 +71,17 @@ def get_widevine_keys(pssh, license_url, cdm_device_path, headers=None, payload=
 
             # Check if license_data is empty
             if not license_data:
-                console.print(f"[bold red]License response is empty.[/bold red]")
+                console.print("[bold red]License response is empty.[/bold red]")
                 return None
 
             if "application/json" in content_type:
                 try:
                     
                     # Try to decode as JSON only if plausible
-                    text = response.text
                     data = None
                     try:
                         data = response.json()
-                    except Exception as e:
+                    except Exception:
                         data = None
 
                     if data and "license" in data:
@@ -118,7 +111,7 @@ def get_widevine_keys(pssh, license_url, cdm_device_path, headers=None, payload=
 
             # Check if content_keys list is empty
             if not content_keys:
-                console.print(f"[bold yellow]⚠️ No CONTENT keys found in license.[/bold yellow]")
+                console.print("[bold yellow]⚠️ No CONTENT keys found in license.[/bold yellow]")
                 return None
 
             return content_keys

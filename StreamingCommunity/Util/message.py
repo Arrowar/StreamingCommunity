@@ -14,7 +14,7 @@ from StreamingCommunity.Util.config_json import config_manager
 
 # Variable
 console = Console()
-CLEAN = config_manager.get_bool('DEFAULT', 'clean_console')
+CLEAN = config_manager.get_bool('DEFAULT', 'show_message')
 SHOW = config_manager.get_bool('DEFAULT', 'show_message')
 
 

@@ -101,7 +101,8 @@ class GetSerieInfo:
                     'number': ep.get('episode', ''),
                     'name': ep.get('episode_title', '') or ep.get('toptitle', ''),
                     'duration': ep.get('duration', ''),
-                    'url': f"{self.base_url}{ep.get('weblink', '')}" if 'weblink' in ep else f"{self.base_url}{ep.get('url', '')}"
+                    'url': f"{self.base_url}{ep.get('weblink', '')}" if 'weblink' in ep else f"{self.base_url}{ep.get('url', '')}",
+                    'mpd_id': ep.get('video_url').split("=")[1].strip()
                 }
                 season.episodes.add(episode)
 

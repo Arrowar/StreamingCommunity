@@ -1,62 +1,62 @@
 {
-  "1337xx": {
-    "domain": "to",
-    "full_url": "https://www.1337xx.to/",
-    "old_domain": "to",
-    "time_change": "2025-03-19 12:20:19"
-  },
-  "cb01new": {
-    "domain": "buzz",
-    "full_url": "https://cb01net.buzz/",
-    "old_domain": "run",
-    "time_change": "2025-08-04 20:26:33"
-  },
-  "animeunity": {
-    "domain": "so",
-    "full_url": "https://www.animeunity.so/",
-    "old_domain": "so",
-    "time_change": "2025-07-08 13:59:31"
-  },
-  "animeworld": {
-    "domain": "ac",
-    "full_url": "https://www.animeworld.ac/",
-    "old_domain": "ac",
-    "time_change": "2025-03-21 12:20:27"
-  },
-  "guardaserie": {
-    "domain": "app",
-    "full_url": "https://guardaserietv.app/",
-    "old_domain": "world",
-    "time_change": "2025-08-05 10:25:54"
-  },
-  "ddlstreamitaly": {
-    "domain": "co",
-    "full_url": "https://ddlstreamitaly.co/",
-    "old_domain": "co",
-    "time_change": "2025-03-19 12:20:26"
-  },
-  "streamingwatch": {
-    "domain": "org",
-    "full_url": "https://www.streamingwatch.org/",
-    "old_domain": "org",
-    "time_change": "2025-04-29 12:30:30"
-  },
-  "altadefinizione": {
-    "domain": "free",
-    "full_url": "https://altadefinizione.free/",
-    "old_domain": "qpon",
-    "time_change": "2025-07-08 13:59:37"
-  },
-  "streamingcommunity": {
-    "domain": "life",
-    "full_url": "https://streamingcommunityz.life/",
-    "old_domain": "info",
-    "time_change": "2025-08-04 15:26:24"
-  },
-  "altadefinizionegratis": {
-    "domain": "gold",
-    "full_url": "https://altadefinizionegratis.gold/",
-    "old_domain": "city",
-    "time_change": "2025-08-05 14:26:46"
-  }
+    "1337xx": {
+        "domain": "to",
+        "full_url": "https://www.1337xx.to/",
+        "old_domain": "to",
+        "time_change": "2025-03-19 12:20:19"
+    },
+    "cb01new": {
+        "domain": "buzz",
+        "full_url": "https://cb01net.buzz/",
+        "old_domain": "run",
+        "time_change": "2025-08-04 20:26:33"
+    },
+    "animeunity": {
+        "domain": "so",
+        "full_url": "https://www.animeunity.so/",
+        "old_domain": "so",
+        "time_change": "2025-07-08 13:59:31"
+    },
+    "animeworld": {
+        "domain": "ac",
+        "full_url": "https://www.animeworld.ac/",
+        "old_domain": "ac",
+        "time_change": "2025-03-21 12:20:27"
+    },
+    "guardaserie": {
+        "domain": "app",
+        "full_url": "https://guardaserietv.app/",
+        "old_domain": "world",
+        "time_change": "2025-08-05 10:25:54"
+    },
+    "ddlstreamitaly": {
+        "domain": "co",
+        "full_url": "https://ddlstreamitaly.co/",
+        "old_domain": "co",
+        "time_change": "2025-03-19 12:20:26"
+    },
+    "streamingwatch": {
+        "domain": "org",
+        "full_url": "https://www.streamingwatch.org/",
+        "old_domain": "org",
+        "time_change": "2025-04-29 12:30:30"
+    },
+    "altadefinizione": {
+        "domain": "free",
+        "full_url": "https://altadefinizione.free/",
+        "old_domain": "qpon",
+        "time_change": "2025-07-08 13:59:37"
+    },
+    "streamingcommunity": {
+        "domain": "life",
+        "full_url": "https://streamingcommunityz.life/",
+        "old_domain": "info",
+        "time_change": "2025-08-04 15:26:24"
+    },
+    "altadefinizionegratis": {
+        "domain": "gold",
+        "full_url": "https://altadefinizionegratis.gold/",
+        "old_domain": "city",
+        "time_change": "2025-08-05 14:26:46"
+    }
 }

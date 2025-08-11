@@ -9,7 +9,6 @@ import uuid
 import json
 import threading
 import subprocess
-import threading
 from typing import Optional
 
 # External libraries
@@ -305,7 +304,7 @@ class TelegramBot:
 
     def handle_get_id(self, message):
         if not self.is_authorized(message.from_user.id):
-            print(f" Non sei autorizzato.")
+            print(" Non sei autorizzato.")
             self.bot.send_message(message.chat.id, " Non sei autorizzato.")
             return
 
@@ -384,7 +383,7 @@ class TelegramBot:
 
     def handle_list_scripts(self, message):
         if not self.is_authorized(message.from_user.id):
-            print(f" Non sei autorizzato.")
+            print(" Non sei autorizzato.")
             self.bot.send_message(message.chat.id, " Non sei autorizzato.")
             return
 
@@ -395,7 +394,7 @@ class TelegramBot:
             scripts_data = []
 
         if not scripts_data:
-            print(f" Nessuno script registrato.")
+            print(" Nessuno script registrato.")
             self.bot.send_message(message.chat.id, " Nessuno script registrato.")
             return
 
@@ -437,7 +436,7 @@ class TelegramBot:
 
     def handle_stop_script(self, message):
         if not self.is_authorized(message.from_user.id):
-            print(f" Non sei autorizzato.")
+            print(" Non sei autorizzato.")
             self.bot.send_message(message.chat.id, " Non sei autorizzato.")
             return
 
@@ -452,7 +451,7 @@ class TelegramBot:
             running_scripts = [s for s in scripts_data if s["status"] == "running"]
 
             if not running_scripts:
-                print(f" Nessuno script attivo da fermare.")
+                print(" Nessuno script attivo da fermare.")
                 self.bot.send_message(
                     message.chat.id, " Nessuno script attivo da fermare."
                 )
@@ -526,7 +525,7 @@ class TelegramBot:
     def handle_screen_status(self, message):
         command_parts = message.text.split()
         if len(command_parts) < 2:
-            print(f" ID mancante nel comando. Usa: /screen <ID>")
+            print(" ID mancante nel comando. Usa: /screen <ID>")
             self.bot.send_message(
                 message.chat.id, " ID mancante nel comando. Usa: /screen <ID>"
             )
@@ -557,9 +556,9 @@ class TelegramBot:
             return
 
         if not os.path.exists(temp_file):
-            print(f" Impossibile catturare l'output della screen.")
+            print(" Impossibile catturare l'output della screen.")
             self.bot.send_message(
-                message.chat.id, f" Impossibile catturare l'output della screen."
+                message.chat.id, " Impossibile catturare l'output della screen."
             )
             return
 
@@ -669,7 +668,7 @@ class TelegramBot:
                 return response
             time.sleep(1)
 
-        print(f" Timeout: nessuna risposta ricevuta.")
+        print(" Timeout: nessuna risposta ricevuta.")
         for chat_id in self.authorized_users:  # Manda a tutti gli ID autorizzati
             self.bot.send_message(chat_id, " Timeout: nessuna risposta ricevuta.")
         self.request_manager.clear_file()

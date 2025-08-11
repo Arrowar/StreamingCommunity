@@ -22,7 +22,7 @@ from .film import download_film
 indice = 3
 _useFor = "Film_&_Serie"
 _priority = 0
-_engineDownload = "hls"
+_engineDownload = "dash"
 _deprecate = False
 
 msg = Prompt()

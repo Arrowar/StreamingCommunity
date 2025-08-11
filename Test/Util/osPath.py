@@ -1,16 +1,15 @@
-# 22.01.25
 
-# Fix import
-import sys
 import os
+import sys
+import unittest
+from unittest.mock import patch
+
+
+# Fix path
 src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 sys.path.append(src_path)
 
 
-
-# Import
-import unittest
-from unittest.mock import patch
 from StreamingCommunity.Util.os import OsManager
 
 class TestOsManager(unittest.TestCase):

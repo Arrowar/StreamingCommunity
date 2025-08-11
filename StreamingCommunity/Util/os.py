@@ -5,7 +5,6 @@ import os
 import glob
 import sys
 import shutil
-import hashlib
 import logging
 import platform
 import inspect

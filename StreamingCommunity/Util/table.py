@@ -107,7 +107,7 @@ class TVShowManager:
             search_func = getattr(module, 'search')
             search_func(None)
             
-        except Exception as e:
+        except Exception:
             logging.error("Error during search execution")
             
         finally:
@@ -142,7 +142,7 @@ class TVShowManager:
 
             # Handle pagination and user input
             if self.slice_end < total_items:
-                self.console.print(f"\n[green]Press [red]Enter [green]for next page, [red]'q' [green]to quit, or [red]'back' [green]to search.")
+                self.console.print("\n[green]Press [red]Enter [green]for next page, [red]'q' [green]to quit, or [red]'back' [green]to search.")
 
                 if not force_int_input:
                     prompt_msg = ("\n[cyan]Insert media index [yellow](e.g., 1), [red]* [cyan]to download all media, "
@@ -184,7 +184,7 @@ class TVShowManager:
 
             else:
                 # Last page handling
-                self.console.print(f"\n[green]You've reached the end. [red]Enter [green]for first page, [red]'q' [green]to quit, or [red]'back' [green]to search.")
+                self.console.print("\n[green]You've reached the end. [red]Enter [green]for first page, [red]'q' [green]to quit, or [red]'back' [green]to search.")
                 
                 if not force_int_input:
                     prompt_msg = ("\n[cyan]Insert media index [yellow](e.g., 1), [red]* [cyan]to download all media, "

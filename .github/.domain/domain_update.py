@@ -116,14 +116,16 @@ def check_dns_resolution(domain):
         try:
             answers = resolver.resolve(domain, 'A')
             return str(answers[0])
-        except:
+        except Exception:
             try:
                 answers = resolver.resolve(domain, 'AAAA')
                 return str(answers[0])
-            except:
+            
+            except Exception:
                 pass
         return None
-    except:
+    
+    except Exception:
         return None
 
 def find_new_domain(input_url, output_file=None, verbose=True, json_output=False):
@@ -141,7 +143,7 @@ def find_new_domain(input_url, output_file=None, verbose=True, json_output=False
     if orig_ip:
         log(f"Original domain resolves to: {orig_ip}", "SUCCESS")
     else:
-        log(f"Original domain does not resolve to an IP address", "WARNING")
+        log("Original domain does not resolve to an IP address", "WARNING")
     
     headers = get_headers()
     new_domains = []
@@ -182,7 +184,7 @@ def find_new_domain(input_url, output_file=None, verbose=True, json_output=False
                             new_domains.append({'domain': redirect_domain_info_val['full_domain'], 'url': next_url, 'source': 'redirect'})
 
                     else:
-                        log(f"Redirect status code but no Location header", "WARNING")
+                        log("Redirect status code but no Location header", "WARNING")
                         break
                 else:
                     break
@@ -250,7 +252,7 @@ def find_new_domain(input_url, output_file=None, verbose=True, json_output=False
         except httpx.RequestError as e:
             log(f"Error with auto-redirect attempt: {str(e)}", "ERROR")
         except NameError: 
-            log(f"Error: URL for auto-redirect attempt was not defined.", "ERROR")
+            log("Error: URL for auto-redirect attempt was not defined.", "ERROR")
     
     unique_domains = []
     seen_domains = set()

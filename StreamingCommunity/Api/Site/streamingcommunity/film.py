@@ -77,7 +77,7 @@ def download_film(select_title: MediaItem) -> str:
     mp4_path = os.path.join(site_constant.MOVIE_FOLDER, title_name.replace(".mp4", ""))
 
     # Download the film using the m3u8 playlist, and output filename
-    r_proc = HLS_Downloader(
+    hls_process = HLS_Downloader(
         m3u8_url=master_playlist,
         output_path=os.path.join(mp4_path, title_name)
     ).start()
@@ -89,8 +89,10 @@ def download_film(select_title: MediaItem) -> str:
         if script_id != "unknown":
             TelegramSession.deleteScriptId(script_id)
 
-    if r_proc['error'] is not None:
-        try: os.remove(r_proc['path'])
-        except: pass
+    if hls_process['error'] is not None:
+        try: 
+            os.remove(hls_process['path'])
+        except Exception: 
+            pass
 
-    return r_proc['path']
+    return hls_process['path']

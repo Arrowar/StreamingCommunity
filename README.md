@@ -179,6 +179,29 @@ client.start_download()
 See [Torrent example](./Test/Download/TOR.py) for complete usage.
 </details>
 
+<details>
+<summary>🎞️ DASH Downloader</summary>
+
+```python
+license_url = "https://example.com/stream.mpd"
+mpd_url = "https://example.com/get_license"
+
+dash_process = DASH_Downloader(
+    cdm_device=get_wvd_path(),
+    license_url=license_url,
+    mpd_url=mpd_url,
+    output_path="output.mp4",
+)
+dash_process.parse_manifest()
+
+if dash_process.download_and_decrypt():
+    dash_process.finalize_output()
+
+dash_process.get_status()
+```
+
+</details>
+
 ## Binary Location
 
 <details>
@@ -309,40 +332,58 @@ python3 update.py
 <details>
 <summary>🌐 Domain Configuration Methods</summary>
 
-There are two ways to update the domains for the supported websites:
+There are two ways to manage the domains for the supported websites:
 
-### 1. Using Local Configuration
+### 1. Online Domain Fetching (Recommended)
 
-1. Create a `domains.json` file in the root directory of the project
+Set `fetch_domain_online` to `true` in your `config.json`:
 
-2. Add your domain configuration in the following format:
-   ```json
-   {
-      "altadefinizione": {
-          "domain": "si",
-          "full_url": "https://altadefinizione.si/"
-      },
-      ...
+```json
+{
+   "DEFAULT": {
+      "fetch_domain_online": true
    }
-   ```
-   
-3. Set `use_api` to `false` in the `DEFAULT` section of your `config.json`:
-   ```json
-   {
-      "DEFAULT": {
-         "use_api": false
-      }
+}
+```
+
+This will:
+- Download the latest domains from the GitHub repository
+- Automatically save them to a local `domains.json` file
+- Ensure you always have the most up-to-date streaming site domains
+
+### 2. Local Domain Configuration
+
+Set `fetch_domain_online` to `false` to use a local configuration:
+
+```json
+{
+   "DEFAULT": {
+      "fetch_domain_online": false
    }
-   ```
+}
+```
 
-### 2. Using API (Legacy)
+Then create a `domains.json` file in the root directory with your domain configuration:
 
-The API-based domain updates are currently deprecated. To use it anyway, set `use_api` to `true` in your `config.json` file.
+```json
+{
+   "altadefinizione": {
+       "domain": "si",
+       "full_url": "https://altadefinizione.si/"
+   },
+   "streamingcommunity": {
+       "domain": "best",
+       "full_url": "https://streamingcommunity.best/"
+   }
+}
+```
 
-Note: If `use_api` is set to `false` and no `domains.json` file is found, the script will raise an error.
+### 3. Automatic Fallback
 
-#### 💡 Adding a New Site to the Legacy API
-If you want to add a new site to the legacy API, just message me on the Discord server, and I'll add it!
+If online fetching fails, the script will automatically attempt to use the local `domains.json` file as a fallback, ensuring maximum reliability.
+
+#### 💡 Adding a New Site
+If you want to request a new site to be added to the repository, message us on the Discord server!
 
 </details>
 
@@ -362,12 +403,9 @@ You can change some behaviors by tweaking the configuration file. The configurat
     "DEFAULT": {
         "debug": false,
         "show_message": true,
-        "clean_console": true,
         "show_trending": true,
-        "use_api": true,
-        "not_close": false,
+        "fetch_domain_online": true,
         "telegram_bot": false,
-        "download_site_data": false,
         "validate_github_config": false
     }
 }
@@ -375,13 +413,9 @@ You can change some behaviors by tweaking the configuration file. The configurat
 
 - `debug`: Enables debug logging
 - `show_message`: Displays informational messages
-- `clean_console`: Clears the console between operations
 - `show_trending`: Shows trending content
-- `use_api`: Uses API for domain updates instead of local configuration
-- `not_close`: If set to true, keeps the program running after download is complete
-  * Can be changed from terminal with `--not_close true/false`
+- `fetch_domain_online`: If true, downloads domains from GitHub repository and saves to local file; if false, uses existing local domains.json file
 - `telegram_bot`: Enables Telegram bot integration
-- `download_site_data`: If set to false, disables automatic site data download
 - `validate_github_config`: If set to false, disables validation and updating of configuration from GitHub
 </details>
 
@@ -669,6 +703,18 @@ The Global Search can be configured from the command line:
 # Examples of terminal usage
 
 ```bash
+# Run a specific site by name with a search term
+python test_run.py --site streamingcommunity --search "interstellar"
+
+# Run a specific site by numeric index (as shown in -h help)
+python test_run.py --site 0 --search "interstellar"
+
+# Auto-download the first result from search (requires --site and --search)
+python test_run.py --site streamingcommunity --search "interstellar" --auto-first
+
+# Show help (includes available sites by name and by index)
+python test_run.py -h
+
 # Change video and audio workers
 python test_run.py --default_video_worker 8 --default_audio_worker 8
 
@@ -678,7 +724,7 @@ python test_run.py --specific_list_audio ita,eng --specific_list_subtitles eng,s
 # Keep console open after download
 python test_run.py --not_close true
 
-# Use global searchAdd commentMore actions
+# Use global search
 python test_run.py --global -s "cars"
 
 # Select specific category
@@ -686,6 +732,9 @@ python test_run.py --category 1       # Search in anime category
 python test_run.py --category 2       # Search in movies & series
 python test_run.py --category 3       # Search in series
 python test_run.py --category 4       # Search in torrent category
+
+# If installed via pip, you can also use the entrypoint directly
+streamingcommunity --site streamingcommunity --search "interstellar" --auto-first
 ```
 
 # Docker

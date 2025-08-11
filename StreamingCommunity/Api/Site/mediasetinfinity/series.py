@@ -65,39 +65,33 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
 
     # Generate mpd and license URLs
     bearer = get_bearer_token()
-    
-    # Extract ID from the episode URL
-    episode_id = obj_episode.url.split('_')[-1]
-    if "http" in episode_id:
-        try: episode_id = obj_episode.url.split('/')[-1]
-        except Exception:
-            console.print(f"[red]Error:[/red] Failed to parse episode ID from URL: {obj_episode.url}")
-            return None, True
 
-    playback_json = get_playback_url(bearer, episode_id)
+    playback_json = get_playback_url(bearer, obj_episode.id)
     tracking_info = get_tracking_info(bearer, playback_json)[0]
 
     license_url = generate_license_url(bearer, tracking_info)
     mpd_url = get_manifest(tracking_info['video_src'])
 
     # Download the episode
-    r_proc = DASH_Downloader(
+    dash_process = DASH_Downloader(
         cdm_device=get_wvd_path(),
         license_url=license_url,
         mpd_url=mpd_url,
         output_path=os.path.join(mp4_path, mp4_name),
     )
-    r_proc.parse_manifest(custom_headers=get_headers())
+    dash_process.parse_manifest(custom_headers=get_headers())
 
-    if r_proc.download_and_decrypt():
-        r_proc.finalize_output()
+    if dash_process.download_and_decrypt():
+        dash_process.finalize_output()
 
     # Get final output path and status
-    status = r_proc.get_status()
+    status = dash_process.get_status()
 
     if status['error'] is not None and status['path']:
-        try: os.remove(status['path'])
-        except Exception: pass
+        try: 
+            os.remove(status['path'])
+        except Exception: 
+            pass
 
     return status['path'], status['stopped']
     

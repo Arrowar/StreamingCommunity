@@ -59,13 +59,13 @@ def download_film(select_title: MediaItem) -> str:
     query_params = parse_qs(parsed_url.query)
 
     # Download the episode
-    r_proc = DASH_Downloader(
+    dash_process = DASH_Downloader(
         cdm_device=get_wvd_path(),
         license_url='https://www.crunchyroll.com/license/v1/license/widevine',
         mpd_url=mpd_url,
         output_path=os.path.join(mp4_path, mp4_name),
     )
-    r_proc.parse_manifest(custom_headers=mpd_headers)
+    dash_process.parse_manifest(custom_headers=mpd_headers)
 
     # Create headers for license request
     license_headers = mpd_headers.copy()
@@ -74,14 +74,16 @@ def download_film(select_title: MediaItem) -> str:
         "x-cr-video-token": query_params['playbackGuid'][0],
     })
 
-    if r_proc.download_and_decrypt(custom_headers=license_headers):
-        r_proc.finalize_output()
+    if dash_process.download_and_decrypt(custom_headers=license_headers):
+        dash_process.finalize_output()
 
     # Get final output path and status
-    status = r_proc.get_status()
+    status = dash_process.get_status()
 
     if status['error'] is not None and status['path']:
-        try: os.remove(status['path'])
-        except Exception: pass
+        try: 
+            os.remove(status['path'])
+        except Exception: 
+            pass
 
     return status['path'], status['stopped']

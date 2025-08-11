@@ -8,9 +8,10 @@ import logging
 import platform
 import argparse
 import importlib
-import threading, asyncio
+import threading
+import asyncio
 from urllib.parse import urlparse
-from typing import Callable
+from typing import Callable, Dict, Tuple
 
 
 # External library
@@ -24,17 +25,23 @@ from StreamingCommunity.Util.message import start_message
 from StreamingCommunity.Util.config_json import config_manager
 from StreamingCommunity.Util.os import os_summary, internet_manager
 from StreamingCommunity.Util.logger import Logger
-from StreamingCommunity.Upload.update import update as git_update
 from StreamingCommunity.Lib.TMBD import tmdb
+from StreamingCommunity.Upload.update import update as git_update
 from StreamingCommunity.TelegramHelp.telegram_bot import get_bot_instance, TelegramSession
 from StreamingCommunity.Api import http_api
 
 
 # Config
 SHOW_TRENDING = config_manager.get_bool('DEFAULT', 'show_trending')
-NOT_CLOSE_CONSOLE = config_manager.get_bool('DEFAULT', 'not_close')
 TELEGRAM_BOT = config_manager.get_bool('DEFAULT', 'telegram_bot')
 BYPASS_DNS = config_manager.get_bool('DEFAULT', 'bypass_dns')
+COLOR_MAP = {
+    "anime": "red",
+    "film_&_serie": "yellow", 
+    "serie": "blue",
+    "torrent": "white"
+}
+CATEGORY_MAP = {1: "anime", 2: "film_&_serie", 3: "serie", 4: "torrent"}
 
 
 # Variable
@@ -43,14 +50,7 @@ msg = Prompt()
 
 
 def run_function(func: Callable[..., None], close_console: bool = False, search_terms: str = None) -> None:
-    """
-    Run a given function indefinitely or once, depending on the value of close_console.
-
-    Parameters:
-        func (Callable[..., None]): The function to run.
-        close_console (bool, optional): Whether to close the console after running the function once. Defaults to False.
-        search_terms (str, optional): Search terms to use for the function. Defaults to None.
-    """
+    """Run function once or indefinitely based on close_console flag."""
     if close_console:
         while 1:
             func(search_terms)
@@ -58,124 +58,86 @@ def run_function(func: Callable[..., None], close_console: bool = False, search_
         func(search_terms)
 
 
-# !!! DA METTERE IN COMUNE CON QUELLA DI GLOBAL
-def load_search_functions():
-    modules = []
+def load_search_functions() -> Dict[str, Tuple]:
+    """Load and return all available search functions from site modules."""
     loaded_functions = {}
-
-    # Lista dei siti da escludere se TELEGRAM_BOT è attivo
     excluded_sites = {"cb01new", "guardaserie", "ilcorsaronero", "mostraguarda"} if TELEGRAM_BOT else set()
-
-    # Find api home directory
-    if getattr(sys, 'frozen', False):  # Modalità PyInstaller
-        base_path = os.path.join(sys._MEIPASS, "StreamingCommunity")
-    else:
-        base_path = os.path.dirname(__file__)
-
+    
+    # Determine base path
+    base_path = os.path.join(sys._MEIPASS, "StreamingCommunity") if getattr(sys, 'frozen', False) else os.path.dirname(__file__)
     api_dir = os.path.join(base_path, 'Api', 'Site')
-    init_files = glob.glob(os.path.join(api_dir, '*', '__init__.py'))
-
-    # Retrieve modules and their indices
-    for init_file in init_files:
-
-        # Get folder name as module name
+    
+    # Get all modules with their indices and sort them
+    modules = []
+    for init_file in glob.glob(os.path.join(api_dir, '*', '__init__.py')):
         module_name = os.path.basename(os.path.dirname(init_file))
-
-        # Se il modulo è nella lista da escludere, saltalo
+        
         if module_name in excluded_sites:
             continue
-
-        logging.info(f"Load module name: {module_name}")
-
+            
         try:
-            # Dynamically import the module
             mod = importlib.import_module(f'StreamingCommunity.Api.Site.{module_name}')
-
-            # Get 'indice' from the module
-            indice = getattr(mod, 'indice')
-            use_for = getattr(mod, '_useFor')
-
-            if not getattr(mod, '_deprecate'):
-                modules.append((module_name, indice, use_for))
-
+            if not getattr(mod, '_deprecate', False):
+                modules.append((module_name, getattr(mod, 'indice'), getattr(mod, '_useFor')))
+                logging.info(f"Load module name: {module_name}")
         except Exception as e:
             console.print(f"[red]Failed to import module {module_name}: {str(e)}")
-
-    # Sort modules by 'indice'
-    modules.sort(key=lambda x: x[1])
-
-    # Load search functions in the sorted order
-    for module_name, _, use_for in modules:
-
-        # Construct a unique alias for the module
-        module_alias = f'{module_name}_search'
-
+    
+    # Sort by index and load search functions
+    for module_name, _, use_for in sorted(modules, key=lambda x: x[1]):
         try:
-
-            # Dynamically import the module
             mod = importlib.import_module(f'StreamingCommunity.Api.Site.{module_name}')
-
-            # Get the search function from the module (assuming the function is named 'search' and defined in __init__.py)
-            search_function = getattr(mod, 'search')
-
-            # Add the function to the loaded functions dictionary
-            loaded_functions[module_alias] = (search_function, use_for)
-
+            loaded_functions[f'{module_name}_search'] = (getattr(mod, 'search'), use_for)
         except Exception as e:
             console.print(f"[red]Failed to load search function from module {module_name}: {str(e)}")
-
+    
     return loaded_functions
 
 
 def initialize():
-
-    # Get start message
+    """Initialize the application with system checks and setup."""
     start_message()
-
-    # Get system info
     os_summary.get_system_summary()
-
-    # Set terminal size for win 7
+    
+    # Windows 7 terminal size fix
     if platform.system() == "Windows" and "7" in platform.version():
         os.system('mode 120, 40')
-
-    # Check python version
+    
+    # Python version check
     if sys.version_info < (3, 7):
         console.log("[red]Install python version > 3.7.16")
         sys.exit(0)
-
-    # Trending tmbd
+    
+    # Show trending content
     if SHOW_TRENDING:
         print()
         tmdb.display_trending_films()
         tmdb.display_trending_tv_shows()
-
-    # Attempting GitHub update
+    
+    # Attempt GitHub update
     try:
         git_update()
-    except:
-        console.log("[red]Error with loading github.")
+    except Exception as e:
+        console.log(f"[red]Error with loading github: {str(e)}")
 
 
 def restart_script():
-    """Riavvia lo script con gli stessi argomenti della riga di comando."""
+    """Restart script with same command line arguments."""
     print("\nRiavvio dello script...\n")
-    python = sys.executable
-    os.execv(python, [python] + sys.argv)
+    os.execv(sys.executable, [sys.executable] + sys.argv)
 
 
 def force_exit():
-    """Forza la chiusura dello script in qualsiasi contesto."""
-
+    """Force script termination in any context."""
     print("\nChiusura dello script in corso...")
-
-    # 1 Chiudi tutti i thread tranne il principale
+    
+    # Close all threads except main
     for t in threading.enumerate():
         if t is not threading.main_thread():
             print(f"Chiusura thread: {t.name}")
             t.join(timeout=1)
-
-    # 2 Ferma asyncio, se attivo
+    
+    # Stop asyncio if active
     try:
         loop = asyncio.get_event_loop()
         if loop.is_running():
@@ -183,14 +145,14 @@ def force_exit():
             loop.stop()
     except RuntimeError:
         pass
-
-    # 3 Esce con sys.exit(), se fallisce usa os._exit()
+    
+    # Exit gracefully or force
     try:
         print("Uscita con sys.exit(0)")
         sys.exit(0)
     except SystemExit:
         pass
-
+    
     print("Uscita forzata con os._exit(0)")
     os._exit(0)
 
@@ -200,8 +162,51 @@ def _extract_hostname(url_string: str) -> str:
     return urlparse(url_string).hostname
 
 
-def main(script_id = 0):
+def check_dns_and_exit_if_needed():
+    """Check DNS configuration and exit if required."""
+    if BYPASS_DNS:
+        return
 
+    # raccogli gli hostname dalle site config
+    hostname_list = [
+        hostname
+        for site_info in config_manager.configSite.values()
+        if (hostname := _extract_hostname(site_info.get('full_url')))
+    ]
+
+    if not internet_manager.check_dns_resolve(hostname_list):
+        console.print("[red] ERROR: DNS configuration is required!")
+        console.print("[red]The program cannot function correctly without proper DNS settings.")
+        console.print("[yellow]Please configure one of these DNS servers:")
+        console.print("[red]• Cloudflare (1.1.1.1) 'https://developers.cloudflare.com/1.1.1.1/setup/windows/'")
+        console.print("[red]• Quad9 (9.9.9.9) 'https://docs.quad9.net/Setup_Guides/Windows/Windows_10/'")
+        console.print("\n[yellow]⚠️ The program will not work until you configure your DNS settings.")
+        os._exit(0)
+
+
+def setup_argument_parser(search_functions):
+    """Setup and return configured argument parser."""
+    module_info = {}
+    for alias, (_func, _use_for) in search_functions.items():
+        module_name = alias.split("_")[0].lower()
+        try:
+            mod = importlib.import_module(f'StreamingCommunity.Api.Site.{module_name}')
+            module_info[module_name] = int(getattr(mod, 'indice'))
+        except Exception:
+            continue
+
+    available_names = ", ".join(sorted(module_info.keys()))
+    available_indices = ", ".join([f"{idx}={name.capitalize()}" for name, idx in sorted(module_info.items(), key=lambda x: x[1])])
+
+    parser = argparse.ArgumentParser(
+        description=f"StreamingCommunity (available sites: {available_names})"
+    )
+    parser.add_argument('--site', help=f"Site name ({available_names})")
+    parser.add_argument('--index', type=int, help=f"Site index ({available_indices})")
+    return parser
+
+
+def main(script_id = 0):
     color_map = {
         "anime": "red",
         "film_&_serie": "yellow",
@@ -232,15 +237,10 @@ def main(script_id = 0):
             t = threading.Thread(target=http_api.start_api_server, daemon=True)
             t.start()
             console.print(f"[green]HTTP API exposed on port {config_manager.get('DEFAULT','http_api_port')}[/green]")
-            # When the HTTP API is exposed the application must run in non-interactive
-            # server-only mode: console output (messages/animations) is still shown
-            # but user input is disabled. The process stays alive to serve HTTP
-            # requests and can be stopped with Ctrl+C.
             console.print(
                 "[yellow]Non-interactive mode: HTTP API is enabled. Console input is disabled; use the HTTP API only. Press Ctrl+C to exit.[/yellow]"
             )
             try:
-                # Keep the main thread alive without accepting console input
                 while True:
                     time.sleep(1)
             except KeyboardInterrupt:
@@ -248,103 +248,75 @@ def main(script_id = 0):
     except Exception as e:
         console.print(f"[yellow]Unable to start HTTP API server: {e}")
 
-    # Get all site hostname
-    hostname_list = [hostname for site_info in config_manager.configSite.values() if (hostname := _extract_hostname(site_info.get('full_url')))]
-
-    if not BYPASS_DNS:
-        if not internet_manager.check_dns_resolve(hostname_list):
-            console.print("[red] ERROR: DNS configuration is required!")
-            console.print("[red]The program cannot function correctly without proper DNS settings.")
-            console.print("[yellow]Please configure one of these DNS servers:")
-            console.print("[red]• Cloudflare (1.1.1.1) 'https://developers.cloudflare.com/1.1.1.1/setup/windows/'")
-            console.print("[red]• Quad9 (9.9.9.9) 'https://docs.quad9.net/Setup_Guides/Windows/Windows_10/'")
-            console.print("\n[yellow]⚠️ The program will not work until you configure your DNS settings.")
-
-            os._exit(0)
+    # DNS check (moved to helper)
+    check_dns_and_exit_if_needed()
 
     # Load search functions
     search_functions = load_search_functions()
     logging.info(f"Load module in: {time.time() - start} s")
 
-    # Create argument parser
-    parser = argparse.ArgumentParser(
-        description='Script to download movies and series from the internet. Use these commands to configure the script and control its behavior.'
-    )
-
-    parser.add_argument("script_id", nargs="?", default="unknown", help="ID dello script")
-
-    # Add arguments for the main configuration parameters
-    parser.add_argument(
-        '--add_siteName', type=bool, help='Enable or disable adding the site name to the file name (e.g., true/false).'
-    )
-    parser.add_argument(
-        '--not_close', type=bool, help='If set to true, the script will not close the console after execution (e.g., true/false).'
-    )
-
-    # Add arguments for M3U8 configuration
-    parser.add_argument(
-        '--default_video_worker', type=int, help='Number of workers for video during M3U8 download (default: 12).'
-    )
-    parser.add_argument(
-        '--default_audio_worker', type=int, help='Number of workers for audio during M3U8 download (default: 12).'
-    )
-
-    # Add options for audio and subtitles
-    parser.add_argument(
-        '--specific_list_audio', type=str, help='Comma-separated list of specific audio languages to download (e.g., ita,eng).'
-    )
-    parser.add_argument(
-        '--specific_list_subtitles', type=str, help='Comma-separated list of specific subtitle languages to download (e.g., eng,spa).'
-    )
-
-    # Add global search option
-    parser.add_argument(
-        '--global', action='store_true', help='Perform a global search across multiple sites.'
-    )
-
-    # Add category selection argument
-    parser.add_argument(
-        '--category', type=int, help='Select category directly (1: anime, 2: film_&_serie, 3: serie, 4: torrent).'
-    )
-
-    # Add arguments for search functions
-    parser.add_argument('-s', '--search', default=None, help='Search terms')
-    
-    # Parse command-line arguments
+    # Create / configure argument parser
+    parser = setup_argument_parser(search_functions)
     args = parser.parse_args()
 
-    search_terms = args.search
-    # Map command-line arguments to the config values
-    config_updates = {}
+    parser = argparse.ArgumentParser(
+        description='Script to download movies and series from the internet.',
+        formatter_class=argparse.RawTextHelpFormatter,
+        epilog=f"Available sites by name: {available_names}\nAvailable sites by index: {available_indices}"
+    )
+    
+    # Add arguments
+    parser.add_argument("script_id", nargs="?", default="unknown", help="ID dello script")
+    parser.add_argument('--add_siteName', type=bool, help='Enable/disable adding site name to file name')
+    parser.add_argument('--not_close', type=bool, help='Keep console open after execution')
+    parser.add_argument('--default_video_worker', type=int, help='Video workers for M3U8 download (default: 12)')
+    parser.add_argument('--default_audio_worker', type=int, help='Audio workers for M3U8 download (default: 12)')
+    parser.add_argument('--specific_list_audio', type=str, help='Audio languages (e.g., ita,eng)')
+    parser.add_argument('--specific_list_subtitles', type=str, help='Subtitle languages (e.g., eng,spa)')
+    parser.add_argument('--global', action='store_true', help='Global search across sites')
+    parser.add_argument('--category', type=int, help='Category (1: anime, 2: film_&_serie, 3: serie, 4: torrent)')
+    parser.add_argument('-s', '--search', default=None, help='Search terms')
+    parser.add_argument('--auto-first', action='store_true', help='Auto-download first result (use with --site and --search)')
+    parser.add_argument('--site', type=str, help='Site by name or index')
+    
+    return parser
 
-    if args.add_siteName is not None:
-        config_updates['DEFAULT.add_siteName'] = args.add_siteName
-    if args.not_close is not None:
-        config_updates['DEFAULT.not_close'] = args.not_close
-    if args.default_video_worker is not None:
-        config_updates['M3U8_DOWNLOAD.default_video_worker'] = args.default_video_worker
-    if args.default_audio_worker is not None:
-        config_updates['M3U8_DOWNLOAD.default_audio_worker'] = args.default_audio_worker
+
+def apply_config_updates(args):
+    """Apply command line arguments to configuration."""
+    config_updates = {}
+    
+    arg_mappings = {
+        'add_siteName': 'DEFAULT.add_siteName',
+        'not_close': 'DEFAULT.not_close', 
+        'default_video_worker': 'M3U8_DOWNLOAD.default_video_worker',
+        'default_audio_worker': 'M3U8_DOWNLOAD.default_audio_worker'
+    }
+    
+    for arg_name, config_key in arg_mappings.items():
+        if getattr(args, arg_name) is not None:
+            config_updates[config_key] = getattr(args, arg_name)
+    
+    # Handle list arguments
     if args.specific_list_audio is not None:
         config_updates['M3U8_DOWNLOAD.specific_list_audio'] = args.specific_list_audio.split(',')
     if args.specific_list_subtitles is not None:
         config_updates['M3U8_DOWNLOAD.specific_list_subtitles'] = args.specific_list_subtitles.split(',')
-
-    # Apply the updates to the config file
+    
+    # Apply updates
     for key, value in config_updates.items():
         section, option = key.split('.')
         config_manager.set_key(section, option, value)
+    
+    if config_updates:
+        config_manager.save_config()
 
-    config_manager.save_config()
 
-    # Check if global search is requested
-    if getattr(args, 'global'):
-        global_search(search_terms)
-        return
-
-    # Create mappings using module indice
+def build_function_mappings(search_functions):
+    """Build mappings between indices/names and functions."""
     input_to_function = {}
     choice_labels = {}
+    module_name_to_function = {}
     
     for alias, (func, use_for) in search_functions.items():
         module_name = alias.split("_")[0]
@@ -353,84 +325,134 @@ def main(script_id = 0):
             site_index = str(getattr(mod, 'indice'))
             input_to_function[site_index] = func
             choice_labels[site_index] = (module_name.capitalize(), use_for.lower())
+            module_name_to_function[module_name.lower()] = func
         except Exception as e:
             console.print(f"[red]Error mapping module {module_name}: {str(e)}")
+    
+    return input_to_function, choice_labels, module_name_to_function
 
-    if args.category:
-        selected_category = category_map.get(args.category)
-        category_sites = []
-        for key, label in choice_labels.items():
-            if label[1] == selected_category:
-                category_sites.append((key, label[0]))
 
-        if len(category_sites) == 1:
-            category = category_sites[0][0]
-            console.print(f"[green]Selezionato automaticamente: {category_sites[0][1]}[/green]")
-
-        else:
-            sito_prompt_items = [f"[{color_map.get(selected_category, 'white')}]({k}) {v}[/{color_map.get(selected_category, 'white')}]" 
-                               for k, v in category_sites]
-            sito_prompt_line = ", ".join(sito_prompt_items)
-            
-            if TELEGRAM_BOT:
-                console.print(f"\nInsert site: {sito_prompt_line}")
-                category = bot.ask(
-                    "select_site",
-                    f"Insert site: {sito_prompt_line}",
-                    None
-                )
-            else:
-                category = msg.ask(f"\n[cyan]Insert site: {sito_prompt_line}", choices=[k for k, _ in category_sites], show_choices=False)
-
-    else:
-        legend_text = " | ".join([f"[{color}]{category.capitalize()}[/{color}]" for category, color in color_map.items()])
-        console.print(f"\n[bold cyan]Category Legend:[/bold cyan] {legend_text}")
-
-        prompt_message = "[cyan]Insert site: " + ", ".join(
-            [f"[{color_map.get(label[1], 'white')}]({key}) {label[0]}[/{color_map.get(label[1], 'white')}]" 
-             for key, label in choice_labels.items()]
-        )
-
-        if TELEGRAM_BOT:
-            category_legend_str = "Categorie: \n" + " | ".join([
-                f"{category.capitalize()}" for category in color_map.keys()
-            ])
-
-            prompt_message_telegram = "Inserisci il sito:\n" + "\n".join(
-                [f"{key}: {label[0]}" for key, label in choice_labels.items()]
-            )
-
-            console.print(f"\n{prompt_message_telegram}")
-
-            category = bot.ask(
-                "select_provider",
-                f"{category_legend_str}\n\n{prompt_message_telegram}",
-                None
-            )
-
-        else:
-            category = msg.ask(prompt_message, choices=list(choice_labels.keys()), default="0", show_choices=False, show_default=False)
-
-    # Run the corresponding function based on user input
-    if category in input_to_function:
-        run_function(input_to_function[category], search_terms=search_terms)
+def handle_direct_site_selection(args, input_to_function, module_name_to_function, search_terms):
+    """Handle direct site selection via command line."""
+    if not args.site:
+        return False
         
+    site_key = str(args.site).strip().lower()
+    func_to_run = input_to_function.get(site_key) or module_name_to_function.get(site_key)
+    
+    if func_to_run is None:
+        available_sites = ", ".join(sorted(module_name_to_function.keys()))
+        console.print(f"[red]Unknown site:[/red] '{args.site}'. Available: [yellow]{available_sites}[/yellow]")
+        return False
+    
+    # Handle auto-first option
+    if args.auto_first and search_terms:
+        try:
+            database = func_to_run(search_terms, get_onlyDatabase=True)
+            if database and hasattr(database, 'media_list') and database.media_list:
+                first_item = database.media_list[0]
+                item_dict = first_item.__dict__.copy() if hasattr(first_item, '__dict__') else {}
+                func_to_run(direct_item=item_dict)
+                return True
+            else:
+                console.print("[yellow]No results found. Falling back to interactive mode.[/yellow]")
+        except Exception as e:
+            console.print(f"[red]Auto-first failed:[/red] {str(e)}")
+    
+    run_function(func_to_run, search_terms=search_terms)
+    return True
+
+
+def get_user_site_selection(args, choice_labels):
+    """Get site selection from user (interactive or category-based)."""
+    bot = get_bot_instance() if TELEGRAM_BOT else None
+    
+    if args.category:
+        selected_category = CATEGORY_MAP.get(args.category)
+        category_sites = [(key, label[0]) for key, label in choice_labels.items() if label[1] == selected_category]
+        
+        if len(category_sites) == 1:
+            console.print(f"[green]Selezionato automaticamente: {category_sites[0][1]}[/green]")
+            return category_sites[0][0]
+        
+        # Multiple sites in category
+        color = COLOR_MAP.get(selected_category, 'white')
+        prompt_items = [f"[{color}]({k}) {v}[/{color}]" for k, v in category_sites]
+        prompt_line = ", ".join(prompt_items)
+        
+        if TELEGRAM_BOT:
+            console.print(f"\nInsert site: {prompt_line}")
+            return bot.ask("select_site", f"Insert site: {prompt_line}", None)
+        else:
+            return msg.ask(f"\n[cyan]Insert site: {prompt_line}", choices=[k for k, _ in category_sites], show_choices=False)
+    
+    else:
+        # Show all sites
+        legend_text = " | ".join([f"[{color}]{cat.capitalize()}[/{color}]" for cat, color in COLOR_MAP.items()])
+        console.print(f"\n[bold cyan]Category Legend:[/bold cyan] {legend_text}")
+        
+        if TELEGRAM_BOT:
+            category_legend = "Categorie: \n" + " | ".join([cat.capitalize() for cat in COLOR_MAP.keys()])
+            prompt_message = "Inserisci il sito:\n" + "\n".join([f"{key}: {label[0]}" for key, label in choice_labels.items()])
+            console.print(f"\n{prompt_message}")
+            return bot.ask("select_provider", f"{category_legend}\n\n{prompt_message}", None)
+        else:
+            prompt_message = "[cyan]Insert site: " + ", ".join([
+                f"[{COLOR_MAP.get(label[1], 'white')}]({key}) {label[0]}[/{COLOR_MAP.get(label[1], 'white')}]" 
+                for key, label in choice_labels.items()
+            ])
+            return msg.ask(prompt_message, choices=list(choice_labels.keys()), default="0", show_choices=False, show_default=False)
+
+
+def main(script_id=0):
+    if TELEGRAM_BOT:
+        get_bot_instance().send_message(f"Avviato script {script_id}", None)
+    
+    start = time.time()
+    Logger()  # Create logger
+    initialize()
+    check_dns_and_exit_if_needed()
+    
+    # Load search functions
+    search_functions = load_search_functions()
+    logging.info(f"Load module in: {time.time() - start} s")
+    
+    # Setup argument parser and parse arguments
+    parser = setup_argument_parser(search_functions)
+    args = parser.parse_args()
+    
+    # Apply configuration updates
+    apply_config_updates(args)
+    
+    # Handle global search
+    if getattr(args, 'global'):
+        global_search(args.search)
+        return
+    
+    # Build function mappings
+    input_to_function, choice_labels, module_name_to_function = build_function_mappings(search_functions)
+    
+    # Handle direct site selection
+    if handle_direct_site_selection(args, input_to_function, module_name_to_function, args.search):
+        return
+    
+    # Get user site selection
+    category = get_user_site_selection(args, choice_labels)
+    
+    # Run selected function or handle error
+    if category in input_to_function:
+        run_function(input_to_function[category], search_terms=args.search)
     else:
         if TELEGRAM_BOT:
-            bot.send_message(f"Categoria non valida", None)
-
+            get_bot_instance().send_message("Categoria non valida", None)
         console.print("[red]Invalid category.")
 
-        if NOT_CLOSE_CONSOLE:
+        if getattr(args, 'not_close'):
             restart_script()
-
         else:
             force_exit()
-
             if TELEGRAM_BOT:
-                bot.send_message(f"Chiusura in corso", None)
-
-                # Delete script_id
+                get_bot_instance().send_message("Chiusura in corso", None)
                 script_id = TelegramSession.get_session()
                 if script_id != "unknown":
                     TelegramSession.deleteScriptId(script_id)

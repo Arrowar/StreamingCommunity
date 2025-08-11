@@ -5,11 +5,12 @@ import logging
 
 
 # External libraries
-import httpx
 from bs4 import BeautifulSoup
+
 
 # Internal utilities
 from StreamingCommunity.Util.headers import get_userAgent
+from StreamingCommunity.Util.http_client import create_client
 from StreamingCommunity.Util.config_json import config_manager
 from StreamingCommunity.Api.Player.Helper.Vixcloud.util import SeasonManager, Episode
 
@@ -24,8 +25,7 @@ class GetSerieInfo:
         self.url = url
         self.seasons_manager = SeasonManager()
         self.series_name = None
-        
-        self.client = httpx.Client(headers=self.headers, timeout=max_timeout)
+        self.client = create_client(headers=self.headers)
 
     def collect_info_season(self) -> None:
         """

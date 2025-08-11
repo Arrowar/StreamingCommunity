@@ -11,6 +11,7 @@ from rich.console import Console
 # Internal utilities
 from StreamingCommunity.Util.config_json import config_manager
 from StreamingCommunity.Util.headers import get_userAgent, get_headers
+from StreamingCommunity.Util.http_client import create_client
 from StreamingCommunity.Util.table import TVShowManager
 
 
@@ -31,11 +32,8 @@ def get_session_and_csrf() -> dict:
     Get the session ID and CSRF token from the website's cookies and HTML meta data.
     """
     # Send an initial GET request to the website
-    response = httpx.get(
-        site_constant.FULL_URL, 
-        headers=get_headers(), 
-        verify=False
-    )
+    client = create_client(headers=get_headers())
+    response = client.get(site_constant.FULL_URL)
 
     # Extract the sessionId from the cookies
     session_id = response.cookies.get('sessionId')

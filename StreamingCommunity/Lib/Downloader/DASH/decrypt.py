@@ -38,7 +38,7 @@ def decrypt_with_mp4decrypt(encrypted_path, kid, key, output_path=None, cleanup=
         bytes.fromhex(kid)
         bytes.fromhex(key)
     except Exception:
-        console.print(f"[bold red] Invalid KID or KEY (not hex).[/bold red]")
+        console.print("[bold red] Invalid KID or KEY (not hex).[/bold red]")
         return None
 
     if not output_path:

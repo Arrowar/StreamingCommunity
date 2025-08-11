@@ -15,7 +15,6 @@ from StreamingCommunity.Util.headers import get_headers, get_userAgent
 
 # Variable
 MAX_TIMEOUT = config_manager.get_int("REQUESTS", "timeout")
-bearer_token = None
 playback_json = None
 
 
@@ -26,29 +25,7 @@ def get_bearer_token():
     Returns:
         str: The bearer token string.
     """
-    global bearer_token
-
-    if bearer_token:
-        return bearer_token
-    
-    LOGIN_URL = "https://api-ott-prod-fe.mediaset.net/PROD/play/idm/anonymous/login/v2.0"
-
-    try:
-        response = httpx.post(
-            LOGIN_URL,
-            json={'client_id': 'client_id', 'appName': 'embed//mediasetplay-embed'},
-            follow_redirects=True,
-            timeout=MAX_TIMEOUT
-        )
-        response.raise_for_status()
-
-        # Extract the bearer token from the response
-        data = response.json()
-        bearer_token = data["response"]["beToken"]
-        return bearer_token
-    
-    except Exception as e:
-        raise RuntimeError(f"Failed to get bearer token: {e}")
+    return config_manager.get_dict("SITE_LOGIN", "mediasetinfinity")["beToken"]
 
 def get_playback_url(BEARER_TOKEN, CONTENT_ID):
     """
@@ -190,7 +167,7 @@ def get_tracking_info(BEARER_TOKEN, PLAYBACK_JSON):
         results = parse_smil_for_tracking_and_video(smil_xml)
         return results
     
-    except Exception as e:
+    except Exception:
         return None
 
 def generate_license_url(BEARER_TOKEN, tracking_info):

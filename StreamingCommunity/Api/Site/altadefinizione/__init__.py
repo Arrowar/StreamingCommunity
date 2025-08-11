@@ -43,7 +43,7 @@ def get_user_input(string_to_search: str = None):
             bot = get_bot_instance()
             string_to_search = bot.ask(
                 "key_search",
-                f"Enter the search term\nor type 'back' to return to the menu: ",
+                "Enter the search term\nor type 'back' to return to the menu: ",
                 None
             )
 
@@ -117,7 +117,7 @@ def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_
         console.print(f"\n[red]Nothing matching was found for[white]: [purple]{string_to_search}")
 
         if site_constant.TELEGRAM_BOT:
-            bot.send_message(f"No results found, please try again", None)
+            bot.send_message("No results found, please try again", None)
 
         # If no results are found, ask again
         string_to_search = get_user_input()

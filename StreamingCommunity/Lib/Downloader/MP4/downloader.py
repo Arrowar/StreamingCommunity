@@ -10,7 +10,6 @@ from functools import partial
 
 
 # External libraries
-import httpx
 from tqdm import tqdm
 from rich.console import Console
 from rich.prompt import Prompt
@@ -19,6 +18,7 @@ from rich.panel import Panel
 
 # Internal utilities
 from StreamingCommunity.Util.headers import get_userAgent
+from StreamingCommunity.Util.http_client import create_client
 from StreamingCommunity.Util.color import Colors
 from StreamingCommunity.Util.config_json import config_manager
 from StreamingCommunity.Util.os import internet_manager, os_manager
@@ -84,7 +84,7 @@ def MP4_downloader(url: str, path: str, referer: str = None, headers_: dict = No
     if os.path.exists(path):
         console.log("[red]Output file already exists.")
         if TELEGRAM_BOT:
-            bot.send_message(f"Contenuto già scaricato!", None)
+            bot.send_message("Contenuto già scaricato!", None)
         return None, False
 
     if not (url.lower().startswith('http://') or url.lower().startswith('https://')):
@@ -111,7 +111,8 @@ def MP4_downloader(url: str, path: str, referer: str = None, headers_: dict = No
     os.makedirs(os.path.dirname(path), exist_ok=True)
 
     try:
-        with httpx.Client(verify=REQUEST_VERIFY) as client:
+        # Use unified HTTP client (verify/timeout/proxy from config)
+        with create_client() as client:
             with client.stream("GET", url, headers=headers) as response:
                 response.raise_for_status()
                 total = int(response.headers.get('content-length', 0))

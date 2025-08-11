@@ -61,7 +61,7 @@ class MPDParser:
         self.base_url = mpd_url.rsplit('/', 1)[0] + '/'
 
     def parse(self, custom_headers):
-        response = httpx.get(self.mpd_url, headers=custom_headers, timeout=max_timeout)
+        response = httpx.get(self.mpd_url, headers=custom_headers, timeout=max_timeout, follow_redirects=True)
         response.raise_for_status()
 
         root = ET.fromstring(response.content)

@@ -16,3 +16,4 @@ pyTelegramBotAPI
 pywidevine
 fastapi
 uvicorn[standard]
+ruff

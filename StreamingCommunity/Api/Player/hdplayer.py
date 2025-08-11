@@ -3,12 +3,12 @@
 import re
 
 # External library
-import httpx
 from bs4 import BeautifulSoup
 
 
 # Internal utilities
 from StreamingCommunity.Util.headers import get_userAgent
+from StreamingCommunity.Util.http_client import create_client
 from StreamingCommunity.Util.config_json import config_manager
 
 
@@ -19,7 +19,7 @@ REQUEST_VERIFY = config_manager.get_bool('REQUESTS', 'verify')
 
 class VideoSource:
     def __init__(self):
-        self.client = httpx.Client(headers={'user-agent': get_userAgent()}, timeout=MAX_TIMEOUT, verify=REQUEST_VERIFY)
+        self.client = create_client(headers={'user-agent': get_userAgent()})
 
     def extractLinkHdPlayer(self, response):
         """Extract iframe source from the page."""

@@ -1,8 +1,5 @@
 # 19.06.24
 
-import sys
-
-
 # External library
 from rich.console import Console
 
@@ -83,12 +80,19 @@ def get_select_title(table_show_manager, media_search_manager, num_results_avail
 
         color_index = 1
         for key in first_media_item.__dict__.keys():
+
             if key.capitalize() in column_to_hide:
                 continue
+
             if key in ('id', 'type', 'name', 'score'):
-                if key == 'type': column_info["Type"] = {'color': 'yellow'}
-                elif key == 'name': column_info["Name"] = {'color': 'magenta'}
-                elif key == 'score': column_info["Score"] = {'color': 'cyan'}
+                if key == 'type': 
+                    column_info["Type"] = {'color': 'yellow'}
+
+                elif key == 'name': 
+                    column_info["Name"] = {'color': 'magenta'}
+                elif key == 'score': 
+                    column_info["Score"] = {'color': 'cyan'}
+                    
             else:
                 column_info[key.capitalize()] = {'color': available_colors[color_index % len(available_colors)]}
                 color_index += 1

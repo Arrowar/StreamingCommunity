@@ -14,12 +14,12 @@ from rich.prompt import Prompt
 from rich.panel import Panel
 from rich.table import Table
 
+from StreamingCommunity.Upload.version import __author__, __title__
 
 # Variable
 max_timeout = 15
 console = Console()
 local_path = os.path.join(".")
-from StreamingCommunity.Upload.version import __author__, __title__
 
 
 def move_content(source: str, destination: str):

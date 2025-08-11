@@ -1,5 +1,7 @@
 # 25.07.25
 
+import os
+
 # External libraries
 import httpx
 from rich.console import Console
@@ -7,6 +9,7 @@ from rich.console import Console
 
 # Internal utilities
 from StreamingCommunity.Util.config_json import config_manager
+from StreamingCommunity.Util.os import get_wvd_path
 from StreamingCommunity.Util.headers import get_headers
 from StreamingCommunity.Util.table import TVShowManager
 from StreamingCommunity.Api.Template.config_loader import site_constant
@@ -37,7 +40,13 @@ def title_search(query: str) -> int:
     media_search_manager.clear()
     table_show_manager.clear()
 
-    search_url = f'https://api-ott-prod-fe.mediaset.net/PROD/play/reco/anonymous/v2.0'
+    # Check CDM file before usage
+    cdm_device_path = get_wvd_path()
+    if not cdm_device_path or not isinstance(cdm_device_path, (str, bytes, os.PathLike)) or not os.path.isfile(cdm_device_path):
+        console.print(f"[bold red] CDM file not found or invalid path: {cdm_device_path}[/bold red]")
+        return None
+
+    search_url = 'https://api-ott-prod-fe.mediaset.net/PROD/play/reco/account/v2.0'
     console.print(f"[cyan]Search url: [yellow]{search_url}")
 
     params = {
@@ -48,11 +57,10 @@ def title_search(query: str) -> int:
         'contentId': '',
         'property': 'search',
         'tenant': 'play-prod-v2',
-        'userContext': 'iwiAeyJwbGF0Zm9ybSI6IndlYiJ9Aw==',
         'aresContext': '',
+        'clientId': 'client_id',
         'page': '1',
         'hitsPerPage': '8',
-        'clientId': 'client_id'
     }
 
     headers = get_headers()

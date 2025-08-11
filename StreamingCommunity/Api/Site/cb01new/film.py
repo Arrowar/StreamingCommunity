@@ -55,13 +55,15 @@ def download_film(select_title: MediaItem) -> str:
     master_playlist = video_source.get_playlist()
 
     # Download the film using the m3u8 playlist, and output filename
-    r_proc = HLS_Downloader(
+    hls_process = HLS_Downloader(
         m3u8_url=master_playlist, 
         output_path=os.path.join(mp4_path, title_name)
     ).start()
 
-    if r_proc['error'] is not None:
-        try: os.remove(r_proc['path'])
-        except: pass
-
-    return r_proc['path']
+    if hls_process['error'] is not None:
+        try: 
+            os.remove(hls_process['path'])
+        except Exception: 
+            pass
+          
+    return hls_process['path']

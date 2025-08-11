@@ -2,10 +2,8 @@
     "DEFAULT": {
         "debug": false,
         "show_message": true,
-        "clean_console": true,
         "show_trending": true,
         "use_api": true,
-        "not_close": false,
         "telegram_bot": true,
         "download_site_data": true,
         "validate_github_config": true

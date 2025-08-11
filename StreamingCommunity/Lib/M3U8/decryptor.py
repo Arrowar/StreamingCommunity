@@ -1,7 +1,6 @@
 # 03.04.24
 
 import sys
-import time
 import logging
 import importlib.util
 
@@ -10,18 +9,23 @@ import importlib.util
 from rich.console import Console
 
 
+# Cryptodome imports 
+from Cryptodome.Cipher import AES
+from Cryptodome.Util.Padding import unpad
+
+
 # Check if Cryptodome module is installed
 console = Console()
 crypto_spec = importlib.util.find_spec("Cryptodome")
 crypto_installed = crypto_spec is not None
 
+
 if not crypto_installed:
     console.log("[red]pycryptodomex non è installato. Per favore installalo. Leggi readme.md [Requirement].")
     sys.exit(0)
 
-logging.info("[cyan]Decrypy use: Cryptodomex")
-from Cryptodome.Cipher import AES
-from Cryptodome.Util.Padding import unpad
+
+logging.info("[cyan]Decryption use: Cryptodomex")
 
 
 

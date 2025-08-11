@@ -138,6 +138,7 @@ class M3U8_Ts_Estimator:
             average_internet_speed = speed_data[0] if len(speed_data) >= 1 else "N/A"
             average_internet_unit = speed_data[1] if len(speed_data) >= 2 else ""
             
+            logging.info(f"Estimatore retry:  {retry_count}")
             progress_str = (
                 f"{Colors.GREEN}{number_file_total_size} {Colors.RED}{units_file_total_size}"
                 f"{Colors.WHITE}, {Colors.CYAN}{average_internet_speed} {Colors.RED}{average_internet_unit} "

@@ -485,7 +485,7 @@ class M3U8_Parser:
         try:
             for playlist in m3u8_obj.playlists:
 
-                there_is_codec = not playlist.stream_info.codecs is None
+                there_is_codec = playlist.stream_info.codecs is not None
                 logging.info(f"There is coded: {there_is_codec}")
 
                 if there_is_codec:

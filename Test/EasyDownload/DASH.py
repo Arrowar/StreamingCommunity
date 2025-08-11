@@ -1,14 +1,14 @@
 # 29.07.25
 
-# Fix import
-import sys
 import os
+import sys
+
+
+# Fix import
 src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 sys.path.append(src_path)
 
 
-
-# Import
 from StreamingCommunity.Util.message import start_message
 from StreamingCommunity.Util.os import os_summary, get_wvd_path
 os_summary.get_system_summary()
@@ -22,17 +22,16 @@ logger = Logger()
 license_url = ""
 mpd_url = ""
 
-
-r_proc = DASH_Downloader(
+dash_process = DASH_Downloader(
     cdm_device=get_wvd_path(),
     license_url=license_url,
     mpd_url=mpd_url,
     output_path="out.mp4",
 )
-r_proc.parse_manifest()
+dash_process.parse_manifest()
 
-if r_proc.download_and_decrypt():
-    r_proc.finalize_output()
+if dash_process.download_and_decrypt():
+    dash_process.finalize_output()
 
-status = r_proc.get_status()
+status = dash_process.get_status()
 print(status)

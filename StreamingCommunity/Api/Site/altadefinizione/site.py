@@ -93,7 +93,7 @@ def title_search(query: str) -> int:
 
     if site_constant.TELEGRAM_BOT:
         if choices:
-            bot.send_message(f"Lista dei risultati:", choices)
+            bot.send_message("Lista dei risultati:", choices)
 	
     # Return the number of titles found
     return media_search_manager.get_length()

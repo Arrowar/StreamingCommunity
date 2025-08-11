@@ -54,37 +54,31 @@ def download_film(select_title: MediaItem) -> Tuple[str, bool]:
     # Generate mpd and license URLs
     bearer = get_bearer_token()
 
-    # Extract ID from the episode URL
-    episode_id = select_title.url.split('_')[-1]
-    if "http" in episode_id:
-        try: episode_id = select_title.url.split('/')[-1]
-        except Exception:
-            console.print(f"[red]Error:[/red] Failed to parse episode ID from URL: {select_title.url}")
-            return None, True
-
-    playback_json = get_playback_url(bearer, episode_id)
+    playback_json = get_playback_url(bearer, select_title.id)
     tracking_info = get_tracking_info(bearer, playback_json)[0]
 
     license_url = generate_license_url(bearer, tracking_info)
     mpd_url = get_manifest(tracking_info['video_src'])
 
     # Download the episode
-    r_proc =  DASH_Downloader(
+    dash_process =  DASH_Downloader(
         cdm_device=get_wvd_path(),
         license_url=license_url,
         mpd_url=mpd_url,
         output_path=mp4_path,
     )
-    r_proc.parse_manifest(custom_headers=get_headers())
+    dash_process.parse_manifest(custom_headers=get_headers())
 
-    if r_proc.download_and_decrypt():
-        r_proc.finalize_output()
+    if dash_process.download_and_decrypt():
+        dash_process.finalize_output()
 
     # Get final output path and status
-    status = r_proc.get_status()
+    status = dash_process.get_status()
 
     if status['error'] is not None and status['path']:
-        try: os.remove(status['path'])
-        except Exception: pass
+        try: 
+            os.remove(status['path'])
+        except Exception: 
+            pass
 
     return status['path'], status['stopped']

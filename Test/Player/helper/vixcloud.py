@@ -1,12 +1,14 @@
-# Fix import
-import sys
+
 import os
+import sys
+import json
+
+
+# Fix import
 src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 sys.path.append(src_path)
 
 
-# Import
-import json
 from StreamingCommunity.Api.Player.Helper.Vixcloud.js_parser import JavaScriptParser
 from StreamingCommunity.Api.Player.Helper.Vixcloud.util import WindowVideo, WindowParameter, StreamsCollection
 

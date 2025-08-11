@@ -13,7 +13,8 @@ def get_version():
     try:
         import pkg_resources
         return pkg_resources.get_distribution('StreamingCommunity').version
-    except:
+    
+    except Exception:
         version_file_path = os.path.join(os.path.dirname(__file__), "StreamingCommunity", "Upload", "version.py")
         with open(version_file_path, "r", encoding="utf-8") as f:
             version_match = re.search(r"^__version__\s*=\s*['\"]([^'\"]*)['\"]", f.read(), re.M)

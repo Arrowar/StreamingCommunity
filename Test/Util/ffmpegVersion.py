@@ -1,11 +1,10 @@
-# 05.02.25
-
-# Fix import
-import sys
 import os
+import sys
+
+
+# Fix path
 src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 sys.path.append(src_path)
-
 
 
 from StreamingCommunity.Util.ffmpeg_installer import FFMPEGDownloader

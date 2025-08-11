@@ -33,7 +33,7 @@ class M3U8_UrlFix:
         Returns:
             str: The full URL for the specified resource.
         """
-        if self.url_playlist == None:
+        if self.url_playlist is None:
             logging.error("[M3U8_UrlFix] Cant generate full url, playlist not present")
             raise
 

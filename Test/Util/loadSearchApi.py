@@ -1,15 +1,15 @@
-# 22.03.25
 
-# Fix import
-import sys
 import os
+import sys
+import unittest
+import logging
+
+
+# Fix path
 src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 sys.path.append(src_path)
 
 
-# Import
-import unittest
-import logging
 from StreamingCommunity.global_search import load_search_functions
 
 class TestLoadSearchFunctions(unittest.TestCase):

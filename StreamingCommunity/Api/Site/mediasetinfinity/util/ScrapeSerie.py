@@ -1,11 +1,12 @@
 # 16.03.25
 
-import re
+
 import logging
+from urllib.parse import urlparse
 
 
 # External libraries
-import httpx
+from curl_cffi import requests
 from bs4 import BeautifulSoup
 
 
@@ -16,7 +17,7 @@ from StreamingCommunity.Api.Player.Helper.Vixcloud.util import SeasonManager
 
 
 # Logic class
-from .get_license import get_bearer_token, get_playback_url
+from .get_license import get_bearer_token
 
 
 # Variable
@@ -34,197 +35,230 @@ class GetSerieInfo:
         self.headers = get_headers()
         self.url = url
         self.seasons_manager = SeasonManager()
-        self.subBrandId = None
-        self.id_media = None
-        self.current_url = None
+        self.serie_id = None
+        self.public_id = None
+        self.series_name = ""
+        self.stagioni_disponibili = []
 
-    def _extract_subbrand_id(self, soup):
-        """
-        Extract subBrandId from the chapter link in the main page.
-        Searches all <a> tags to see if one has 'capitoli_' in the href.
-        """
-        for a_tag in soup.find_all("a", href=True):
-            href = a_tag["href"]
+    def _extract_serie_id(self):
+        """Estrae l'ID della serie dall'URL di partenza"""
+        self.serie_id = f"SE{self.url.split('SE')[1]}"
+        print(f"Serie ID: {self.serie_id}")
+        return self.serie_id
 
-            if "capitoli_" in href:
-                match = re.search(r"sb(\d+)", href)
-                if match:
-                    return match.group(1)
-                match = re.search(r",sb(\d+)", href)
-                if match:
-                    return match.group(1)
-                
-        return None
+    def _get_public_id(self):
+        """Ottiene il public ID tramite l'API watchlist"""
+        bearer_token = get_bearer_token()
+        headers = {
+            'authorization': f'Bearer {bearer_token}',
+            'user-agent': get_userAgent(),
+        }
 
-    def _find_video_href_and_id(self, soup):
-        """
-        Search for the first <a> with href containing '/video/' and return (current_url, id_media).
-        Always builds the absolute URL.
-        """
-        for a_tag in soup.find_all("a", href=True):
-            href = a_tag["href"]
-            if "/video/" in href:
-                if href.startswith("http"):
-                    current_url = href
-                else:
-                    current_url = "https://mediasetinfinity.mediaset.it" + href
+        response = requests.get(
+            'https://api-ott-prod-fe.mediaset.net/PROD/play/userlist/watchlist/v2.0',
+            headers=headers,
+            impersonate="chrome",
+            allow_redirects=True
+        )
 
-                bearer = get_bearer_token()
-                playback_json = get_playback_url(bearer, current_url.split('_')[-1])
-                id_media = str(playback_json['url']).split("/s/")[1].split("/")[0]
+        if response.status_code == 401:
+            print("Token scaduto, rinnovare il token")
 
-                return current_url, id_media
-        return None, None
+        if response.status_code == 200:
+            data = response.json()
+            self.public_id = data['response']['entries'][0]['media'][0]['publicUrl'].split("/")[4]
+            print(f"Public id: {self.public_id}")
+            return self.public_id
+        
+        else:
+            logging.error(f"Failed to get public ID: {response.status_code}")
+            return None
 
-    def _parse_entries(self, entries, single_season=False):
-        """
-        Populate seasons and episodes from the JSON entries.
-        If single_season=True, creates only one season and adds all episodes there.
-        """
-        if not entries:
-            self.series_name = ""
+    def _get_series_data(self):
+        """Ottiene i dati della serie tramite l'API"""
+        headers = {
+            'User-Agent': get_userAgent(),
+        }
+        params = {'byGuid': self.serie_id}
+
+        response = requests.get(
+            f'https://feed.entertainment.tv.theplatform.eu/f/{self.public_id}/mediaset-prod-all-series-v2',
+            params=params,
+            headers=headers,
+            impersonate="chrome",
+            allow_redirects=True
+        )
+        print("Risposta per _get_series_data:", response.status_code)
+
+        if response.status_code == 200:
+            return response.json()
+        else:
+            logging.error(f"Failed to get series data: {response.status_code}")
+            return None
+
+    def _process_available_seasons(self, data):
+        """Processa le stagioni disponibili dai dati della serie"""
+        if not data or not data.get('entries'):
+            logging.error("No series data found")
+            return []
+
+        entry = data['entries'][0]
+        self.series_name = entry.get('title', '')
+        
+        seriesTvSeasons = entry.get('seriesTvSeasons', [])
+        availableTvSeasonIds = entry.get('availableTvSeasonIds', [])
+
+        stagioni_disponibili = []
+
+        for url in availableTvSeasonIds:
+            season = next((s for s in seriesTvSeasons if s['id'] == url), None)
+            if season:
+                stagioni_disponibili.append({
+                    'tvSeasonNumber': season['tvSeasonNumber'],
+                    'url': url,
+                    'id': str(url).split("/")[-1],
+                    'guid': season['guid']
+                })
+            else:
+                logging.warning(f"Season URL not found: {url}")
+
+        # Ordina le stagioni dalla più vecchia alla più nuova
+        stagioni_disponibili.sort(key=lambda s: s['tvSeasonNumber'])
+        
+        return stagioni_disponibili
+
+    def _build_season_page_urls(self, stagioni_disponibili):
+        """Costruisce gli URL delle pagine delle stagioni"""
+        parsed_url = urlparse(self.url)
+        base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
+        series_slug = parsed_url.path.strip('/').split('/')[-1].split('_')[0]
+
+        for season in stagioni_disponibili:
+            page_url = f"{base_url}/fiction/{series_slug}/{series_slug}{season['tvSeasonNumber']}_{self.serie_id},{season['guid']}"
+            season['page_url'] = page_url
+
+    def _extract_season_sb_ids(self, stagioni_disponibili):
+        """Estrae gli ID sb dalle pagine delle stagioni"""
+        for season in stagioni_disponibili:
+            response_page = requests.get(
+                season['page_url'],
+                headers={'User-Agent': get_userAgent()},
+                impersonate="chrome",
+                allow_redirects=True
+            )
+            print("Risposta per _extract_season_sb_ids:", response_page.status_code)
+
+            soup = BeautifulSoup(response_page.text, 'html.parser')
+            
+            # Prova prima con 'Episodi', poi con 'Puntate intere'
+            link = soup.find('a', string='Episodi')
+            if not link:
+                print("Using word: Puntate intere")
+                link = soup.find('a', string='Puntate intere')
+            
+            if link and link.has_attr('href'):
+                if not link.string == 'Puntate intere':
+                    print("Using word: Episodi")
+                season['sb'] = link['href'].split(',')[-1]
+            else:
+                logging.warning(f"Link 'Episodi' o 'Puntate intere' non trovato per stagione {season['tvSeasonNumber']}")
+
+    def _get_season_episodes(self, season):
+        """Ottiene gli episodi per una stagione specifica"""
+        if not season.get('sb'):
             return
 
-        self.series_name = entries[0].get("mediasetprogram$auditelBrandName", "")
-
-        if single_season:
-            logging.info("Single season mode enabled.")
-            season_num = 1
-            season_name = "Stagione 1"
-            current_season = self.seasons_manager.add_season({
-                'number': season_num,
-                'name': season_name
-            })
-
-            for idx, entry in enumerate(entries, 1):
-                title = entry.get("title", "")
-                video_page_url = entry.get("mediasetprogram$videoPageUrl", "")
-
-                if video_page_url.startswith("//"):
-                    episode_url = "https:" + video_page_url
-                else:
-                    episode_url = video_page_url
-                    
-                if current_season:
-                    current_season.episodes.add({
-                        'number': idx,
-                        'name': title,
-                        'url': episode_url,
-                        'duration': int(entry.get("mediasetprogram$duration", 0) / 60)
-                    })
-        else:
-            seasons_dict = {}
-
-            logging.info("Multi season mode")
-            for entry in entries:
-
-                # Use JSON fields directly instead of regex
-                season_num = entry.get("tvSeasonNumber")
-                ep_num = entry.get("tvSeasonEpisodeNumber")
-
-                # Extract numbers from title if season_num or ep_num are None
-                if season_num is None or ep_num is None:
-                    title = entry.get("title", "")
-
-                    # Find all numbers in the title
-                    numbers = [int(n) for n in re.findall(r"\d+", title)]
-                    if len(numbers) == 2:
-                        season_num, ep_num = numbers
-
-                    elif len(numbers) == 1:
-                        # If only one, use it as episode
-                        ep_num = numbers[0]
-
-                if season_num is None or ep_num is None:
-                    continue
-
-                season_name = entry.get("mediasetprogram$brandTitle") or f"Stagione {season_num}"
-
-                if season_num not in seasons_dict:
-                    current_season = self.seasons_manager.add_season({
-                        'number': season_num,
-                        'name': season_name
-                    })
-                    seasons_dict[season_num] = current_season
-
-                else:
-                    current_season = seasons_dict[season_num]
-
-                video_page_url = entry.get("mediasetprogram$videoPageUrl", "")
-                if video_page_url.startswith("//"):
-                    episode_url = "https:" + video_page_url
-                else:
-                    episode_url = video_page_url
-
-                if current_season:
-                    current_season.episodes.add({
-                        'number': ep_num,
-                        'name': entry.get("title", ""),
-                        'url': episode_url,
-                        'duration': entry.get("mediasetprogram$duration")
-                    })
-
-    def collect_season(self) -> None:
-        """
-        Retrieve all episodes for all seasons using the Mediaset Infinity API.
-        """
-        response = httpx.get(self.url, headers=self.headers, follow_redirects=True, timeout=max_timeout)
-        soup = BeautifulSoup(response.text, "html.parser")
-
-        # Find current_url and id_media from the first <a> with /video/
-        self.current_url, found_id_media = self._find_video_href_and_id(soup)
-        if found_id_media:
-            self.id_media = found_id_media
-
-        self.subBrandId = self._extract_subbrand_id(soup)
-        single_season = False
-        if self.subBrandId is None:
-            episodi_link = None
-            for h2_tag in soup.find_all("h2", class_=True):
-                a_tag = h2_tag.find("a", href=True)
-                if a_tag and "/episodi_" in a_tag["href"]:
-                    episodi_link = a_tag["href"]
-                    break
-
-            if episodi_link:
-                match = re.search(r"sb(\d+)", episodi_link)
-                if match:
-                    self.subBrandId = match.group(1)
-
-                single_season = True
-
-            else:
-                puntate_link = None
-                for a_tag in soup.find_all("a", href=True):
-                    href = a_tag["href"]
-                    if "puntateintere" in href and "sb" in href:
-                        puntate_link = href
-                        break
-
-                if puntate_link:
-                    match = re.search(r"sb(\d+)", puntate_link)
-                    if match:
-                        self.subBrandId = match.group(1)
-
-                    single_season = True
-                else:
-                    print("No /episodi_ or puntateintere link found.")
-
-        # Step 2: JSON request
+        episode_headers = {
+            'origin': 'https://mediasetinfinity.mediaset.it',
+            'referer': 'https://mediasetinfinity.mediaset.it/',
+            'user-agent': get_userAgent(),
+        }
         params = {
-            'byCustomValue': "{subBrandId}{" + str(self.subBrandId) + "}",
+            'byCustomValue': "{subBrandId}{" + str(season["sb"].replace('sb', '')) + "}",
             'sort': ':publishInfo_lastPublished|asc,tvSeasonEpisodeNumber|asc',
             'range': '0-100',
         }
+        episode_url = f"https://feed.entertainment.tv.theplatform.eu/f/{self.public_id}/mediaset-prod-all-programs-v2"
 
-        json_url = f'https://feed.entertainment.tv.theplatform.eu/f/{self.id_media}/mediaset-prod-all-programs-v2'
-        json_resp = httpx.get(json_url, headers={'user-agent': get_userAgent()}, params=params, timeout=max_timeout, follow_redirects=True)
+        episode_response = requests.get(episode_url, headers=episode_headers, params=params, impersonate="chrome"
+                    , allow_redirects=True)
+        print("Risposta per _get_season_episodes:", episode_response.status_code)
+        
+        if episode_response.status_code == 200:
+            episode_data = episode_response.json()
+            season['episodes'] = []
+            
+            for entry in episode_data.get('entries', []):
+                episode_info = {
+                    'id': entry.get('guid'),
+                    'title': entry.get('title'),
+                    'duration': int(entry.get('mediasetprogram$duration', 0) / 60) if entry.get('mediasetprogram$duration') else 0,
+                    'url': entry.get('media', [{}])[0].get('publicUrl') if entry.get('media') else None
+                }
+                season['episodes'].append(episode_info)
+            
+            print(f"Found {len(season['episodes'])} episodes for season {season['tvSeasonNumber']}")
+        else:
+            logging.error(f"Failed to get episodes for season {season['tvSeasonNumber']}: {episode_response.status_code}")
 
-        data = json_resp.json()
-        entries = data.get("entries", [])
+    def collect_season(self) -> None:
+        """
+        Retrieve all episodes for all seasons using the new Mediaset Infinity API.
+        """
+        try:
+            # Step 1: Extract serie ID from URL
+            self._extract_serie_id()
+            
+            # Step 2: Get public ID
+            if not self._get_public_id():
+                logging.error("Failed to get public ID")
+                return
+                
+            # Step 3: Get series data
+            data = self._get_series_data()
+            if not data:
+                logging.error("Failed to get series data")
+                return
+                
+            # Step 4: Process available seasons
+            self.stagioni_disponibili = self._process_available_seasons(data)
+            if not self.stagioni_disponibili:
+                logging.error("No seasons found")
+                return
+                
+            # Step 5: Build season page URLs
+            self._build_season_page_urls(self.stagioni_disponibili)
+            
+            # Step 6: Extract sb IDs from season pages
+            self._extract_season_sb_ids(self.stagioni_disponibili)
+            
+            # Step 7: Get episodes for each season
+            for season in self.stagioni_disponibili:
+                self._get_season_episodes(season)
+                
+            # Step 8: Populate seasons manager
+            self._populate_seasons_manager()
+            
+        except Exception as e:
+            logging.error(f"Error in collect_season: {str(e)}")
 
-        # Use the unified parsing function
-        self._parse_entries(entries, single_season=single_season)
+    def _populate_seasons_manager(self):
+        """Popola il seasons_manager con i dati raccolti"""
+        for season_data in self.stagioni_disponibili:
+            season_obj = self.seasons_manager.add_season({
+                'number': season_data['tvSeasonNumber'],
+                'name': f"Stagione {season_data['tvSeasonNumber']}"
+            })
+            
+            if season_obj and season_data.get('episodes'):
+                for idx, episode in enumerate(season_data['episodes'], 1):
+                    season_obj.episodes.add({
+                        'id': episode['id'],
+                        'number': idx,
+                        'name': episode['title'],
+                        'url': episode['url'],
+                        'duration': episode['duration']
+                    })
 
     # ------------- FOR GUI -------------
     def getNumberSeason(self) -> int:

@@ -76,7 +76,7 @@ def get_video_duration(file_path: str) -> float:
             try:
                 return float(probe_result['format']['duration'])
             
-            except:
+            except Exception:
                 return 1
 
     except Exception as e:

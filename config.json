@@ -9,11 +9,9 @@
         "http_api_provider_timeout": 20,
         "clean_console": true,
         "show_trending": true,
-        "use_api": true,
-        "not_close": false,
+        "fetch_domain_online": true,
         "telegram_bot": false,
-        "download_site_data": true,
-        "validate_github_config": true,
+        "validate_github_config": false,
         "bypass_dns": false
     },
     "OUT_FOLDER": {
@@ -65,6 +63,9 @@
         "crunchyroll": {
             "etp_rt": "",
             "x_cr_tab_id": ""
+        },
+        "mediasetinfinity": {
+            "beToken": ""
         }
     }
 }

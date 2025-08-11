@@ -65,16 +65,18 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
     master_playlist = video_source.get_m3u8_url(obj_episode.url)
 
     # Download the episode
-    r_proc = HLS_Downloader(
+    hls_process = HLS_Downloader(
         m3u8_url=master_playlist,
         output_path=os.path.join(mp4_path, mp4_name)
     ).start()
 
-    if r_proc['error'] is not None:
-        try: os.remove(r_proc['path'])
-        except: pass
+    if hls_process['error'] is not None:
+        try: 
+            os.remove(hls_process['path'])
+        except Exception: 
+            pass
 
-    return r_proc['path'], r_proc['stopped']
+    return hls_process['path'], hls_process['stopped']
     
 
 def download_episode(index_season_selected: int, scrape_serie: GetSerieInfo, download_all: bool = False, episode_selection: str = None) -> None:

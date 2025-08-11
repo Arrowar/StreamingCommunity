@@ -1,5 +1,7 @@
 # 16.03.25
 
+import os
+
 
 # External libraries
 from curl_cffi import requests
@@ -8,6 +10,7 @@ from rich.console import Console
 
 # Internal utilities
 from StreamingCommunity.Util.config_json import config_manager
+from StreamingCommunity.Util.os import get_wvd_path
 from StreamingCommunity.Util.headers import get_headers
 from StreamingCommunity.Util.table import TVShowManager
 
@@ -38,8 +41,14 @@ def title_search(query: str) -> int:
     media_search_manager.clear()
     table_show_manager.clear()
 
+    # Check CDM file before usage
+    cdm_device_path = get_wvd_path()
+    if not cdm_device_path or not isinstance(cdm_device_path, (str, bytes, os.PathLike)) or not os.path.isfile(cdm_device_path):
+        console.print(f"[bold red] CDM file not found or invalid path: {cdm_device_path}[/bold red]")
+        return None
+
     # Build new Crunchyroll API search URL
-    api_url = f"https://www.crunchyroll.com/content/v2/discover/search"
+    api_url = "https://www.crunchyroll.com/content/v2/discover/search"
 
     params = {
         "q": query,

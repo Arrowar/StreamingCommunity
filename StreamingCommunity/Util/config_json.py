@@ -18,8 +18,6 @@ from StreamingCommunity.Util.headers import get_userAgent
 
 # Variable
 console = Console()
-download_site_data = True
-validate_github_config = True
 
 
 class ConfigManager:
@@ -54,8 +52,7 @@ class ConfigManager:
         self.configSite = {}
         self.cache = {}
 
-        self.use_api = False
-        self.download_site_data = False
+        self.fetch_domain_online = True
         self.validate_github_config = False
         
         console.print(f"[bold cyan]Initializing ConfigManager:[/bold cyan] [green]{self.file_path}[/green]")
@@ -67,7 +64,7 @@ class ConfigManager:
         """Load the configuration and initialize all settings."""
         if not os.path.exists(self.file_path):
             console.print(f"[bold red]WARNING: Configuration file not found:[/bold red] {self.file_path}")
-            console.print(f"[bold yellow]Attempting to download from reference repository...[/bold yellow]")
+            console.print("[bold yellow]Attempting to download from reference repository...[/bold yellow]")
             self._download_reference_config()
         
         # Load the configuration file
@@ -85,11 +82,8 @@ class ConfigManager:
             else:
                 console.print("[bold yellow]GitHub validation disabled[/bold yellow]")
                 
-            # Load site data if requested
-            if self.download_site_data:
-                self._load_site_data()
-            else:
-                console.print("[bold yellow]Site data download disabled[/bold yellow]")
+            # Load site data based on fetch_domain_online setting
+            self._load_site_data()
                 
         except json.JSONDecodeError as e:
             console.print(f"[bold red]Error parsing JSON:[/bold red] {str(e)}")
@@ -119,18 +113,11 @@ class ConfigManager:
         """Update internal settings from loaded configurations."""
         default_section = self.config.get('DEFAULT', {})
         
-        # Save local values in temporary variables
-        temp_use_api = default_section.get('use_api', False)
-        temp_download_site_data = default_section.get('download_site_data', False)
-        temp_validate_github_config = default_section.get('validate_github_config', False)
+        # Get fetch_domain_online setting (True by default)
+        self.fetch_domain_online = default_section.get('fetch_domain_online', True)
+        self.validate_github_config = default_section.get('validate_github_config', False)
         
-        # Update settings with found values (False by default)
-        self.use_api = temp_use_api
-        self.download_site_data = temp_download_site_data
-        self.validate_github_config = temp_validate_github_config
-        
-        console.print(f"[bold cyan]API Usage:[/bold cyan] [{'green' if self.use_api else 'yellow'}]{self.use_api}[/{'green' if self.use_api else 'yellow'}]")
-        console.print(f"[bold cyan]Site data download:[/bold cyan] [{'green' if self.download_site_data else 'yellow'}]{self.download_site_data}[/{'green' if self.download_site_data else 'yellow'}]")
+        console.print(f"[bold cyan]Fetch domains online:[/bold cyan] [{'green' if self.fetch_domain_online else 'yellow'}]{self.fetch_domain_online}[/{'green' if self.fetch_domain_online else 'yellow'}]")
         console.print(f"[bold cyan]GitHub configuration validation:[/bold cyan] [{'green' if self.validate_github_config else 'yellow'}]{self.validate_github_config}[/{'green' if self.validate_github_config else 'yellow'}]")
     
     def _download_reference_config(self) -> None:
@@ -159,7 +146,7 @@ class ConfigManager:
         """Validate the local configuration against the reference one and update missing keys."""
         try:
             # Download the reference configuration
-            console.print(f"[bold cyan]Validating configuration with GitHub...[/bold cyan]")
+            console.print("[bold cyan]Validating configuration with GitHub...[/bold cyan]")
             response = requests.get(self.reference_config_url, timeout=8, headers={'User-Agent': get_userAgent()})
             
             if not response.ok:
@@ -242,11 +229,9 @@ class ConfigManager:
                     # Make sure control keys maintain local values
                     merged_section = self._deep_merge_configs(merged[key], value)
                     
-                    # Preserve local values for the three critical settings
-                    if 'use_api' in merged[key]:
-                        merged_section['use_api'] = merged[key]['use_api']
-                    if 'download_site_data' in merged[key]:
-                        merged_section['download_site_data'] = merged[key]['download_site_data']
+                    # Preserve local values for critical settings
+                    if 'fetch_domain_online' in merged[key]:
+                        merged_section['fetch_domain_online'] = merged[key]['fetch_domain_online']
                     if 'validate_github_config' in merged[key]:
                         merged_section['validate_github_config'] = merged[key]['validate_github_config']
                     
@@ -259,28 +244,31 @@ class ConfigManager:
         return merged
     
     def _load_site_data(self) -> None:
-        """Load site data from API or local file."""
-        if self.use_api:
-            self._load_site_data_from_api()
+        """Load site data based on fetch_domain_online setting."""
+        if self.fetch_domain_online:
+            self._load_site_data_online()
         else:
             self._load_site_data_from_file()
     
-    def _load_site_data_from_api(self) -> None:
-        """Load site data from GitHub."""
+    def _load_site_data_online(self) -> None:
+        """Load site data from GitHub and update local domains.json file."""
         domains_github_url = "https://raw.githubusercontent.com/Arrowar/StreamingCommunity/refs/heads/main/.github/.domain/domains.json"
         headers = {
             "User-Agent": get_userAgent()
         }
         
         try:
-            console.print("[bold cyan]Retrieving site data from GitHub:[/bold cyan]")
+            console.print("[bold cyan]Fetching domains from GitHub:[/bold cyan]")
             response = requests.get(domains_github_url, timeout=8, headers=headers)
 
             if response.ok:
                 self.configSite = response.json()
                 
+                # Determine which file to save to
+                self._save_domains_to_appropriate_location()
+                
                 site_count = len(self.configSite) if isinstance(self.configSite, dict) else 0
-                console.print(f"[bold green]Site data loaded from GitHub:[/bold green] {site_count} streaming services found.")
+                console.print(f"[bold green]Domains loaded from GitHub:[/bold green] {site_count} streaming services found.")
                 
             else:
                 console.print(f"[bold red]GitHub request failed:[/bold red] HTTP {response.status_code}, {response.text[:100]}")
@@ -294,42 +282,129 @@ class ConfigManager:
             console.print(f"[bold red]GitHub connection error:[/bold red] {str(e)}")
             self._handle_site_data_fallback()
     
-    def _load_site_data_from_file(self) -> None:
-        """Load site data from local file."""
+    def _save_domains_to_appropriate_location(self) -> None:
+        """Save domains to the appropriate location based on existing files."""
+        if getattr(sys, 'frozen', False):
+            # If the application is frozen (e.g., PyInstaller)
+            base_path = os.path.dirname(sys.executable)
+        else:
+            # Use the current working directory where the script is executed
+            base_path = os.getcwd()
+            
+        # Check for GitHub structure first
+        github_domains_path = os.path.join(base_path, '.github', '.domain', 'domains.json')
+        
         try:
-            if os.path.exists(self.domains_path):
-                console.print(f"[bold cyan]Reading domains from:[/bold cyan] {self.domains_path}")
-                with open(self.domains_path, 'r') as f:
+            if os.path.exists(github_domains_path):
+
+                # Update existing GitHub structure file
+                with open(github_domains_path, 'w', encoding='utf-8') as f:
+                    json.dump(self.configSite, f, indent=4, ensure_ascii=False)
+                console.print(f"[bold green]Domains updated in GitHub structure:[/bold green] {github_domains_path}")
+                
+            elif not os.path.exists(self.domains_path):
+
+                # Save to root only if it doesn't exist and GitHub structure doesn't exist
+                with open(self.domains_path, 'w', encoding='utf-8') as f:
+                    json.dump(self.configSite, f, indent=4, ensure_ascii=False)
+                console.print(f"[bold green]Domains saved to:[/bold green] {self.domains_path}")
+                
+            else:
+
+                # Root file exists, don't overwrite it
+                console.print(f"[bold yellow]Local domains.json already exists, not overwriting:[/bold yellow] {self.domains_path}")
+                console.print("[bold yellow]Tip: Delete the file if you want to recreate it from GitHub[/bold yellow]")
+                
+        except Exception as save_error:
+            console.print(f"[bold yellow]Warning: Could not save domains to file:[/bold yellow] {str(save_error)}")
+
+            # Try to save to root as fallback only if it doesn't exist
+            if not os.path.exists(self.domains_path):
+                try:
+                    with open(self.domains_path, 'w', encoding='utf-8') as f:
+                        json.dump(self.configSite, f, indent=4, ensure_ascii=False)
+                    console.print(f"[bold green]Domains saved to fallback location:[/bold green] {self.domains_path}")
+                except Exception as fallback_error:
+                    console.print(f"[bold red]Failed to save to fallback location:[/bold red] {str(fallback_error)}")
+    
+    def _load_site_data_from_file(self) -> None:
+        """Load site data from local domains.json file."""
+        try:
+            # Determine the base path
+            if getattr(sys, 'frozen', False):
+
+                # If the application is frozen (e.g., PyInstaller)
+                base_path = os.path.dirname(sys.executable)
+            else:
+
+                # Use the current working directory where the script is executed
+                base_path = os.getcwd()
+            
+            # Check for GitHub structure first
+            github_domains_path = os.path.join(base_path, '.github', '.domain', 'domains.json')
+            
+            if os.path.exists(github_domains_path):
+                console.print(f"[bold cyan]Reading domains from GitHub structure:[/bold cyan] {github_domains_path}")
+                with open(github_domains_path, 'r', encoding='utf-8') as f:
                     self.configSite = json.load(f)
                 
                 site_count = len(self.configSite) if isinstance(self.configSite, dict) else 0
-                console.print(f"[bold green]Site data loaded from file:[/bold green] {site_count} streaming services")
+                console.print(f"[bold green]Domains loaded from GitHub structure:[/bold green] {site_count} streaming services")
+                
+            elif os.path.exists(self.domains_path):
+                console.print(f"[bold cyan]Reading domains from root:[/bold cyan] {self.domains_path}")
+                with open(self.domains_path, 'r', encoding='utf-8') as f:
+                    self.configSite = json.load(f)
+                
+                site_count = len(self.configSite) if isinstance(self.configSite, dict) else 0
+                console.print(f"[bold green]Domains loaded from root file:[/bold green] {site_count} streaming services")
 
             else:
-                error_msg = f"domains.json not found at {self.domains_path} and API usage is disabled"
+                error_msg = f"domains.json not found in GitHub structure ({github_domains_path}) or root ({self.domains_path}) and fetch_domain_online is disabled"
                 console.print(f"[bold red]Configuration error:[/bold red] {error_msg}")
-                self._handle_site_data_fallback()
+                console.print("[bold yellow]Tip: Set 'fetch_domain_online' to true to download domains from GitHub[/bold yellow]")
+                self.configSite = {}
         
         except Exception as e:
-            console.print(f"[bold red]Domain file error:[/bold red] {str(e)}")
-            self._handle_site_data_fallback()
+            console.print(f"[bold red]Local domain file error:[/bold red] {str(e)}")
+            self.configSite = {}
     
     def _handle_site_data_fallback(self) -> None:
         """Handle site data fallback in case of error."""
-        if self.use_api and os.path.exists(self.domains_path):
-            console.print("[bold yellow]Attempting fallback to local domains.json file...[/bold yellow]")
-
-            try:
-                with open(self.domains_path, 'r') as f:
-                    self.configSite = json.load(f)
-                console.print("[bold green]Fallback to local data successful[/bold green]")
-            except Exception as fallback_error:
-                console.print(f"[bold red]Fallback also failed:[/bold red] {str(fallback_error)}")
-                self.configSite = {}
+        # Determine the base path
+        if getattr(sys, 'frozen', False):
+            
+            # If the application is frozen (e.g., PyInstaller)
+            base_path = os.path.dirname(sys.executable)
         else:
-
-            # Initialize with an empty dictionary if there are no alternatives
-            self.configSite = {}
+            # Use the current working directory where the script is executed
+            base_path = os.getcwd()
+        
+        # Check for GitHub structure first
+        github_domains_path = os.path.join(base_path, '.github', '.domain', 'domains.json')
+        
+        if os.path.exists(github_domains_path):
+            console.print("[bold yellow]Attempting fallback to GitHub structure domains.json file...[/bold yellow]")
+            try:
+                with open(github_domains_path, 'r', encoding='utf-8') as f:
+                    self.configSite = json.load(f)
+                console.print("[bold green]Fallback to GitHub structure successful[/bold green]")
+                return
+            except Exception as fallback_error:
+                console.print(f"[bold red]GitHub structure fallback failed:[/bold red] {str(fallback_error)}")
+        
+        if os.path.exists(self.domains_path):
+            console.print("[bold yellow]Attempting fallback to root domains.json file...[/bold yellow]")
+            try:
+                with open(self.domains_path, 'r', encoding='utf-8') as f:
+                    self.configSite = json.load(f)
+                console.print("[bold green]Fallback to root domains successful[/bold green]")
+                return
+            except Exception as fallback_error:
+                console.print(f"[bold red]Root domains fallback failed:[/bold red] {str(fallback_error)}")
+        
+        console.print("[bold red]No local domains.json file available for fallback[/bold red]")
+        self.configSite = {}
     
     def download_file(self, url: str, filename: str) -> None:
         """
@@ -412,23 +487,28 @@ class ConfigManager:
             Any: Converted value
         """
         try:
-            if data_type == int:
+            if data_type is int:
                 return int(value)
-            elif data_type == float:
+            
+            elif data_type is float:
                 return float(value)
-            elif data_type == bool:
+            
+            elif data_type is bool:
                 if isinstance(value, str):
                     return value.lower() in ("yes", "true", "t", "1")
                 return bool(value)
-            elif data_type == list:
+            
+            elif data_type is list:
                 if isinstance(value, list):
                     return value
                 if isinstance(value, str):
                     return [item.strip() for item in value.split(',')]
                 return [value]
-            elif data_type == dict:
+
+            elif data_type is dict:
                 if isinstance(value, dict):
                     return value
+                
                 raise ValueError(f"Cannot convert {type(value).__name__} to dict")
             else:
                 return value

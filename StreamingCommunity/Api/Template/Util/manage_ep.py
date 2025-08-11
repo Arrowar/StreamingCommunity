@@ -149,20 +149,20 @@ def map_episode_title(tv_name: str, number_season: int, episode_number: int, epi
     """
     map_episode_temp = MAP_EPISODE
     
-    if tv_name != None:
+    if tv_name is not None:
         map_episode_temp = map_episode_temp.replace("%(tv_name)", os_manager.get_sanitize_file(tv_name))
 
-    if number_season != None:
+    if number_season is not None:
         map_episode_temp = map_episode_temp.replace("%(season)", str(number_season))
     else:
         map_episode_temp = map_episode_temp.replace("%(season)", dynamic_format_number(str(0)))
 
-    if episode_number != None:
+    if episode_number is not None:
         map_episode_temp = map_episode_temp.replace("%(episode)", dynamic_format_number(str(episode_number)))
     else:
         map_episode_temp = map_episode_temp.replace("%(episode)", dynamic_format_number(str(0)))
 
-    if episode_name != None:
+    if episode_name is not None:
         map_episode_temp = map_episode_temp.replace("%(episode_name)", os_manager.get_sanitize_file(episode_name))
 
     logging.info(f"Map episode string return: {map_episode_temp}")

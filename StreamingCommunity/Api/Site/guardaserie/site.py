@@ -1,8 +1,5 @@
 # 09.06.24
 
-import sys
-
-
 # External libraries
 import httpx
 from bs4 import BeautifulSoup

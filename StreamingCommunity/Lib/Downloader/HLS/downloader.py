@@ -18,6 +18,7 @@ from rich.panel import Panel
 # Internal utilities
 from StreamingCommunity.Util.config_json import config_manager
 from StreamingCommunity.Util.headers import get_userAgent
+from StreamingCommunity.Util.http_client import create_client
 from StreamingCommunity.Util.os import os_manager, internet_manager
 from StreamingCommunity.TelegramHelp.telegram_bot import get_bot_instance
 
@@ -64,7 +65,8 @@ class HLSClient:
         Returns:
             Response content/text or None if all retries fail
         """
-        client = httpx.Client(headers=self.headers, timeout=MAX_TIMEOUT, follow_redirects=True)
+        # Use unified HTTP client (inherits timeout/verify/proxy from config)
+        client = create_client(headers=self.headers)
 
         for attempt in range(RETRY_LIMIT):
             try:
@@ -450,7 +452,7 @@ class HLS_Downloader:
                 - is_master: Whether the M3U8 was a master playlist
             Or raises an exception if there's an error
         """
-        console.print(f"[cyan]You can safely stop the download with [bold]Ctrl+c[bold] [cyan] \n")
+        console.print("[cyan]You can safely stop the download with [bold]Ctrl+c[bold] [cyan] \n")
         
         if TELEGRAM_BOT:
             bot = get_bot_instance()
@@ -467,7 +469,7 @@ class HLS_Downloader:
                     'stopped': False
                 }
                 if TELEGRAM_BOT:
-                    bot.send_message(f"Contenuto già scaricato!", None)
+                    bot.send_message("Contenuto già scaricato!", None)
                 return response
         
             self.path_manager.setup_directories()

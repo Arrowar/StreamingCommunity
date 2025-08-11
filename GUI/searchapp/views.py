@@ -95,8 +95,12 @@ def _run_download_in_thread(
         try:
             search_fn = _load_site_search(site)
             selections = None
-            if season or episode:
-                selections = {"season": season or None, "episode": episode or None}
+            # Per animeunity consideriamo solo gli episodi
+            if site == "animeunity":
+                selections = {"episode": episode or None} if episode else None
+            else:
+                if season or episode:
+                    selections = {"season": season or None, "episode": episode or None}
             search_fn(direct_item=item_payload, selections=selections)
         except Exception:
             return
@@ -136,9 +140,11 @@ def start_download(request: HttpRequest) -> HttpResponse:
     _run_download_in_thread(site, item_payload, season, episode)
 
     # Messaggio di successo con dettagli
-    season_info = f" (Stagione {season}" if season else ""
+    season_info = ""
+    if site != "animeunity" and season:
+        season_info = f" (Stagione {season}"
     episode_info = f", Episodi {episode}" if episode else ""
-    season_info += ")" if season_info and episode_info else ")" if season_info else ""
+    season_info += ")" if season_info and not episode_info == "" else ""
 
     messages.success(
         request,

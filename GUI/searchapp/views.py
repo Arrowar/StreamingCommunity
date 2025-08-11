@@ -161,6 +161,12 @@ def start_download(request: HttpRequest) -> HttpResponse:
     season = form.cleaned_data.get("season") or None
     episode = form.cleaned_data.get("episode") or None
 
+    # Normalizza spazi
+    if season:
+        season = str(season).strip() or None
+    if episode:
+        episode = str(episode).strip() or None
+
     try:
         item_payload = json.loads(item_payload_raw)
     except Exception:
@@ -168,7 +174,7 @@ def start_download(request: HttpRequest) -> HttpResponse:
         return redirect("search_home")
 
     # source_alias is like 'streamingcommunity' or 'animeunity'
-    site = source_alias.split("_")[0]
+    site = source_alias.split("_")[0].lower()
 
     # Estrai titolo per il messaggio
     title = (
@@ -177,6 +183,10 @@ def start_download(request: HttpRequest) -> HttpResponse:
         or item_payload.get("name")
         or "contenuto selezionato"
     )
+
+    # Per animeunity, se non specificato, scarica tutti gli episodi evitando prompt
+    if site == "animeunity" and not episode:
+        episode = "*"
 
     _run_download_in_thread(site, item_payload, season, episode)
 

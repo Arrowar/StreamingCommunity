@@ -1,7 +1,8 @@
 import threading
 import importlib
 import json
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
+from datetime import datetime
 
 from django.shortcuts import render, redirect
 from django.http import HttpRequest, HttpResponse
@@ -74,6 +75,67 @@ def _search_results_to_list(
         )
         item_dict["source"] = source_alias.capitalize()
         item_dict["source_alias"] = source_alias
+
+        # Data di uscita (prova diversi campi comuni; visualizza preferibilmente l'anno)
+        release_raw = (
+            item_dict.get("release_date")
+            or item_dict.get("first_air_date")
+            or item_dict.get("air_date")
+            or item_dict.get("date")
+            or item_dict.get("publish_date")
+            or item_dict.get("publishedAt")
+        )
+        release_year = (
+            item_dict.get("year")
+            or item_dict.get("release_year")
+            or item_dict.get("start_year")
+        )
+        display_release = None
+        if release_raw:
+            # Prova parsing in vari formati comuni
+            parsed_date = None
+            for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%Y/%m/%d", "%d-%m-%Y", "%Y"):
+                try:
+                    parsed_date = datetime.strptime(str(release_raw)[:10], fmt)
+                    break
+                except Exception:
+                    continue
+            if parsed_date:
+                display_release = str(parsed_date.year)
+            else:
+                # Fallback: prova a estrarre l'anno da una stringa tipo 2021-...
+                try:
+                    year_guess = int(str(release_raw)[:4])
+                    display_release = str(year_guess)
+                except Exception:
+                    display_release = str(release_raw)
+        elif release_year:
+            display_release = str(release_year)
+        item_dict["display_release"] = display_release
+
+        # Immagine di sfondo (usa il primo campo disponibile)
+        bg_image_url = (
+            item_dict.get("poster")
+            or item_dict.get("poster_url")
+            or item_dict.get("image")
+            or item_dict.get("image_url")
+            or item_dict.get("cover")
+            or item_dict.get("cover_url")
+            or item_dict.get("thumbnail")
+            or item_dict.get("thumb")
+            or item_dict.get("backdrop")
+            or item_dict.get("backdrop_url")
+        )
+        if isinstance(bg_image_url, dict):
+            # Alcune API possono restituire un oggetto con varie dimensioni
+            # Prova chiavi comuni
+            bg_image_url = (
+                bg_image_url.get("url")
+                or bg_image_url.get("large")
+                or bg_image_url.get("medium")
+                or bg_image_url.get("small")
+            )
+        item_dict["bg_image_url"] = bg_image_url
         try:
             item_dict["payload_json"] = json.dumps(item_dict)
         except Exception:
@@ -125,7 +187,7 @@ def search(request: HttpRequest) -> HttpResponse:
 
 
 def _run_download_in_thread(
-    site: str, item_payload: Dict[str, Any], season: str | None, episode: str | None
+    site: str, item_payload: Dict[str, Any], season: Optional[str], episode: Optional[str]
 ) -> None:
     def _task():
         try:

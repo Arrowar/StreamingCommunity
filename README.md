@@ -627,8 +627,7 @@ Note: Requires updated drivers and FFmpeg with hardware acceleration support.
 ```json
 {
     "M3U8_PARSER": {
-        "force_resolution": "Best",
-        "get_only_link": false
+        "force_resolution": "Best"
     }
 }
 ```
@@ -648,8 +647,6 @@ Note: Requires updated drivers and FFmpeg with hardware acceleration support.
     - 240p (320x240)
     - 144p (256x144)
 
-#### Link Options
-- `get_only_link`: Return M3U8 playlist/index URL instead of downloading
 </details>
 
 > [!IMPORTANT]

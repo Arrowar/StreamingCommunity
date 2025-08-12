@@ -43,9 +43,7 @@
         "use_acodec": true,
         "use_bitrate": true,
         "use_gpu": false,
-        "default_preset": "ultrafast"
-    },
-    "M3U8_PARSER": {
+        "default_preset": "ultrafast",
         "force_resolution": "Best"
     },
     "REQUESTS": {

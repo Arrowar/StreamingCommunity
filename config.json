@@ -10,8 +10,8 @@
         "clean_console": true,
         "show_trending": true,
         "fetch_domain_online": true,
-        "telegram_bot": false,
         "validate_github_config": false,
+        "telegram_bot": false,
         "bypass_dns": false
     },
     "OUT_FOLDER": {
@@ -49,9 +49,7 @@
         "use_acodec": true,
         "use_bitrate": true,
         "use_gpu": false,
-        "default_preset": "ultrafast"
-    },
-    "M3U8_PARSER": {
+        "default_preset": "ultrafast",
         "force_resolution": "Best"
     },
     "REQUESTS": {

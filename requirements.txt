@@ -1,4 +1,4 @@
-﻿httpx
+httpx
 bs4
 rich
 tqdm

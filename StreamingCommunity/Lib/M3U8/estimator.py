@@ -121,12 +121,6 @@ class M3U8_Ts_Estimator:
             number_file_total_size = file_total_size.split(' ')[0]
             units_file_total_size = file_total_size.split(' ')[1]
             
-            # Reduce lock contention by acquiring data with minimal synchronization
-            retry_count = 0
-            if self.segments_instance:
-                with self.segments_instance.active_retries_lock:
-                    retry_count = self.segments_instance.active_retries
-            
             # Get speed data outside of any locks
             speed_data = ["N/A", ""]
             with self.lock:
@@ -138,7 +132,6 @@ class M3U8_Ts_Estimator:
             average_internet_speed = speed_data[0] if len(speed_data) >= 1 else "N/A"
             average_internet_unit = speed_data[1] if len(speed_data) >= 2 else ""
             
-            logging.info(f"Estimatore retry:  {retry_count}")
             progress_str = (
                 f"{Colors.GREEN}{number_file_total_size} {Colors.RED}{units_file_total_size}"
                 f"{Colors.WHITE}, {Colors.CYAN}{average_internet_speed} {Colors.RED}{average_internet_unit} "

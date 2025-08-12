@@ -199,7 +199,6 @@ class M3U8_Segments:
             print("Signal handler must be set in the main thread")
 
     def _get_http_client(self):
-        # Use unified client respecting global config (verify/timeout/proxy)
         return create_client(headers={'User-Agent': get_userAgent()}, follow_redirects=True)
                             
     def download_segment(self, ts_url: str, index: int, progress_bar: tqdm, backoff_factor: float = 1.1) -> None:
@@ -282,7 +281,8 @@ class M3U8_Segments:
                 with self.active_retries_lock:
                     self.active_retries += 1
                 
-                sleep_time = backoff_factor * (2 ** attempt)
+                #sleep_time = backoff_factor * (2 ** attempt)
+                sleep_time = backoff_factor * (attempt + 1)
                 logging.info(f"Retrying segment {index} in {sleep_time} seconds...")
                 time.sleep(sleep_time)
                 

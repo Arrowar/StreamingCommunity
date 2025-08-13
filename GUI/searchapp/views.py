@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional
 from datetime import datetime
 
 from django.shortcuts import render, redirect
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.contrib import messages
 
@@ -210,6 +210,117 @@ def _run_download_in_thread(
 
     threading.Thread(target=_task, daemon=True).start()
 
+
+@require_http_methods(["POST"])
+def series_metadata(request: HttpRequest) -> JsonResponse:
+    try:
+        # Expect either JSON body or standard form fields
+        if request.content_type and "application/json" in request.content_type:
+            body = json.loads(request.body.decode("utf-8"))
+            source_alias = body.get("source_alias") or body.get("site")
+            item_payload = body.get("item_payload") or {}
+        else:
+            source_alias = request.POST.get("source_alias") or request.POST.get("site")
+            item_payload_raw = request.POST.get("item_payload")
+            item_payload = json.loads(item_payload_raw) if item_payload_raw else {}
+
+        if not source_alias or not item_payload:
+            return JsonResponse({"error": "Parametri mancanti"}, status=400)
+
+        site = (source_alias.split("_")[0] if source_alias else "").lower()
+        media_type = (item_payload.get("type") or item_payload.get("media_type") or "").lower()
+
+        # Films: no seasons/episodes
+        if media_type in ("film", "movie"):
+            return JsonResponse({
+                "isSeries": False,
+                "seasonsCount": 0,
+                "episodesPerSeason": {}
+            })
+
+        # Guard rail: require id and slug where needed
+        media_id = item_payload.get("id")
+        slug = item_payload.get("slug") or item_payload.get("name")
+
+        if site == "streamingcommunity":
+            # Lazy import to avoid loading heavy package during tests unless needed
+            import importlib
+            try:
+                scrape_mod = importlib.import_module(
+                    "StreamingCommunity.Api.Site.streamingcommunity.util.ScrapeSerie"
+                )
+                GetSerieInfo = getattr(scrape_mod, "GetSerieInfo")
+            except Exception as imp_err:
+                return JsonResponse({"error": f"Import error: {imp_err}"}, status=500)
+
+            # Best-effort base_url
+            base_url = ""
+            try:
+                from StreamingCommunity.Util.config_json import config_manager
+                base_url = (config_manager.get_site("streamingcommunity", "full_url") or "").rstrip("/")
+            except Exception:
+                base_url = ""
+
+            scraper = GetSerieInfo(url=base_url, media_id=media_id, series_name=slug)
+            seasons_count = scraper.getNumberSeason()
+            episodes_per_season: Dict[int, int] = {}
+            for season_number in range(1, (seasons_count or 0) + 1):
+                try:
+                    episodes = scraper.getEpisodeSeasons(season_number)
+                    episodes_per_season[season_number] = len(episodes or [])
+                except Exception:
+                    episodes_per_season[season_number] = 0
+
+            return JsonResponse({
+                "isSeries": True,
+                "seasonsCount": seasons_count or 0,
+                "episodesPerSeason": episodes_per_season,
+            })
+
+        if site == "animeunity":
+            import importlib
+            try:
+                scrape_mod = importlib.import_module(
+                    "StreamingCommunity.Api.Site.animeunity.util.ScrapeSerie"
+                )
+                ScrapeSerieAnime = getattr(scrape_mod, "ScrapeSerieAnime")
+            except Exception as imp_err:
+                return JsonResponse({"error": f"Import error: {imp_err}"}, status=500)
+
+            # Best-effort base_url
+            base_url = ""
+            try:
+                from StreamingCommunity.Util.config_json import config_manager
+                base_url = (config_manager.get_site("animeunity", "full_url") or "").rstrip("/")
+            except Exception:
+                base_url = ""
+
+            scraper = ScrapeSerieAnime(url=base_url)
+            # Optional fields
+            try:
+                scraper.setup(series_name=slug, media_id=media_id)
+            except Exception:
+                pass
+
+            try:
+                episodes_count = scraper.get_count_episodes()
+            except Exception:
+                episodes_count = None
+
+            return JsonResponse({
+                "isSeries": True,
+                "seasonsCount": 1,
+                "episodesPerSeason": {1: (episodes_count or 0)}
+            })
+
+        # Default: unknown site treated as no metadata
+        return JsonResponse({
+            "isSeries": False,
+            "seasonsCount": 0,
+            "episodesPerSeason": {}
+        })
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
 
 @require_http_methods(["POST"])
 def start_download(request: HttpRequest) -> HttpResponse:

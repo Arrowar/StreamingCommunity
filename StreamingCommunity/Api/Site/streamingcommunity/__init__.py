@@ -2,6 +2,7 @@
 
 import sys
 import subprocess
+from urllib.parse import quote_plus
 
 
 # External library
@@ -14,13 +15,13 @@ from StreamingCommunity.Api.Template import get_select_title
 from StreamingCommunity.Api.Template.config_loader import site_constant
 from StreamingCommunity.Api.Template.Class.SearchType import MediaItem
 from StreamingCommunity.TelegramHelp.telegram_bot import get_bot_instance
-
+from StreamingCommunity.Api.http_api import expose_api
 
 # Logic class
 from .site import title_search, table_show_manager, media_search_manager
 from .film import download_film
 from .series import download_series
-
+from .util.ScrapeSerie import GetSerieInfo
 
 # Variable
 indice = 0
@@ -125,7 +126,7 @@ def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_
     actual_search_query = get_user_input(string_to_search)
 
     # Handle cases where user input is empty, or 'back' was handled (sys.exit or None return)
-    if not actual_search_query: 
+    if not actual_search_query:
         if bot:
              if actual_search_query is None: # Specifically for timeout from bot.ask or failed restart
                 bot.send_message("Search term not provided or operation cancelled. Returning.", None)
@@ -136,7 +137,7 @@ def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_
 
     # If only the database object (media_search_manager populated by title_search) is needed
     if get_onlyDatabase:
-        return media_search_manager 
+        return media_search_manager
     
     if len_database > 0:
         select_title = get_select_title(table_show_manager, media_search_manager, len_database)
@@ -152,3 +153,40 @@ def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_
         # Do not call search() recursively here to avoid infinite loops on no results.
         # The flow should return to the caller (e.g., main menu in run.py).
         return
+
+
+@expose_api('get_serie_info')
+def get_serie_info(direct_item: dict = None):
+
+    """
+    Return a list of seasons with their episode counts.
+
+    Parameters:
+        direct_item (dict): Result of a series search (e.g., contains at least 'id' and 'slug').
+
+    Returns:
+        list[dict]: A list of objects like:
+            {
+                "season": int,            # season number (1-based)
+                "episodes_count": int     # number of episodes in that season
+            }
+    """
+    if direct_item:
+        select_title_obj = MediaItem(**direct_item)
+        scrape_serie = GetSerieInfo(
+            f"{site_constant.FULL_URL}/it",
+            select_title_obj.id,
+            select_title_obj.slug
+        )
+
+        scrape_serie.getNumberSeason()
+        seasons_count = len(scrape_serie.seasons_manager)
+
+        # Lista che conterrà le info per il JSON
+        data = []
+        for season_number in range(0, seasons_count):
+            episodes = scrape_serie.getEpisodeSeasons(season_number)
+            data.append({"season": season_number, "episodes_count": len(episodes)})
+
+        # risposta API
+        return data

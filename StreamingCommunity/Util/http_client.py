@@ -1,16 +1,4 @@
 # 09.08.25
-
-"""
-Unified HTTP client utilities.
-
-Provides sync/async helpers that read defaults from configuration and apply:
-- common headers (User-Agent)
-- timeout, TLS verify, proxy support
-- retry with exponential backoff and jitter
-
-All comments are in English per project conventions.
-"""
-
 from __future__ import annotations
 
 import time

@@ -10,6 +10,7 @@ import argparse
 import importlib
 import threading
 import asyncio
+import subprocess
 from urllib.parse import urlparse
 from typing import Callable, Dict, Tuple
 
@@ -23,7 +24,7 @@ from rich.prompt import Prompt
 from .global_search import global_search
 from StreamingCommunity.Util.message import start_message
 from StreamingCommunity.Util.config_json import config_manager
-from StreamingCommunity.Util.os import os_summary, internet_manager
+from StreamingCommunity.Util.os import os_summary, internet_manager, os_manager
 from StreamingCommunity.Util.logger import Logger
 from StreamingCommunity.Lib.TMBD import tmdb
 from StreamingCommunity.Upload.update import update as git_update
@@ -119,6 +120,166 @@ def initialize():
         git_update()
     except Exception as e:
         console.log(f"[red]Error with loading github: {str(e)}")
+
+
+def _expand_user_path(path: str) -> str:
+    """Expand '~' and environment variables and normalize the path."""
+    if not path:
+        return path
+    return os.path.normpath(os.path.expandvars(os.path.expanduser(path)))
+
+
+def _should_run_on_current_os(hook: dict) -> bool:
+    """Check if a hook is allowed on current OS."""
+    allowed_systems = hook.get('os')
+    if not allowed_systems:
+        return True
+    try:
+        normalized = [str(s).strip().lower() for s in allowed_systems]
+    except Exception:
+        return True
+    return os_manager.system in normalized
+
+
+def _build_command_for_hook(hook: dict) -> Tuple[list, dict]:
+    """Build the subprocess command and environment for a hook definition."""
+    hook_type = str(hook.get('type', '')).strip().lower()
+    script_path = hook.get('path')
+    inline_command = hook.get('command')
+    args = hook.get('args', [])
+    env = hook.get('env') or {}
+    workdir = hook.get('cwd')
+
+    if isinstance(args, str):
+        args = [a for a in args.split(' ') if a]
+    elif not isinstance(args, list):
+        args = []
+
+    if script_path:
+        script_path = _expand_user_path(script_path)
+        if not os.path.isabs(script_path):
+            script_path = os.path.abspath(script_path)
+
+    if workdir:
+        workdir = _expand_user_path(workdir)
+
+    base_env = os.environ.copy()
+    for k, v in env.items():
+        base_env[str(k)] = str(v)
+
+    if hook_type == 'python':
+        if not script_path:
+            raise ValueError("Missing 'path' for python hook")
+        command = [sys.executable, script_path] + args
+        return ([c for c in command if c], {'env': base_env, 'cwd': workdir})
+
+    if os_manager.system in ('linux', 'darwin'):
+        if hook_type in ('bash', 'sh', 'shell'):
+            if inline_command:
+                command = ['/bin/bash', '-lc', inline_command]
+            else:
+                if not script_path:
+                    raise ValueError("Missing 'path' for bash/sh hook")
+                command = ['/bin/bash', script_path] + args
+            return (command, {'env': base_env, 'cwd': workdir})
+
+    if os_manager.system == 'windows':
+        if hook_type in ('bat', 'cmd', 'shell'):
+            if inline_command:
+                command = ['cmd', '/c', inline_command]
+            else:
+                if not script_path:
+                    raise ValueError("Missing 'path' for bat/cmd hook")
+                command = ['cmd', '/c', script_path] + args
+            return (command, {'env': base_env, 'cwd': workdir})
+
+    raise ValueError(f"Unsupported hook type '{hook_type}' on OS '{os_manager.system}'")
+
+
+def _iter_hooks(stage: str):
+    """Yield hook dicts for a given stage ('pre_run' | 'post_run')."""
+    try:
+        hooks_section = config_manager.config.get('HOOKS', {})
+        hooks_list = hooks_section.get(stage, []) or []
+        if not isinstance(hooks_list, list):
+            return
+        for hook in hooks_list:
+            if not isinstance(hook, dict):
+                continue
+            yield hook
+    except Exception:
+        return
+
+
+def execute_hooks(stage: str) -> None:
+    """Execute configured hooks for the given stage. Stage can be 'pre_run' or 'post_run'."""
+    stage = str(stage).strip().lower()
+    if stage not in ('pre_run', 'post_run'):
+        return
+
+    for hook in _iter_hooks(stage):
+        name = hook.get('name') or f"{stage}_hook"
+        enabled = hook.get('enabled', True)
+        continue_on_error = hook.get('continue_on_error', True)
+        timeout = hook.get('timeout')
+
+        if not enabled:
+            logging.info(f"Skip hook (disabled): {name}")
+            continue
+
+        if not _should_run_on_current_os(hook):
+            logging.info(f"Skip hook (OS filter): {name}")
+            continue
+
+        try:
+            command, popen_kwargs = _build_command_for_hook(hook)
+            logging.info(f"Running hook: {name} -> {' '.join(command)}")
+            result = None
+            if timeout is not None:
+                result = subprocess.run(command, check=False, capture_output=True, text=True, timeout=int(timeout), **popen_kwargs)
+            else:
+                result = subprocess.run(command, check=False, capture_output=True, text=True, **popen_kwargs)
+
+            stdout = (result.stdout or '').strip()
+            stderr = (result.stderr or '').strip()
+            if stdout:
+                logging.info(f"Hook '{name}' stdout: {stdout}")
+                try:
+                    console.print(f"[cyan][hook:{name} stdout][/cyan]\n{stdout}")
+                except Exception:
+                    pass
+            if stderr:
+                logging.warning(f"Hook '{name}' stderr: {stderr}")
+                try:
+                    console.print(f"[yellow][hook:{name} stderr][/yellow]\n{stderr}")
+                except Exception:
+                    pass
+
+            if result.returncode != 0:
+                message = f"Hook '{name}' exited with code {result.returncode}"
+                if continue_on_error:
+                    logging.error(message + " (continuing)")
+                    continue
+                else:
+                    logging.error(message + " (stopping)")
+                    raise SystemExit(result.returncode)
+
+        except subprocess.TimeoutExpired:
+            message = f"Hook '{name}' timed out"
+            if continue_on_error:
+                logging.error(message + " (continuing)")
+                continue
+            else:
+                logging.error(message + " (stopping)")
+                raise SystemExit(124)
+        except Exception as e:
+            message = f"Hook '{name}' failed: {str(e)}"
+            if continue_on_error:
+                logging.error(message + " (continuing)")
+                continue
+            else:
+                logging.error(message + " (stopping)")
+                raise
 
 
 def restart_script():
@@ -407,52 +568,49 @@ def get_user_site_selection(args, choice_labels):
 def main(script_id=0):
     if TELEGRAM_BOT:
         get_bot_instance().send_message(f"Avviato script {script_id}", None)
-    
-    start = time.time()
-    Logger()  # Create logger
-    initialize()
-    check_dns_and_exit_if_needed()
-    
-    # Load search functions
-    search_functions = load_search_functions()
-    logging.info(f"Load module in: {time.time() - start} s")
-    
-    # Setup argument parser and parse arguments
-    parser = setup_argument_parser(search_functions)
-    args = parser.parse_args()
-    
-    # Apply configuration updates
-    apply_config_updates(args)
-    
-    # Handle global search
-    if getattr(args, 'global'):
-        global_search(args.search)
-        return
-    
-    # Build function mappings
-    input_to_function, choice_labels, module_name_to_function = build_function_mappings(search_functions)
-    
-    # Handle direct site selection
-    if handle_direct_site_selection(args, input_to_function, module_name_to_function, args.search):
-        return
-    
-    # Get user site selection
-    category = get_user_site_selection(args, choice_labels)
-    
-    # Run selected function or handle error
-    if category in input_to_function:
-        run_function(input_to_function[category], search_terms=args.search)
-    else:
-        if TELEGRAM_BOT:
-            get_bot_instance().send_message("Categoria non valida", None)
-        console.print("[red]Invalid category.")
 
-        if getattr(args, 'not_close'):
-            restart_script()
+    start = time.time()
+    Logger()
+    execute_hooks('pre_run')
+    initialize()
+
+    try:
+        check_dns_and_exit_if_needed()
+
+        search_functions = load_search_functions()
+        logging.info(f"Load module in: {time.time() - start} s")
+
+        parser = setup_argument_parser(search_functions)
+        args = parser.parse_args()
+
+        apply_config_updates(args)
+
+        if getattr(args, 'global'):
+            global_search(args.search)
+            return
+
+        input_to_function, choice_labels, module_name_to_function = build_function_mappings(search_functions)
+
+        if handle_direct_site_selection(args, input_to_function, module_name_to_function, args.search):
+            return
+
+        category = get_user_site_selection(args, choice_labels)
+
+        if category in input_to_function:
+            run_function(input_to_function[category], search_terms=args.search)
         else:
-            force_exit()
             if TELEGRAM_BOT:
-                get_bot_instance().send_message("Chiusura in corso", None)
-                script_id = TelegramSession.get_session()
-                if script_id != "unknown":
-                    TelegramSession.deleteScriptId(script_id)
+                get_bot_instance().send_message("Categoria non valida", None)
+            console.print("[red]Invalid category.")
+            
+            if getattr(args, 'not_close'):
+                restart_script()
+            else:
+                force_exit()
+                if TELEGRAM_BOT:
+                    get_bot_instance().send_message("Chiusura in corso", None)
+                    script_id = TelegramSession.get_session()
+                    if script_id != "unknown":
+                        TelegramSession.deleteScriptId(script_id)
+            finally:
+                execute_hooks('post_run')

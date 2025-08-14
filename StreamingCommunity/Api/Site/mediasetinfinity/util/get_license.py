@@ -15,7 +15,6 @@ from StreamingCommunity.Util.headers import get_headers, get_userAgent
 
 # Variable
 MAX_TIMEOUT = config_manager.get_int("REQUESTS", "timeout")
-playback_json = None
 
 
 def get_bearer_token():
@@ -38,11 +37,6 @@ def get_playback_url(BEARER_TOKEN, CONTENT_ID):
     Returns:
         dict: The playback JSON object.
     """
-    global playback_json
-
-    if playback_json is not None:
-        return playback_json
-
     headers = get_headers()
     headers['authorization'] = f'Bearer {BEARER_TOKEN}'
     

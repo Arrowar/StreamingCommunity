@@ -5,12 +5,12 @@ import asyncio
 
 
 # External libraries
+import httpx
 from tqdm import tqdm
 
 
 # Internal utilities
 from StreamingCommunity.Util.headers import get_userAgent
-from StreamingCommunity.Util.http_client import create_async_client
 from StreamingCommunity.Lib.M3U8.estimator import M3U8_Ts_Estimator
 from StreamingCommunity.Util.config_json import config_manager
 from StreamingCommunity.Util.color import Colors
@@ -97,8 +97,7 @@ class MPD_Segments:
         self.info_nRetry = 0
 
         try:
-            # Use unified async client (inherits timeout/verify/proxy from config)
-            async with create_async_client() as client:
+            async with httpx.AsyncClient(timeout=SEGMENT_MAX_TIMEOUT) as client:
                 # Download init segment
                 await self._download_init_segment(client, init_url, concat_path, estimator, progress_bar)
 
@@ -242,15 +241,14 @@ class MPD_Segments:
                 break
 
             print(f"[yellow]Retrying {len(failed_indices)} failed segments (attempt {global_retry_count+1}/{max_global_retries})...")
-
             async def download_single(url, idx):
                 async with semaphore:
                     headers = {'User-Agent': get_userAgent()}
 
                     for attempt in range(max_retry):
                         try:
-                            resp = await client.get(url, headers=headers, follow_redirects=True)
-
+                            resp = await client.get(url, headers=headers)
+                            
                             if resp.status_code == 200:
                                 return idx, resp.content, attempt
                             else:

@@ -57,6 +57,10 @@
         "timeout": 20,
         "max_retry": 8
     },
+    "HOOKS": {
+        "pre_run": [],
+        "post_run": []
+    },
     "SITE_LOGIN": {
         "crunchyroll": {
             "etp_rt": "",

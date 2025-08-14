@@ -1,14 +1,10 @@
 <div align="center">
 
 ## 📊 Project Status & Info
-
 [![PyPI Version](https://img.shields.io/pypi/v/streamingcommunity?logo=pypi&logoColor=white&labelColor=2d3748&color=3182ce&style=for-the-badge)](https://pypi.org/project/streamingcommunity)
-[![Downloads](https://img.shields.io/pypi/dm/streamingcommunity?logo=pypi&logoColor=white&labelColor=2d3748&color=38a169&style=for-the-badge)](https://pypi.org/project/streamingcommunity)
-[![License](https://img.shields.io/github/license/Arrowar/StreamingCommunity?logo=gnu&logoColor=white&labelColor=2d3748&color=e53e3e&style=for-the-badge)](https://github.com/Arrowar/StreamingCommunity/blob/main/LICENSE)
-
-[![Code Lines](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/Arrowar/StreamingCommunity/main/.github/.domain/loc-badge.json&style=for-the-badge&labelColor=2d3748)](https://github.com/Arrowar/StreamingCommunity)
 [![Last Commit](https://img.shields.io/github/last-commit/Arrowar/StreamingCommunity?logo=git&logoColor=white&labelColor=2d3748&color=805ad5&style=for-the-badge)](https://github.com/Arrowar/StreamingCommunity/commits)
 [![Issues](https://img.shields.io/github/issues/Arrowar/StreamingCommunity?logo=github&logoColor=white&labelColor=2d3748&color=ed8936&style=for-the-badge)](https://github.com/Arrowar/StreamingCommunity/issues)
+[![License](https://img.shields.io/github/license/Arrowar/StreamingCommunity?logo=gnu&logoColor=white&labelColor=2d3748&color=e53e3e&style=for-the-badge)](https://github.com/Arrowar/StreamingCommunity/blob/main/LICENSE)
 
 ## 💝 Support the Project
 
@@ -60,6 +56,7 @@
 - 🔧 [Manual domain configuration](#update-domains)
 - 🐳 [Docker](#docker)
 - 📝 [Telegram Usage](#telegram-usage)
+- 🧩 [Hook/Plugin System](#hookplugin-system)
 </details>
 
 <details>
@@ -384,6 +381,61 @@ If online fetching fails, the script will automatically attempt to use the local
 
 #### 💡 Adding a New Site
 If you want to request a new site to be added to the repository, message us on the Discord server!
+
+</details>
+
+## Hook/Plugin System
+
+<details>
+<summary>🧩 Run custom scripts before/after the main execution</summary>
+
+Define pre/post hooks in `config.json` under the `HOOKS` section. Supported types:
+
+- **python**: runs `script.py` with the current Python interpreter
+- **bash/sh**: runs via `bash`/`sh` on macOS/Linux
+- **bat/cmd**: runs via `cmd /c` on Windows
+- Inline **command**: use `command` instead of `path`
+
+Sample configuration:
+
+```json
+{
+  "HOOKS": {
+    "pre_run": [
+      {
+        "name": "prepare-env",
+        "type": "python",
+        "path": "scripts/prepare.py",
+        "args": ["--clean"],
+        "env": {"MY_FLAG": "1"},
+        "cwd": "~",
+        "os": ["linux", "darwin"],
+        "timeout": 60,
+        "enabled": true,
+        "continue_on_error": true
+      }
+    ],
+    "post_run": [
+      {
+        "name": "notify",
+        "type": "bash",
+        "command": "echo 'Download completed'"
+      }
+    ]
+  }
+}
+```
+
+Notes:
+
+- **os**: optional OS filter (`windows`, `darwin` (`darwin` is used for MacOS), `linux`).
+- **args**: list of arguments passed to the script.
+- **env**: additional environment variables.
+- **cwd**: working directory for the script; supports `~` and environment variables.
+- **continue_on_error**: if `false`, the app stops when the hook fails.
+- **timeout**: in seconds; when exceeded the hook fails.
+
+Hooks are executed automatically by `run.py` before (`pre_run`) and after (`post_run`) the main execution.
 
 </details>
 

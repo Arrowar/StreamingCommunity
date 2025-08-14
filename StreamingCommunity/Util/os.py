@@ -431,10 +431,11 @@ class OsSummary:
 
         if not self.mp4decrypt_path:
             console.log("[yellow]Warning: mp4decrypt not found")
-
-        console.print(f"[cyan]Path: [red]ffmpeg [bold yellow]'{self.ffmpeg_path}'[/bold yellow][white], [red]ffprobe '[bold yellow]{self.ffprobe_path}'[/bold yellow]")
-        if self.mp4decrypt_path:
-            console.print(f"[cyan]Path: [red]mp4decrypt [bold yellow]'{self.mp4decrypt_path}'[/bold yellow]")
+        
+        ffmpeg_str = f"'{self.ffmpeg_path}'" if self.ffmpeg_path else "None"
+        ffprobe_str = f"'{self.ffprobe_path}'" if self.ffprobe_path else "None"
+        mp4decrypt_str = f"'{self.mp4decrypt_path}'" if self.mp4decrypt_path else "None"
+        console.print(f"[cyan]Path: [red]ffmpeg [bold yellow]{ffmpeg_str}[/bold yellow][white], [red]ffprobe [bold yellow]{ffprobe_str}[/bold yellow][white], [red]mp4decrypt [bold yellow]{mp4decrypt_str}[/bold yellow]")
 
 
 os_manager = OsManager()

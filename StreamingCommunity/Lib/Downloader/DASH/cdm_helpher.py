@@ -61,7 +61,7 @@ def get_widevine_keys(pssh, license_url, cdm_device_path, headers=None, payload=
             response = httpx.post(license_url, data=challenge, headers=req_headers, content=payload)
 
             if response.status_code != 200:
-                console.print(f"[bold red]License error:[/bold red] {response.status_code}")
+                console.print(f"[bold red]License error:[/bold red] {response.status_code}, {response.text}")
                 return None
 
             # Handle (JSON) or classic (binary) license response

@@ -53,8 +53,7 @@ class GetSerieInfo:
             seasons_number = len(table_content.find_all("li"))
             
             # Try to get the title, with fallback
-            title_element = soup.find("h1", class_="entry-title")
-            self.tv_name = title_element.get_text(strip=True) if title_element else "Unknown Title"
+            self.tv_name = soup.find('h1', class_="front_title").get_text(strip=True) if soup.find('h1', class_="front_title") else "Unknown Series"
 
             return seasons_number
 

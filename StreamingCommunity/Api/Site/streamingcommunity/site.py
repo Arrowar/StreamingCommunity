@@ -26,6 +26,7 @@ console = Console()
 media_search_manager = MediaManager()
 table_show_manager = TVShowManager()
 max_timeout = config_manager.get_int("REQUESTS", "timeout")
+ssl_verify = config_manager.get_bool("REQUESTS", "verify")
 
 
 def title_search(query: str) -> int:
@@ -49,6 +50,7 @@ def title_search(query: str) -> int:
             f"{site_constant.FULL_URL}/it", 
             headers={'user-agent': get_userAgent()}, 
             timeout=max_timeout,
+            verify=ssl_verify,
 	    follow_redirects=True
         )
         response.raise_for_status()
@@ -75,7 +77,8 @@ def title_search(query: str) -> int:
                 'x-inertia': 'true',
                 'x-inertia-version': version
             },
-            timeout=max_timeout
+            timeout=max_timeout,
+            verify=ssl_verify
         )
         response.raise_for_status()
 

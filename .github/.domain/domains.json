@@ -1,50 +1,50 @@
 {
-    "cb01new": {
-        "domain": "guru",
-        "full_url": "https://cb01net.guru/",
-        "old_domain": "buzz",
-        "time_change": "2025-08-20 15:22:34"
-    },
-    "animeunity": {
-        "domain": "so",
-        "full_url": "https://www.animeunity.so/",
-        "old_domain": "so",
-        "time_change": "2025-07-08 13:59:31"
-    },
-    "animeworld": {
-        "domain": "ac",
-        "full_url": "https://www.animeworld.ac/",
-        "old_domain": "ac",
-        "time_change": "2025-03-21 12:20:27"
-    },
-    "guardaserie": {
-        "domain": "sale",
-        "full_url": "https://guardaserietv.sale/",
-        "old_domain": "app",
-        "time_change": "2025-08-20 07:20:06"
-    },
-    "streamingwatch": {
-        "domain": "org",
-        "full_url": "https://www.streamingwatch.org/",
-        "old_domain": "org",
-        "time_change": "2025-04-29 12:30:30"
-    },
-    "altadefinizione": {
-        "domain": "free",
-        "full_url": "https://altadefinizione.free/",
-        "old_domain": "qpon",
-        "time_change": "2025-07-08 13:59:37"
-    },
-    "streamingcommunity": {
-        "domain": "art",
-        "full_url": "https://streamingcommunityz.art/",
-        "old_domain": "app",
-        "time_change": "2025-08-19 15:22:34"
-    },
-    "altadefinizionegratis": {
-        "domain": "cool",
-        "full_url": "https://altadefinizionegratis.cool/",
-        "old_domain": "gold",
-        "time_change": "2025-08-19 18:28:05"
-    }
+  "cb01new": {
+    "domain": "guru",
+    "full_url": "https://cb01net.guru/",
+    "old_domain": "buzz",
+    "time_change": "2025-08-20 15:22:34"
+  },
+  "animeunity": {
+    "domain": "so",
+    "full_url": "https://www.animeunity.so/",
+    "old_domain": "so",
+    "time_change": "2025-07-08 13:59:31"
+  },
+  "animeworld": {
+    "domain": "ac",
+    "full_url": "https://www.animeworld.ac/",
+    "old_domain": "ac",
+    "time_change": "2025-03-21 12:20:27"
+  },
+  "guardaserie": {
+    "domain": "sale",
+    "full_url": "https://guardaserietv.sale/",
+    "old_domain": "app",
+    "time_change": "2025-08-20 07:20:06"
+  },
+  "streamingwatch": {
+    "domain": "org",
+    "full_url": "https://www.streamingwatch.org/",
+    "old_domain": "org",
+    "time_change": "2025-04-29 12:30:30"
+  },
+  "altadefinizione": {
+    "domain": "free",
+    "full_url": "https://altadefinizione.free/",
+    "old_domain": "qpon",
+    "time_change": "2025-07-08 13:59:37"
+  },
+  "streamingcommunity": {
+    "domain": "chat",
+    "full_url": "https://streamingcommunityz.chat/",
+    "old_domain": "art",
+    "time_change": "2025-08-25 13:31:33"
+  },
+  "altadefinizionegratis": {
+    "domain": "center",
+    "full_url": "https://altadefinizionegratis.center/",
+    "old_domain": "cool",
+    "time_change": "2025-08-25 18:30:42"
+  }
 }

@@ -7,6 +7,7 @@ import time
 import signal
 import logging
 from functools import partial
+import threading
 
 
 # External libraries
@@ -101,10 +102,23 @@ def MP4_downloader(url: str, path: str, referer: str = None, headers_: dict = No
     else:
         headers['User-Agent'] = get_userAgent()
 
-    # Set interrupt handler
+    # Set interrupt handler (only in main thread). In background threads (e.g., Django), skip custom signal handling.
     temp_path = f"{path}.temp"
     interrupt_handler = InterruptHandler()
-    original_handler = signal.signal(signal.SIGINT, partial(signal_handler, interrupt_handler=interrupt_handler, original_handler=signal.getsignal(signal.SIGINT)))
+    original_handler = None
+    try:
+        if threading.current_thread() is threading.main_thread():
+            original_handler = signal.signal(
+                signal.SIGINT,
+                partial(
+                    signal_handler,
+                    interrupt_handler=interrupt_handler,
+                    original_handler=signal.getsignal(signal.SIGINT),
+                ),
+            )
+    except Exception:
+        # If setting signal handler fails (non-main thread), continue without it
+        original_handler = None
 
     # Ensure the output directory exists
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -184,4 +198,8 @@ def MP4_downloader(url: str, path: str, referer: str = None, headers_: dict = No
         return None, interrupt_handler.kill_download
     
     finally:
-        signal.signal(signal.SIGINT, original_handler)
+        if original_handler is not None:
+            try:
+                signal.signal(signal.SIGINT, original_handler)
+            except Exception:
+                pass

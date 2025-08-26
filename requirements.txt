@@ -1,4 +1,5 @@
-﻿httpx
+﻿django>=4.2,<5.0
+httpx
 bs4
 rich
 tqdm

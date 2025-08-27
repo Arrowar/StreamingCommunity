@@ -25,7 +25,6 @@ def get_bearer_token():
         str: The bearer token string.
     """
     return config_manager.get_dict("SITE_LOGIN", "mediasetinfinity")["beToken"]
-    return config_manager.get_dict("SITE_LOGIN", "mediasetinfinity")["beToken"]
 
 def get_playback_url(BEARER_TOKEN, CONTENT_ID):
     """

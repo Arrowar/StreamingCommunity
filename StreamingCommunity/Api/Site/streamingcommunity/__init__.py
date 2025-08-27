@@ -126,7 +126,7 @@ def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_
     # Handle cases where user input is empty, or 'back' was handled (sys.exit or None return)
     if not actual_search_query:
         if bot:
-             if actual_search_query is None: # Specifically for timeout from bot.ask or failed restart
+            if actual_search_query is None: # Specifically for timeout from bot.ask or failed restart
                 bot.send_message("Search term not provided or operation cancelled. Returning.", None)
         return
 
@@ -142,9 +142,8 @@ def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_
         process_search_result(select_title, selections)
     
     else:
-        no_results_message = f"No results found for: '{actual_search_query}'"
         if bot:
-            bot.send_message(no_results_message, None)
+            bot.send_message(f"No results found for: '{actual_search_query}'", None)
         else:
             console.print(f"\n[red]Nothing matching was found for[white]: [purple]{actual_search_query}")
         

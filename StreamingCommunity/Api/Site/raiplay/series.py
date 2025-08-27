@@ -1,6 +1,7 @@
 # 21.05.24
 
 import os
+import sys
 from typing import Tuple
 
 
@@ -89,7 +90,7 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
         cdm_device_path = get_wvd_path()
         if not cdm_device_path or not isinstance(cdm_device_path, (str, bytes, os.PathLike)) or not os.path.isfile(cdm_device_path):
             console.print(f"[bold red] CDM file not found or invalid path: {cdm_device_path}[/bold red]")
-            return None
+            sys.exit(0)
 
         license_url = generate_license_url(obj_episode.mpd_id)
 

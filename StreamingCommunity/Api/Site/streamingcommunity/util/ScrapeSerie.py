@@ -17,6 +17,7 @@ from StreamingCommunity.Api.Player.Helper.Vixcloud.util import SeasonManager
 
 # Variable
 max_timeout = config_manager.get_int("REQUESTS", "timeout")
+ssl_verify = config_manager.get_bool("REQUESTS", "verify")
 
 
 class GetSerieInfo:
@@ -50,7 +51,8 @@ class GetSerieInfo:
             response = httpx.get(
                 url=f"{self.url}/titles/{self.media_id}-{self.series_name}",
                 headers=self.headers,
-                timeout=max_timeout
+                timeout=max_timeout,
+                verify=ssl_verify
             )
             response.raise_for_status()
 
@@ -104,7 +106,8 @@ class GetSerieInfo:
                     'x-inertia': 'true',
                     'x-inertia-version': self.version,
                 },
-                timeout=max_timeout
+                timeout=max_timeout,
+                verify=ssl_verify
             )
 
             # Extract episodes from JSON response

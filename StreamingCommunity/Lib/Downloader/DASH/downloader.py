@@ -99,28 +99,30 @@ class DASH_Downloader:
             if rep:
                 encrypted_path = os.path.join(self.encrypted_dir, f"{rep['id']}_encrypted.m4s")
 
-                downloader = MPD_Segments(
-                    tmp_folder=self.encrypted_dir,
-                    representation=rep,
-                    pssh=self.parser.pssh
-                )
+                # If m4s file doesn't exist start downloading
+                if not os.path.exists(encrypted_path):
+                    downloader = MPD_Segments(
+                        tmp_folder=self.encrypted_dir,
+                        representation=rep,
+                        pssh=self.parser.pssh
+                    )
 
-                try:
-                    result = downloader.download_streams()
+                    try:
+                        result = downloader.download_streams()
 
-                    # Check for interruption or failure
-                    if result.get("stopped"):
-                        self.stopped = True
-                        self.error = "Download interrupted"
+                        # Check for interruption or failure
+                        if result.get("stopped"):
+                            self.stopped = True
+                            self.error = "Download interrupted"
+                            return False
+                        
+                        if result.get("nFailed", 0) > 0:
+                            self.error = f"Failed segments: {result['nFailed']}"
+                            return False
+                        
+                    except Exception as ex:
+                        self.error = str(ex)
                         return False
-                    
-                    if result.get("nFailed", 0) > 0:
-                        self.error = f"Failed segments: {result['nFailed']}"
-                        return False
-                    
-                except Exception as ex:
-                    self.error = str(ex)
-                    return False
 
                 if not self.parser.pssh:
                     print("No PSSH found: segments are not encrypted, skipping decryption.")

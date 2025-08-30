@@ -10,6 +10,7 @@ assignees: ''
 Please make sure to check the following:
 
 - [ ] You are using the latest version of the project/repository.
+- [ ] You have the latest commit installed.
 - [ ] The issue relates to a website or a specific functionality.
 - [ ] If the issue is related to a website, you have verified that the URL works correctly in your browser.
 

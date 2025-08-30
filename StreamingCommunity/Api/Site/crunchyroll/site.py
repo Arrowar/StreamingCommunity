@@ -1,6 +1,7 @@
 # 16.03.25
 
 import os
+import sys
 
 
 # External libraries
@@ -45,7 +46,12 @@ def title_search(query: str) -> int:
     cdm_device_path = get_wvd_path()
     if not cdm_device_path or not isinstance(cdm_device_path, (str, bytes, os.PathLike)) or not os.path.isfile(cdm_device_path):
         console.print(f"[bold red] CDM file not found or invalid path: {cdm_device_path}[/bold red]")
-        return None
+        sys.exit(0)
+
+    # Check if x_cr_tab_id or etp_rt is present
+    if config_manager.get_dict("SITE_LOGIN", "crunchyroll")['x_cr_tab_id'] is None or config_manager.get_dict("SITE_LOGIN", "crunchyroll")['x_cr_tab_id'] == "" or config_manager.get_dict("SITE_LOGIN", "crunchyroll")['etp_rt'] is None or config_manager.get_dict("SITE_LOGIN", "crunchyroll")['etp_rt'] == "":
+        console.print(f"[bold red] x_cr_tab_id or etp_rt is missing or empty.[/bold red]")
+        sys.exit(0)
 
     # Build new Crunchyroll API search URL
     api_url = "https://www.crunchyroll.com/content/v2/discover/search"

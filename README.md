@@ -869,6 +869,10 @@ python3 telegram_bot.py
 ```
 </details>
 
+# SITE_LOGIN key  
+To use some site, you may need a SITE_LOGIN key.  
+See [guide.md](.github/.site/guide.md) for instructions on how to obtain it.
+
 # Tutorials
 
 - [Windows](https://www.youtube.com/watch?v=mZGqK4wdN-k)

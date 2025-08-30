@@ -90,7 +90,7 @@ def update():
         latest_commit_message = 'No commit history available'
 
     console.print(f"\n[cyan]Current installed version: [yellow]{current_version}")
-    console.print(f"[cyan]Last commit: [yellow]{latest_commit_message}")
+    console.print(f"[cyan]Last commit: [yellow]{latest_commit_message.splitlines()[0]}")
     
     if str(current_version).replace('v', '') != str(last_version).replace('v', ''):
         console.print(f"\n[cyan]New version available: [yellow]{last_version}")

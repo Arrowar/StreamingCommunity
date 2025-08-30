@@ -435,7 +435,10 @@ class OsSummary:
         ffmpeg_str = f"'{self.ffmpeg_path}'" if self.ffmpeg_path else "None"
         ffprobe_str = f"'{self.ffprobe_path}'" if self.ffprobe_path else "None"
         mp4decrypt_str = f"'{self.mp4decrypt_path}'" if self.mp4decrypt_path else "None"
-        console.print(f"[cyan]Path: [red]ffmpeg [bold yellow]{ffmpeg_str}[/bold yellow][white], [red]ffprobe [bold yellow]{ffprobe_str}[/bold yellow][white], [red]mp4decrypt [bold yellow]{mp4decrypt_str}[/bold yellow]")
+        wvd_path = get_wvd_path()
+        wvd_str = f"'{wvd_path}'" if wvd_path else "None"
+        
+        console.print(f"[cyan]Path: [red]ffmpeg [bold yellow]{ffmpeg_str}[/bold yellow][white], [red]ffprobe [bold yellow]{ffprobe_str}[/bold yellow][white], [red]mp4decrypt [bold yellow]{mp4decrypt_str}[/bold yellow][white], [red]wvd [bold yellow]{wvd_str}[/bold yellow]")
 
 
 os_manager = OsManager()

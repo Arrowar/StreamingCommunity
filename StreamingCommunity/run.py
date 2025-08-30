@@ -329,13 +329,13 @@ def check_dns_and_exit_if_needed():
     ]
     
     if not internet_manager.check_dns_resolve(hostname_list):
-        console.print("[red] ERROR: DNS configuration is required!")
+        console.print("[red]\nERROR: DNS configuration is required!")
         console.print("[red]The program cannot function correctly without proper DNS settings.")
-        console.print("[yellow]Please configure one of these DNS servers:")
+        console.print("\n[yellow]Please configure one of these DNS servers:")
         console.print("[red]• Cloudflare (1.1.1.1) 'https://developers.cloudflare.com/1.1.1.1/setup/windows/'")
         console.print("[red]• Quad9 (9.9.9.9) 'https://docs.quad9.net/Setup_Guides/Windows/Windows_10/'")
-        console.print("\n[yellow]⚠️ The program will not work until you configure your DNS settings.")
-        os._exit(0)
+        console.print("\n[yellow]-> The program will not work until you configure your DNS settings.")
+        sys.exit(0)
 
 
 def setup_argument_parser(search_functions):

@@ -1,7 +1,8 @@
-# 15.06.24
+# 05.08.25
 
 import os
 import shutil
+import argparse
 from io import BytesIO
 from zipfile import ZipFile
 from datetime import datetime
@@ -177,19 +178,25 @@ def download_and_extract_latest_commit():
         console.print(f"[red]An unexpected error occurred: {e}")
 
 
-def main_upload():
+def main_upload(auto_confirm=None):
     """
     Main function to upload the latest commit of a GitHub repository.
     """
-    cmd_insert = Prompt.ask(
-        "[bold red]Are you sure you want to delete all files? (Only 'Video' folder and 'update.py' will remain)",
-        choices=['y', 'n'],
-        default='y',
-        show_choices=True
-    )
 
-    if cmd_insert.lower().strip() == 'y' or cmd_insert.lower().strip() == 'yes':
-        console.print("[red]Deleting all files except 'Video' folder and 'update.py'...")
+    if auto_confirm is None:
+        # fallback al prompt interattivo
+        from rich.prompt import Prompt
+        cmd_insert = Prompt.ask(
+            "[bold red]Are you sure you want to delete all files? (Only 'Video' folder and 'update_version.py' will remain)",
+            choices=['y', 'n'],
+            default='y',
+            show_choices=True
+        )
+    else:
+        cmd_insert = auto_confirm
+
+    if cmd_insert.lower().strip() in ('y', 'yes'):
+        console.print("[red]Deleting all files except 'Video' folder and 'update_version.py'...")
         keep_specific_items(".", "Video", "upload.py")
         download_and_extract_latest_commit()
     else:
@@ -197,4 +204,15 @@ def main_upload():
 
 
 if __name__ == "__main__":
-    main_upload()
+    parser = argparse.ArgumentParser(description="Upload the latest commit of a GitHub repository.")
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("-y", "--yes", action="store_true", help="Automatically confirm deletion.")
+    group.add_argument("-n", "--no", action="store_true", help="Automatically cancel deletion.")
+    args = parser.parse_args()
+
+    if args.yes:
+        main_upload("y")
+    elif args.no:
+        main_upload("n")
+    else:
+        main_upload()

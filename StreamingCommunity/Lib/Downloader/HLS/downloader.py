@@ -39,6 +39,7 @@ DOWNLOAD_SPECIFIC_AUDIO = config_manager.get_list('M3U8_DOWNLOAD', 'specific_lis
 DOWNLOAD_SPECIFIC_SUBTITLE = config_manager.get_list('M3U8_DOWNLOAD', 'specific_list_subtitles')
 MERGE_SUBTITLE = config_manager.get_bool('M3U8_DOWNLOAD', 'merge_subs')
 CLEANUP_TMP = config_manager.get_bool('M3U8_DOWNLOAD', 'cleanup_tmp_folder')
+GET_ONLY_LINK = config_manager.get_int('M3U8_DOWNLOAD', 'get_only_link')
 FILTER_CUSTOM_RESOLUTION = str(config_manager.get('M3U8_CONVERSION', 'force_resolution')).strip().lower()
 RETRY_LIMIT = config_manager.get_int('REQUESTS', 'max_retry')
 MAX_TIMEOUT = config_manager.get_int("REQUESTS", "timeout")
@@ -211,10 +212,10 @@ class M3U8Manager:
         # Get available subtitles and their languages
         available_subtitles = self.parser._subtitle.get_all_uris_and_names() or []
         available_sub_languages = [sub.get('language') for sub in available_subtitles]
-        
+
         # If "*" is in DOWNLOAD_SPECIFIC_SUBTITLE, all languages are downloadable
         downloadable_sub_languages = available_sub_languages if "*" in DOWNLOAD_SPECIFIC_SUBTITLE else list(set(available_sub_languages) & set(DOWNLOAD_SPECIFIC_SUBTITLE))
-            
+
         if available_sub_languages:
             console.print(
                 f"[cyan bold]Subtitle [/cyan bold] [green]Available:[/green] [purple]{', '.join(available_sub_languages)}[/purple] | "
@@ -260,7 +261,7 @@ class DownloadManager:
 
         if result.get('stopped', False):
             self.stopped = True
-        
+
         return self.stopped
 
     def download_audio(self, audio: Dict):
@@ -304,7 +305,7 @@ class DownloadManager:
         """
         return_stopped = False
         video_file = os.path.join(self.temp_dir, 'video', '0.ts')
-        
+
         if not os.path.exists(video_file):
             if self.download_video(video_url):
                 if not return_stopped:
@@ -421,8 +422,20 @@ class HLS_Downloader:
                 - is_master: Whether the M3U8 was a master playlist
             Or raises an exception if there's an error
         """
+
+        if GET_ONLY_LINK:
+            console.print(f"URL: [bold red]{self.m3u8_url}[/bold red]")
+            return {
+                'path': None,
+                'url': self.m3u8_url,
+                'is_master': getattr(self.m3u8_manager, 'is_master', None),
+                'msg': None,
+                'error': None,
+                'stopped': True
+            }
+
         console.print("[cyan]You can safely stop the download with [bold]Ctrl+c[bold] [cyan] \n")
-        
+
         if TELEGRAM_BOT:
             bot = get_bot_instance()
 
@@ -440,7 +453,7 @@ class HLS_Downloader:
                 if TELEGRAM_BOT:
                     bot.send_message("Contenuto già scaricato!", None)
                 return response
-        
+
             self.path_manager.setup_directories()
 
             # Parse M3U8 and determine if it's a master playlist
@@ -524,7 +537,7 @@ class HLS_Downloader:
 
         if missing_ts:
             panel_content += f"\n{missing_info}"
-            
+
         new_filename = self.path_manager.output_path
         if missing_ts and use_shortest:
             new_filename = new_filename.replace(".mp4", "_failed_sync_ts.mp4")
@@ -532,7 +545,7 @@ class HLS_Downloader:
             new_filename = new_filename.replace(".mp4", "_failed_ts.mp4")
         elif use_shortest:
             new_filename = new_filename.replace(".mp4", "_failed_sync.mp4")
-            
+
         if missing_ts or use_shortest:
             os.rename(self.path_manager.output_path, new_filename)
             self.path_manager.output_path = new_filename

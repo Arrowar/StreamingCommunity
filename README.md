@@ -583,7 +583,8 @@ To enable qBittorrent integration, follow the setup guide [here](https://github.
             "ita",    // Specify language codes or use ["*"] to download all available subtitles
             "eng"
         ],
-        "cleanup_tmp_folder": true
+        "cleanup_tmp_folder": true,
+        "get_only_link": false
     }
 }
 ```
@@ -698,6 +699,9 @@ Note: Requires updated drivers and FFmpeg with hardware acceleration support.
     - 240p (426x240)
     - 240p (320x240)
     - 144p (256x144)
+
+#### Link options
+- `get_only_link`: Return M3U8 playlist/index URL instead of downloading
 
 </details>
 

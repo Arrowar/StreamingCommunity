@@ -796,7 +796,13 @@ docker build -t streaming-community-api .
 
 Run the container with Cloudflare DNS for better connectivity:
 ```
-docker run -it --dns 1.1.1.1 -p 8000:8000 streaming-community-api
+docker run -d --name streaming-community --dns 1.1.1.1 -p 8000:8000 streaming-community-api
+```
+
+Tip CLI:
+- To run the CLI inside the container, attach to the container and execute:
+```
+docker exec -it streaming-community python test_run.py
 ```
 </details>
 

@@ -78,18 +78,4 @@ class M3U8_Decryption:
         else:
             raise ValueError("Invalid or unsupported method")
 
-        """
-        end = time.perf_counter_ns()
-
-        # Calculate the elapsed time with high precision
-        elapsed_nanoseconds = end - start
-        elapsed_milliseconds = elapsed_nanoseconds / 1_000_000
-        elapsed_seconds = elapsed_nanoseconds / 1_000_000_000
-
-        # Log performance metrics
-        logging.info("[Crypto Decryption Performance]")
-        logging.info(f"Method: {self.method}")
-        logging.info(f"Decryption Time: {elapsed_milliseconds:.4f} ms ({elapsed_seconds:.6f} s)")
-        logging.info(f"Decrypted Content Length: {len(decrypted_content)} bytes")
-        """
         return decrypted_content

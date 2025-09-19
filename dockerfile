@@ -18,6 +18,8 @@ RUN pip install --no-cache-dir -r GUI/requirements.txt
 
 COPY . .
 
+ENV PYTHONPATH="/app:${PYTHONPATH}"
+
 EXPOSE 8000
 
 CMD ["python", "GUI/manage.py", "runserver", "0.0.0.0:8000"]

@@ -7,7 +7,7 @@ src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 sys.path.append(src_path)
 
 
-from StreamingCommunity.Util.ffmpeg_installer import FFMPEGDownloader
+from StreamingCommunity.Util.installer.ffmpeg_install import FFMPEGDownloader
 
 
 def test_ffmpeg_downloader():

@@ -29,28 +29,10 @@ def get_widevine_keys(pssh, license_url, cdm_device_path, headers=None, payload=
     Returns:
         list: List of dicts {'kid': ..., 'key': ...} (only CONTENT keys) or None if error.
     """
-
-    # Check if PSSH is a valid base64 string
-    try:
-        base64.b64decode(pssh)
-    except Exception:
-        console.print("[bold red] Invalid PSSH base64 string.[/bold red]")
-        return None
-
     try:
         device = Device.load(cdm_device_path)
         cdm = Cdm.from_device(device)
         session_id = cdm.open()
-
-        # Display security level in a more readable format
-        security_levels = {1: "L1 (Hardware)", 2: "L2 (Software)", 3: "L3 (Software)"}
-        security_level_str = security_levels.get(device.security_level, 'Unknown')
-        logging.info(f"Security Level: {security_level_str}")
-
-        # Only allow L3, otherwise warn and exit
-        if device.security_level != 3:
-            console.print(f"[bold yellow]⚠️ Only L3 (Software) security level is supported. Current: {security_level_str}[/bold yellow]")
-            return None
 
         try:
             challenge = cdm.get_license_challenge(session_id, PSSH(pssh))
@@ -108,6 +90,7 @@ def get_widevine_keys(pssh, license_url, cdm_device_path, headers=None, payload=
             content_keys = []
             for key in cdm.get_keys(session_id):
                 if key.type == "CONTENT":
+                    
                     kid = key.kid.hex() if isinstance(key.kid, bytes) else str(key.kid)
                     key_val = key.key.hex() if isinstance(key.key, bytes) else str(key.key)
 

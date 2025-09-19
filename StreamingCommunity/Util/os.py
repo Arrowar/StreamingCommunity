@@ -5,13 +5,14 @@ import os
 import glob
 import sys
 import shutil
+import struct
 import logging
+import socket
 import platform
 import inspect
 import subprocess
 import contextlib
 import importlib.metadata
-import socket
 
 
 # External library
@@ -22,9 +23,9 @@ from pathvalidate import sanitize_filename, sanitize_filepath
 
 
 # Internal utilities
-from .ffmpeg_installer import check_ffmpeg
-from .bento4_installer import check_mp4decrypt
-from .color import _g, extract_png_chunk
+from .installer.ffmpeg_install import check_ffmpeg
+from .installer.bento4_install import check_mp4decrypt
+from .installer.binary_paths import binary_paths
 
 
 # Variable
@@ -306,24 +307,13 @@ class InternManager():
         except (socket.gaierror, socket.error):
             return False
 
+
 class OsSummary:
     def __init__(self):
         self.ffmpeg_path = None
         self.ffprobe_path = None
         self.ffplay_path = None
         self.mp4decrypt_path = None
-
-    def get_binary_directory(self):
-        """Get the binary directory based on OS."""
-        system = platform.system().lower()
-        home = os.path.expanduser('~')
-
-        if system == 'windows':
-            return os.path.join(os.path.splitdrive(home)[0] + os.path.sep, 'binary')
-        elif system == 'darwin':
-            return os.path.join(home, 'Applications', 'binary')
-        else:  # linux
-            return os.path.join(home, '.local', 'bin', 'binary')
 
     def check_ffmpeg_location(self, command: list) -> str:
         """
@@ -388,25 +378,11 @@ class OsSummary:
     def init(self):
         self.check_python_version()
 
-        # FFmpeg detection
-        binary_dir = self.get_binary_directory()
-        system = platform.system().lower()
-        arch = platform.machine().lower()
+        # Initialize binary paths and check for existing binaries
+        binary_dir = binary_paths.get_binary_directory()
+        arch = binary_paths.arch
 
-        # Map architecture names
-        arch_map = {
-            'amd64': 'x64',
-            'x86_64': 'x64',
-            'x64': 'x64',
-            'arm64': 'arm64',
-            'aarch64': 'arm64',
-            'armv7l': 'arm',
-            'i386': 'ia32',
-            'i686': 'ia32'
-        }
-        arch = arch_map.get(arch, arch)
-
-        # Check FFmpeg binaries
+        # Check for existing FFmpeg binaries in binary directory
         if os.path.exists(binary_dir):
             ffmpeg_files = glob.glob(os.path.join(binary_dir, f'*ffmpeg*{arch}*'))
             ffprobe_files = glob.glob(os.path.join(binary_dir, f'*ffprobe*{arch}*'))
@@ -414,10 +390,6 @@ class OsSummary:
             if ffmpeg_files and ffprobe_files:
                 self.ffmpeg_path = ffmpeg_files[0]
                 self.ffprobe_path = ffprobe_files[0]
-
-                if system != 'windows':
-                    os.chmod(self.ffmpeg_path, 0o755)
-                    os.chmod(self.ffprobe_path, 0o755)
             else:
                 self.ffmpeg_path, self.ffprobe_path, self.ffplay_path = check_ffmpeg()
         else:
@@ -426,6 +398,7 @@ class OsSummary:
         # Check mp4decrypt
         self.mp4decrypt_path = check_mp4decrypt()
 
+        # Validate required binaries
         if not self.ffmpeg_path or not self.ffprobe_path:
             console.log("[red]Can't locate ffmpeg or ffprobe")
             sys.exit(0)
@@ -433,13 +406,23 @@ class OsSummary:
         if not self.mp4decrypt_path:
             console.log("[yellow]Warning: mp4decrypt not found")
         
-        ffmpeg_str = f"'{self.ffmpeg_path}'" if self.ffmpeg_path else "None"
-        ffprobe_str = f"'{self.ffprobe_path}'" if self.ffprobe_path else "None"
-        mp4decrypt_str = f"'{self.mp4decrypt_path}'" if self.mp4decrypt_path else "None"
-        wvd_path = get_wvd_path()
-        wvd_str = f"'{wvd_path}'" if wvd_path else "None"
+        self._display_binary_paths()
+
+    def _display_binary_paths(self):
+        """Display the paths of all detected binaries."""
+        paths = {
+            'ffmpeg': self.ffmpeg_path,
+            'ffprobe': self.ffprobe_path,
+            'mp4decrypt': self.mp4decrypt_path,
+            'wvd': get_wvd_path()
+        }
         
-        console.print(f"[cyan]Path: [red]ffmpeg [bold yellow]{ffmpeg_str}[/bold yellow][white], [red]ffprobe [bold yellow]{ffprobe_str}[/bold yellow][white], [red]mp4decrypt [bold yellow]{mp4decrypt_str}[/bold yellow][white], [red]wvd [bold yellow]{wvd_str}[/bold yellow]")
+        path_strings = []
+        for name, path in paths.items():
+            path_str = f"'{path}'" if path else "None"
+            path_strings.append(f"[red]{name} [bold yellow]{path_str}[/bold yellow]")
+        
+        console.print(f"[cyan]Path: {', [white]'.join(path_strings)}")
 
 
 os_manager = OsManager()
@@ -451,6 +434,29 @@ os_summary = OsSummary()
 def suppress_output():
     with contextlib.redirect_stdout(io.StringIO()):
         yield
+
+def extract_png_chunk(png_with_wvd, out_wvd_path):
+    with open(png_with_wvd, "rb") as f: 
+        data = f.read()
+    pos = 8
+
+    while pos < len(data):
+        length = struct.unpack(">I", data[pos:pos+4])[0]
+        chunk_type = data[pos+4:pos+8]
+        chunk_data = data[pos+8:pos+8+length]
+
+        if chunk_type == b"stEg":
+            with open(out_wvd_path, "wb") as f: 
+                f.write(chunk_data)
+            return
+        
+        pos += 12 + length
+
+
+def _g(_=None):
+    a = [100,101,118,105,99,101,46,119,118,100]
+    return ''.join(map(chr, a))
+
 
 def get_call_stack():
     """Retrieves the current call stack with details about each call."""
@@ -492,16 +498,11 @@ def get_wvd_path():
     Searches the system's binary folder and returns the path of the first file ending with 'wvd'.
     Returns None if not found.
     """
-    system = platform.system().lower()
-    home = os.path.expanduser('~')
-    if system == 'windows':
-        binary_dir = os.path.join(os.path.splitdrive(home)[0] + os.path.sep, 'binary')
-    elif system == 'darwin':
-        binary_dir = os.path.join(home, 'Applications', 'binary')
-    else:
-        binary_dir = os.path.join(home, '.local', 'bin', 'binary')
+    binary_dir = binary_paths.get_binary_directory()
+
     if not os.path.exists(binary_dir):
         return None
+    
     for file in os.listdir(binary_dir):
         if file.lower().endswith('wvd'):
             return os.path.join(binary_dir, file)

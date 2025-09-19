@@ -1,7 +1,6 @@
 # 24.08.24
 
 import sys
-from typing import Dict
 
 
 # External libraries
@@ -95,7 +94,6 @@ class TheMovieDB:
         """
         self.api_key = api_key
         self.base_url = "https://api.themoviedb.org/3"
-        #self.genres = self._fetch_genres()
         self._cached_trending_tv = None
         self._cached_trending_movies = None
 
@@ -119,16 +117,6 @@ class TheMovieDB:
         response.raise_for_status()
         
         return response.json()
-
-    def _fetch_genres(self) -> Dict[int, str]:
-        """
-        Fetch and return the genre names from TheMovieDB.
-
-        Returns:
-            Dict[int, str]: A dictionary mapping genre IDs to genre names.
-        """
-        genres = self._make_request("genre/movie/list")
-        return {genre['id']: genre['name'] for genre in genres.get('genres', [])}
 
     def _display_top_5(self, category: str, data, name_key='title'):
         """

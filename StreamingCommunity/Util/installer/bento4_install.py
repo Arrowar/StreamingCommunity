@@ -1,10 +1,9 @@
 # 18.07.25
 
 import os
-import platform
-import logging
 import shutil
 import zipfile
+import logging
 
 
 # External library
@@ -13,12 +12,15 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeRemainingColumn
 
 
+# Internal utilities
+from .binary_paths import binary_paths
+
+
 # Variable
 console = Console()
 
 BENTO4_CONFIGURATION = {
     'windows': {
-        'base_dir': lambda home: os.path.join(os.path.splitdrive(home)[0] + os.sep, 'binary'),
         'download_url': 'https://www.bok.net/Bento4/binaries/Bento4-SDK-{version}.{platform}.zip',
         'versions': {
             'x64': 'x86_64-microsoft-win32',
@@ -27,7 +29,6 @@ BENTO4_CONFIGURATION = {
         'executables': ['mp4decrypt.exe']
     },
     'darwin': {
-        'base_dir': lambda home: os.path.join(home, 'Applications', 'binary'),
         'download_url': 'https://www.bok.net/Bento4/binaries/Bento4-SDK-{version}.{platform}.zip',
         'versions': {
             'x64': 'universal-apple-macosx',
@@ -36,7 +37,6 @@ BENTO4_CONFIGURATION = {
         'executables': ['mp4decrypt']
     },
     'linux': {
-        'base_dir': lambda home: os.path.join(home, '.local', 'bin', 'binary'),
         'download_url': 'https://www.bok.net/Bento4/binaries/Bento4-SDK-{version}.{platform}.zip',
         'versions': {
             'x64': 'x86_64-unknown-linux',
@@ -50,26 +50,11 @@ BENTO4_CONFIGURATION = {
 
 class Bento4Downloader:
     def __init__(self):
-        self.os_name = platform.system().lower()
-        self.arch = self._detect_arch()
-        self.home_dir = os.path.expanduser('~')
-        self.base_dir = BENTO4_CONFIGURATION[self.os_name]['base_dir'](self.home_dir)
+        self.os_name = binary_paths.system
+        self.arch = binary_paths.arch
+        self.home_dir = binary_paths.home_dir
+        self.base_dir = binary_paths.ensure_binary_directory()
         self.version = "1-6-0-641"  # Latest stable version as of Nov 2023
-        os.makedirs(self.base_dir, exist_ok=True)
-
-    def _detect_arch(self) -> str:
-        machine = platform.machine().lower()
-        arch_map = {
-            'amd64': 'x64', 
-            'x86_64': 'x64',
-            'x64': 'x64',
-            'arm64': 'arm64',
-            'aarch64': 'arm64',
-            'x86': 'x86',
-            'i386': 'x86',
-            'i686': 'x86'
-        }
-        return arch_map.get(machine, machine)
 
     def _download_file(self, url: str, destination: str) -> bool:
         try:
@@ -160,32 +145,29 @@ class Bento4Downloader:
             console.print(f"[bold red]Error downloading Bento4: {str(e)}[/]")
             return []
 
+
 def check_mp4decrypt() -> str:
     """Check for mp4decrypt in the system and download if not found."""
     try:
         # First check if mp4decrypt is in PATH
-        mp4decrypt = "mp4decrypt.exe" if platform.system().lower() == "windows" else "mp4decrypt"
+        mp4decrypt = "mp4decrypt.exe" if binary_paths.system == "windows" else "mp4decrypt"
         mp4decrypt_path = shutil.which(mp4decrypt)
         
         if mp4decrypt_path:
             return mp4decrypt_path
 
         # If not found, check in binary directory
-        downloader = Bento4Downloader()
-        base_dir = downloader.base_dir
-        local_path = os.path.join(base_dir, mp4decrypt)
+        binary_dir = binary_paths.get_binary_directory()
+        local_path = os.path.join(binary_dir, mp4decrypt)
         
         if os.path.exists(local_path):
             return local_path
 
         # Download if not found
+        downloader = Bento4Downloader()
         extracted_files = downloader.download()
         return extracted_files[0] if extracted_files else None
 
-    except Exception as e:
-        logging.error(f"Error checking or downloading mp4decrypt: {e}")
-        return None
-    
     except Exception as e:
         logging.error(f"Error checking or downloading mp4decrypt: {e}")
         return None

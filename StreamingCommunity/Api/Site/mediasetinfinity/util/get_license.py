@@ -9,7 +9,12 @@ import xml.etree.ElementTree as ET
 # External library
 import httpx
 from rich.console import Console
-from seleniumbase import Driver
+try:
+    from seleniumbase import Driver
+    SELENIUMBASE_AVAILABLE = True
+except ImportError:
+    SELENIUMBASE_AVAILABLE = False
+    Driver = None
 
 
 # Internal utilities
@@ -40,6 +45,17 @@ def save_network_data(data):
 
 
 def generate_betoken(username: str, password: str, sleep_action: float = 1.0) -> str:
+    """Generate beToken using browser automation"""
+    
+    if not SELENIUMBASE_AVAILABLE:
+        console.print("[red]Error: seleniumbase is not installed. Cannot perform browser login.")
+        console.print("[yellow]Install seleniumbase with: pip install seleniumbase")
+        return None
+    
+    if not Driver:
+        console.print("[red]Error: seleniumbase Driver is not available.")
+        return None
+    
     driver = Driver(uc=True, uc_cdp_events=True, incognito=True, headless=True)
     
     try:
@@ -155,6 +171,7 @@ def generate_betoken(username: str, password: str, sleep_action: float = 1.0) ->
     finally:
         driver.quit()
 
+
 def get_bearer_token():
     """
     Gets the BEARER_TOKEN for authentication.
@@ -173,6 +190,11 @@ def get_bearer_token():
     password = config_manager.get_dict("SITE_LOGIN", "mediasetinfinity").get("password", "")
     
     if username and password:
+        if not SELENIUMBASE_AVAILABLE:
+            console.print("[yellow]Warning: seleniumbase not available. Cannot perform automatic login.")
+            console.print("[yellow]Please manually obtain beToken and set it in config.")
+            return config_manager.get_dict("SITE_LOGIN", "mediasetinfinity")["beToken"]
+        
         beToken = generate_betoken(username, password)
         
         if beToken is not None:
@@ -186,6 +208,7 @@ def get_bearer_token():
             return beToken
             
     return config_manager.get_dict("SITE_LOGIN", "mediasetinfinity")["beToken"]
+
 
 def get_playback_url(BEARER_TOKEN, CONTENT_ID):
     """
@@ -231,6 +254,7 @@ def get_playback_url(BEARER_TOKEN, CONTENT_ID):
     except Exception as e:
         raise RuntimeError(f"Failed to get playback URL: {e}")
 
+
 def parse_tracking_data(tracking_value):
     """
     Parses the trackingData string into a dictionary.
@@ -242,6 +266,7 @@ def parse_tracking_data(tracking_value):
         dict: Parsed tracking data.
     """
     return dict(item.split('=', 1) for item in tracking_value.split('|') if '=' in item)
+
 
 def parse_smil_for_tracking_and_video(smil_xml):
     """
@@ -282,6 +307,7 @@ def parse_smil_for_tracking_and_video(smil_xml):
             results.append({'video_src': video_src, 'tracking_info': tracking_info})
 
     return results
+
 
 def get_tracking_info(BEARER_TOKEN, PLAYBACK_JSON):
     """
@@ -325,6 +351,7 @@ def get_tracking_info(BEARER_TOKEN, PLAYBACK_JSON):
     
     except Exception:
         return None
+
 
 def generate_license_url(BEARER_TOKEN, tracking_info):
     """

@@ -64,4 +64,4 @@ jobs:
         python -m pip install ruff
     - name: Run Ruff check
       run: |
-        ruff check . --fix --exclude Test --exclude .github
+        ruff check . --fix --exclude Test --exclude GUI

@@ -23,9 +23,9 @@
         "pass": "adminadmin"
     },
     "M3U8_DOWNLOAD": {
-        "default_video_workers": 12,
-        "default_audio_workers": 12,
-        "segment_timeout": 8,
+        "default_video_workers": 6,
+        "default_audio_workers": 6,
+        "segment_timeout": 6,
         "specific_list_audio": [
             "ita"
         ],

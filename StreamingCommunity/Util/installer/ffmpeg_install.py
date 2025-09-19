@@ -5,7 +5,6 @@ import glob
 import gzip
 import shutil
 import logging
-import platform
 import subprocess
 from typing import Optional, Tuple
 
@@ -16,25 +15,26 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeRemainingColumn
 
 
+# Internal utilities
+from .binary_paths import binary_paths
+
+
 # Variable
 console = Console()
 
 
 FFMPEG_CONFIGURATION = {
     'windows': {
-        'base_dir': lambda home: os.path.join(os.path.splitdrive(home)[0] + os.path.sep, 'binary'),
         'download_url': 'https://github.com/eugeneware/ffmpeg-static/releases/latest/download/ffmpeg-win32-{arch}.gz',
         'file_extension': '.gz',
         'executables': ['ffmpeg-win32-{arch}', 'ffprobe-win32-{arch}']
     },
     'darwin': {
-        'base_dir': lambda home: os.path.join(home, 'Applications', 'binary'),
         'download_url': 'https://github.com/eugeneware/ffmpeg-static/releases/latest/download/ffmpeg-darwin-{arch}.gz',
         'file_extension': '.gz',
         'executables': ['ffmpeg-darwin-{arch}', 'ffprobe-darwin-{arch}']
     },
     'linux': {
-        'base_dir': lambda home: os.path.join(home, '.local', 'bin', 'binary'),
         'download_url': 'https://github.com/eugeneware/ffmpeg-static/releases/latest/download/ffmpeg-linux-{arch}.gz',
         'file_extension': '.gz',
         'executables': ['ffmpeg-linux-{arch}', 'ffprobe-linux-{arch}']
@@ -44,53 +44,10 @@ FFMPEG_CONFIGURATION = {
 
 class FFMPEGDownloader:
     def __init__(self):
-        self.os_name = self._detect_system()
-        self.arch = self._detect_arch()
-        self.home_dir = os.path.expanduser('~')
-        self.base_dir = self._get_base_directory()
-
-    def _detect_system(self) -> str:
-        """
-        Detect and normalize the operating system name.
-
-        Returns:
-            str: Normalized operating system name ('windows', 'darwin', or 'linux')
-        """
-        system = platform.system().lower()
-        if system in FFMPEG_CONFIGURATION:
-            return system
-        raise ValueError(f"Unsupported operating system: {system}")
-
-    def _detect_arch(self) -> str:
-        """
-        Detect and normalize the system architecture.
-
-        Returns:
-            str: Normalized architecture name (e.g., 'x86_64', 'arm64')
-        """
-        machine = platform.machine().lower()
-        arch_map = {
-            'amd64': 'x64', 
-            'x86_64': 'x64',
-            'x64': 'x64',
-            'arm64': 'arm64',
-            'aarch64': 'arm64',
-            'armv7l': 'arm',
-            'i386': 'ia32',
-            'i686': 'ia32'
-        }
-        return arch_map.get(machine, machine)
-
-    def _get_base_directory(self) -> str:
-        """
-        Get and create the base directory for storing FFmpeg binaries.
-
-        Returns:
-            str: Path to the base directory
-        """
-        base_dir = FFMPEG_CONFIGURATION[self.os_name]['base_dir'](self.home_dir)
-        os.makedirs(base_dir, exist_ok=True)
-        return base_dir
+        self.os_name = binary_paths.system
+        self.arch = binary_paths.arch
+        self.home_dir = binary_paths.home_dir
+        self.base_dir = binary_paths.ensure_binary_directory()
 
     def _check_existing_binaries(self) -> Tuple[Optional[str], Optional[str], Optional[str]]:
         """
@@ -310,7 +267,7 @@ def check_ffmpeg() -> Tuple[Optional[str], Optional[str], Optional[str]]:
         Tuple[Optional[str], Optional[str], Optional[str]]: Paths to ffmpeg, ffprobe, and ffplay executables.
     """
     try:
-        system_platform = platform.system().lower()
+        system_platform = binary_paths.system
         
         # Special handling for macOS
         if system_platform == 'darwin':
@@ -320,7 +277,7 @@ def check_ffmpeg() -> Tuple[Optional[str], Optional[str], Optional[str]]:
                 '/usr/local/bin',                               # Homebrew default
                 '/opt/homebrew/bin',                            # Apple Silicon Homebrew
                 '/usr/bin',                                     # System default
-                os.path.expanduser('~/Applications/binary'),    # Custom installation
+                binary_paths.get_binary_directory(),            # Custom installation
                 '/Applications/binary'                          # Custom installation
             ]
             

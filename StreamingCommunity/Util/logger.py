@@ -13,7 +13,6 @@ class Logger:
     _instance = None
     
     def __new__(cls):
-        # Singleton pattern to avoid multiple logger instances
         if cls._instance is None:
             cls._instance = super(Logger, cls).__new__(cls)
             cls._instance._initialized = False
@@ -24,10 +23,8 @@ class Logger:
         if getattr(self, '_initialized', False):
             return
         
-        # Fetch only the debug setting from config
-        self.debug_mode = config_manager.get_bool("DEFAULT", "debug")
-        
         # Configure root logger
+        self.debug_mode = config_manager.get_bool('DEFAULT', "debug")
         self.logger = logging.getLogger('')
         
         # Remove any existing handlers to avoid duplication
@@ -45,16 +42,14 @@ class Logger:
 
         else:
             self.logger.setLevel(logging.ERROR)
-        
-        # Configure console logging (terminal output) regardless of debug mode
-        self._configure_console_logging()
+            self._configure_console_logging()
         
         self._initialized = True
         
     def _configure_console_logging(self):
         """Configure console logging output to terminal."""
         console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.DEBUG if self.debug_mode else logging.ERROR)
+        console_handler.setLevel(logging.ERROR)
         formatter = logging.Formatter('[%(filename)s:%(lineno)s - %(funcName)20s() ] %(asctime)s - %(levelname)s - %(message)s')
         console_handler.setFormatter(formatter)
         self.logger.addHandler(console_handler)

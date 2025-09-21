@@ -4,6 +4,8 @@ import os
 import shutil
 import zipfile
 import logging
+import subprocess
+from typing import Optional
 
 
 # External library
@@ -135,7 +137,6 @@ class Bento4Downloader:
                 os.remove(zip_path)
                 
                 if extracted_files:
-                    console.print("[bold green]Bento4 successfully installed[/]")
                     return extracted_files
                     
             raise Exception("Failed to install Bento4")
@@ -146,24 +147,53 @@ class Bento4Downloader:
             return []
 
 
-def check_mp4decrypt() -> str:
-    """Check for mp4decrypt in the system and download if not found."""
+def check_mp4decrypt() -> Optional[str]:
+    """
+    Check for mp4decrypt in the system and download if not found.
+    Order: system PATH (where/which) -> binary directory -> download
+    
+    Returns:
+        Optional[str]: Path to mp4decrypt executable or None if not found/downloaded
+    """
     try:
-        # First check if mp4decrypt is in PATH
-        mp4decrypt = "mp4decrypt.exe" if binary_paths.system == "windows" else "mp4decrypt"
-        mp4decrypt_path = shutil.which(mp4decrypt)
+        system_platform = binary_paths.system
         
-        if mp4decrypt_path:
-            return mp4decrypt_path
+        # STEP 1: Check system PATH
+        console.print("[cyan]Checking for mp4decrypt in system PATH...[/]")
+        mp4decrypt_name = "mp4decrypt.exe" if system_platform == "windows" else "mp4decrypt"
+        mp4decrypt_path = None
+        
+        if system_platform == 'windows':
+            try:
+                mp4decrypt_path = subprocess.check_output(
+                    ['where', mp4decrypt_name], stderr=subprocess.DEVNULL, text=True
+                ).strip().split('\n')[0]
+                
+                if mp4decrypt_path:
+                    logging.info("mp4decrypt found in Windows system PATH")
+                    return mp4decrypt_path
+                    
+            except subprocess.CalledProcessError:
+                logging.info("mp4decrypt not found in Windows system PATH")
+        
+        else:
+            mp4decrypt_path = shutil.which(mp4decrypt_name)
+            
+            if mp4decrypt_path:
+                logging.info("mp4decrypt found in system PATH")
+                return mp4decrypt_path
 
-        # If not found, check in binary directory
+        # STEP 2: Check in binary directory
+        console.print("[cyan]Checking for mp4decrypt in binary directory...[/]")
         binary_dir = binary_paths.get_binary_directory()
-        local_path = os.path.join(binary_dir, mp4decrypt)
+        local_path = os.path.join(binary_dir, mp4decrypt_name)
         
-        if os.path.exists(local_path):
+        if os.path.exists(local_path) and os.access(local_path, os.X_OK):
+            logging.info("mp4decrypt found in binary directory")
             return local_path
 
-        # Download if not found
+        # STEP 3: Download if not found
+        console.print("[cyan]mp4decrypt not found. Downloading...[/]")
         downloader = Bento4Downloader()
         extracted_files = downloader.download()
         return extracted_files[0] if extracted_files else None

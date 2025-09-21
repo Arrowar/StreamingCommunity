@@ -51,38 +51,91 @@ class FFMPEGDownloader:
 
     def _check_existing_binaries(self) -> Tuple[Optional[str], Optional[str], Optional[str]]:
         """
-        Check if FFmpeg binaries already exist in the base directory.
-        Enhanced to check both the binary directory and system paths on macOS.
+        Check if FFmpeg binaries already exist.
+        Order: system PATH (where/which) -> binary directory
+        
+        Returns:
+            Tuple[Optional[str], Optional[str], Optional[str]]: Paths to ffmpeg, ffprobe, ffplay
         """
-        config = FFMPEG_CONFIGURATION[self.os_name]
-        executables = config['executables']
-        found_executables = []
+        try:
 
-        # For macOS, check both binary directory and system paths
-        if self.os_name == 'darwin':
-            potential_paths = [
-                '/usr/local/bin',
-                '/opt/homebrew/bin',
-                '/usr/bin',
-                self.base_dir
-            ]
+            # STEP 1: Check system PATH first
+            console.print("[cyan]Checking for FFmpeg in system PATH...[/]")
+            if self.os_name == 'windows':
+                try:
+                    ffmpeg_path = subprocess.check_output(
+                        ['where', 'ffmpeg'], stderr=subprocess.DEVNULL, text=True
+                    ).strip().split('\n')[0]
+                    
+                    ffprobe_path = subprocess.check_output(
+                        ['where', 'ffprobe'], stderr=subprocess.DEVNULL, text=True
+                    ).strip().split('\n')[0]
+                    
+                    try:
+                        ffplay_path = subprocess.check_output(
+                            ['where', 'ffplay'], stderr=subprocess.DEVNULL, text=True
+                        ).strip().split('\n')[0]
+                    except subprocess.CalledProcessError:
+                        ffplay_path = None
+                        
+                    return ffmpeg_path, ffprobe_path, ffplay_path
+                    
+                except subprocess.CalledProcessError:
+                    pass
             
-            for executable in executables:
-                found = None
-                for path in potential_paths:
-                    full_path = os.path.join(path, executable)
-                    if os.path.exists(full_path) and os.access(full_path, os.X_OK):
-                        found = full_path
-                        break
-                found_executables.append(found)
-        else:
+            else:
+                ffmpeg_path = shutil.which('ffmpeg')
+                ffprobe_path = shutil.which('ffprobe')
+                ffplay_path = shutil.which('ffplay')
+                
+                if ffmpeg_path and ffprobe_path:
+                    return ffmpeg_path, ffprobe_path, ffplay_path
 
-            # Original behavior for other operating systems
+            # STEP 2: Check in binary directory
+            console.print("[cyan]Checking for FFmpeg in binary directory...[/]")
+            config = FFMPEG_CONFIGURATION[self.os_name]
+            executables = [exe.format(arch=self.arch) for exe in config['executables']]
+            found_executables = []
+
             for executable in executables:
+
+                # Check for exact match first
                 exe_paths = glob.glob(os.path.join(self.base_dir, executable))
-                found_executables.append(exe_paths[0] if exe_paths else None)
+                if exe_paths:
+                    found_executables.append(exe_paths[0])
+                    
+                else:
+                    # Check for standard names
+                    if self.os_name == 'windows':
+                        if 'ffmpeg' in executable:
+                            standard_path = os.path.join(self.base_dir, 'ffmpeg.exe')
+                        elif 'ffprobe' in executable:
+                            standard_path = os.path.join(self.base_dir, 'ffprobe.exe')
+                        else:
+                            standard_path = None
+                    else:
+                        if 'ffmpeg' in executable:
+                            standard_path = os.path.join(self.base_dir, 'ffmpeg')
+                        elif 'ffprobe' in executable:
+                            standard_path = os.path.join(self.base_dir, 'ffprobe')
+                        else:
+                            standard_path = None
+                    
+                    if standard_path and os.path.exists(standard_path):
+                        found_executables.append(standard_path)
+                    else:
+                        found_executables.append(None)
 
-        return tuple(found_executables) if len(found_executables) == 3 else (None, None, None)
+            # Return found executables if we have at least ffmpeg and ffprobe
+            if len(found_executables) >= 2 and found_executables[0] and found_executables[1]:
+                ffplay_path = found_executables[2] if len(found_executables) > 2 else None
+                return found_executables[0], found_executables[1], ffplay_path
+            
+            return (None, None, None)
+            
+        except Exception as e:
+            logging.error(f"Error checking existing binaries: {e}")
+            return (None, None, None)
 
     def _get_latest_version(self, repo: str) -> Optional[str]:
         """
@@ -210,7 +263,6 @@ class FFMPEGDownloader:
                     ffprobe_path = shutil.which('ffprobe')
 
                     if ffmpeg_path and ffprobe_path:
-                        console.print("[bold green]FFmpeg successfully installed via apt[/]")
                         return ffmpeg_path, ffprobe_path, None
                 else:
                     console.print("[bold yellow]Failed to install FFmpeg via apt. Proceeding with static download.[/]")
@@ -242,7 +294,6 @@ class FFMPEGDownloader:
                 # Extract the file
                 if self._extract_file(download_path, final_path):
                     successful_extractions.append(final_path)
-                    console.print(f"[bold green]Successfully installed {executable}[/]")
                 else:
                     console.print(f"[bold red]Failed to extract {executable}[/]")
 
@@ -261,69 +312,23 @@ class FFMPEGDownloader:
 def check_ffmpeg() -> Tuple[Optional[str], Optional[str], Optional[str]]:
     """
     Check for FFmpeg executables in the system and download them if not found.
-    Enhanced detection for macOS systems.
-
+    Order: system PATH (where/which) -> binary directory -> download
+    
     Returns:
-        Tuple[Optional[str], Optional[str], Optional[str]]: Paths to ffmpeg, ffprobe, and ffplay executables.
+        Tuple[Optional[str], Optional[str], Optional[str]]: Paths to ffmpeg, ffprobe, and ffplay
     """
     try:
-        system_platform = binary_paths.system
-        
-        # Special handling for macOS
-        if system_platform == 'darwin':
-
-            # Common installation paths on macOS
-            potential_paths = [
-                '/usr/local/bin',                               # Homebrew default
-                '/opt/homebrew/bin',                            # Apple Silicon Homebrew
-                '/usr/bin',                                     # System default
-                binary_paths.get_binary_directory(),            # Custom installation
-                '/Applications/binary'                          # Custom installation
-            ]
-            
-            for path in potential_paths:
-                ffmpeg_path = os.path.join(path, 'ffmpeg')
-                ffprobe_path = os.path.join(path, 'ffprobe')
-                ffplay_path = os.path.join(path, 'ffplay')
-                
-                if (os.path.exists(ffmpeg_path) and os.path.exists(ffprobe_path) and 
-                    os.access(ffmpeg_path, os.X_OK) and os.access(ffprobe_path, os.X_OK)):
-                    
-                    # Return found executables, with ffplay being optional
-                    ffplay_path = ffplay_path if os.path.exists(ffplay_path) else None
-                    return ffmpeg_path, ffprobe_path, ffplay_path
-
-        # Windows detection
-        elif system_platform == 'windows':
-            try:
-                ffmpeg_path = subprocess.check_output(
-                    ['where', 'ffmpeg'], stderr=subprocess.DEVNULL, text=True
-                ).strip().split('\n')[0]
-                
-                ffprobe_path = subprocess.check_output(
-                    ['where', 'ffprobe'], stderr=subprocess.DEVNULL, text=True
-                ).strip().split('\n')[0]
-                
-                ffplay_path = subprocess.check_output(
-                    ['where', 'ffplay'], stderr=subprocess.DEVNULL, text=True
-                ).strip().split('\n')[0]
-
-                return ffmpeg_path, ffprobe_path, ffplay_path
-            
-            except subprocess.CalledProcessError:
-                logging.warning("One or more FFmpeg binaries were not found with command where")
-
-        # Linux detection
-        else:
-            ffmpeg_path = shutil.which('ffmpeg')
-            ffprobe_path = shutil.which('ffprobe')
-            ffplay_path = shutil.which('ffplay')
-            
-            if ffmpeg_path and ffprobe_path:
-                return ffmpeg_path, ffprobe_path, ffplay_path
-
-        # If executables were not found, attempt to download FFmpeg
+        # Create downloader instance to use its existing check method
         downloader = FFMPEGDownloader()
+        
+        # STEP 1 & 2: Check existing binaries (system PATH + binary directory)
+        ffmpeg_path, ffprobe_path, ffplay_path = downloader._check_existing_binaries()
+        
+        # If found, return them
+        if ffmpeg_path and ffprobe_path:
+            return ffmpeg_path, ffprobe_path, ffplay_path
+
+        # STEP 3: Download if not found
         return downloader.download()
 
     except Exception as e:

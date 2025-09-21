@@ -3,17 +3,12 @@
 import io
 import os
 import time
-import glob
-import sys
 import shutil
-import struct
 import logging
 import socket
 import platform
 import inspect
-import subprocess
 import contextlib
-import importlib.metadata
 
 
 # External library
@@ -26,7 +21,7 @@ from pathvalidate import sanitize_filename, sanitize_filepath
 # Internal utilities
 from .installer.ffmpeg_install import check_ffmpeg
 from .installer.bento4_install import check_mp4decrypt
-from .installer.binary_paths import binary_paths
+from .installer.device_install import check_wvd_path
 
 
 # Variable
@@ -315,130 +310,18 @@ class OsSummary:
         self.ffprobe_path = None
         self.ffplay_path = None
         self.mp4decrypt_path = None
+        self.wvd_path = None
         self.init()
-
-    def check_ffmpeg_location(self, command: list) -> str:
-        """
-        Check if a specific executable (ffmpeg or ffprobe) is located using the given command.
-        Returns the path of the executable or None if not found.
-        """
-        try:
-            result = subprocess.check_output(command, text=True).strip()
-            return result.split('\n')[0] if result else None
-
-        except subprocess.CalledProcessError:
-            return None
-
-    def get_library_version(self, lib_name: str):
-        """
-        Retrieve the version of a Python library.
-
-        Args:
-            lib_name (str): The name of the Python library.
-
-        Returns:
-            str: The library name followed by its version, or `-not installed` if not found.
-        """
-        try:
-            version = importlib.metadata.version(lib_name)
-            return f"{lib_name}-{version}"
-
-        except importlib.metadata.PackageNotFoundError:
-            return f"{lib_name}-not installed"
-
-    def install_library(self, lib_name: str):
-        """
-        Install a Python library using pip.
-
-        Args:
-            lib_name (str): The name of the library to install.
-        """
-        try:
-            console.print(f"Installing {lib_name}...", style="bold yellow")
-            subprocess.check_call([sys.executable, "-m", "pip", "install", lib_name])
-            console.print(f"{lib_name} installed successfully!", style="bold green")
-
-        except subprocess.CalledProcessError as e:
-            console.print(f"Failed to install {lib_name}: {e}", style="bold red")
-            sys.exit(1)
 
     def init(self):
 
-        # Initialize binary paths and check for existing binaries
-        binary_dir = binary_paths.get_binary_directory()
-        arch = binary_paths.arch
-
-        # Check for existing FFmpeg binaries in binary directory
-        if os.path.exists(binary_dir):
-            ffmpeg_files = glob.glob(os.path.join(binary_dir, f'*ffmpeg*{arch}*'))
-            ffprobe_files = glob.glob(os.path.join(binary_dir, f'*ffprobe*{arch}*'))
-
-            if ffmpeg_files and ffprobe_files:
-                self.ffmpeg_path = ffmpeg_files[0]
-                self.ffprobe_path = ffprobe_files[0]
-            else:
-                self.ffmpeg_path, self.ffprobe_path, self.ffplay_path = check_ffmpeg()
-        else:
-            self.ffmpeg_path, self.ffprobe_path, self.ffplay_path = check_ffmpeg()
-
-        # Check mp4decrypt
+        # Check for binaries
+        self.ffmpeg_path, self.ffprobe_path, _ = check_ffmpeg()
         self.mp4decrypt_path = check_mp4decrypt()
-
-        # Validate required binaries
-        if not self.ffmpeg_path or not self.ffprobe_path:
-            console.log("[red]Can't locate ffmpeg or ffprobe")
-            sys.exit(0)
-
-        if not self.mp4decrypt_path:
-            console.log("[yellow]Warning: mp4decrypt not found")
+        self.wvd_path = check_wvd_path()
         
         self._display_binary_paths()
-        time.sleep(0.25)
-
-    def extract_png_chunk(self, png_with_wvd, out_wvd_path):
-        with open(png_with_wvd, "rb") as f: 
-            data = f.read()
-        pos = 8
-
-        while pos < len(data):
-            length = struct.unpack(">I", data[pos:pos+4])[0]
-            chunk_type = data[pos+4:pos+8]
-            chunk_data = data[pos+8:pos+8+length]
-
-            if chunk_type == b"stEg":
-                with open(out_wvd_path, "wb") as f: 
-                    f.write(chunk_data)
-                return
-            
-            pos += 12 + length
-
-    def get_wvd_path(self) -> str:
-        """
-        Searches the system's binary folder and returns the path of the first file ending with 'wvd'.
-        Returns None if not found.
-        """
-        binary_dir = binary_paths.get_binary_directory()
-
-        if not os.path.exists(binary_dir):
-            return None
-        
-        for file in os.listdir(binary_dir):
-            if file.lower().endswith('wvd'):
-                return os.path.join(binary_dir, file)
-            
-        png_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".github", ".site", "img", "crunchyroll_etp_rt.png")
-        out_wvd_path = os.path.join(binary_dir, ''.join(map(chr, [100,101,118,105,99,101,46,119,118,100])))
-        
-        if os.path.exists(png_path):
-            try:
-                self.extract_png_chunk(png_path, out_wvd_path)
-                if os.path.exists(out_wvd_path):
-                    return out_wvd_path
-                
-            except Exception:
-                pass
-
-        return None
+        time.sleep(0.3)
 
     def _display_binary_paths(self):
         """Display the paths of all detected binaries."""
@@ -446,7 +329,7 @@ class OsSummary:
             'ffmpeg': self.ffmpeg_path,
             'ffprobe': self.ffprobe_path,
             'mp4decrypt': self.mp4decrypt_path,
-            'wvd': self.get_wvd_path()
+            'wvd': self.wvd_path
         }
         
         path_strings = []
@@ -505,4 +388,4 @@ def get_mp4decrypt_path():
 
 def get_wvd_path():
     """Returns the path of wvd."""
-    return os_summary.get_wvd_path()
+    return os_summary.wvd_path

@@ -9,6 +9,9 @@ import logging
 from rich.console import Console
 
 
+# Internal utilities
+from StreamingCommunity.Util.os import get_mp4decrypt_path
+
 # Variable
 console = Console()
 
@@ -45,7 +48,7 @@ def decrypt_with_mp4decrypt(encrypted_path, kid, key, output_path=None, cleanup=
         output_path = os.path.splitext(encrypted_path)[0] + "_decrypted.mp4"
 
     key_format = f"{kid.lower()}:{key.lower()}"
-    cmd = ["mp4decrypt", "--key", key_format, encrypted_path, output_path]
+    cmd = [get_mp4decrypt_path(), "--key", key_format, encrypted_path, output_path]
     logging.info(f"Running command: {' '.join(cmd)}")
 
     try:

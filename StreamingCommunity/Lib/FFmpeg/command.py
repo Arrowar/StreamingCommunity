@@ -164,13 +164,13 @@ def join_video(video_path: str, out_path: str, codec: M3U8_Codec = None):
     else:
 
         if get_use_large_bar():
-            capture_ffmpeg_real_time(ffmpeg_cmd, "[cyan]Join video")
+            capture_ffmpeg_real_time(ffmpeg_cmd, "[yellow][FFMPEG] [cyan]Join video")
             print()
 
         else:
             console.log("[purple]FFmpeg [white][[cyan]Join video[white]] ...")
             with suppress_output():
-                capture_ffmpeg_real_time(ffmpeg_cmd, "[cyan]Join video")
+                capture_ffmpeg_real_time(ffmpeg_cmd, "[yellow][FFMPEG] [cyan]Join video")
                 print()
 
     return out_path
@@ -299,13 +299,13 @@ def join_audios(video_path: str, audio_tracks: List[Dict[str, str]], out_path: s
         
     else:
         if get_use_large_bar():
-            capture_ffmpeg_real_time(ffmpeg_cmd, "[cyan]Join audio")
+            capture_ffmpeg_real_time(ffmpeg_cmd, "[yellow][FFMPEG] [cyan]Join audio")
             print()
 
         else:
             console.log("[purple]FFmpeg [white][[cyan]Join audio[white]] ...")
             with suppress_output():
-                capture_ffmpeg_real_time(ffmpeg_cmd, "[cyan]Join audio")
+                capture_ffmpeg_real_time(ffmpeg_cmd, "[yellow][FFMPEG] [cyan]Join audio")
                 print()
 
     return out_path, use_shortest
@@ -366,13 +366,13 @@ def join_subtitle(video_path: str, subtitles_list: List[Dict[str, str]], out_pat
 
     else:
         if get_use_large_bar():
-            capture_ffmpeg_real_time(ffmpeg_cmd, "[cyan]Join subtitle")
+            capture_ffmpeg_real_time(ffmpeg_cmd, "[yellow][FFMPEG] [cyan]Join subtitle")
             print()
 
         else:
             console.log("[purple]FFmpeg [white][[cyan]Join subtitle[white]] ...")
             with suppress_output():
-                capture_ffmpeg_real_time(ffmpeg_cmd, "[cyan]Join subtitle")
+                capture_ffmpeg_real_time(ffmpeg_cmd, "[yellow][FFMPEG] [cyan]Join subtitle")
                 print()
 
     return out_path

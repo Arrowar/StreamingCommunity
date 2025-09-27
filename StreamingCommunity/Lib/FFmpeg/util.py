@@ -133,8 +133,10 @@ def print_duration_table(file_path: str, description: str = "Duration", return_s
 def get_ffprobe_info(file_path):
     """
     Get format and codec information for a media file using ffprobe.
+
     Parameters:
         - file_path (str): Path to the media file.
+    
     Returns:
         dict: A dictionary containing the format name and a list of codec names.
               Returns None if file does not exist or ffprobe crashes.
@@ -143,25 +145,8 @@ def get_ffprobe_info(file_path):
         logging.error(f"File not found: {file_path}")
         return None
 
-    # Get ffprobe path and verify it exists
-    ffprobe_path = get_ffprobe_path()
-    if not ffprobe_path or not os.path.exists(ffprobe_path):
-        logging.error(f"FFprobe not found at path: {ffprobe_path}")
-        return None
-
-    # Verify file permissions
     try:
-        file_stat = os.stat(file_path)
-        logging.info(f"File permissions: {oct(file_stat.st_mode)}")
-        if not os.access(file_path, os.R_OK):
-            logging.error(f"No read permission for file: {file_path}")
-            return None
-    except OSError as e:
-        logging.error(f"Cannot access file {file_path}: {e}")
-        return None
-
-    try:
-        cmd = [ffprobe_path, '-v', 'error', '-show_format', '-show_streams', '-print_format', 'json', file_path]
+        cmd = [get_ffprobe_path(), '-v', 'error', '-show_format', '-show_streams', '-print_format', 'json', file_path]
         logging.info(f"Running FFprobe command: {' '.join(cmd)}")
         
         # Use subprocess.run instead of Popen for better error handling
@@ -177,20 +162,15 @@ def get_ffprobe_info(file_path):
             logging.error(f"FFprobe stderr: {result.stderr}")
             logging.error(f"FFprobe stdout: {result.stdout}")
             logging.error(f"Command: {' '.join(cmd)}")
-            logging.error(f"FFprobe path permissions: {oct(os.stat(ffprobe_path).st_mode)}")
             return None
 
         # Parse JSON output
-        try:
-            info = json.loads(result.stdout)
-            return {
-                'format_name': info.get('format', {}).get('format_name'),
-                'codec_names': [stream.get('codec_name') for stream in info.get('streams', [])]
-            }
-        except json.JSONDecodeError as e:
-            logging.error(f"Failed to parse FFprobe output: {e}")
-            return None
-
+        info = json.loads(result.stdout)
+        return {
+            'format_name': info.get('format', {}).get('format_name'),
+            'codec_names': [stream.get('codec_name') for stream in info.get('streams', [])]
+        }
+    
     except Exception as e:
         logging.error(f"FFprobe execution failed: {e}")
         return None
@@ -223,11 +203,12 @@ def need_to_force_to_ts(file_path):
     Parameters:
         - file_path (str): Path to the input media file.
     """
-    logging.info(f"Processing file: {file_path}")
     file_info = get_ffprobe_info(file_path)
 
     if is_png_format_or_codec(file_info):
+       console.print(f"[yellow]Warning: The input file [green]{os.path.basename(file_path)}[/green] is in PNG format or contains a PNG codec. It will be converted to TS format for processing.[/yellow]")
        return True
+    
     return False
 
 

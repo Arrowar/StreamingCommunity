@@ -288,10 +288,6 @@ class M3U8_Segments:
                         return
 
             except Exception as e:
-                error_msg = str(e)
-                
-                if attempt == 0:
-                    logging.warning(f"Segment {index} failed on first attempt: {error_msg}")
                 
                 if attempt > self.info_maxRetry:
                     self.info_maxRetry = attempt + 1

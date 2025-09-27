@@ -360,15 +360,24 @@ def setup_argument_parser(search_functions):
     
     # Add arguments
     parser.add_argument("script_id", nargs="?", default="unknown", help="ID dello script")
-    parser.add_argument('--add_siteName', type=bool, help='Enable/disable adding site name to file name')
+    parser.add_argument('-s', '--search', default=None, help='Search terms')
+    parser.add_argument('--global', action='store_true', help='Global search across sites')
     parser.add_argument('--not_close', type=bool, help='Keep console open after execution')
-    parser.add_argument('--default_video_worker', type=int, help='Video workers for M3U8 download (default: 12)')
-    parser.add_argument('--default_audio_worker', type=int, help='Audio workers for M3U8 download (default: 12)')
+    
     parser.add_argument('--specific_list_audio', type=str, help='Audio languages (e.g., ita,eng)')
     parser.add_argument('--specific_list_subtitles', type=str, help='Subtitle languages (e.g., eng,spa)')
-    parser.add_argument('--global', action='store_true', help='Global search across sites')
+    parser.add_argument('--force_resolution', type=str, choices=["Best", "Worst", "720p", "1080p", "480p", "360p"],
+                    help='Choose video resolution:\n'
+                            '  "Best": Highest available resolution\n'
+                            '  "Worst": Lowest available resolution\n'
+                            '  "720p": Force 720p resolution\n'
+                            '  Specific resolutions:\n'
+                            '    - 1080p (1920x1080)\n'
+                            '    - 720p (1280x720)\n'
+                            '    - 480p (640x480)\n'
+                            '    - 360p (640x360)')
+
     parser.add_argument('--category', type=int, help='Category (1: anime, 2: film_&_serie, 3: serie, 4: torrent)')
-    parser.add_argument('-s', '--search', default=None, help='Search terms')
     parser.add_argument('--auto-first', action='store_true', help='Auto-download first result (use with --site and --search)')
     parser.add_argument('--site', type=str, help='Site by name or index')
     
@@ -380,10 +389,8 @@ def apply_config_updates(args):
     config_updates = {}
     
     arg_mappings = {
-        'add_siteName': 'DEFAULT.add_siteName',
         'not_close': 'DEFAULT.not_close', 
-        'default_video_worker': 'M3U8_DOWNLOAD.default_video_worker',
-        'default_audio_worker': 'M3U8_DOWNLOAD.default_audio_worker'
+        'force_resolution': 'M3U8_CONVERSION.force_resolution',
     }
     
     for arg_name, config_key in arg_mappings.items():

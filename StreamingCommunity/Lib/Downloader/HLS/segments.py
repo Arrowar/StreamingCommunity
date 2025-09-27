@@ -287,7 +287,7 @@ class M3U8_Segments:
                         progress_bar.update(1)
                         return
 
-            except Exception as e:
+            except Exception:
                 
                 if attempt > self.info_maxRetry:
                     self.info_maxRetry = attempt + 1

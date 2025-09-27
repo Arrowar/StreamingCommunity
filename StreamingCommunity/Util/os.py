@@ -19,9 +19,7 @@ from pathvalidate import sanitize_filename, sanitize_filepath
 
 
 # Internal utilities
-from .installer.ffmpeg_install import check_ffmpeg
-from .installer.bento4_install import check_mp4decrypt
-from .installer.device_install import check_wvd_path
+from .installer import check_ffmpeg, check_mp4decrypt, check_device_wvd_path
 
 
 # Variable
@@ -318,7 +316,7 @@ class OsSummary:
         # Check for binaries
         self.ffmpeg_path, self.ffprobe_path, _ = check_ffmpeg()
         self.mp4decrypt_path = check_mp4decrypt()
-        self.wvd_path = check_wvd_path()
+        self.wvd_path = check_device_wvd_path()
         
         self._display_binary_paths()
         time.sleep(0.3)

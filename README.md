@@ -7,7 +7,9 @@
 [![License](https://img.shields.io/github/license/Arrowar/StreamingCommunity?logo=gnu&logoColor=white&labelColor=2d3748&color=e53e3e&style=for-the-badge)](https://github.com/Arrowar/StreamingCommunity/blob/main/LICENSE)
 
 ## 💝 Support the Project
-[![Donate PayPal](https://img.shields.io/badge/💳_Donate-PayPal-00457C?style=for-the-badge&logo=paypal&logoColor=white&labelColor=2d3748)](https://www.paypal.com/donate/?hosted_button_id=UXTWMT8P6HE2C)
+<a href='https://ko-fi.com/E1E11LVC83' target='_blank'>
+    <img height='36' style='border:0px;height:36px;' src='https://storage.ko-fi.com/cdn/kofi4.png?v=6' border='0' alt='Buy Me a Coffee at ko-fi.com' />
+</a>
 
 ## 🚀 Download & Install
 [![Windows](https://img.shields.io/badge/🪟_Windows-0078D4?style=for-the-badge&logo=windows&logoColor=white&labelColor=2d3748)](https://github.com/Arrowar/StreamingCommunity/releases/latest/download/StreamingCommunity_win.exe)
@@ -24,50 +26,44 @@
 ---
 
 ## 📖 Table of Contents
-- [Installation](#manual-installation)
-- [Quick Start](#quick-start)
-- [Downloaders](#downloaders)
-- [Configuration](#configuration)
-- [Login](.github/.site/login.md)
-- [Usage Examples](#usage-examples)
-- [Global Search](#global-search)
-- [Advanced Features](#advanced-options)
-- [Deployment](#docker)
-- [Tutorials](#tutorials)
-- [Related Projects](#useful-project)
+- ⚙️ [Installation](#installation)
+- 🚀 [Quick Start](#quick-start)
+- 📥 [Downloaders](#downloaders)
+- 🛠️ [Configuration](#configuration)
+- 🔐 [Login](.github/.site/login.md)
+- 🌐 [Domain](https://arrowar.github.io/StreamingCommunity)
+- 💡 [Usage Examples](#usage-examples)
+- 🔍 [Global Search](#global-search)
+- 🧩 [Advanced Features](#advanced-options)
+- 🐳 [Deployment](#docker)
+- 🎓 [Tutorials](#tutorials)
+- 🔗 [Related Projects](#useful-project)
 
 ---
 
-## Manual Installation
+## Installation
 
-<summary>⚙️ Python Dependencies</summary>
+### Prerequisites
+Make sure you have Python installed on your system:
+- **Windows**: Download from [python.org](https://python.org) or install via Microsoft Store
+- **Linux**: `sudo apt install python3 python3-pip` (Ubuntu/Debian) or equivalent for your distro
+- **MacOS**: `brew install python3` or download from [python.org](https://python.org)
 
-#### On Windows:
-
-```powershell
+### Dependencies
+```bash
+# Windows
 pip install -r requirements.txt
-```
 
-#### On Linux/MacOS:
-
-```bash
+# Linux/MacOS  
 pip3 install -r requirements.txt
-# or alternatively:
-python3 -m pip install -r requirements.txt
 ```
 
-<detail>
-<summary> Update </summary>
-
-### On Windows:
-
-```powershell
-python update.py
-```
-
-### On Linux/MacOS:
-
+### Update
 ```bash
+# Windows
+python update.py
+
+# Linux/MacOS
 python3 update.py
 ```
 
@@ -75,26 +71,17 @@ python3 update.py
 
 ## Quick Start
 
-After installing via pip, just run:
+**Via pip installation:**
 ```bash
 StreamingCommunity
 ```
-to start the application.
-
-Run the script:
-```bash
-python run_streaming.py
-```
 
 **Manual execution:**
-
-**Windows:**
-```powershell
-python test_run.py
-```
-
-**Linux/MacOS:**
 ```bash
+# Windows
+python test_run.py
+
+# Linux/MacOS
 python3 test_run.py
 ```
 
@@ -117,7 +104,7 @@ downloader = HLS_Downloader(
 downloader.download()
 ```
 
-See [HLS example](./Test/EasyDownload//HLS.py) for complete usage.
+See [HLS example](./Test/Downloads//HLS.py) for complete usage.
 
 <summary>📽️ MP4</summary>
 
@@ -134,7 +121,7 @@ downloader = MP4_downloader(
 downloader.download()
 ```
 
-See [MP4 example](./Test/EasyDownload/MP4.py) for complete usage.
+See [MP4 example](./Test/Downloads/MP4.py) for complete usage.
 
 <summary>🧲 TOR</summary>
 
@@ -150,7 +137,7 @@ client.add_magnet_link("magnet:?xt=urn:btih:example_hash&dn=example_name", save_
 client.start_download()
 ```
 
-See [Torrent example](./Test/EasyDownload/TOR.py) for complete usage.
+See [Torrent example](./Test/Downloads/TOR.py) for complete usage.
 
 <summary>🎞️ DASH</summary>
 
@@ -172,7 +159,7 @@ if dash_process.download_and_decrypt():
 dash_process.get_status()
 ```
 
-See [DASH example](./Test/EasyDownload/DASH.py) for complete usage.
+See [DASH example](./Test/Downloads/DASH.py) for complete usage.
 
 ---
 

@@ -114,7 +114,7 @@ class DeviceDownloader:
             return None
 
 
-def check_wvd_path() -> Optional[str]:
+def check_device_wvd_path() -> Optional[str]:
     """
     Check for device.wvd file in binary directory and extract from PNG if not found.
     """

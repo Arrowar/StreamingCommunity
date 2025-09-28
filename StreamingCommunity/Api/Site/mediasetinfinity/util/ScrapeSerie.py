@@ -118,6 +118,7 @@ class GetSerieInfo:
                     'id': str(url).split("/")[-1],
                     'guid': season['guid']
                 })
+                
             else:
                 logging.warning(f"Season URL not found: {url}")
 
@@ -145,14 +146,14 @@ class GetSerieInfo:
                 impersonate="chrome",
                 allow_redirects=True
             )
-            print("Risposta per _extract_season_sb_ids:", response_page.status_code)
+            print("Risposta per _extract_season_sb_ids:", response_page.status_code, " index season:", season['tvSeasonNumber'])
 
             soup = BeautifulSoup(response_page.text, 'html.parser')
             
             # Prova prima con 'Episodi', poi con 'Puntate intere'
             link = soup.find('a', string='Episodi')
             if not link:
-                print("Using word: Puntate intere")
+                #print("Using word: Puntate intere")
                 link = soup.find('a', string='Puntate intere')
             
             if link and link.has_attr('href'):

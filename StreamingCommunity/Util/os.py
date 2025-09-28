@@ -319,7 +319,6 @@ class OsSummary:
         self.wvd_path = check_device_wvd_path()
         
         self._display_binary_paths()
-        time.sleep(0.3)
 
     def _display_binary_paths(self):
         """Display the paths of all detected binaries."""

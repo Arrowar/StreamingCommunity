@@ -7,6 +7,7 @@ import shutil
 # External libraries
 from rich.console import Console
 from rich.panel import Panel
+from rich.table import Table
 
 
 # Internal utilities
@@ -64,23 +65,59 @@ class DASH_Downloader:
         self.parser = MPDParser(self.mpd_url)
         self.parser.parse(custom_headers)
 
-        # Video info
-        selected_video, list_available_resolution, filter_custom_resolution, downloadable_video = self.parser.select_video(FILTER_CUSTOM_REOLUTION)
-        console.print(
-            f"[cyan bold]Video    [/cyan bold] [green]Available:[/green] [purple]{', '.join(list_available_resolution)}[/purple] | "
-            f"[red]Set:[/red] [purple]{filter_custom_resolution}[/purple] | "
-            f"[yellow]Downloadable:[/yellow] [purple]{downloadable_video}[/purple]"
-        )
-        self.selected_video = selected_video
+        def calculate_column_widths():
+            """Calculate optimal column widths based on content."""
+            data_rows = []
+            
+            # Video info
+            selected_video, list_available_resolution, filter_custom_resolution, downloadable_video = self.parser.select_video(FILTER_CUSTOM_REOLUTION)
+            self.selected_video = selected_video
+            
+            available_video = ', '.join(list_available_resolution) if list_available_resolution else "Nothing"
+            set_video = str(filter_custom_resolution) if filter_custom_resolution else "Nothing"
+            downloadable_video_str = str(downloadable_video) if downloadable_video else "Nothing"
+            
+            data_rows.append(["Video", available_video, set_video, downloadable_video_str])
 
-        # Audio info 
-        selected_audio, list_available_audio_langs, filter_custom_audio, downloadable_audio = self.parser.select_audio(DOWNLOAD_SPECIFIC_AUDIO)
-        console.print(
-            f"[cyan bold]Audio    [/cyan bold] [green]Available:[/green] [purple]{', '.join(list_available_audio_langs)}[/purple] | "
-            f"[red]Set:[/red] [purple]{filter_custom_audio}[/purple] | "
-            f"[yellow]Downloadable:[/yellow] [purple]{downloadable_audio}[/purple]"
-        )
-        self.selected_audio = selected_audio
+            # Audio info 
+            selected_audio, list_available_audio_langs, filter_custom_audio, downloadable_audio = self.parser.select_audio(DOWNLOAD_SPECIFIC_AUDIO)
+            self.selected_audio = selected_audio
+            
+            available_audio = ', '.join(list_available_audio_langs) if list_available_audio_langs else "Nothing"
+            set_audio = str(filter_custom_audio) if filter_custom_audio else "Nothing"
+            downloadable_audio_str = str(downloadable_audio) if downloadable_audio else "Nothing"
+            
+            data_rows.append(["Audio", available_audio, set_audio, downloadable_audio_str])
+            
+            # Calculate max width for each column
+            headers = ["Type", "Available", "Set", "Downloadable"]
+            max_widths = [len(header) for header in headers]
+            
+            for row in data_rows:
+                for i, cell in enumerate(row):
+                    max_widths[i] = max(max_widths[i], len(str(cell)))
+            
+            # Add some padding
+            max_widths = [w + 2 for w in max_widths]
+            
+            return data_rows, max_widths
+        
+        data_rows, column_widths = calculate_column_widths()
+        
+        # Create table with dynamic widths
+        table = Table(show_header=True, header_style="bold cyan", border_style="blue")
+        table.add_column("Type", style="cyan bold", width=column_widths[0])
+        table.add_column("Available", style="green", width=column_widths[1])
+        table.add_column("Set", style="red", width=column_widths[2])
+        table.add_column("Downloadable", style="yellow", width=column_widths[3])
+        
+        # Add all rows to the table
+        for row in data_rows:
+            table.add_row(*row)
+
+        console.print("[cyan]You can safely stop the download with [bold]Ctrl+c[bold] [cyan]")
+        console.print(table)
+        console.print("")
 
     def get_representation_by_type(self, typ):
         if typ == "video":
@@ -212,6 +249,7 @@ class DASH_Downloader:
                 f"[cyan]Output: [bold]{os.path.abspath(output_file)}[/bold]"
             )
 
+            print("")
             console.print(Panel(
                 panel_content,
                 title=f"{os.path.basename(output_file.replace('.mp4', ''))}",

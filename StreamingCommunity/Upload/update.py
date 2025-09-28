@@ -6,6 +6,7 @@ import time
 import asyncio
 import importlib.metadata
 
+
 # External library
 import httpx
 from rich.console import Console
@@ -79,7 +80,6 @@ def update():
     try:
         current_version = importlib.metadata.version(__title__)
     except importlib.metadata.PackageNotFoundError:
-        #console.print(f"[yellow]Warning: Could not determine installed version for '{__title__}' via importlib.metadata. Falling back to source version.[/yellow]")
         current_version = source_code_version
 
     # Get commit details
@@ -98,4 +98,4 @@ def update():
     console.print(f"\n[red]{__title__} has been downloaded [yellow]{total_download_count} [red]times, but only [yellow]{percentual_stars}% [red]of users have starred it.\n\
         [cyan]Help the repository grow today by leaving a [yellow]star [cyan]and [yellow]sharing [cyan]it with others online!")
     
-    time.sleep(2.5)
+    time.sleep(2)

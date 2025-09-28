@@ -59,17 +59,12 @@ def title_search(query: str) -> int:
 
     for serie_div in soup.find_all('div', class_='entry'):
         try:
-            
-            title = serie_div.find('a').get("title")
-            link = serie_div.find('a').get("href")
-
             serie_info = {
-                'name': title.replace("streaming guardaserie", ""),
-                'url': link,
+                'name': serie_div.find('a').get("title").replace("streaming guardaserie", ""),
+                'url': serie_div.find('a').get("href"),
                 'type': 'tv',
                 'image': f"{site_constant.FULL_URL}/{serie_div.find('img').get('src')}",
             }
-
             media_search_manager.add_media(serie_info)
 
         except Exception as e:

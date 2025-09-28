@@ -29,7 +29,9 @@ TELEGRAM_BOT = config_manager.get_bool('DEFAULT', 'telegram_bot')
 
 class TVShowManager:
     def __init__(self):
-        """Initialize TVShowManager with default values."""
+        """
+        Initialize TVShowManager with default values.
+        """
         self.console = Console()
         self.tv_shows: List[Dict[str, Any]] = []
         self.slice_start = 0
@@ -53,7 +55,8 @@ class TVShowManager:
         Parameters:
             - tv_show (Dict[str, Any]): Dictionary containing TV show details.
         """
-        self.tv_shows.append(tv_show)
+        if tv_show:
+            self.tv_shows.append(tv_show)
 
     def display_data(self, data_slice: List[Dict[str, Any]]) -> None:
         """
@@ -62,6 +65,14 @@ class TVShowManager:
         Parameters:
             - data_slice (List[Dict[str, Any]]): List of dictionaries containing TV show details to display.
         """
+        if not data_slice:
+            logging.error("[yellow]Nothing to display.")
+            return
+            
+        if not self.column_info:
+            logging.error("[red]Error: Column information not configured.")
+            return
+
         table = Table(border_style="white")
 
         # Add columns dynamically based on provided column information
@@ -72,8 +83,9 @@ class TVShowManager:
 
         # Add rows dynamically based on available TV show data
         for entry in data_slice:
-            row_data = [str(entry.get(col_name, '')) for col_name in self.column_info.keys()]
-            table.add_row(*row_data)
+            if entry:
+                row_data = [str(entry.get(col_name, '')) for col_name in self.column_info.keys()]
+                table.add_row(*row_data)
 
         self.console.print(table)
     
@@ -125,6 +137,14 @@ class TVShowManager:
         Returns:
             str: Last command executed before breaking out of the loop.
         """
+        if not self.tv_shows:
+            logging.error("[red]Error: No data available for display.")
+            return ""
+            
+        if not self.column_info:
+            logging.error("[red]Error: Columns not configured.")
+            return ""
+
         total_items = len(self.tv_shows)
         last_command = ""
         is_telegram = config_manager.get_bool('DEFAULT', 'telegram_bot')
@@ -132,9 +152,17 @@ class TVShowManager:
 
         while True:
             start_message()
-            self.display_data(self.tv_shows[self.slice_start:self.slice_end])
+            
+            # Check and adjust slice indices if out of bounds
+            current_slice = self.tv_shows[self.slice_start:self.slice_end]
+            if not current_slice and total_items > 0:
+                self.slice_start = 0
+                self.slice_end = min(self.step, total_items)
+                current_slice = self.tv_shows[self.slice_start:self.slice_end]
+            
+            self.display_data(current_slice)
 
-            # Find research function from call stack
+            # Resto del codice rimane uguale...
             research_func = next((
                 f for f in get_call_stack()
                 if f['function'] == 'search' and f['script'] == '__init__.py'
@@ -225,5 +253,9 @@ class TVShowManager:
         return last_command
 
     def clear(self) -> None:
-        """Clear all TV shows data."""
+        """
+        Clear all TV shows data.
+        """
         self.tv_shows = []
+        self.slice_start = 0
+        self.slice_end = self.step

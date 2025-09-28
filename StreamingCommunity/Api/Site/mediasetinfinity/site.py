@@ -123,7 +123,7 @@ def title_search(query: str) -> int:
             'name': item.get('title', ''),
             'type': media_type,
             'url': page_url,
-            'image': item.get('thumbnails', {}).get('image_header_poster-768x384', '').get('url', ''),
+            'image': next(iter(item.get('thumbnails', {}).values()), {}).get('url', ''),
             'date': item.get('year', ''),
         })
 

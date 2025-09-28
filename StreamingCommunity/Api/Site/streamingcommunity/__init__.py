@@ -98,11 +98,15 @@ def process_search_result(select_title, selections=None):
             episode_selection = selections.get('episode')
 
         download_series(select_title, season_selection, episode_selection)
+        media_search_manager.clear()
+        table_show_manager.clear()
         return True
         
     else:
         download_film(select_title)
+        table_show_manager.clear()
         return True
+
 
 def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_item: dict = None, selections: dict = None):
     """
@@ -121,37 +125,35 @@ def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_
         bot = get_bot_instance()
 
     if direct_item:
-        select_title_obj = MediaItem(**direct_item)
-        process_search_result(select_title_obj, selections)
-        return True
+        select_title = MediaItem(**direct_item)
+        result = process_search_result(select_title, selections)
+        return result
     
+    # Get the user input for the search term
     actual_search_query = get_user_input(string_to_search)
 
-    # Handle cases where user input is empty, or 'back' was handled (sys.exit or None return)
+    # Handle empty input
     if not actual_search_query:
         if bot:
-            if actual_search_query is None: # Specifically for timeout from bot.ask or failed restart
+            if actual_search_query is None:
                 bot.send_message("Search term not provided or operation cancelled. Returning.", None)
-        return
+        return False
 
-    # Perform search on the database using the obtained query
+    # Search on database
     len_database = title_search(actual_search_query)
 
-    # If only the database object (media_search_manager populated by title_search) is needed
+    # If only the database is needed, return the manager
     if get_onlyDatabase:
         return media_search_manager
     
     if len_database > 0:
         select_title = get_select_title(table_show_manager, media_search_manager, len_database)
-        process_search_result(select_title, selections)
-        return True
+        result = process_search_result(select_title, selections)
+        return result
     
     else:
         if bot:
             bot.send_message(f"No results found for: '{actual_search_query}'", None)
         else:
             console.print(f"\n[red]Nothing matching was found for[white]: [purple]{actual_search_query}")
-        
-        # Do not call search() recursively here to avoid infinite loops on no results.
-        # The flow should return to the caller (e.g., main menu in run.py).
-        return
+        return False

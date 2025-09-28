@@ -12,6 +12,7 @@ from typing import Any, Dict, List, Optional
 import httpx
 from rich.console import Console
 from rich.panel import Panel
+from rich.table import Table
 
 
 # Internal utilities
@@ -64,6 +65,11 @@ class HLSClient:
         Returns:
             Response content/text or None if all retries fail
         """
+        # Check if URL is None or empty
+        if not url:
+            logging.error("URL is None or empty, cannot make request")
+            return None
+
         client = create_client(headers=self.headers)
 
         for attempt in range(RETRY_LIMIT):
@@ -73,8 +79,11 @@ class HLSClient:
                 return response.content if return_content else response.text
 
             except Exception as e:
-                logging.error(f"Attempt {attempt+1} failed: {str(e)}")
-                time.sleep(1.5 ** attempt)
+                logging.error(f"Attempt {attempt+1} failed for URL {url}: {str(e)}")
+                if attempt < RETRY_LIMIT - 1:  # Don't sleep on last attempt
+                    time.sleep(1.5 ** attempt)
+        
+        logging.error(f"All {RETRY_LIMIT} attempts failed for URL: {url}")
         return None
 
 
@@ -96,6 +105,9 @@ class PathManager:
         Ensures output path is valid and follows expected format.
         Creates a hash-based filename if no path is provided.
         """
+        if not path:
+            path = "download.mp4"
+            
         if not path.endswith(".mp4"):
             path += ".mp4"
 
@@ -132,18 +144,28 @@ class M3U8Manager:
         self.sub_streams = []
         self.is_master = False
 
-    def parse(self):
+    def parse(self) -> bool:
         """
         Fetches and parses the M3U8 playlist content.
         Determines if it's a master playlist (index) or media playlist.
+        
+        Returns:
+            bool: True if parsing was successful, False otherwise
         """
-        content = self.client.request(self.m3u8_url)
-        if not content:
-            raise ValueError("Failed to fetch M3U8 content")
+        try:
+            content = self.client.request(self.m3u8_url)
+            if not content:
+                logging.error(f"Failed to fetch M3U8 content from {self.m3u8_url}")
+                return False
 
-        self.parser.parse_data(uri=self.m3u8_url, raw_content=content)
-        self.url_fixer.set_playlist(self.m3u8_url)
-        self.is_master = self.parser.is_master_playlist
+            self.parser.parse_data(uri=self.m3u8_url, raw_content=content)
+            self.url_fixer.set_playlist(self.m3u8_url)
+            self.is_master = self.parser.is_master_playlist
+            return True
+            
+        except Exception as e:
+            logging.error(f"Error parsing M3U8 from {self.m3u8_url}: {str(e)}")
+            return False
 
     def select_streams(self):
         """
@@ -177,7 +199,6 @@ class M3U8Manager:
             if ENABLE_SUBTITLE:
                 if "*" in DOWNLOAD_SPECIFIC_SUBTITLE:
                     self.sub_streams = self.parser._subtitle.get_all_uris_and_names() or []
-
                 else:
                     self.sub_streams = [
                         s for s in (self.parser._subtitle.get_all_uris_and_names() or [])
@@ -185,55 +206,82 @@ class M3U8Manager:
                     ]
 
     def log_selection(self):
-        tuple_available_resolution = self.parser._video.get_list_resolution()
-        list_available_resolution = [f"{r[0]}x{r[1]}" for r in tuple_available_resolution]
+        """Log the stream selection information in a formatted table."""
+        def calculate_column_widths():
+            data_rows = []
+            
+            # Video information
+            tuple_available_resolution = self.parser._video.get_list_resolution() or []
+            list_available_resolution = [f"{r[0]}x{r[1]}" for r in tuple_available_resolution]
+            available_video = ', '.join(list_available_resolution) if list_available_resolution else "Nothing"
+            
+            downloadable_video = "Nothing"
+            if isinstance(self.video_res, tuple) and len(self.video_res) >= 2:
+                downloadable_video = f"{self.video_res[0]}x{self.video_res[1]}"
+            elif self.video_res and self.video_res != "undefined":
+                downloadable_video = str(self.video_res)
+            
+            data_rows.append(["Video", available_video, str(FILTER_CUSTOM_RESOLUTION), downloadable_video])
+            
+            # Codec information
+            if self.parser.codec is not None:
+                available_codec_info = (
+                    f"v: {self.parser.codec.video_codec_name} "
+                    f"(b: {self.parser.codec.video_bitrate // 1000}k), "
+                    f"a: {self.parser.codec.audio_codec_name} "
+                    f"(b: {self.parser.codec.audio_bitrate // 1000}k)"
+                )
+                set_codec_info = available_codec_info if config_manager.get_bool("M3U8_CONVERSION", "use_codec") else "copy"
+                
+                data_rows.append(["Codec", available_codec_info, set_codec_info, set_codec_info])
 
-        console.print(
-            f"[cyan bold]Video    [/cyan bold] [green]Available:[/green] [purple]{', '.join(list_available_resolution)}[/purple] | "
-            f"[red]Set:[/red] [purple]{FILTER_CUSTOM_RESOLUTION}[/purple] | "
-            f"[yellow]Downloadable:[/yellow] [purple]{self.video_res[0]}x{self.video_res[1]}[/purple]"
-        )
+            # Subtitle information
+            available_subtitles = self.parser._subtitle.get_all_uris_and_names() or []
+            available_sub_languages = [sub.get('language') for sub in available_subtitles]
+            available_subs = ', '.join(available_sub_languages) if available_sub_languages else "Nothing"
+            
+            downloadable_sub_languages = available_sub_languages if "*" in DOWNLOAD_SPECIFIC_SUBTITLE else list(set(available_sub_languages) & set(DOWNLOAD_SPECIFIC_SUBTITLE))
+            downloadable_subs = ', '.join(downloadable_sub_languages) if downloadable_sub_languages else "Nothing"
+            
+            data_rows.append(["Subtitle", available_subs, ', '.join(DOWNLOAD_SPECIFIC_SUBTITLE), downloadable_subs])
 
-        if self.parser.codec is not None:
-            available_codec_info = (
-                f"[green]v[/green]: [yellow]{self.parser.codec.video_codec_name}[/yellow] "
-                f"([green]b[/green]: [yellow]{self.parser.codec.video_bitrate // 1000}k[/yellow]), "
-                f"[green]a[/green]: [yellow]{self.parser.codec.audio_codec_name}[/yellow] "
-                f"([green]b[/green]: [yellow]{self.parser.codec.audio_bitrate // 1000}k[/yellow])"
-            )
-            set_codec_info = available_codec_info if config_manager.get_bool("M3U8_CONVERSION", "use_codec") else "[purple]copy[/purple]"
+            # Audio information
+            available_audio = self.parser._audio.get_all_uris_and_names() or []
+            available_audio_languages = [audio.get('language') for audio in available_audio]
+            available_audios = ', '.join(available_audio_languages) if available_audio_languages else "Nothing"
+            
+            downloadable_audio_languages = list(set(available_audio_languages) & set(DOWNLOAD_SPECIFIC_AUDIO))
+            downloadable_audios = ', '.join(downloadable_audio_languages) if downloadable_audio_languages else "Nothing"
+            
+            data_rows.append(["Audio", available_audios, ', '.join(DOWNLOAD_SPECIFIC_AUDIO), downloadable_audios])
+            
+            # Calculate max width for each column
+            headers = ["Type", "Available", "Set", "Downloadable"]
+            max_widths = [len(header) for header in headers]
+            
+            for row in data_rows:
+                for i, cell in enumerate(row):
+                    max_widths[i] = max(max_widths[i], len(str(cell)))
+            
+            # Add some padding
+            max_widths = [w + 2 for w in max_widths]
+            
+            return data_rows, max_widths
+        
+        data_rows, column_widths = calculate_column_widths()
+        
+        table = Table(show_header=True, header_style="bold cyan", border_style="blue")
+        table.add_column("Type", style="cyan bold", width=column_widths[0])
+        table.add_column("Available", style="green", width=column_widths[1])
+        table.add_column("Set", style="red", width=column_widths[2])
+        table.add_column("Downloadable", style="yellow", width=column_widths[3])
+        
+        for row in data_rows:
+            table.add_row(*row)
 
-            console.print(
-                f"[bold cyan]Codec    [/bold cyan] [green]Available:[/green] {available_codec_info} | "
-                f"[red]Set:[/red] {set_codec_info}"
-            )
-
-        # Get available subtitles and their languages
-        available_subtitles = self.parser._subtitle.get_all_uris_and_names() or []
-        available_sub_languages = [sub.get('language') for sub in available_subtitles]
-
-        # If "*" is in DOWNLOAD_SPECIFIC_SUBTITLE, all languages are downloadable
-        downloadable_sub_languages = available_sub_languages if "*" in DOWNLOAD_SPECIFIC_SUBTITLE else list(set(available_sub_languages) & set(DOWNLOAD_SPECIFIC_SUBTITLE))
-
-        if available_sub_languages:
-            console.print(
-                f"[cyan bold]Subtitle [/cyan bold] [green]Available:[/green] [purple]{', '.join(available_sub_languages)}[/purple] | "
-                f"[red]Set:[/red] [purple]{', '.join(DOWNLOAD_SPECIFIC_SUBTITLE)}[/purple] | "
-                f"[yellow]Downloadable:[/yellow] [purple]{', '.join(downloadable_sub_languages)}[/purple]"
-            )
-
-        available_audio = self.parser._audio.get_all_uris_and_names() or []
-        available_audio_languages = [audio.get('language') for audio in available_audio]
-        downloadable_audio_languages = list(set(available_audio_languages) & set(DOWNLOAD_SPECIFIC_AUDIO))
-        if available_audio_languages:
-            console.print(
-                f"[cyan bold]Audio    [/cyan bold] [green]Available:[/green] [purple]{', '.join(available_audio_languages)}[/purple] | "
-                f"[red]Set:[/red] [purple]{', '.join(DOWNLOAD_SPECIFIC_AUDIO)}[/purple] | "
-                f"[yellow]Downloadable:[/yellow] [purple]{', '.join(downloadable_audio_languages)}[/purple]"
-            )
+        console.print(table)
         print("")
-
-
+            
 class DownloadManager:
     """Manages downloading of video, audio, and subtitle streams."""
     def __init__(self, temp_dir: str, client: HLSClient, url_fixer: M3U8_UrlFix):
@@ -249,88 +297,124 @@ class DownloadManager:
         self.missing_segments = []
         self.stopped = False
 
-    def download_video(self, video_url: str):
-        """Downloads video segments from the M3U8 playlist."""
-        video_full_url = self.url_fixer.generate_full_url(video_url)
-        video_tmp_dir = os.path.join(self.temp_dir, 'video')
+    def download_video(self, video_url: str) -> bool:
+        """
+        Downloads video segments from the M3U8 playlist.
+        
+        Returns:
+            bool: True if download was successful, False otherwise
+        """
+        try:
+            video_full_url = self.url_fixer.generate_full_url(video_url)
+            video_tmp_dir = os.path.join(self.temp_dir, 'video')
 
-        downloader = M3U8_Segments(url=video_full_url, tmp_folder=video_tmp_dir)
-        result = downloader.download_streams("Video", "video")
-        self.missing_segments.append(result)
+            downloader = M3U8_Segments(url=video_full_url, tmp_folder=video_tmp_dir)
+            result = downloader.download_streams("Video", "video")
+            self.missing_segments.append(result)
 
-        if result.get('stopped', False):
-            self.stopped = True
+            if result.get('stopped', False):
+                self.stopped = True
+                return False
 
-        return self.stopped
+            return True
+        
+        except Exception as e:
+            logging.error(f"Error downloading video from {video_url}: {str(e)}")
+            return False
 
-    def download_audio(self, audio: Dict):
-        """Downloads audio segments for a specific language track."""
-        #if self.stopped:
-        #    return True
+    def download_audio(self, audio: Dict) -> bool:
+        """
+        Downloads audio segments for a specific language track.
+        
+        Returns:
+            bool: True if download was successful, False otherwise
+        """
+        try:
+            audio_full_url = self.url_fixer.generate_full_url(audio['uri'])
+            audio_tmp_dir = os.path.join(self.temp_dir, 'audio', audio['language'])
 
-        audio_full_url = self.url_fixer.generate_full_url(audio['uri'])
-        audio_tmp_dir = os.path.join(self.temp_dir, 'audio', audio['language'])
+            downloader = M3U8_Segments(url=audio_full_url, tmp_folder=audio_tmp_dir)
+            result = downloader.download_streams(f"Audio {audio['language']}", "audio")
+            self.missing_segments.append(result)
 
-        downloader = M3U8_Segments(url=audio_full_url, tmp_folder=audio_tmp_dir)
-        result = downloader.download_streams(f"Audio {audio['language']}", "audio")
-        self.missing_segments.append(result)
+            if result.get('stopped', False):
+                self.stopped = True
+                return False
+                
+            return True
+        
+        except Exception as e:
+            logging.error(f"Error downloading audio {audio.get('language', 'unknown')}: {str(e)}")
+            return False
 
-        if result.get('stopped', False):
-            self.stopped = True
-        return self.stopped
+    def download_subtitle(self, sub: Dict) -> bool:
+        """
+        Downloads and saves subtitle file for a specific language.
+        
+        Returns:
+            bool: True if download was successful, False otherwise
+        """
+        try:
+            raw_content = self.client.request(sub['uri'])
+            if raw_content:
+                sub_path = os.path.join(self.temp_dir, 'subs', f"{sub['language']}.vtt")
 
-    def download_subtitle(self, sub: Dict):
-        """Downloads and saves subtitle file for a specific language."""
-        #if self.stopped:
-        #    return True
+                subtitle_parser = M3U8_Parser()
+                subtitle_parser.parse_data(sub['uri'], raw_content)
 
-        raw_content = self.client.request(sub['uri'])
-        if raw_content:
-            sub_path = os.path.join(self.temp_dir, 'subs', f"{sub['language']}.vtt")
+                with open(sub_path, 'wb') as f:
+                    vtt_url = subtitle_parser.subtitle[-1]
+                    vtt_content = self.client.request(vtt_url, True)
+                    if vtt_content:
+                        f.write(vtt_content)
+                        return True
+                    
+            return False
+        
+        except Exception as e:
+            logging.error(f"Error downloading subtitle {sub.get('language', 'unknown')}: {str(e)}")
+            return False
 
-            subtitle_parser = M3U8_Parser()
-            subtitle_parser.parse_data(sub['uri'], raw_content)
-
-            with open(sub_path, 'wb') as f:
-                vtt_url = subtitle_parser.subtitle[-1]
-                vtt_content = self.client.request(vtt_url, True)
-                f.write(vtt_content)
-
-        return self.stopped
-
-    def download_all(self, video_url: str, audio_streams: List[Dict], sub_streams: List[Dict]):
+    def download_all(self, video_url: str, audio_streams: List[Dict], sub_streams: List[Dict]) -> bool:
         """
         Downloads all selected streams (video, audio, subtitles).
+        For multiple downloads, continues even if individual downloads fail.
+        
+        Returns:
+            bool: True if any critical download failed and should stop processing
         """
-        return_stopped = False
+        critical_failure = False
         video_file = os.path.join(self.temp_dir, 'video', '0.ts')
 
+        # Download video (this is critical)
         if not os.path.exists(video_file):
-            if self.download_video(video_url):
-                if not return_stopped:
-                    return_stopped = True
+            if not self.download_video(video_url):
+                logging.error("Critical failure: Video download failed")
+                critical_failure = True
 
+        # Download audio streams (continue even if some fail)
         for audio in audio_streams:
-            #if self.stopped:
-            #    break
+            if self.stopped:
+                break
 
             audio_file = os.path.join(self.temp_dir, 'audio', audio['language'], '0.ts')
             if not os.path.exists(audio_file):
-                if self.download_audio(audio):
-                    if not return_stopped:
-                        return_stopped = True
+                success = self.download_audio(audio)
+                if not success:
+                    logging.warning(f"Audio download failed for language {audio.get('language', 'unknown')}, continuing...")
 
+        # Download subtitle streams (continue even if some fail)
         for sub in sub_streams:
-            #if self.stopped:
-            #    break
+            if self.stopped:
+                break
 
             sub_file = os.path.join(self.temp_dir, 'subs', f"{sub['language']}.vtt")
             if not os.path.exists(sub_file):
-                if self.download_subtitle(sub):
-                    if not return_stopped:
-                        return_stopped = True
+                success = self.download_subtitle(sub)
+                if not success:
+                    logging.warning(f"Subtitle download failed for language {sub.get('language', 'unknown')}, continuing...")
 
-        return return_stopped
+        return critical_failure or self.stopped
 
 
 class MergeManager:
@@ -348,10 +432,10 @@ class MergeManager:
         self.audio_streams = audio_streams
         self.sub_streams = sub_streams
 
-    def merge(self) -> str:
+    def merge(self) -> tuple[str, bool]:
         """
         Merges downloaded streams into final video file.
-        Returns path to the final merged file.
+        Returns path to the final merged file and use_shortest flag.
 
         Process:
         1. If no audio/subs, just process video
@@ -371,31 +455,45 @@ class MergeManager:
 
         else:
             if self.audio_streams:
-                audio_tracks = [{
-                    'path': os.path.join(self.temp_dir, 'audio', a['language'], '0.ts'),
-                    'name': a['language']
-                } for a in self.audio_streams]
 
-                merged_audio_path = os.path.join(self.temp_dir, 'merged_audio.mp4')
-                merged_file, use_shortest = join_audios(
-                    video_path=video_file,
-                    audio_tracks=audio_tracks,
-                    out_path=merged_audio_path,
-                    codec=self.parser.codec
-                )
+                # Only include audio tracks that actually exist
+                existing_audio_tracks = []
+                for a in self.audio_streams:
+                    audio_path = os.path.join(self.temp_dir, 'audio', a['language'], '0.ts')
+                    if os.path.exists(audio_path):
+                        existing_audio_tracks.append({
+                            'path': audio_path,
+                            'name': a['language']
+                        })
+
+                if existing_audio_tracks:
+                    merged_audio_path = os.path.join(self.temp_dir, 'merged_audio.mp4')
+                    merged_file, use_shortest = join_audios(
+                        video_path=video_file,
+                        audio_tracks=existing_audio_tracks,
+                        out_path=merged_audio_path,
+                        codec=self.parser.codec
+                    )
 
             if MERGE_SUBTITLE and self.sub_streams:
-                sub_tracks = [{
-                    'path': os.path.join(self.temp_dir, 'subs', f"{s['language']}.vtt"),
-                    'language': s['language']
-                } for s in self.sub_streams]
 
-                merged_subs_path = os.path.join(self.temp_dir, 'final.mp4')
-                merged_file = join_subtitle(
-                    video_path=merged_file,
-                    subtitles_list=sub_tracks,
-                    out_path=merged_subs_path
-                )
+                # Only include subtitle tracks that actually exist
+                existing_sub_tracks = []
+                for s in self.sub_streams:
+                    sub_path = os.path.join(self.temp_dir, 'subs', f"{s['language']}.vtt")
+                    if os.path.exists(sub_path):
+                        existing_sub_tracks.append({
+                            'path': sub_path,
+                            'language': s['language']
+                        })
+
+                if existing_sub_tracks:
+                    merged_subs_path = os.path.join(self.temp_dir, 'final.mp4')
+                    merged_file = join_subtitle(
+                        video_path=merged_file,
+                        subtitles_list=existing_sub_tracks,
+                        out_path=merged_subs_path
+                    )
 
         return merged_file, use_shortest
 
@@ -413,13 +511,16 @@ class HLS_Downloader:
     def start(self) -> Dict[str, Any]:
         """
         Main execution flow with handling for both index and playlist M3U8s.
+        Returns False for this download and continues with the next one in case of failure.
 
         Returns:
             Dict containing:
                 - path: Output file path
                 - url: Original M3U8 URL
                 - is_master: Whether the M3U8 was a master playlist
-            Or raises an exception if there's an error
+                - msg: Status message
+                - error: Error message if any
+                - stopped: Whether download was stopped
         """
 
         if GET_ONLY_LINK:
@@ -433,7 +534,7 @@ class HLS_Downloader:
                 'stopped': True
             }
 
-        console.print("[cyan]You can safely stop the download with [bold]Ctrl+c[bold] [cyan] \n")
+        console.print("[cyan]You can safely stop the download with [bold]Ctrl+c[bold] [cyan]")
 
         if TELEGRAM_BOT:
             bot = get_bot_instance()
@@ -466,12 +567,25 @@ class HLS_Downloader:
                 url_fixer=self.m3u8_manager.url_fixer
             )
 
-            # Check if download was stopped
-            download_stopped = self.download_manager.download_all(
+            # Check if download had critical failures
+            download_failed = self.download_manager.download_all(
                 video_url=self.m3u8_manager.video_url,
                 audio_streams=self.m3u8_manager.audio_streams,
                 sub_streams=self.m3u8_manager.sub_streams
             )
+
+            if download_failed:
+                error_msg = "Critical download failure occurred"
+                console.print(f"[red]Download failed: {error_msg}[/red]")
+                self.path_manager.cleanup()
+                return {
+                    'path': None,
+                    'url': self.m3u8_url,
+                    'is_master': self.m3u8_manager.is_master,
+                    'msg': None,
+                    'error': error_msg,
+                    'stopped': self.download_manager.stopped
+                }
 
             self.merge_manager = MergeManager(
                 temp_dir=self.path_manager.temp_dir,
@@ -489,15 +603,30 @@ class HLS_Downloader:
                 'path': self.path_manager.output_path,
                 'url': self.m3u8_url,
                 'is_master': self.m3u8_manager.is_master,
-                'msg': None,
+                'msg': 'Download completed successfully',
                 'error': None,
-                'stopped': download_stopped
+                'stopped': self.download_manager.stopped
+            }
+
+        except KeyboardInterrupt:
+            console.print("\n[yellow]Download interrupted by user[/yellow]")
+            self.path_manager.cleanup()
+            return {
+                'path': None,
+                'url': self.m3u8_url,
+                'is_master': getattr(self.m3u8_manager, 'is_master', None),
+                'msg': 'Download interrupted by user',
+                'error': None,
+                'stopped': True
             }
 
         except Exception as e:
             error_msg = str(e)
             console.print(f"[red]Download failed: {error_msg}[/red]")
-            logging.error("Download error", exc_info=True)
+            logging.error(f"Download error for {self.m3u8_url}", exc_info=True)
+
+            # Cleanup on error
+            self.path_manager.cleanup()
 
             return {
                 'path': None,
@@ -508,7 +637,7 @@ class HLS_Downloader:
                 'stopped': False
             }
 
-    def _print_summary(self, use_shortest):
+    def _print_summary(self, use_shortest: bool):
         """Prints download summary including file size, duration, and any missing segments."""
         if TELEGRAM_BOT:
             bot = get_bot_instance()
@@ -549,6 +678,7 @@ class HLS_Downloader:
             os.rename(self.path_manager.output_path, new_filename)
             self.path_manager.output_path = new_filename
 
+        print("")
         console.print(Panel(
             panel_content,
             title=f"{os.path.basename(self.path_manager.output_path.replace('.mp4', ''))}",

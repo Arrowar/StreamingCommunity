@@ -30,6 +30,7 @@ class M3U8_Ts_Estimator:
         self.lock = threading.Lock()
         self.speed = {"upload": "N/A", "download": "N/A"}
         self._running = True
+        self.downloaded_segments_count = 0
         self.speed_thread = threading.Thread(target=self.capture_speed)
         self.speed_thread.daemon = True
         self.speed_thread.start()
@@ -44,7 +45,8 @@ class M3U8_Ts_Estimator:
             logging.error(f"Invalid input values: size={size}")
             return
 
-        self.ts_file_sizes.append(size)
+        with self.lock:
+            self.ts_file_sizes.append(size)
 
     def capture_speed(self, interval: float = 3.0):
         """Capture the internet speed periodically."""
@@ -103,27 +105,37 @@ class M3U8_Ts_Estimator:
 
     def calculate_total_size(self) -> str:
         """
-        Calculate the total size of the files.
+        Calculate the estimated total size of all segments.
 
         Returns:
-            str: The mean size of the files in a human-readable format.
+            str: The estimated total size in a human-readable format.
         """
         try:
-            if not self.ts_file_sizes:
-                return "0 B"
-                
-            total_size = sum(self.ts_file_sizes)
-            mean_size = total_size / len(self.ts_file_sizes)
-            return internet_manager.format_file_size(mean_size)
+            with self.lock:
+                if not self.ts_file_sizes:
+                    return "0 B"
+                    
+                mean_segment_size = sum(self.ts_file_sizes) / len(self.ts_file_sizes)
+                estimated_total_size = mean_segment_size * self.total_segments
+                return internet_manager.format_file_size(estimated_total_size)
 
         except Exception as e:
             logging.error("An unexpected error occurred: %s", e)
             return "Error"
     
-    def update_progress_bar(self, total_downloaded: int, progress_counter: tqdm) -> None:
-        """Update progress bar"""
+    def update_progress_bar(self, segment_size: int, progress_counter: tqdm) -> None:
+        """
+        Update progress bar with segment information.
+        
+        Parameters:
+            - segment_size (int): Size in bytes of the current downloaded segment
+            - progress_counter (tqdm): Progress bar instance to update
+        """
         try:
-            self.add_ts_file(total_downloaded * self.total_segments)
+            self.add_ts_file(segment_size)
+            
+            with self.lock:
+                self.downloaded_segments_count += 1
             
             file_total_size = self.calculate_total_size()
             if file_total_size == "Error":
@@ -152,3 +164,5 @@ class M3U8_Ts_Estimator:
     def stop(self):
         """Stop speed monitoring thread."""
         self._running = False
+        if self.speed_thread.is_alive():
+            self.speed_thread.join(timeout=5.0)

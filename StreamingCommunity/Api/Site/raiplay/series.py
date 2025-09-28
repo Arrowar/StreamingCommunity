@@ -135,6 +135,10 @@ def download_episode(index_season_selected: int, scrape_serie: GetSerieInfo, dow
     episodes = scrape_serie.getEpisodeSeasons(index_season_selected)
     episodes_count = len(episodes)
 
+    if episodes_count == 0:
+        console.print(f"[red]No episodes found for season {index_season_selected}")
+        return
+
     if download_all:
         for i_episode in range(1, episodes_count + 1):
             path, stopped = download_video(index_season_selected, i_episode, scrape_serie)

@@ -8,6 +8,7 @@ from rich.console import Console
 from StreamingCommunity.Api.Template.config_loader import site_constant
 from StreamingCommunity.TelegramHelp.telegram_bot import get_bot_instance
 
+
 # Variable
 console = Console()
 available_colors = ['red', 'magenta', 'yellow', 'cyan', 'green', 'blue', 'white']
@@ -124,10 +125,8 @@ def get_select_title(table_show_manager, media_search_manager, num_results_avail
                 
             else:
                 console.print("\n[red]Indice errato o non valido.")
-                # sys.exit(0)
                 return None
                 
         except ValueError:
             console.print("\n[red]Input non numerico ricevuto dalla tabella.")
-            # sys.exit(0)
             return None

@@ -96,6 +96,10 @@ def download_episode(scape_info_serie: GetSerieInfo, index_season_selected: int,
     episodes = scape_info_serie.get_episode_number(index_season_selected)
     episodes_count = len(episodes)
 
+    if episodes_count == 0:
+        console.print(f"[red]No episodes found for season {index_season_selected}")
+        return
+
     if download_all:
         
         # Download all episodes in the season

@@ -2,7 +2,6 @@
 
 import io
 import os
-import time
 import shutil
 import logging
 import socket

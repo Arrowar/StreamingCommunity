@@ -26,14 +26,6 @@ def dynamic_format_number(number_str: str) -> str:
     """
     Formats an episode number string, intelligently handling both integer and decimal episode numbers.
     
-    This function is designed to handle various episode number formats commonly found in media series:
-    1. For integer episode numbers less than 10 (e.g., 1, 2, ..., 9), it adds a leading zero (e.g., 01, 02, ..., 09)
-    2. For integer episode numbers 10 and above, it preserves the original format without adding leading zeros
-    3. For decimal episode numbers (e.g., "7.5", "10.5"), it preserves the decimal format exactly as provided
-    
-    The function is particularly useful for media file naming conventions where special episodes
-    or OVAs may have decimal notations (like episode 7.5) which should be preserved in their original format.
-    
     Parameters:
         - number_str (str): The episode number as a string, which may contain integers or decimals.
     
@@ -104,7 +96,7 @@ def manage_selection(cmd_insert: str, max_count: int) -> List[int]:
             list_selection = list(range(1, max_count + 1))
             break
 
-        cmd_insert = msg.ask("[red]Invalid input. Please enter a valid command: ")
+        cmd_insert = msg.ask("[red]Invalid input. Please enter a valid command")
     
     logging.info(f"List return: {list_selection}")
     return list_selection
@@ -145,7 +137,6 @@ def map_episode_title(tv_name: str, number_season: int, episode_number: int, epi
     return map_episode_temp
 
 
-# --> for season
 def validate_selection(list_season_select: List[int], seasons_count: int) -> List[int]:
     """
     Validates and adjusts the selected seasons based on the available seasons.
@@ -182,7 +173,6 @@ def validate_selection(list_season_select: List[int], seasons_count: int) -> Lis
             list_season_select = list(map(int, input_seasons.split(',')))
 
 
-# --> for episode
 def validate_episode_selection(list_episode_select: List[int], episodes_count: int) -> List[int]:
     """
     Validates and adjusts the selected episodes based on the available episodes.

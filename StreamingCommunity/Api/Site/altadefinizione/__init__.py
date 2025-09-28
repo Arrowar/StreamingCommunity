@@ -2,7 +2,6 @@
 
 import sys
 import subprocess
-from urllib.parse import quote_plus
 
 
 # External library

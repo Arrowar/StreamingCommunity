@@ -66,11 +66,11 @@ class TVShowManager:
             - data_slice (List[Dict[str, Any]]): List of dictionaries containing TV show details to display.
         """
         if not data_slice:
-            logging.error("[yellow]Nothing to display.")
+            logging.error("Nothing to display.")
             return
             
         if not self.column_info:
-            logging.error("[red]Error: Column information not configured.")
+            logging.error("Error: Column information not configured.")
             return
 
         table = Table(border_style="white")
@@ -138,11 +138,11 @@ class TVShowManager:
             str: Last command executed before breaking out of the loop.
         """
         if not self.tv_shows:
-            logging.error("[red]Error: No data available for display.")
+            logging.error("Error: No data available for display.")
             return ""
             
         if not self.column_info:
-            logging.error("[red]Error: Columns not configured.")
+            logging.error("Error: Columns not configured.")
             return ""
 
         total_items = len(self.tv_shows)

@@ -2,6 +2,7 @@
 
 import os
 import asyncio
+import time
 
 
 # External libraries
@@ -33,6 +34,15 @@ class MPD_Segments:
         self.pssh = pssh
         self.download_interrupted = False
         self.info_nFailed = 0
+        
+        # OTHER INFO
+        self.downloaded_segments = set()
+        self.info_maxRetry = 0
+        self.info_nRetry = 0
+        
+        # Progress
+        self._last_progress_update = 0
+        self._progress_update_interval = 0.5
 
     def get_concat_path(self, output_dir: str = None):
         """
@@ -61,7 +71,7 @@ class MPD_Segments:
             "pssh": self.pssh
         }
 
-    async def download_segments(self, output_dir: str = None, concurrent_downloads: int = 8, description: str = "DASH"):
+    async def download_segments(self, output_dir: str = None, concurrent_downloads: int = None, description: str = "DASH"):
         """
         Download and concatenate all segments (including init) asynchronously and in order.
         """
@@ -75,12 +85,15 @@ class MPD_Segments:
 
         # Determine stream type (video/audio) for progress bar
         stream_type = rep.get('type', description)
+        if concurrent_downloads is None:
+            concurrent_downloads = self._get_worker_count(stream_type)
+
         progress_bar = tqdm(
             total=len(segment_urls) + 1,
             desc=f"Downloading {rep_id}",
             bar_format=self._get_bar_format(stream_type),
-            mininterval=0.6,
-            maxinterval=1.0
+            mininterval=1.0,
+            maxinterval=2.5,
         )
 
         # Define semaphore for concurrent downloads
@@ -94,9 +107,14 @@ class MPD_Segments:
         self.info_nFailed = 0
         self.download_interrupted = False
         self.info_nRetry = 0
+        self.info_maxRetry = 0
 
         try:
-            async with httpx.AsyncClient(timeout=SEGMENT_MAX_TIMEOUT) as client:
+            timeout_config = httpx.Timeout(SEGMENT_MAX_TIMEOUT, connect=10.0)
+            limits = httpx.Limits(max_keepalive_connections=20, max_connections=100)
+            
+            async with httpx.AsyncClient(timeout=timeout_config, limits=limits) as client:
+                
                 # Download init segment
                 await self._download_init_segment(client, init_url, concat_path, estimator, progress_bar)
 
@@ -145,11 +163,20 @@ class MPD_Segments:
             progress_bar.update(1)
 
             # Update progress bar with estimated info
-            estimator.update_progress_bar(len(response.content), progress_bar)
+            self._throttled_progress_update(len(response.content), estimator, progress_bar)
 
         except Exception as e:
             progress_bar.close()
             raise RuntimeError(f"Error downloading init segment: {e}")
+
+    def _throttled_progress_update(self, content_size: int, estimator, progress_bar):
+        """
+        Throttled progress update to reduce CPU usage.
+        """
+        current_time = time.time()
+        if current_time - self._last_progress_update > self._progress_update_interval:
+            estimator.update_progress_bar(content_size, progress_bar)
+            self._last_progress_update = current_time
 
     async def _download_segments_batch(self, client, segment_urls, results, semaphore, max_retry, estimator, progress_bar):
         """
@@ -158,16 +185,28 @@ class MPD_Segments:
         async def download_single(url, idx):
             async with semaphore:
                 headers = {'User-Agent': get_userAgent()}
+                
                 for attempt in range(max_retry):
+                    if self.download_interrupted:
+                        return idx, b'', attempt
+                        
                     try:
-                        resp = await client.get(url, headers=headers, follow_redirects=True)
+                        timeout = min(SEGMENT_MAX_TIMEOUT, 10 + attempt * 3)
+                        resp = await client.get(url, headers=headers, follow_redirects=True, timeout=timeout)
 
                         if resp.status_code == 200:
                             return idx, resp.content, attempt
                         else:
-                            await asyncio.sleep(1.1 * (2 ** attempt))
+                            if attempt < 2:
+                                sleep_time = 0.5 + attempt * 0.5
+                            else:
+                                sleep_time = min(2.0, 1.1 * (2 ** attempt))
+                            await asyncio.sleep(sleep_time)
+                            
                     except Exception:
-                        await asyncio.sleep(1.1 * (2 ** attempt))
+                        sleep_time = min(2.0, 1.1 * (2 ** attempt))
+                        await asyncio.sleep(sleep_time)
+                        
                 return idx, b'', max_retry
 
         # Initial download attempt
@@ -177,18 +216,23 @@ class MPD_Segments:
             try:
                 idx, data, nretry = await coro
                 results[idx] = data
+                
                 if data and len(data) > 0:
                     self.downloaded_segments.add(idx)
                 else:
                     self.info_nFailed += 1
+                
+                if nretry > self.info_maxRetry:
+                    self.info_maxRetry = nretry
                 self.info_nRetry += nretry
+                    
                 progress_bar.update(1)
 
                 # Update estimator with segment size
                 estimator.add_ts_file(len(data))
 
                 # Update progress bar with estimated info
-                estimator.update_progress_bar(len(data), progress_bar)
+                self._throttled_progress_update(len(data), estimator, progress_bar)
 
             except KeyboardInterrupt:
                 self.download_interrupted = True
@@ -197,9 +241,9 @@ class MPD_Segments:
 
     async def _retry_failed_segments(self, client, segment_urls, results, semaphore, max_retry, estimator, progress_bar):
         """
-        Retry failed segments up to 5 times.
+        Retry failed segments up to 3 times.
         """
-        max_global_retries = 5
+        max_global_retries = 3
         global_retry_count = 0
 
         while self.info_nFailed > 0 and global_retry_count < max_global_retries and not self.download_interrupted:
@@ -208,21 +252,27 @@ class MPD_Segments:
                 break
 
             print(f"[yellow]Retrying {len(failed_indices)} failed segments (attempt {global_retry_count+1}/{max_global_retries})...")
+            
             async def download_single(url, idx):
                 async with semaphore:
                     headers = {'User-Agent': get_userAgent()}
 
                     for attempt in range(max_retry):
+                        if self.download_interrupted:
+                            return idx, b'', attempt
+                            
                         try:
-                            resp = await client.get(url, headers=headers)
+                            timeout = min(SEGMENT_MAX_TIMEOUT, 15 + attempt * 5)
+                            resp = await client.get(url, headers=headers, timeout=timeout)
                             
                             if resp.status_code == 200:
                                 return idx, resp.content, attempt
                             else:
-                                await asyncio.sleep(1.1 * (2 ** attempt))
+                                await asyncio.sleep(1.5 * (2 ** attempt))
 
                         except Exception:
-                            await asyncio.sleep(1.1 * (2 ** attempt))
+                            await asyncio.sleep(1.5 * (2 ** attempt))
+                            
                 return idx, b'', max_retry
 
             retry_tasks = [download_single(segment_urls[i], i) for i in failed_indices]
@@ -239,15 +289,19 @@ class MPD_Segments:
                     else:
                         nFailed_this_round += 1
 
+                    if nretry > self.info_maxRetry:
+                        self.info_maxRetry = nretry
                     self.info_nRetry += nretry
+                    
                     progress_bar.update(0)  # No progress bar increment, already counted
                     estimator.add_ts_file(len(data))
-                    estimator.update_progress_bar(len(data), progress_bar)
+                    self._throttled_progress_update(len(data), estimator, progress_bar)
 
                 except KeyboardInterrupt:
                     self.download_interrupted = True
                     print("\n[red]Download interrupted by user (Ctrl+C).")
                     break
+                    
             self.info_nFailed = nFailed_this_round
             global_retry_count += 1
 
@@ -278,7 +332,7 @@ class MPD_Segments:
         base_workers = {
             'video': DEFAULT_VIDEO_WORKERS,
             'audio': DEFAULT_AUDIO_WORKERS
-        }.get(stream_type.lower(), 1)
+        }.get(stream_type.lower(), 2)
         return base_workers
 
     def _generate_results(self, stream_type: str) -> dict:
@@ -317,6 +371,7 @@ class MPD_Segments:
         if getattr(self, 'info_nFailed', 0) > 0:
             self._display_error_summary()
             
+        # Clear memory
         self.buffer = {}
         self.expected_index = 0
 
@@ -324,10 +379,11 @@ class MPD_Segments:
         """
         Generate final error report.
         """
+        total_segments = len(self.selected_representation.get('segment_urls', []))
         print(f"\n[cyan]Retry Summary: "
               f"[white]Max retries: [green]{getattr(self, 'info_maxRetry', 0)} "
               f"[white]Total retries: [green]{getattr(self, 'info_nRetry', 0)} "
               f"[white]Failed segments: [red]{getattr(self, 'info_nFailed', 0)}")
         
-        if getattr(self, 'info_nRetry', 0) > len(self.selected_representation['segment_urls']) * 0.3:
+        if getattr(self, 'info_nRetry', 0) > total_segments * 0.3:
             print("[yellow]Warning: High retry count detected. Consider reducing worker count in config.")

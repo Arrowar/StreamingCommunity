@@ -2,6 +2,7 @@
 
 import os
 import sys
+from datetime import datetime
 
 
 # External libraries
@@ -118,13 +119,22 @@ def title_search(query: str) -> int:
         if page_url and page_url.startswith('//'):
             page_url = f"https:{page_url}"
 
+        date = item.get('year', '')
+        if not date and item.get('updated'):
+            try:
+                
+                timestamp_ms = int(item.get('updated', 0))
+                date = datetime.fromtimestamp(timestamp_ms / 1000).year
+            except (ValueError, TypeError):
+                date = ''
+
         media_search_manager.add_media({
             'id': item.get('guid', '') or item.get('_id', ''),
             'name': item.get('title', ''),
             'type': media_type,
             'url': page_url,
             'image': next(iter(item.get('thumbnails', {}).values()), {}).get('url', ''),
-            'date': item.get('year', ''),
+            'date': date,
         })
 
     return media_search_manager.get_length()

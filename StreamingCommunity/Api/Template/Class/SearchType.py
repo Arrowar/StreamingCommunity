@@ -19,7 +19,6 @@ class MediaItemData(TypedDict, total=False):
     slug: str               # SC
     
 
-
 class MediaItemMeta(type):
     def __new__(cls, name, bases, dct):
         def init(self, **kwargs):

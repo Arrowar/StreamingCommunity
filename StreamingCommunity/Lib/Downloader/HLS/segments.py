@@ -11,7 +11,7 @@ import threading
 from queue import PriorityQueue
 from urllib.parse import urljoin, urlparse
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Dict
+from typing import Dict, Optional
 
 
 # External libraries
@@ -51,7 +51,7 @@ console = Console()
 
 
 class M3U8_Segments:
-    def __init__(self, url: str, tmp_folder: str, is_index_url: bool = True, limit_segments: int = None):
+    def __init__(self, url: str, tmp_folder: str, is_index_url: bool = True, limit_segments: int = None, custom_headers: Optional[Dict[str, str]] = None):
         """
         Initializes the M3U8_Segments object.
 
@@ -60,11 +60,13 @@ class M3U8_Segments:
             - tmp_folder (str): The temporary folder to store downloaded segments.
             - is_index_url (bool): Flag indicating if `m3u8_index` is a URL (default True).
             - limit_segments (int): Optional limit for number of segments to process.
+            - custom_headers (Dict[str, str]): Optional custom headers to use for all requests.
         """
         self.url = url
         self.tmp_folder = tmp_folder
         self.is_index_url = is_index_url
         self.limit_segments = limit_segments
+        self.custom_headers = custom_headers if custom_headers else {'User-Agent': get_userAgent()}
         self.expected_real_time = None
         self.tmp_file_path = os.path.join(self.tmp_folder, "0.ts")
         os.makedirs(self.tmp_folder, exist_ok=True)
@@ -122,7 +124,11 @@ class M3U8_Segments:
         self.key_base_url = f"{parsed_url.scheme}://{parsed_url.netloc}/"
         
         try:
-            client_params = {'headers': {'User-Agent': get_userAgent()}, 'timeout': MAX_TIMEOOUT, 'verify': REQUEST_VERIFY}
+            client_params = {
+                'headers': self.custom_headers, 
+                'timeout': MAX_TIMEOOUT, 
+                'verify': REQUEST_VERIFY
+            }
             response = httpx.get(url=key_uri, **client_params)
             response.raise_for_status()
 
@@ -175,7 +181,11 @@ class M3U8_Segments:
         """
         if self.is_index_url:
             try:
-                client_params = {'headers': {'User-Agent': get_userAgent()}, 'timeout': MAX_TIMEOOUT, 'verify': REQUEST_VERIFY}
+                client_params = {
+                    'headers': self.custom_headers, 
+                    'timeout': MAX_TIMEOOUT, 
+                    'verify': REQUEST_VERIFY
+                }
                 response = httpx.get(self.url, **client_params, follow_redirects=True)
                 response.raise_for_status()
                 
@@ -217,11 +227,12 @@ class M3U8_Segments:
     def _get_http_client(self):
         """
         Get a reusable HTTP client using the centralized factory.
-        Uses optimized settings for segment downloading.
+        Uses optimized settings for segment downloading with custom headers.
         """
         if self._client is None:
             with self._client_lock:
                 self._client = create_client(
+                    headers=self.custom_headers,
                     timeout=SEGMENT_MAX_TIMEOUT
                 )
                 
@@ -254,8 +265,8 @@ class M3U8_Segments:
                 client = self._get_http_client()
                 timeout = min(SEGMENT_MAX_TIMEOUT, 10 + attempt * 5)
 
-                # Make request
-                response = client.get(ts_url, timeout=timeout, headers={"User-Agent": get_userAgent()})
+                # Make request with custom headers
+                response = client.get(ts_url, timeout=timeout, headers=self.custom_headers)
                 response.raise_for_status()
                 segment_content = response.content
                 content_size = len(segment_content)
@@ -306,7 +317,7 @@ class M3U8_Segments:
                 self.info_nRetry += 1
 
                 if attempt + 1 == REQUEST_MAX_RETRY:
-                    console.print(f"[red]Final retry failed for segment: {index}")
+                    console.print(f" -- [red]Final retry failed for segment: {index}")
                     
                     try:
                         self.queue.put((index, None), timeout=0.1)
@@ -394,7 +405,7 @@ class M3U8_Segments:
             response = client.get(
                 init_url, 
                 timeout=SEGMENT_MAX_TIMEOUT, 
-                headers={"User-Agent": get_userAgent()}
+                headers=self.custom_headers
             )
             response.raise_for_status()
             init_content = response.content

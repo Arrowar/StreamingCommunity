@@ -49,8 +49,8 @@ console = Console()
 
 class HLSClient:
     """Client for making HTTP requests to HLS endpoints with retry mechanism."""
-    def __init__(self):
-        self.headers = {'User-Agent': get_userAgent()}
+    def __init__(self, custom_headers: Optional[Dict[str, str]] = None):
+        self.headers = custom_headers if custom_headers else {'User-Agent': get_userAgent()}
 
     def request(self, url: str, return_content: bool = False) -> Optional[httpx.Response]:
         """
@@ -286,16 +286,18 @@ class M3U8Manager:
             
 class DownloadManager:
     """Manages downloading of video, audio, and subtitle streams."""
-    def __init__(self, temp_dir: str, client: HLSClient, url_fixer: M3U8_UrlFix):
+    def __init__(self, temp_dir: str, client: HLSClient, url_fixer: M3U8_UrlFix, custom_headers: Optional[Dict[str, str]] = None):
         """
         Args:
             temp_dir: Directory for storing temporary files
             client: HLSClient instance for making requests
             url_fixer: URL fixer instance for generating complete URLs
+            custom_headers: Optional custom headers to use for all requests
         """
         self.temp_dir = temp_dir
         self.client = client
         self.url_fixer = url_fixer
+        self.custom_headers = custom_headers
         self.missing_segments = []
         self.stopped = False
         self.video_segments_count = 0
@@ -312,7 +314,11 @@ class DownloadManager:
             video_tmp_dir = os.path.join(self.temp_dir, 'video')
 
             # Create downloader without segment limit for video
-            downloader = M3U8_Segments(url=video_full_url, tmp_folder=video_tmp_dir)
+            downloader = M3U8_Segments(
+                url=video_full_url, 
+                tmp_folder=video_tmp_dir,
+                custom_headers=self.custom_headers
+            )
             
             # Download video and get segment count
             result = downloader.download_streams("Video", "video")
@@ -345,7 +351,8 @@ class DownloadManager:
             downloader = M3U8_Segments(
                 url=audio_full_url, 
                 tmp_folder=audio_tmp_dir,
-                limit_segments=self.video_segments_count if self.video_segments_count > 0 else None
+                limit_segments=self.video_segments_count if self.video_segments_count > 0 else None,
+                custom_headers=self.custom_headers
             )
             
             result = downloader.download_streams(f"Audio {audio['language']}", "audio")
@@ -514,10 +521,14 @@ class MergeManager:
 
 class HLS_Downloader:
     """Main class for HLS video download and processing."""
-    def __init__(self, m3u8_url: str, output_path: Optional[str] = None):
+    def __init__(self, m3u8_url: str, output_path: Optional[str] = None, headers: Optional[Dict[str, str]] = None):
+        """
+        Initializes the HLS_Downloader with parameters.
+        """
         self.m3u8_url = m3u8_url
         self.path_manager = PathManager(m3u8_url, output_path)
-        self.client = HLSClient()
+        self.custom_headers = headers
+        self.client = HLSClient(custom_headers=self.custom_headers)
         self.m3u8_manager = M3U8Manager(m3u8_url, self.client)
         self.download_manager: Optional[DownloadManager] = None
         self.merge_manager: Optional[MergeManager] = None
@@ -576,7 +587,8 @@ class HLS_Downloader:
             self.download_manager = DownloadManager(
                 temp_dir=self.path_manager.temp_dir,
                 client=self.client,
-                url_fixer=self.m3u8_manager.url_fixer
+                url_fixer=self.m3u8_manager.url_fixer,
+                custom_headers=self.custom_headers
             )
 
             # Check if download had critical failures

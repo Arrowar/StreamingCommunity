@@ -61,6 +61,7 @@ class DASH_Downloader:
         self.mpd_sub_list = mpd_sub_list or []
         self.out_path = os.path.splitext(os.path.abspath(str(output_path)))[0]
         self.original_output_path = output_path
+        self.file_already_exists = os.path.exists(self.original_output_path)
         self.parser = None
         self._setup_temp_dirs()
 
@@ -72,6 +73,9 @@ class DASH_Downloader:
         """
         Create temporary folder structure under out_path\tmp
         """
+        if self.file_already_exists:
+            return
+
         self.tmp_dir = os.path.join(self.out_path, "tmp")
         self.encrypted_dir = os.path.join(self.tmp_dir, "encrypted")
         self.decrypted_dir = os.path.join(self.tmp_dir, "decrypted")
@@ -84,6 +88,12 @@ class DASH_Downloader:
         os.makedirs(self.subs_dir, exist_ok=True)
 
     def parse_manifest(self, custom_headers):
+        """
+        Parse the MPD manifest file and extract relevant information.
+        """
+        if self.file_already_exists:
+            return
+
         self.parser = MPDParser(self.mpd_url)
         self.parser.parse(custom_headers)
 
@@ -162,6 +172,9 @@ class DASH_Downloader:
         console.print("")
 
     def get_representation_by_type(self, typ):
+        """
+        Get the representation of the selected stream by type.
+        """
         if typ == "video":
             return getattr(self, "selected_video", None)
         elif typ == "audio":
@@ -220,9 +233,13 @@ class DASH_Downloader:
 
     def download_and_decrypt(self, custom_headers=None, custom_payload=None):
         """
-        Download and decrypt video/audio streams. Sets self.error, self.stopped, self.output_file.
-        Returns True if successful, False otherwise.
+        Download and decrypt video/audio streams. Skips download if file already exists.
         """
+        if self.file_already_exists:
+            console.print(f"[red]File already exists: {self.original_output_path}[/red]")
+            self.output_file = self.original_output_path
+            return True
+        
         self.error = None
         self.stopped = False
         video_segments_count = 0
@@ -267,7 +284,7 @@ class DASH_Downloader:
                 )
 
                 try:
-                    result = video_downloader.download_streams()
+                    result = video_downloader.download_streams(description="Video")
                     
                     # Store the video segment count for limiting audio
                     video_segments_count = video_downloader.get_segments_count()
@@ -309,6 +326,8 @@ class DASH_Downloader:
 
             # If m4s file doesn't exist, start downloading
             if not os.path.exists(encrypted_path):
+                audio_language = audio_rep.get('language', 'Unknown')
+                
                 audio_downloader = MPD_Segments(
                     tmp_folder=self.encrypted_dir,
                     representation=audio_rep,
@@ -317,7 +336,7 @@ class DASH_Downloader:
                 )
 
                 try:
-                    result = audio_downloader.download_streams()
+                    result = audio_downloader.download_streams(description=f"Audio {audio_language}")
 
                     # Check for interruption or failure
                     if result.get("stopped"):
@@ -360,6 +379,11 @@ class DASH_Downloader:
         """
         Merge video, audio, and optionally subtitles into final output file.
         """
+        if self.file_already_exists:
+            output_file = self.original_output_path
+            self.output_file = output_file
+            return output_file
+        
         # Definition of decrypted files
         video_file = os.path.join(self.decrypted_dir, "video.mp4")
         audio_file = os.path.join(self.decrypted_dir, "audio.mp4")

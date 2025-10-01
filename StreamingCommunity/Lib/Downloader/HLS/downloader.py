@@ -571,7 +571,10 @@ class HLS_Downloader:
             # Parse M3U8 and determine if it's a master playlist
             self.m3u8_manager.parse()
             self.m3u8_manager.select_streams()
-            self.m3u8_manager.log_selection()
+
+            if not self.m3u8_manager.is_master:
+                logging.info("Detected media playlist (not master)")
+                self.m3u8_manager.log_selection()
 
             self.download_manager = DownloadManager(
                 temp_dir=self.path_manager.temp_dir,

@@ -54,6 +54,7 @@ class M3U8_Ts_Estimator:
         speed_buffer = deque(maxlen=3)
         error_count = 0
         max_errors = 5
+        current_interval = 0.1
         
         while self._running:
             try:
@@ -64,12 +65,16 @@ class M3U8_Ts_Estimator:
                 current_upload, current_download = io_counters.bytes_sent, io_counters.bytes_recv
                 
                 if last_upload and last_download:
-                    upload_speed = (current_upload - last_upload) / interval
-                    download_speed = (current_download - last_download) / interval
+                    upload_speed = (current_upload - last_upload) / current_interval
+                    download_speed = (current_download - last_download) / current_interval
                     
                     if download_speed > 1024:
                         speed_buffer.append(download_speed)
 
+                        # Increase interval if we have a stable speed measurement
+                        if len(speed_buffer) >= 2:
+                            current_interval = min(interval, current_interval * 1.5)
+                    
                         if speed_buffer:
                             avg_speed = sum(speed_buffer) / len(speed_buffer)
                             
@@ -77,7 +82,6 @@ class M3U8_Ts_Estimator:
                                 formatted_upload = internet_manager.format_transfer_speed(max(0, upload_speed))
                                 formatted_download = internet_manager.format_transfer_speed(avg_speed)
                                 
-                                # Lock minimale
                                 with self.lock:
                                     self.speed = {
                                         "upload": formatted_upload,
@@ -99,9 +103,9 @@ class M3U8_Ts_Estimator:
                 if error_count > max_errors:
                     with self.lock:
                         self.speed = {"upload": "N/A", "download": "N/A"}
-                    interval = 10.0
-            
-            time.sleep(interval)
+                    current_interval = 10.0
+        
+            time.sleep(current_interval)
 
     def calculate_total_size(self) -> str:
         """
@@ -149,8 +153,8 @@ class M3U8_Ts_Estimator:
                 average_internet_speed, average_internet_unit = "N/A", ""
             
             progress_str = (
-                f"{Colors.LIGHT_GREEN}{number_file_total_size}{Colors.LIGHT_MAGENTA}{units_file_total_size} {Colors.WHITE}"
-                f"{Colors.DARK_GRAY}@ {Colors.LIGHT_CYAN}{average_internet_speed}{Colors.LIGHT_MAGENTA}{average_internet_unit}"
+                f"{Colors.LIGHT_GREEN}{number_file_total_size} {Colors.LIGHT_MAGENTA}{units_file_total_size} {Colors.WHITE}"
+                f"{Colors.DARK_GRAY}@ {Colors.LIGHT_CYAN}{average_internet_speed} {Colors.LIGHT_MAGENTA}{average_internet_unit}"
             )
             
             progress_counter.set_postfix_str(progress_str)

@@ -64,9 +64,13 @@ class MPD_Segments:
         """
         return len(self.selected_representation.get('segment_urls', []))
 
-    def download_streams(self, output_dir: str = None):
+    def download_streams(self, output_dir: str = None, description: str = "DASH"):
         """
         Synchronous wrapper for download_segments, compatible with legacy calls.
+        
+        Parameters:
+            - output_dir (str): Output directory for segments
+            - description (str): Description for progress bar (e.g., "Video", "Audio Italian")
         """
         concat_path = self.get_concat_path(output_dir)
 
@@ -81,7 +85,7 @@ class MPD_Segments:
 
         # Run async download in sync mode
         try:
-            asyncio.run(self.download_segments(output_dir=output_dir))
+            asyncio.run(self.download_segments(output_dir=output_dir, description=description))
 
         except KeyboardInterrupt:
             self.download_interrupted = True
@@ -96,6 +100,11 @@ class MPD_Segments:
     async def download_segments(self, output_dir: str = None, concurrent_downloads: int = None, description: str = "DASH"):
         """
         Download and concatenate all segments (including init) asynchronously and in order.
+        
+        Parameters:
+            - output_dir (str): Output directory for segments
+            - concurrent_downloads (int): Number of concurrent downloads
+            - description (str): Description for progress bar (e.g., "Video", "Audio Italian")
         """
         rep = self.selected_representation
         rep_id = rep['id']
@@ -105,10 +114,10 @@ class MPD_Segments:
         os.makedirs(output_dir or self.tmp_folder, exist_ok=True)
         concat_path = os.path.join(output_dir or self.tmp_folder, f"{rep_id}_encrypted.m4s")
 
-        # Determine stream type (video/audio) for progress bar
-        stream_type = rep.get('type', description)
+        stream_type = description
         if concurrent_downloads is None:
-            concurrent_downloads = self._get_worker_count(stream_type)
+            worker_type = 'video' if 'Video' in description else 'audio'
+            concurrent_downloads = self._get_worker_count(worker_type)
 
         progress_bar = tqdm(
             total=len(segment_urls) + 1,

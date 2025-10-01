@@ -20,7 +20,6 @@ from StreamingCommunity.Util.config_json import config_manager
 from StreamingCommunity.Util.headers import get_userAgent
 from StreamingCommunity.Util.http_client import create_client
 from StreamingCommunity.Util.os import os_manager, internet_manager
-from StreamingCommunity.TelegramHelp.telegram_bot import get_bot_instance
 
 
 # Logic class
@@ -44,7 +43,6 @@ GET_ONLY_LINK = config_manager.get_int('M3U8_DOWNLOAD', 'get_only_link')
 FILTER_CUSTOM_RESOLUTION = str(config_manager.get('M3U8_CONVERSION', 'force_resolution')).strip().lower()
 RETRY_LIMIT = config_manager.get_int('REQUESTS', 'max_retry')
 MAX_TIMEOUT = config_manager.get_int("REQUESTS", "timeout")
-TELEGRAM_BOT = config_manager.get_bool('DEFAULT', 'telegram_bot')
 
 console = Console()
 
@@ -238,22 +236,26 @@ class M3U8Manager:
             # Subtitle information
             available_subtitles = self.parser._subtitle.get_all_uris_and_names() or []
             available_sub_languages = [sub.get('language') for sub in available_subtitles]
-            available_subs = ', '.join(available_sub_languages) if available_sub_languages else "Nothing"
             
-            downloadable_sub_languages = available_sub_languages if "*" in DOWNLOAD_SPECIFIC_SUBTITLE else list(set(available_sub_languages) & set(DOWNLOAD_SPECIFIC_SUBTITLE))
-            downloadable_subs = ', '.join(downloadable_sub_languages) if downloadable_sub_languages else "Nothing"
-            
-            data_rows.append(["Subtitle", available_subs, ', '.join(DOWNLOAD_SPECIFIC_SUBTITLE), downloadable_subs])
+            if available_sub_languages:
+                available_subs = ', '.join(available_sub_languages)
+                
+                downloadable_sub_languages = available_sub_languages if "*" in DOWNLOAD_SPECIFIC_SUBTITLE else list(set(available_sub_languages) & set(DOWNLOAD_SPECIFIC_SUBTITLE))
+                downloadable_subs = ', '.join(downloadable_sub_languages) if downloadable_sub_languages else "Nothing"
+                
+                data_rows.append(["Subtitle", available_subs, ', '.join(DOWNLOAD_SPECIFIC_SUBTITLE), downloadable_subs])
 
             # Audio information
             available_audio = self.parser._audio.get_all_uris_and_names() or []
             available_audio_languages = [audio.get('language') for audio in available_audio]
-            available_audios = ', '.join(available_audio_languages) if available_audio_languages else "Nothing"
             
-            downloadable_audio_languages = list(set(available_audio_languages) & set(DOWNLOAD_SPECIFIC_AUDIO))
-            downloadable_audios = ', '.join(downloadable_audio_languages) if downloadable_audio_languages else "Nothing"
-            
-            data_rows.append(["Audio", available_audios, ', '.join(DOWNLOAD_SPECIFIC_AUDIO), downloadable_audios])
+            if available_audio_languages:
+                available_audios = ', '.join(available_audio_languages)
+                
+                downloadable_audio_languages = list(set(available_audio_languages) & set(DOWNLOAD_SPECIFIC_AUDIO))
+                downloadable_audios = ', '.join(downloadable_audio_languages) if downloadable_audio_languages else "Nothing"
+                
+                data_rows.append(["Audio", available_audios, ', '.join(DOWNLOAD_SPECIFIC_AUDIO), downloadable_audios])
             
             # Calculate max width for each column
             headers = ["Type", "Available", "Set", "Downloadable"]
@@ -548,9 +550,6 @@ class HLS_Downloader:
 
         console.print("[cyan]You can safely stop the download with [bold]Ctrl+c[bold] [cyan]")
 
-        if TELEGRAM_BOT:
-            bot = get_bot_instance()
-
         try:
             if os.path.exists(self.path_manager.output_path):
                 console.print(f"[red]Output file {self.path_manager.output_path} already exists![/red]")
@@ -562,8 +561,6 @@ class HLS_Downloader:
                     'error': None,
                     'stopped': False
                 }
-                if TELEGRAM_BOT:
-                    bot.send_message("Contenuto già scaricato!", None)
                 return response
 
             self.path_manager.setup_directories()
@@ -572,7 +569,7 @@ class HLS_Downloader:
             self.m3u8_manager.parse()
             self.m3u8_manager.select_streams()
 
-            if not self.m3u8_manager.is_master:
+            if self.m3u8_manager.is_master:
                 logging.info("Detected media playlist (not master)")
                 self.m3u8_manager.log_selection()
 
@@ -654,9 +651,6 @@ class HLS_Downloader:
 
     def _print_summary(self, use_shortest: bool):
         """Prints download summary including file size, duration, and any missing segments."""
-        if TELEGRAM_BOT:
-            bot = get_bot_instance()
-
         missing_ts = False
         missing_info = ""
         for item in self.download_manager.missing_segments:
@@ -672,11 +666,6 @@ class HLS_Downloader:
             f"[cyan]Duration: [bold]{duration}[/bold]\n"
             f"[cyan]Output: [bold]{os.path.abspath(self.path_manager.output_path)}[/bold]"
         )
-
-        if TELEGRAM_BOT:
-            message = f"Download completato\nDimensione: {file_size}\nDurata: {duration}\nPercorso: {os.path.abspath(self.path_manager.output_path)}"
-            clean_message = re.sub(r'\[[a-zA-Z]+\]', '', message)
-            bot.send_message(clean_message, None)
 
         if missing_ts:
             panel_content += f"\n{missing_info}"

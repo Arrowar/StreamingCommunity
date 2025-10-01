@@ -111,35 +111,38 @@ class DASH_Downloader:
             
             data_rows.append(["Video", available_video, set_video, downloadable_video_str])
 
-            # Audio info 
+            # Audio info
             selected_audio, list_available_audio_langs, filter_custom_audio, downloadable_audio = self.parser.select_audio(DOWNLOAD_SPECIFIC_AUDIO)
             self.selected_audio = selected_audio
             
-            available_audio = ', '.join(list_available_audio_langs) if list_available_audio_langs else "Nothing"
-            set_audio = str(filter_custom_audio) if filter_custom_audio else "Nothing"
-            downloadable_audio_str = str(downloadable_audio) if downloadable_audio else "Nothing"
-            
-            data_rows.append(["Audio", available_audio, set_audio, downloadable_audio_str])
+            if list_available_audio_langs:
+                available_audio = ', '.join(list_available_audio_langs)
+                set_audio = str(filter_custom_audio) if filter_custom_audio else "Nothing"
+                downloadable_audio_str = str(downloadable_audio) if downloadable_audio else "Nothing"
+                
+                data_rows.append(["Audio", available_audio, set_audio, downloadable_audio_str])
             
             # Subtitle info
             available_sub_languages = [sub.get('language') for sub in self.mpd_sub_list]
-            available_subs = ', '.join(available_sub_languages) if available_sub_languages else "Nothing"
             
-            # Filter subtitles based on configuration
-            if "*" in DOWNLOAD_SPECIFIC_SUBTITLE:
-                self.selected_subs = self.mpd_sub_list
-                downloadable_sub_languages = available_sub_languages
-            else:
-                self.selected_subs = [
-                    sub for sub in self.mpd_sub_list 
-                    if sub.get('language') in DOWNLOAD_SPECIFIC_SUBTITLE
-                ]
-                downloadable_sub_languages = [sub.get('language') for sub in self.selected_subs]
-            
-            downloadable_subs = ', '.join(downloadable_sub_languages) if downloadable_sub_languages else "Nothing"
-            set_subs = ', '.join(DOWNLOAD_SPECIFIC_SUBTITLE) if DOWNLOAD_SPECIFIC_SUBTITLE else "Nothing"
-            
-            data_rows.append(["Subtitle", available_subs, set_subs, downloadable_subs])
+            if available_sub_languages:
+                available_subs = ', '.join(available_sub_languages)
+                
+                # Filter subtitles based on configuration
+                if "*" in DOWNLOAD_SPECIFIC_SUBTITLE:
+                    self.selected_subs = self.mpd_sub_list
+                    downloadable_sub_languages = available_sub_languages
+                else:
+                    self.selected_subs = [
+                        sub for sub in self.mpd_sub_list 
+                        if sub.get('language') in DOWNLOAD_SPECIFIC_SUBTITLE
+                    ]
+                    downloadable_sub_languages = [sub.get('language') for sub in self.selected_subs]
+                
+                downloadable_subs = ', '.join(downloadable_sub_languages) if downloadable_sub_languages else "Nothing"
+                set_subs = ', '.join(DOWNLOAD_SPECIFIC_SUBTITLE) if DOWNLOAD_SPECIFIC_SUBTITLE else "Nothing"
+                
+                data_rows.append(["Subtitle", available_subs, set_subs, downloadable_subs])
             
             # Calculate max width for each column
             headers = ["Type", "Available", "Set", "Downloadable"]

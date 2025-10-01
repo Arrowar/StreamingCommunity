@@ -2,8 +2,6 @@
 
 import os
 import sys
-import time
-import glob
 import logging
 import platform
 import argparse
@@ -12,7 +10,7 @@ import threading
 import asyncio
 import subprocess
 from urllib.parse import urlparse
-from typing import Callable, Dict, Tuple
+from typing import Callable, Tuple
 
 
 # External library
@@ -22,6 +20,7 @@ from rich.prompt import Prompt
 
 # Internal utilities
 from .global_search import global_search
+from StreamingCommunity.Api.Template.loader import load_search_functions
 from StreamingCommunity.Util.message import start_message
 from StreamingCommunity.Util.config_json import config_manager
 from StreamingCommunity.Util.os import internet_manager, os_manager
@@ -56,42 +55,6 @@ def run_function(func: Callable[..., None], close_console: bool = False, search_
             func(search_terms)
     else:
         func(search_terms)
-
-
-def load_search_functions() -> Dict[str, Tuple]:
-    """Load and return all available search functions from site modules."""
-    loaded_functions = {}
-    excluded_sites = {"cb01new", "guardaserie", "ilcorsaronero", "mostraguarda"} if TELEGRAM_BOT else set()
-    
-    # Determine base path
-    base_path = os.path.join(sys._MEIPASS, "StreamingCommunity") if getattr(sys, 'frozen', False) else os.path.dirname(__file__)
-    api_dir = os.path.join(base_path, 'Api', 'Site')
-    
-    # Get all modules with their indices and sort them
-    modules = []
-    for init_file in glob.glob(os.path.join(api_dir, '*', '__init__.py')):
-        module_name = os.path.basename(os.path.dirname(init_file))
-        
-        if module_name in excluded_sites:
-            continue
-            
-        try:
-            mod = importlib.import_module(f'StreamingCommunity.Api.Site.{module_name}')
-            if not getattr(mod, '_deprecate', False):
-                modules.append((module_name, getattr(mod, 'indice'), getattr(mod, '_useFor')))
-                logging.info(f"Load module name: {module_name}")
-        except Exception as e:
-            console.print(f"[red]Failed to import module {module_name}: {str(e)}")
-    
-    # Sort by index and load search functions
-    for module_name, _, use_for in sorted(modules, key=lambda x: x[1]):
-        try:
-            mod = importlib.import_module(f'StreamingCommunity.Api.Site.{module_name}')
-            loaded_functions[f'{module_name}_search'] = (getattr(mod, 'search'), use_for)
-        except Exception as e:
-            console.print(f"[red]Failed to load search function from module {module_name}: {str(e)}")
-    
-    return loaded_functions
 
 
 def initialize():
@@ -316,7 +279,7 @@ def force_exit():
     os._exit(0)
 
 
-def check_dns_and_exit_if_needed():
+def check_dns():
     """Check DNS configuration and exit if required."""
     if BYPASS_DNS:
         return
@@ -508,16 +471,13 @@ def main(script_id=0):
     if TELEGRAM_BOT:
         get_bot_instance().send_message(f"Avviato script {script_id}", None)
 
-    start = time.time()
     Logger()
     execute_hooks('pre_run')
     initialize()
 
     try:
-        check_dns_and_exit_if_needed()
-
+        check_dns()
         search_functions = load_search_functions()
-        logging.info(f"Load module in: {time.time() - start} s")
 
         parser = setup_argument_parser(search_functions)
         args = parser.parse_args()

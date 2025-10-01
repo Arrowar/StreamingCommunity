@@ -50,7 +50,6 @@ class DeviceDownloader:
     def _check_existing_wvd(self) -> Optional[str]:
         """Check for existing WVD files in binary directory."""
         try:
-            console.print("[cyan]Checking for existing device.wvd files...")
             if not os.path.exists(self.base_dir):
                 return None
 

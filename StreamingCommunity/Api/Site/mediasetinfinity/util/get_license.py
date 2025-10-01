@@ -346,6 +346,7 @@ def get_tracking_info(BEARER_TOKEN, PLAYBACK_JSON):
 
         smil_xml = response.text
         time.sleep(0.2)
+        
         results = parse_smil_for_tracking_and_video(smil_xml)
         return results
     

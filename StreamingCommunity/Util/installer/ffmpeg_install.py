@@ -60,7 +60,6 @@ class FFMPEGDownloader:
         try:
 
             # STEP 1: Check system PATH first
-            console.print("[cyan]Checking for FFmpeg in system PATH...[/]")
             if self.os_name == 'windows':
                 try:
                     ffmpeg_path = subprocess.check_output(

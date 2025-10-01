@@ -67,11 +67,9 @@ class MPDParser:
         root = ET.fromstring(response.content)
 
         # Properly handle default namespace
-        ns = {}
-        if root.tag.startswith('{'):
-            uri = root.tag[1:].split('}')[0]
-            ns['mpd'] = uri
-            ns['cenc'] = 'urn:mpeg:cenc:2013'
+        ns = {'': 'urn:mpeg:dash:schema:mpd:2011'}
+        ns['mpd'] = ns['']
+        ns['cenc'] = 'urn:mpeg:cenc:2013'
 
         # Extract PSSH dynamically: take the first <cenc:pssh> found
         for protection in root.findall('.//mpd:ContentProtection', ns):
@@ -83,13 +81,23 @@ class MPDParser:
         if not self.pssh:
             console.print("[bold red]PSSH not found in MPD![/bold red]")
 
+        # Extract MPD-level BaseURL if available
+        mpd_base_url_elem = root.find('mpd:BaseURL', ns)
+        if mpd_base_url_elem is not None and mpd_base_url_elem.text:
+            self.base_url = urljoin(self.base_url, mpd_base_url_elem.text)
+
         # Extract representations
         for adapt_set in root.findall('.//mpd:AdaptationSet', ns):
             mime_type = adapt_set.get('mimeType', '')
             lang = adapt_set.get('lang', '')
+            content_type = mime_type.split('/')[0] if mime_type else 'unknown'
 
             # Find SegmentTemplate at AdaptationSet level (DASH spec allows this)
             seg_template = adapt_set.find('mpd:SegmentTemplate', ns)
+
+            # Check for BaseURL at AdaptationSet level
+            adapt_base_url_elem = adapt_set.find('mpd:BaseURL', ns)
+            adapt_base_url = adapt_base_url_elem.text if adapt_base_url_elem is not None else self.base_url
 
             for rep in adapt_set.findall('mpd:Representation', ns):
                 rep_id = rep.get('id')
@@ -98,67 +106,93 @@ class MPDParser:
                 width = rep.get('width')
                 height = rep.get('height')
 
-                # Try to find SegmentTemplate at Representation level (overrides AdaptationSet)
+                # Get representation BaseURL if available, or fallback to adaptation set BaseURL
+                rep_base_url_elem = rep.find('mpd:BaseURL', ns)
+                base_url = rep_base_url_elem.text if rep_base_url_elem is not None else adapt_base_url
+                
+                # Make sure base_url is absolute
+                if not base_url.startswith('http'):
+                    base_url = urljoin(self.base_url, base_url)
+
+                # Try to handle both SegmentTemplate and SegmentBase formats
+                init_url = None
+                segment_urls = []
+                
+                # Check for SegmentTemplate (original implementation)
                 rep_seg_template = rep.find('mpd:SegmentTemplate', ns)
                 seg_tmpl = rep_seg_template if rep_seg_template is not None else seg_template
-                if seg_tmpl is None:
-                    continue
+                
+                if seg_tmpl is not None:
+                    init = seg_tmpl.get('initialization')
+                    media = seg_tmpl.get('media')
+                    start_number = int(seg_tmpl.get('startNumber', 1))
 
-                init = seg_tmpl.get('initialization')
-                media = seg_tmpl.get('media')
-                start_number = int(seg_tmpl.get('startNumber', 1))
+                    # Replace $RepresentationID$ in init/media if present
+                    if init and '$RepresentationID$' in init:
+                        init = init.replace('$RepresentationID$', rep_id)
+                    if media and '$RepresentationID$' in media:
+                        media = media.replace('$RepresentationID$', rep_id)
 
-                # Use BaseURL from Representation if present, else fallback to self.base_url
-                base_url_elem = rep.find('mpd:BaseURL', ns)
-                base_url = base_url_elem.text if base_url_elem is not None else self.base_url
+                    init_url = urljoin(base_url, init) if init else None
 
-                # Replace $RepresentationID$ in init/media if present
-                if init and '$RepresentationID$' in init:
-                    init = init.replace('$RepresentationID$', rep_id)
-                if media and '$RepresentationID$' in media:
-                    media = media.replace('$RepresentationID$', rep_id)
-
-                init_url = urljoin(base_url, init) if init else None
-
-                # Calculate segments from timeline
-                segments = []
-                seg_timeline = seg_tmpl.find('mpd:SegmentTimeline', ns)
-                if seg_timeline is not None:
-                    segment_number = start_number
-                    for s in seg_timeline.findall('mpd:S', ns):
-                        repeat = int(s.get('r', 0))
-                        
-                        # Always append at least one segment
-                        segments.append(segment_number)
-                        segment_number += 1
-                        for _ in range(repeat):
+                    # Calculate segments from timeline
+                    segments = []
+                    seg_timeline = seg_tmpl.find('mpd:SegmentTimeline', ns)
+                    if seg_timeline is not None:
+                        segment_number = start_number
+                        for s in seg_timeline.findall('mpd:S', ns):
+                            repeat = int(s.get('r', 0))
+                            
+                            # Always append at least one segment
                             segments.append(segment_number)
                             segment_number += 1
+                            for _ in range(repeat):
+                                segments.append(segment_number)
+                                segment_number += 1
 
-                if not segments:
-                    segments = list(range(start_number, start_number + 100))
+                    if not segments:
+                        segments = list(range(start_number, start_number + 100))
 
-                # Replace $Number$ and $RepresentationID$ in media URL
-                media_urls = []
-                for n in segments:
-                    url = media
-                    if '$Number$' in url:
-                        url = url.replace('$Number$', str(n))
-                    if '$RepresentationID$' in url:
-                        url = url.replace('$RepresentationID$', rep_id)
-                    media_urls.append(urljoin(base_url, url))
+                    # Replace $Number$ and $RepresentationID$ in media URL
+                    for n in segments:
+                        url = media
+                        if '$Number$' in url:
+                            url = url.replace('$Number$', str(n))
+                        if '$RepresentationID$' in url:
+                            url = url.replace('$RepresentationID$', rep_id)
+                        segment_urls.append(urljoin(base_url, url))
+                
+                # Check for SegmentBase (new implementation)
+                seg_base = rep.find('mpd:SegmentBase', ns)
+                if seg_base is not None:
 
-                self.representations.append({
-                    'id': rep_id,
-                    'type': mime_type.split('/')[0] if mime_type else (rep.get('mimeType', '').split('/')[0] if rep.get('mimeType') else 'unknown'),
-                    'codec': codecs,
-                    'bandwidth': int(bandwidth) if bandwidth else 0,
-                    'width': int(width) if width else 0,
-                    'height': int(height) if height else 0,
-                    'language': lang,
-                    'init_url': init_url,
-                    'segment_urls': media_urls
-                })
+                    # For SegmentBase, we have a single media file with initialization and index ranges
+                    init_elem = seg_base.find('mpd:Initialization', ns)
+                    if init_elem is not None:
+                        init_range = init_elem.get('range', '0-0')
+
+                        # We'll use the BaseURL + range info for initialization
+                        init_url = f"{base_url}#range={init_range}"
+                    
+                    # For SegmentBase, there's typically just one URL (the BaseURL) for the entire content
+                    # We use this as our segment URL
+                    segment_urls = [base_url]
+                
+                # Only add representation if we found either init_url or segment_urls
+                if init_url or segment_urls:
+                    self.representations.append({
+                        'id': rep_id,
+                        'type': content_type,
+                        'codec': codecs,
+                        'bandwidth': int(bandwidth) if bandwidth else 0,
+                        'width': int(width) if width else 0,
+                        'height': int(height) if height else 0,
+                        'language': lang,
+                        'init_url': init_url,
+                        'segment_urls': segment_urls,
+                        'base_url': base_url,
+                        'is_segment_base': seg_base is not None
+                    })
 
     def get_resolutions(self):
         """Return list of video representations with their resolutions."""

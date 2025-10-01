@@ -67,7 +67,7 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
     device_id = generate_device_id()
     token_mpd = get_auth_token(device_id)
     
-    mpd_url, mpd_headers = get_playback_session(token_mpd, device_id, url_id)
+    mpd_url, mpd_headers, mpd_list_sub = get_playback_session(token_mpd, device_id, url_id)
     parsed_url = urlparse(mpd_url)
     query_params = parse_qs(parsed_url.query)
 
@@ -76,6 +76,7 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
         cdm_device=get_wvd_path(),
         license_url='https://www.crunchyroll.com/license/v1/license/widevine',
         mpd_url=mpd_url,
+        mpd_sub_list=mpd_list_sub,
         output_path=os.path.join(mp4_path, mp4_name),
     )
     dash_process.parse_manifest(custom_headers=mpd_headers)

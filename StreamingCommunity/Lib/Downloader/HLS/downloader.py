@@ -296,6 +296,7 @@ class DownloadManager:
         self.url_fixer = url_fixer
         self.missing_segments = []
         self.stopped = False
+        self.video_segments_count = 0
 
     def download_video(self, video_url: str) -> bool:
         """
@@ -308,8 +309,12 @@ class DownloadManager:
             video_full_url = self.url_fixer.generate_full_url(video_url)
             video_tmp_dir = os.path.join(self.temp_dir, 'video')
 
+            # Create downloader without segment limit for video
             downloader = M3U8_Segments(url=video_full_url, tmp_folder=video_tmp_dir)
+            
+            # Download video and get segment count
             result = downloader.download_streams("Video", "video")
+            self.video_segments_count = downloader.get_segments_count()
             self.missing_segments.append(result)
 
             if result.get('stopped', False):
@@ -325,6 +330,7 @@ class DownloadManager:
     def download_audio(self, audio: Dict) -> bool:
         """
         Downloads audio segments for a specific language track.
+        Uses video segment count as a limit if available.
         
         Returns:
             bool: True if download was successful, False otherwise
@@ -332,8 +338,14 @@ class DownloadManager:
         try:
             audio_full_url = self.url_fixer.generate_full_url(audio['uri'])
             audio_tmp_dir = os.path.join(self.temp_dir, 'audio', audio['language'])
-
-            downloader = M3U8_Segments(url=audio_full_url, tmp_folder=audio_tmp_dir)
+            
+            # Create downloader with segment limit for audio
+            downloader = M3U8_Segments(
+                url=audio_full_url, 
+                tmp_folder=audio_tmp_dir,
+                limit_segments=self.video_segments_count if self.video_segments_count > 0 else None
+            )
+            
             result = downloader.download_streams(f"Audio {audio['language']}", "audio")
             self.missing_segments.append(result)
 

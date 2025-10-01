@@ -154,7 +154,7 @@ def get_ffprobe_info(file_path):
             cmd,
             capture_output=True,
             text=True,
-            check=False  # Don't raise exception on non-zero exit
+            check=False
         )
 
         if result.returncode != 0:
@@ -206,7 +206,7 @@ def need_to_force_to_ts(file_path):
     file_info = get_ffprobe_info(file_path)
 
     if is_png_format_or_codec(file_info):
-       console.print(f"[yellow]Warning: The input file [green]{os.path.basename(file_path)}[/green] is in PNG format or contains a PNG codec. It will be converted to TS format for processing.[/yellow]")
+       logging.info(f"File {file_path} is in PNG format or contains a PNG codec. Need to convert to TS format.")
        return True
     
     return False
@@ -222,7 +222,11 @@ def check_duration_v_a(video_path, audio_path, tolerance=1.0):
         - tolerance (float): Allowed tolerance for the duration difference (in seconds).
 
     Returns:
-        - tuple: (bool, float) -> True if the duration of the video and audio matches, False otherwise, along with the difference in duration.
+        - tuple: (bool, float, float, float) -> 
+            - Bool: True if the duration of the video and audio matches within tolerance
+            - Float: Difference in duration
+            - Float: Video duration
+            - Float: Audio duration
     """
     video_duration = get_video_duration(video_path, file_type="video")
     audio_duration = get_video_duration(audio_path, file_type="audio")
@@ -230,21 +234,21 @@ def check_duration_v_a(video_path, audio_path, tolerance=1.0):
     # Check if either duration is None and specify which one is None
     if video_duration is None and audio_duration is None:
         console.print("[yellow]Warning: Both video and audio durations are None. Returning 0 as duration difference.[/yellow]")
-        return False, 0.0
+        return False, 0.0, 0.0, 0.0
     
     elif video_duration is None:
-        console.print("[yellow]Warning: Video duration is None. Returning 0 as duration difference.[/yellow]")
-        return False, 0.0
+        console.print("[yellow]Warning: Video duration is None. Using audio duration for calculation.[/yellow]")
+        return False, 0.0, 0.0, audio_duration
     
     elif audio_duration is None:
-        console.print("[yellow]Warning: Audio duration is None. Returning 0 as duration difference.[/yellow]")
-        return False, 0.0
+        console.print("[yellow]Warning: Audio duration is None. Using video duration for calculation.[/yellow]")
+        return False, 0.0, video_duration, 0.0
     
     # Calculate the duration difference
     duration_difference = abs(video_duration - audio_duration)
 
     # Check if the duration difference is within the tolerance
     if duration_difference <= tolerance:
-        return True, duration_difference
+        return True, duration_difference, video_duration, audio_duration
     else:
-        return False, duration_difference
+        return False, duration_difference, video_duration, audio_duration

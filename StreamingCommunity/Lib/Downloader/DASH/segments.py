@@ -25,13 +25,20 @@ SEGMENT_MAX_TIMEOUT = config_manager.get_int("M3U8_DOWNLOAD", "segment_timeout")
 
 
 class MPD_Segments:
-    def __init__(self, tmp_folder: str, representation: dict, pssh: str = None):
+    def __init__(self, tmp_folder: str, representation: dict, pssh: str = None, limit_segments: int = None):
         """
-        Initialize MPD_Segments with temp folder, representation, and optional pssh.
+        Initialize MPD_Segments with temp folder, representation, optional pssh, and segment limit.
+        
+        Parameters:
+            - tmp_folder (str): Temporary folder to store downloaded segments
+            - representation (dict): Selected representation with segment URLs
+            - pssh (str, optional): PSSH string for decryption
+            - limit_segments (int, optional): Optional limit for number of segments to download
         """
         self.tmp_folder = tmp_folder
         self.selected_representation = representation
         self.pssh = pssh
+        self.limit_segments = limit_segments
         self.download_interrupted = False
         self.info_nFailed = 0
         
@@ -42,7 +49,7 @@ class MPD_Segments:
         
         # Progress
         self._last_progress_update = 0
-        self._progress_update_interval = 0.5
+        self._progress_update_interval = 0.1
 
     def get_concat_path(self, output_dir: str = None):
         """
@@ -50,12 +57,27 @@ class MPD_Segments:
         """
         rep_id = self.selected_representation['id']
         return os.path.join(output_dir or self.tmp_folder, f"{rep_id}_encrypted.m4s")
+        
+    def get_segments_count(self) -> int:
+        """
+        Returns the total number of segments available in the representation.
+        """
+        return len(self.selected_representation.get('segment_urls', []))
 
     def download_streams(self, output_dir: str = None):
         """
         Synchronous wrapper for download_segments, compatible with legacy calls.
         """
         concat_path = self.get_concat_path(output_dir)
+
+        # Apply segment limit if specified
+        if self.limit_segments is not None:
+            orig_count = len(self.selected_representation.get('segment_urls', []))
+            if orig_count > self.limit_segments:
+                
+                # Limit segment URLs
+                self.selected_representation['segment_urls'] = self.selected_representation['segment_urls'][:self.limit_segments]
+                print(f"[yellow]Limiting segments from {orig_count} to {self.limit_segments}")
 
         # Run async download in sync mode
         try:
@@ -91,9 +113,7 @@ class MPD_Segments:
         progress_bar = tqdm(
             total=len(segment_urls) + 1,
             desc=f"Downloading {rep_id}",
-            bar_format=self._get_bar_format(stream_type),
-            mininterval=1.0,
-            maxinterval=2.5,
+            bar_format=self._get_bar_format(stream_type)
         )
 
         # Define semaphore for concurrent downloads
@@ -231,7 +251,7 @@ class MPD_Segments:
                 # Update estimator with segment size
                 estimator.add_ts_file(len(data))
 
-                # Update progress bar with estimated info
+                # Update progress bar with estimated info and segment count
                 self._throttled_progress_update(len(data), estimator, progress_bar)
 
             except KeyboardInterrupt:
@@ -319,10 +339,11 @@ class MPD_Segments:
         Generate platform-appropriate progress bar format.
         """
         return (
-            f"{Colors.YELLOW}[MPD] ({Colors.CYAN}{description}{Colors.WHITE}): "
-            f"{Colors.RED}{{percentage:.2f}}% "
-            f"{Colors.MAGENTA}{{bar}} "
-            f"{Colors.YELLOW}{{elapsed}}{Colors.WHITE} < {Colors.CYAN}{{remaining}}{Colors.WHITE}{{postfix}}{Colors.WHITE}"
+            f"{Colors.YELLOW}[DASH]{Colors.CYAN} {description}{Colors.WHITE}: "
+            f"{Colors.MAGENTA}{{bar:40}} "
+            f"{Colors.LIGHT_GREEN}{{n_fmt}}{Colors.WHITE}/{Colors.CYAN}{{total_fmt}} {Colors.LIGHT_MAGENTA}TS {Colors.WHITE}"
+            f"{Colors.DARK_GRAY}[{Colors.YELLOW}{{elapsed}}{Colors.WHITE} < {Colors.CYAN}{{remaining}}{Colors.DARK_GRAY}] "
+            f"{Colors.WHITE}{{postfix}}"
         )
 
     def _get_worker_count(self, stream_type: str) -> int:

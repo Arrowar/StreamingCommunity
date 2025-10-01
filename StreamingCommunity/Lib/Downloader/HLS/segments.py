@@ -51,7 +51,7 @@ console = Console()
 
 
 class M3U8_Segments:
-    def __init__(self, url: str, tmp_folder: str, is_index_url: bool = True):
+    def __init__(self, url: str, tmp_folder: str, is_index_url: bool = True, limit_segments: int = None):
         """
         Initializes the M3U8_Segments object.
 
@@ -59,10 +59,12 @@ class M3U8_Segments:
             - url (str): The URL of the M3U8 playlist.
             - tmp_folder (str): The temporary folder to store downloaded segments.
             - is_index_url (bool): Flag indicating if `m3u8_index` is a URL (default True).
+            - limit_segments (int): Optional limit for number of segments to process.
         """
         self.url = url
         self.tmp_folder = tmp_folder
         self.is_index_url = is_index_url
+        self.limit_segments = limit_segments
         self.expected_real_time = None
         self.tmp_file_path = os.path.join(self.tmp_folder, "0.ts")
         os.makedirs(self.tmp_folder, exist_ok=True)
@@ -103,7 +105,7 @@ class M3U8_Segments:
         self.active_retries_lock = threading.Lock()
 
         self._last_progress_update = 0
-        self._progress_update_interval = 0.5
+        self._progress_update_interval = 0.1
 
     def __get_key__(self, m3u8_parser: M3U8_Parser) -> bytes:
         """
@@ -141,21 +143,31 @@ class M3U8_Segments:
         m3u8_parser.parse_data(uri=self.url, raw_content=m3u8_content)
 
         self.expected_real_time_s = m3u8_parser.duration
+        self.segment_init_url = m3u8_parser.init_segment
+        self.has_init_segment = self.segment_init_url is not None
 
         if m3u8_parser.keys:
             key = self.__get_key__(m3u8_parser)    
-            self.decryption = M3U8_Decryption(
-                key, 
-                m3u8_parser.keys.get('iv'), 
-                m3u8_parser.keys.get('method')
-            )
+            self.decryption = M3U8_Decryption(key, m3u8_parser.keys.get('iv'), m3u8_parser.keys.get('method'))
 
-        self.segments = [
+        segments = [
             self.class_url_fixer.generate_full_url(seg)
             if "http" not in seg else seg
             for seg in m3u8_parser.segments
         ]
+        
+        if self.limit_segments and len(segments) > self.limit_segments:
+            logging.info(f"Limiting segments from {len(segments)} to {self.limit_segments}")
+            segments = segments[:self.limit_segments]
+            
+        self.segments = segments
         self.class_ts_estimator.total_segments = len(self.segments)
+        
+    def get_segments_count(self) -> int:
+        """
+        Returns the total number of segments.
+        """
+        return len(self.segments) if hasattr(self, 'segments') else 0
 
     def get_info(self) -> None:
         """
@@ -363,6 +375,52 @@ class M3U8_Segments:
                 except Exception as e:
                     logging.error(f"Error writing segment {index}: {str(e)}")
     
+    def download_init_segment(self) -> bool:
+        """
+        Downloads the initialization segment if available.
+        
+        Returns:
+            bool: True if init segment was downloaded successfully, False otherwise
+        """
+        if not self.has_init_segment:
+            return False
+            
+        init_url = self.segment_init_url
+        if not init_url.startswith("http"):
+            init_url = self.class_url_fixer.generate_full_url(init_url)
+            
+        try:
+            client = self._get_http_client()
+            response = client.get(
+                init_url, 
+                timeout=SEGMENT_MAX_TIMEOUT, 
+                headers={"User-Agent": get_userAgent()}
+            )
+            response.raise_for_status()
+            init_content = response.content
+            
+            # Decrypt if needed (although init segments are typically not encrypted)
+            if self.decryption is not None:
+                try:
+                    init_content = self.decryption.decrypt(init_content)
+
+                except Exception as e:
+                    logging.error(f"Decryption failed for init segment: {str(e)}")
+                    return False
+            
+            # Put init segment in queue with highest priority (0)
+            self.queue.put((0, init_content))
+            self.downloaded_segments.add(0)
+            
+            # Adjust expected_index to 1 since we've handled index 0 separately
+            self.expected_index = 0
+            logging.info("Init segment downloaded successfully")
+            return True
+            
+        except Exception as e:
+            logging.error(f"Failed to download init segment: {str(e)}")
+            return False
+    
     def download_streams(self, description: str, type: str):
         """
         Downloads all TS segments in parallel and writes them to a file.
@@ -378,33 +436,42 @@ class M3U8_Segments:
         self.setup_interrupt_handler()
 
         progress_bar = tqdm(
-            total=len(self.segments), 
-            unit='s',
-            ascii='░▒█',
+            total=len(self.segments) + (1 if self.has_init_segment else 0), 
             bar_format=self._get_bar_format(description),
-            mininterval=2.0,
-            maxinterval=5.0,
             file=sys.stdout,
         )
 
         try:
+            self.class_ts_estimator.total_segments = len(self.segments)
+            
             writer_thread = threading.Thread(target=self.write_segments_to_file)
             writer_thread.daemon = True
             writer_thread.start()
             max_workers = self._get_worker_count(type)
             
+            # First download the init segment if available
+            if self.has_init_segment:
+                if self.download_init_segment():
+                    progress_bar.update(1)
+            
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
                 futures = []
+                
+                # Start segment indices from 1 if we have an init segment
+                start_idx = 1 if self.has_init_segment else 0
                 
                 for index, segment_url in enumerate(self.segments):
                     if self.interrupt_flag.is_set():
                         break
 
+                    # Adjust index if we have an init segment
+                    queue_index = index + start_idx
+                        
                     # Delay every 200 submissions to reduce CPU usage
                     if index % 200 == 0 and index > 0:
                         time.sleep(TQDM_DELAY_WORKER)
                         
-                    futures.append(executor.submit(self.download_segment, segment_url, index, progress_bar))
+                    futures.append(executor.submit(self.download_segment, segment_url, queue_index, progress_bar))
 
                 # Process completed futures
                 for future in as_completed(futures):
@@ -449,15 +516,17 @@ class M3U8_Segments:
 
         return self._generate_results(type)
     
+    
     def _get_bar_format(self, description: str) -> str:
         """
         Generate platform-appropriate progress bar format.
         """
         return (
-            f"{Colors.YELLOW}[HLS] {Colors.WHITE}({Colors.CYAN}{description}{Colors.WHITE}): "
-            f"{Colors.RED}{{percentage:.2f}}% "
-            f"{Colors.MAGENTA}{{bar}} "
-            f"{Colors.YELLOW}{{elapsed}}{Colors.WHITE} < {Colors.CYAN}{{remaining}}{Colors.WHITE}{{postfix}}{Colors.WHITE}"
+            f"{Colors.YELLOW}[HLS]{Colors.CYAN} {description}{Colors.WHITE}: "
+            f"{Colors.MAGENTA}{{bar:40}} "
+            f"{Colors.LIGHT_GREEN}{{n_fmt}}{Colors.WHITE}/{Colors.CYAN}{{total_fmt}} {Colors.LIGHT_MAGENTA}TS {Colors.WHITE}"
+            f"{Colors.DARK_GRAY}[{Colors.YELLOW}{{elapsed}}{Colors.WHITE} < {Colors.CYAN}{{remaining}}{Colors.DARK_GRAY}] "
+            f"{Colors.WHITE}{{postfix}}"
         )
     
     def _get_worker_count(self, stream_type: str) -> int:

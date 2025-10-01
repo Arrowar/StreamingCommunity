@@ -1,13 +1,11 @@
 # 24.01.24
 
-import io
 import os
 import shutil
 import logging
 import socket
 import platform
 import inspect
-import contextlib
 
 
 # External library
@@ -316,7 +314,6 @@ class OsSummary:
         self.ffmpeg_path, self.ffprobe_path, _ = check_ffmpeg()
         self.mp4decrypt_path = check_mp4decrypt()
         self.wvd_path = check_device_wvd_path()
-        
         self._display_binary_paths()
 
     def _display_binary_paths(self):
@@ -341,11 +338,6 @@ os_manager = OsManager()
 internet_manager = InternetManager()
 os_summary = OsSummary()
 
-
-@contextlib.contextmanager
-def suppress_output():
-    with contextlib.redirect_stdout(io.StringIO()):
-        yield
 
 def get_call_stack():
     """Retrieves the current call stack with details about each call."""

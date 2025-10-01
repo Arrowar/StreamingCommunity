@@ -53,7 +53,6 @@ class ConfigManager:
         self.cache = {}
 
         self.fetch_domain_online = True
-        self.validate_github_config = False
         
         console.print(f"[bold cyan]Initializing ConfigManager:[/bold cyan] [green]{self.file_path}[/green]")
         
@@ -64,7 +63,7 @@ class ConfigManager:
         """Load the configuration and initialize all settings."""
         if not os.path.exists(self.file_path):
             console.print(f"[bold red]WARNING: Configuration file not found:[/bold red] {self.file_path}")
-            console.print("[bold yellow]Attempting to download from reference repository...[/bold yellow]")
+            console.print("[bold yellow]Downloading from repository...[/bold yellow]")
             self._download_reference_config()
         
         # Load the configuration file
@@ -75,12 +74,6 @@ class ConfigManager:
             
             # Update settings from the configuration
             self._update_settings_from_config()
-            
-            # Validate and update the configuration if requested
-            if self.validate_github_config:
-                self._validate_and_update_config()
-            else:
-                console.print("[bold yellow]GitHub validation disabled[/bold yellow]")
                 
             # Load site data based on fetch_domain_online setting
             self._load_site_data()
@@ -115,14 +108,12 @@ class ConfigManager:
         
         # Get fetch_domain_online setting (True by default)
         self.fetch_domain_online = default_section.get('fetch_domain_online', True)
-        self.validate_github_config = default_section.get('validate_github_config', False)
         
         console.print(f"[bold cyan]Fetch domains online:[/bold cyan] [{'green' if self.fetch_domain_online else 'yellow'}]{self.fetch_domain_online}[/{'green' if self.fetch_domain_online else 'yellow'}]")
-        console.print(f"[bold cyan]GitHub configuration validation:[/bold cyan] [{'green' if self.validate_github_config else 'yellow'}]{self.validate_github_config}[/{'green' if self.validate_github_config else 'yellow'}]")
     
     def _download_reference_config(self) -> None:
         """Download the reference configuration from GitHub."""
-        console.print(f"[bold cyan]Downloading reference configuration:[/bold cyan] [green]{self.reference_config_url}[/green]")
+        console.print(f"[bold cyan]Downloading configuration:[/bold cyan] [green]{self.reference_config_url}[/green]")
 
         try:
             response = requests.get(self.reference_config_url, timeout=8, headers={'User-Agent': get_userAgent()})
@@ -133,7 +124,6 @@ class ConfigManager:
                 file_size = len(response.content) / 1024
                 console.print(f"[bold green]Download complete:[/bold green] {os.path.basename(self.file_path)} ({file_size:.2f} KB)")
             else:
-
                 error_msg = f"HTTP Error: {response.status_code}, Response: {response.text[:100]}"
                 console.print(f"[bold red]Download failed:[/bold red] {error_msg}")
                 raise Exception(error_msg)
@@ -141,107 +131,6 @@ class ConfigManager:
         except Exception as e:
             console.print(f"[bold red]Download error:[/bold red] {str(e)}")
             raise
-    
-    def _validate_and_update_config(self) -> None:
-        """Validate the local configuration against the reference one and update missing keys."""
-        try:
-            # Download the reference configuration
-            console.print("[bold cyan]Validating configuration with GitHub...[/bold cyan]")
-            response = requests.get(self.reference_config_url, timeout=8, headers={'User-Agent': get_userAgent()})
-            
-            if not response.ok:
-                raise Exception(f"Error downloading reference configuration. Code: {response.status_code}")
-            
-            reference_config = response.json()
-            
-            # Compare and update missing keys
-            merged_config = self._deep_merge_configs(self.config, reference_config)
-            
-            if merged_config != self.config:
-                added_keys = self._get_added_keys(self.config, merged_config)
-                
-                # Save the merged configuration
-                with open(self.file_path, 'w') as f:
-                    json.dump(merged_config, f, indent=4)
-                
-                key_examples = ', '.join(added_keys[:5])
-                if len(added_keys) > 5:
-                    key_examples += ' and others...'
-                    
-                console.print(f"[bold green]Configuration updated with {len(added_keys)} new keys:[/bold green] {key_examples}")
-                
-                # Update the configuration in memory
-                self.config = merged_config
-                self._update_settings_from_config()
-            else:
-                console.print("[bold green]The configuration is up to date.[/bold green]")
-                
-        except Exception as e:
-            console.print(f"[bold red]Error validating configuration:[/bold red] {str(e)}")
-    
-    def _get_added_keys(self, old_config: dict, new_config: dict, prefix="") -> list:
-        """
-        Get the list of keys added in the new configuration compared to the old one.
-        
-        Args:
-            old_config (dict): Original configuration
-            new_config (dict): New configuration
-            prefix (str): Prefix for nested keys
-            
-        Returns:
-            list: List of added key names
-        """
-        added_keys = []
-        
-        for key, value in new_config.items():
-            full_key = f"{prefix}.{key}" if prefix else key
-            
-            if key not in old_config:
-                added_keys.append(full_key)
-            elif isinstance(value, dict) and isinstance(old_config.get(key), dict):
-                added_keys.extend(self._get_added_keys(old_config[key], value, full_key))
-                
-        return added_keys
-    
-    def _deep_merge_configs(self, local_config: dict, reference_config: dict) -> dict:
-        """
-        Recursively merge the reference configuration into the local one, preserving local values.
-        
-        Args:
-            local_config (dict): Local configuration
-            reference_config (dict): Reference configuration
-            
-        Returns:
-            dict: Merged configuration
-        """
-        merged = local_config.copy()
-        
-        for key, value in reference_config.items():
-            if key not in merged:
-
-                # Create the key if it doesn't exist
-                merged[key] = value
-            elif isinstance(value, dict) and isinstance(merged[key], dict):
-
-                # Handle the DEFAULT section specially
-                if key == 'DEFAULT':
-
-                    # Make sure control keys maintain local values
-                    merged_section = self._deep_merge_configs(merged[key], value)
-                    
-                    # Preserve local values for critical settings
-                    if 'fetch_domain_online' in merged[key]:
-                        merged_section['fetch_domain_online'] = merged[key]['fetch_domain_online']
-                    if 'validate_github_config' in merged[key]:
-                        merged_section['validate_github_config'] = merged[key]['validate_github_config']
-                    
-                    merged[key] = merged_section
-                else:
-
-                    # Normal merge for other sections
-                    merged[key] = self._deep_merge_configs(merged[key], value)
-                
-        return merged
     
     def _load_site_data(self) -> None:
         """Load site data based on fetch_domain_online setting."""
@@ -258,7 +147,6 @@ class ConfigManager:
         }
         
         try:
-            console.print("[bold cyan]Fetching domains from GitHub:[/bold cyan]")
             response = requests.get(domains_github_url, timeout=8, headers=headers)
 
             if response.ok:
@@ -296,21 +184,18 @@ class ConfigManager:
         
         try:
             if os.path.exists(github_domains_path):
-
+                
                 # Update existing GitHub structure file
                 with open(github_domains_path, 'w', encoding='utf-8') as f:
                     json.dump(self.configSite, f, indent=4, ensure_ascii=False)
-                console.print(f"[bold green]Domains updated in GitHub structure:[/bold green] {github_domains_path}")
                 
             elif not os.path.exists(self.domains_path):
-
                 # Save to root only if it doesn't exist and GitHub structure doesn't exist
                 with open(self.domains_path, 'w', encoding='utf-8') as f:
                     json.dump(self.configSite, f, indent=4, ensure_ascii=False)
                 console.print(f"[bold green]Domains saved to:[/bold green] {self.domains_path}")
                 
             else:
-
                 # Root file exists, don't overwrite it
                 console.print(f"[bold yellow]Local domains.json already exists, not overwriting:[/bold yellow] {self.domains_path}")
                 console.print("[bold yellow]Tip: Delete the file if you want to recreate it from GitHub[/bold yellow]")
@@ -634,17 +519,6 @@ class ConfigManager:
         """
         config_source = self.configSite if in_site else self.config
         return section in config_source
-
-
-def get_use_large_bar():
-    """
-    Determine if the large bar feature should be enabled.
-    
-    Returns:
-        bool: True if running on PC (Windows, macOS, Linux),
-              False if running on Android or iOS.
-    """
-    return not any(platform in sys.platform for platform in ("android", "ios"))
 
 
 # Initialize the ConfigManager when the module is imported

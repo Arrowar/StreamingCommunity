@@ -134,9 +134,6 @@ class M3U8_Ts_Estimator:
         try:
             self.add_ts_file(segment_size)
             
-            with self.lock:
-                self.downloaded_segments_count += 1
-            
             file_total_size = self.calculate_total_size()
             if file_total_size == "Error":
                 return
@@ -152,17 +149,11 @@ class M3U8_Ts_Estimator:
                 average_internet_speed, average_internet_unit = "N/A", ""
             
             progress_str = (
-                f"{Colors.GREEN}{number_file_total_size} {Colors.RED}{units_file_total_size}"
-                f"{Colors.WHITE}, {Colors.CYAN}{average_internet_speed} {Colors.RED}{average_internet_unit} "
+                f"{Colors.LIGHT_GREEN}{number_file_total_size}{Colors.LIGHT_MAGENTA}{units_file_total_size} {Colors.WHITE}"
+                f"{Colors.DARK_GRAY}@ {Colors.LIGHT_CYAN}{average_internet_speed}{Colors.LIGHT_MAGENTA}{average_internet_unit}"
             )
             
             progress_counter.set_postfix_str(progress_str)
             
         except Exception as e:
             logging.error(f"Error updating progress bar: {str(e)}")
-            
-    def stop(self):
-        """Stop speed monitoring thread."""
-        self._running = False
-        if self.speed_thread.is_alive():
-            self.speed_thread.join(timeout=5.0)

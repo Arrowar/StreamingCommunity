@@ -381,6 +381,7 @@ class M3U8_Subtitle:
 class M3U8_Parser:
     def __init__(self):
         self.is_master_playlist = None
+        self.init_segment = None
         self.segments = []
         self.video_playlist = []
         self.keys = None
@@ -403,11 +404,12 @@ class M3U8_Parser:
             - m3u8_content (str): The content of the M3U8 file.
         """
         m3u8_obj = loads(raw_content, uri)
-        
+
         self.__parse_video_info__(m3u8_obj)
         self.__parse_subtitles_and_audio__(m3u8_obj)
         self.__parse_segments__(m3u8_obj)
         self.is_master_playlist = self.__is_master__(m3u8_obj)
+        self.init_segment = self.__parse_init_segment__(m3u8_obj)
 
     @staticmethod
     def extract_resolution(uri: str) -> int:
@@ -457,9 +459,6 @@ class M3U8_Parser:
         """
         Determines if the given M3U8 object is a master playlist.
 
-        Parameters:
-            - m3u8_obj (m3u8.M3U8): The parsed M3U8 object.
-
         Returns:
             - bool: True if it's a master playlist, False if it's a media playlist, None if unknown.
         """
@@ -478,9 +477,6 @@ class M3U8_Parser:
     def __parse_video_info__(self, m3u8_obj) -> None:
         """
         Extracts video information from the M3U8 object.
-
-        Parameters:
-            - m3u8_obj: The M3U8 object containing video playlists.
         """
         try:
             for playlist in m3u8_obj.playlists:
@@ -526,9 +522,6 @@ class M3U8_Parser:
     def __parse_encryption_keys__(self, obj) -> None:
         """
         Extracts encryption keys either from the M3U8 object or from individual segments.
-
-        Parameters:
-            - obj: Either the main M3U8 object or an individual segment.
         """
         try:
             if hasattr(obj, 'key') and obj.key is not None:
@@ -557,9 +550,6 @@ class M3U8_Parser:
     def __parse_subtitles_and_audio__(self, m3u8_obj) -> None:
         """
         Extracts subtitles and audio information from the M3U8 object.
-
-        Parameters:
-            - m3u8_obj: The M3U8 object containing subtitles and audio data.
         """
         try:
             for media in m3u8_obj.media:
@@ -587,9 +577,6 @@ class M3U8_Parser:
     def __parse_segments__(self, m3u8_obj) -> None:
         """
         Extracts segment information from the M3U8 object.
-
-        Parameters:
-            - m3u8_obj: The M3U8 object containing segment data.
         """
         try:
             for segment in m3u8_obj.segments:
@@ -611,6 +598,19 @@ class M3U8_Parser:
 
         except Exception as e:
             logging.error(f"Error parsing segments: {e}")
+
+    def __parse_init_segment__(self, m3u8_obj) -> None:
+        """
+        Extracts initialization segment information from the M3U8 object.
+        """
+        try:
+            if len(m3u8_obj.segment_map) > 0:
+                init_segment = m3u8_obj.segment_map[0].uri
+                return init_segment
+        
+        except Exception as e:
+            logging.error(f"Error parsing initialization segment: {e}")
+            return None
 
     def __create_variable__(self):
         """

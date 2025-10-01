@@ -150,52 +150,42 @@ class Bento4Downloader:
 def check_mp4decrypt() -> Optional[str]:
     """
     Check for mp4decrypt in the system and download if not found.
-    Order: system PATH (where/which) -> binary directory -> download
+    Order: binary directory -> system PATH -> download
     
     Returns:
         Optional[str]: Path to mp4decrypt executable or None if not found/downloaded
     """
     try:
         system_platform = binary_paths.system
-        
-        # STEP 1: Check system PATH
-        console.print("[cyan]Checking for mp4decrypt in system PATH...[/]")
         mp4decrypt_name = "mp4decrypt.exe" if system_platform == "windows" else "mp4decrypt"
-        mp4decrypt_path = None
         
-        if system_platform == 'windows':
-            try:
-                mp4decrypt_path = subprocess.check_output(
-                    ['where', mp4decrypt_name], stderr=subprocess.DEVNULL, text=True
-                ).strip().split('\n')[0]
-                
-                if mp4decrypt_path:
-                    logging.info("mp4decrypt found in Windows system PATH")
-                    return mp4decrypt_path
-                    
-            except subprocess.CalledProcessError:
-                logging.info("mp4decrypt not found in Windows system PATH")
-        
-        else:
-            mp4decrypt_path = shutil.which(mp4decrypt_name)
-            
-            if mp4decrypt_path:
-                logging.info("mp4decrypt found in system PATH")
-                return mp4decrypt_path
-
-        # STEP 2: Check in binary directory
-        console.print("[cyan]Checking for mp4decrypt in binary directory...[/]")
+        # STEP 1: Check binary directory FIRST (fastest - single file check)
         binary_dir = binary_paths.get_binary_directory()
         local_path = os.path.join(binary_dir, mp4decrypt_name)
         
-        if os.path.exists(local_path) and os.access(local_path, os.X_OK):
+        if os.path.isfile(local_path):
+            # Only check execution permissions on Unix systems
+            if system_platform != 'windows' and not os.access(local_path, os.X_OK):
+                try:
+                    os.chmod(local_path, 0o755)
+                except Exception:
+                    pass  # Ignore chmod errors
+            
             logging.info("mp4decrypt found in binary directory")
             return local_path
 
-        # STEP 3: Download if not found
+        # STEP 2: Check system PATH (slower - searches multiple directories)
+        mp4decrypt_path = shutil.which(mp4decrypt_name)
+        
+        if mp4decrypt_path:
+            logging.info("mp4decrypt found in system PATH")
+            return mp4decrypt_path
+
+        # STEP 3: Download if not found anywhere
         console.print("[cyan]mp4decrypt not found. Downloading...[/]")
         downloader = Bento4Downloader()
         extracted_files = downloader.download()
+        
         return extracted_files[0] if extracted_files else None
 
     except Exception as e:

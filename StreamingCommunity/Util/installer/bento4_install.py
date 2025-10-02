@@ -163,6 +163,7 @@ def check_mp4decrypt() -> Optional[str]:
         local_path = os.path.join(binary_dir, mp4decrypt_name)
         
         if os.path.isfile(local_path):
+            
             # Only check execution permissions on Unix systems
             if system_platform != 'windows' and not os.access(local_path, os.X_OK):
                 try:

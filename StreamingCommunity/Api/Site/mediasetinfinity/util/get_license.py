@@ -1,7 +1,6 @@
 # 16.03.25
 
 import json
-import time
 from urllib.parse import urlencode
 import xml.etree.ElementTree as ET
 
@@ -254,71 +253,98 @@ def get_playback_url(BEARER_TOKEN, CONTENT_ID):
     except Exception as e:
         raise RuntimeError(f"Failed to get playback URL: {e}")
 
-
-def parse_tracking_data(tracking_value):
+def parse_smil_for_media_info(smil_xml):
     """
-    Parses the trackingData string into a dictionary.
-
-    Args:
-        tracking_value (str): The tracking data string.
-
-    Returns:
-        dict: Parsed tracking data.
-    """
-    return dict(item.split('=', 1) for item in tracking_value.split('|') if '=' in item)
-
-
-def parse_smil_for_tracking_and_video(smil_xml):
-    """
-    Extracts all video_src and trackingData pairs from the SMIL.
+    Extracts video streams with quality info and subtitle streams from SMIL.
 
     Args:
         smil_xml (str): The SMIL XML as a string.
 
     Returns:
-        list: A list of dicts: {'video_src': ..., 'tracking_info': ...}
-    """
-    results = []
+        dict: {
+            'videos': [{'url': str, 'quality': str, 'clipBegin': str, 'clipEnd': str, 'tracking_data': dict}, ...],
+            'subtitles': [{'url': str, 'lang': str, 'type': str}, ...]
+        }
+    """   
     root = ET.fromstring(smil_xml)
     ns = {'smil': root.tag.split('}')[0].strip('{')}
-
-    # Search all <par>
+    
+    videos = []
+    subtitles_raw = []
+    
+    # Process all <par> elements
     for par in root.findall('.//smil:par', ns):
-        video_src = None
-        tracking_info = None
 
-        # Search <video> inside <par>
-        video_elem = par.find('.//smil:video', ns)
-        if video_elem is not None:
-            video_src = video_elem.attrib.get('src')
-
-        # Search <ref> inside <par>
+        # Extract video information from <ref>
         ref_elem = par.find('.//smil:ref', ns)
         if ref_elem is not None:
-            # Search <param name="trackingData">
+            url = ref_elem.attrib.get('src')
+            title = ref_elem.attrib.get('title', '')
+            
+            # Parse tracking data inline
+            tracking_data = {}
             for param in ref_elem.findall('.//smil:param', ns):
                 if param.attrib.get('name') == 'trackingData':
-                    tracking_value = param.attrib.get('value')
-                    if tracking_value:
-                        tracking_info = parse_tracking_data(tracking_value)
+                    tracking_value = param.attrib.get('value', '')
+                    tracking_data = dict(item.split('=', 1) for item in tracking_value.split('|') if '=' in item)
                     break
-
-        if video_src and tracking_info:
-            results.append({'video_src': video_src, 'tracking_info': tracking_info})
-
-    return results
-
+            
+            if url and url.endswith('.mpd'):
+                video_info = {
+                    'url': url,
+                    'title': title,
+                    'tracking_data': tracking_data
+                }
+                videos.append(video_info)
+    
+        # Extract subtitle information from <textstream>
+        for textstream in par.findall('.//smil:textstream', ns):
+            sub_url = textstream.attrib.get('src')
+            lang = textstream.attrib.get('lang', 'unknown')
+            sub_type = textstream.attrib.get('type', 'unknown')
+            
+            if sub_url:
+                subtitle_info = {
+                    'url': sub_url,
+                    'language': lang,
+                    'type': sub_type
+                }
+                subtitles_raw.append(subtitle_info)
+    
+    # Filter subtitles: prefer VTT, fallback to SRT
+    subtitles_by_lang = {}
+    for sub in subtitles_raw:
+        lang = sub['language']
+        if lang not in subtitles_by_lang:
+            subtitles_by_lang[lang] = []
+        subtitles_by_lang[lang].append(sub)
+    
+    subtitles = []
+    for lang, subs in subtitles_by_lang.items():
+        vtt_subs = [s for s in subs if s['type'] == 'text/vtt']
+        if vtt_subs:
+            subtitles.append(vtt_subs[0])  # Take first VTT
+            
+        else:
+            srt_subs = [s for s in subs if s['type'] == 'text/srt']
+            if srt_subs:
+                subtitles.append(srt_subs[0])  # Take first SRT
+    
+    return {
+        'videos': videos,
+        'subtitles': subtitles
+    }
 
 def get_tracking_info(BEARER_TOKEN, PLAYBACK_JSON):
     """
-    Retrieves tracking information from the playback JSON.
+    Retrieves media information including videos and subtitles from the playback JSON.
 
     Args:
         BEARER_TOKEN (str): The authentication token.
         PLAYBACK_JSON (dict): The playback JSON object.
 
     Returns:
-        list or None: List of tracking info dicts, or None if request fails.
+        dict or None: {'videos': [...], 'subtitles': [...]}, or None if request fails.
     """
     params = {
         "format": "SMIL",
@@ -344,13 +370,11 @@ def get_tracking_info(BEARER_TOKEN, PLAYBACK_JSON):
         )
         response.raise_for_status()
 
-        smil_xml = response.text
-        time.sleep(0.2)
-        
-        results = parse_smil_for_tracking_and_video(smil_xml)
+        results = parse_smil_for_media_info(response.text)
         return results
     
-    except Exception:
+    except Exception as e:
+        print(f"Error fetching tracking info: {e}")
         return None
 
 
@@ -366,8 +390,8 @@ def generate_license_url(BEARER_TOKEN, tracking_info):
         str: The full license URL.
     """
     params = {
-        'releasePid': tracking_info['tracking_info'].get('pid'),
-        'account': f"http://access.auth.theplatform.com/data/Account/{tracking_info['tracking_info'].get('aid')}",
+        'releasePid': tracking_info['tracking_data'].get('pid'),
+        'account': f"http://access.auth.theplatform.com/data/Account/{tracking_info['tracking_data'].get('aid')}",
         'schema': '1.0',
         'token': BEARER_TOKEN,
     }

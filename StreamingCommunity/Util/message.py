@@ -36,4 +36,4 @@ def start_message():
     if SHOW:
         console.print(f"[purple]{msg}")
         separator = "_" * (console.width - 2)
-        console.print(f"[cyan]{separator}[/cyan]")
+        console.print(f"[cyan]{separator}[/cyan]\n")

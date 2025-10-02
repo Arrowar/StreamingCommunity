@@ -64,18 +64,17 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
 
     # Generate mpd and license URLs
     bearer = get_bearer_token()
-
     playback_json = get_playback_url(bearer, obj_episode.id)
-    tracking_info = get_tracking_info(bearer, playback_json)[0]
-
-    license_url = generate_license_url(bearer, tracking_info)
-    mpd_url = get_manifest(tracking_info['video_src'])
+    tracking_info = get_tracking_info(bearer, playback_json)
+    license_url = generate_license_url(bearer, tracking_info['videos'][0])
+    mpd_url = get_manifest(tracking_info['videos'][0]['url'])
 
     # Download the episode
     dash_process = DASH_Downloader(
         cdm_device=get_wvd_path(),
         license_url=license_url,
         mpd_url=mpd_url,
+        mpd_sub_list=tracking_info['subtitles'],
         output_path=os.path.join(mp4_path, mp4_name),
     )
     dash_process.parse_manifest(custom_headers=get_headers())

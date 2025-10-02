@@ -41,7 +41,7 @@ class GetSerieInfo:
                 
             response.raise_for_status()
             json_data = response.json()
-            self.prog_tipology = "tv" if "tv" in json_data.get('track_info').get('typology') else "film"
+            self.prog_tipology = "tv" if json_data.get('program_info', {}).get('layout', 'single') == 'multi' else "film"
             self.prog_description = json_data.get('program_info', '').get('vanity', '')
             self.prog_year = json_data.get('program_info', '').get('year', '')
             

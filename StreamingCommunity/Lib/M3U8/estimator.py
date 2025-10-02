@@ -137,8 +137,8 @@ class M3U8_Ts_Estimator:
         """
         try:
             self.add_ts_file(segment_size)
-            
             file_total_size = self.calculate_total_size()
+            
             if file_total_size == "Error":
                 return
                 
@@ -161,3 +161,9 @@ class M3U8_Ts_Estimator:
             
         except Exception as e:
             logging.error(f"Error updating progress bar: {str(e)}")
+            
+    def stop(self):
+        """Stop speed monitoring thread."""
+        self._running = False
+        if self.speed_thread.is_alive():
+            self.speed_thread.join(timeout=5.0)

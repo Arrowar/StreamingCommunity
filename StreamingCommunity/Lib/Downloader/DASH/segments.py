@@ -114,6 +114,7 @@ class MPD_Segments:
         os.makedirs(output_dir or self.tmp_folder, exist_ok=True)
         concat_path = os.path.join(output_dir or self.tmp_folder, f"{rep_id}_encrypted.m4s")
 
+        # Determine stream type (video/audio) for progress bar
         stream_type = description
         if concurrent_downloads is None:
             worker_type = 'video' if 'Video' in description else 'audio'

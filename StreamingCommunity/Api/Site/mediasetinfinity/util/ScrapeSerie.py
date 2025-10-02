@@ -122,7 +122,7 @@ class GetSerieInfo:
                     #print("Using word: Puntate intere")
                     link = soup.find('a', string='Puntate intere')
 
-                    if link == None:
+                    if link is None:
                         link = soup.find('a', class_ = 'titleCarousel')
                 
                 if link and link.has_attr('href'):

@@ -4,7 +4,6 @@ import os
 import shutil
 import zipfile
 import logging
-import subprocess
 from typing import Optional
 
 

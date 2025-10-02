@@ -1,7 +1,6 @@
 # 17.10.24
 
 import os
-import re
 import time
 import logging
 import shutil

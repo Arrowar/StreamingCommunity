@@ -112,7 +112,7 @@ class GetSerieInfo:
                     season['page_url'],
                     headers={'User-Agent': get_userAgent()}
                 )
-
+                
                 print("Response for _extract_season_sb_ids:", response_page.status_code, " season index:", season['tvSeasonNumber'])
                 soup = BeautifulSoup(response_page.text, 'html.parser')
                 
@@ -128,7 +128,7 @@ class GetSerieInfo:
                 if link and link.has_attr('href'):
                     if not link.string == 'Puntate intere':
                         print("Using word: Episodi")
-
+                        
                     season['sb'] = link['href'].split(',')[-1]
                 else:
                     logging.warning(f"Link 'Episodi' or 'Puntate intere' not found for season {season['tvSeasonNumber']}")

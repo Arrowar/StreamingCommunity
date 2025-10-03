@@ -56,7 +56,7 @@ def download_film(select_title: MediaItem) -> str:
             TelegramSession.updateScriptId(script_id, select_title.name)
 
     start_message()
-    console.print(f"[bold yellow]Download:[/bold yellow] [red]{site_constant.SITE_NAME}[/red] → [cyan]{select_title.name}[/cyan] \n")
+    console.print(f"\n[bold yellow]Download:[/bold yellow] [red]{site_constant.SITE_NAME}[/red] → [cyan]{select_title.name}[/cyan] \n")
     
     # Extract mostraguarda URL
     try:

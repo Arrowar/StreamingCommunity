@@ -38,7 +38,7 @@ def download_film(select_title: MediaItem) -> str:
         - str: output path
     """
     start_message()
-    console.print(f"[bold yellow]Download:[/bold yellow] [red]{site_constant.SITE_NAME}[/red] → [cyan]{select_title.name}[/cyan] \n")
+    console.print(f"\n[bold yellow]Download:[/bold yellow] [red]{site_constant.SITE_NAME}[/red] → [cyan]{select_title.name}[/cyan] \n")
 
     # Get master playlists
     video_source = VideoSource()

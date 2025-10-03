@@ -52,7 +52,7 @@ def download_film(select_title: MediaItem) -> str:
 
     # Start message and display film information
     start_message()
-    console.print(f"[bold yellow]Download:[/bold yellow] [red]{site_constant.SITE_NAME}[/red] → [cyan]{select_title.name}[/cyan] \n")
+    console.print(f"\n[bold yellow]Download:[/bold yellow] [red]{site_constant.SITE_NAME}[/red] → [cyan]{select_title.name}[/cyan] \n")
 
     # Init class
     video_source = VideoSource(f"{site_constant.FULL_URL}/it", False, select_title.id)

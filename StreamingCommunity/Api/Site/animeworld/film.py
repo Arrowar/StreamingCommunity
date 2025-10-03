@@ -41,7 +41,7 @@ def download_film(select_title: MediaItem):
 
     # Get episode information
     episode_data = episodes[0]
-    console.print(f"[bold yellow]Download:[/bold yellow] [red]{site_constant.SITE_NAME}[/red] ([cyan]{scrape_serie.get_name()}[/cyan]) \n")
+    console.print(f"\n[bold yellow]Download:[/bold yellow] [red]{site_constant.SITE_NAME}[/red] ([cyan]{scrape_serie.get_name()}[/cyan]) \n")
 
     # Define filename and path for the downloaded video
     mp4_name = f"{scrape_serie.get_name()}.mp4"

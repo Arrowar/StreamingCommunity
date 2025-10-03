@@ -43,7 +43,7 @@ def download_film(select_title: MediaItem) -> Tuple[str, bool]:
         - bool: Whether download was stopped
     """
     start_message()
-    console.print(f"[bold yellow]Download:[/bold yellow] [red]{site_constant.SITE_NAME}[/red] → [cyan]{select_title.name}[/cyan] \n")
+    console.print(f"\n[bold yellow]Download:[/bold yellow] [red]{site_constant.SITE_NAME}[/red] → [cyan]{select_title.name}[/cyan] \n")
 
     # Extract m3u8 URL from the film's URL
     response = httpx.get(select_title.url + ".json", headers=get_headers(), timeout=10)

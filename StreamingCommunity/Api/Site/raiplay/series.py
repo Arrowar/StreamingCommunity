@@ -1,7 +1,6 @@
 # 21.05.24
 
 import os
-import sys
 from typing import Tuple
 
 
@@ -85,13 +84,6 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
 
     # MPD
     else:
-
-        # Check CDM file before usage
-        cdm_device_path = get_wvd_path()
-        if not cdm_device_path or not isinstance(cdm_device_path, (str, bytes, os.PathLike)) or not os.path.isfile(cdm_device_path):
-            console.print(f"[bold red] CDM file not found or invalid path: {cdm_device_path}[/bold red]")
-            sys.exit(0)
-
         full_license_url = generate_license_url(obj_episode.mpd_id)
         license_headers = {
             'nv-authorizations': full_license_url.split("?")[1].split("=")[1],
@@ -99,7 +91,7 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
         }
 
         dash_process = DASH_Downloader(
-            cdm_device=cdm_device_path,
+            cdm_device=get_wvd_path(),
             license_url=full_license_url.split("?")[0],
             mpd_url=master_playlist,
             output_path=os.path.join(mp4_path, mp4_name),

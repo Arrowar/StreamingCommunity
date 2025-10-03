@@ -1,6 +1,5 @@
 # 16.03.25
 
-import os
 import sys
 
 
@@ -11,7 +10,6 @@ from rich.console import Console
 
 # Internal utilities
 from StreamingCommunity.Util.config_json import config_manager
-from StreamingCommunity.Util.os import get_wvd_path
 from StreamingCommunity.Util.headers import get_headers
 from StreamingCommunity.Util.table import TVShowManager
 
@@ -41,12 +39,6 @@ def title_search(query: str) -> int:
     """
     media_search_manager.clear()
     table_show_manager.clear()
-
-    # Check CDM file before usage
-    cdm_device_path = get_wvd_path()
-    if not cdm_device_path or not isinstance(cdm_device_path, (str, bytes, os.PathLike)) or not os.path.isfile(cdm_device_path):
-        console.print(f"[bold red] CDM file not found or invalid path: {cdm_device_path}[/bold red]")
-        sys.exit(0)
 
     # Check if x_cr_tab_id or etp_rt is present
     if config_manager.get_dict("SITE_LOGIN", "crunchyroll")['x_cr_tab_id'] is None or config_manager.get_dict("SITE_LOGIN", "crunchyroll")['x_cr_tab_id'] == "" or config_manager.get_dict("SITE_LOGIN", "crunchyroll")['etp_rt'] is None or config_manager.get_dict("SITE_LOGIN", "crunchyroll")['etp_rt'] == "":

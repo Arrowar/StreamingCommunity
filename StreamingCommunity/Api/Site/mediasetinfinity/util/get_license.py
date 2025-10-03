@@ -1,11 +1,14 @@
 # 16.03.25
 
+import re
+import uuid
 from urllib.parse import urlencode
 import xml.etree.ElementTree as ET
 
 
 # External library
 import httpx
+from bs4 import BeautifulSoup
 from rich.console import Console
 
 
@@ -18,28 +21,90 @@ from StreamingCommunity.Util.headers import get_headers, get_userAgent
 console = Console()
 MAX_TIMEOUT = config_manager.get_int("REQUESTS", "timeout")
 network_data = []
+class_mediaset_api = None
 
 
-def generate_betoken(username: str, password: str, sleep_action: float = 1.0) -> str:
-    """Generate beToken using browser automation"""
-    return response.json()['response']['beToken']
+class MediasetAPI:
+    def __init__(self):
+        self.client_id = str(uuid.uuid4())
+        self.headers = get_headers()
+        self.app_name = self.get_app_name()
+        self.beToken = self.generate_betoken()
+        self.sha256Hash = self.getHash2c()
+        
+    def get_app_name(self):
+        html = self.fetch_html()
+        soup = BeautifulSoup(html, "html.parser")
+        meta_tag = soup.find('meta', attrs={'name': 'app-name'})
+        
+        if meta_tag:
+            return meta_tag.get('content')
+        
+    def getHash256(self):
+        return self.sha256Hash
+    
+    def getBearerToken(self):
+        return self.beToken
+
+    def generate_betoken(self):
+        json_data = {
+            'appName': self.app_name,
+            'client_id': self.client_id,
+        }
+        response = httpx.post(
+            'https://api-ott-prod-fe.mediaset.net/PROD/play/idm/anonymous/login/v2.0',
+            headers=self.headers,
+            json=json_data,
+        )
+        return response.json()['response']['beToken']
+
+    def fetch_html(self, timeout=10):
+        r = httpx.get("https://mediasetinfinity.mediaset.it/", timeout=timeout, headers=self.headers)
+        r.raise_for_status()
+        return r.text
+
+    def find_relevant_script(self, html):
+        soup = BeautifulSoup(html, "html.parser")
+        return [s.get_text() for s in soup.find_all("script") if "imageEngines" in s.get_text()]
+
+    def extract_pairs_from_scripts(self, scripts):
+        # Chi ha inventato questo metodo di offuscare le chiavi merita di essere fustigato in piazza.
+        relevant_part = scripts[0].replace('\\"', '').split('...Option')[1].split('imageEngines')[0]
+        pairs = {}
+        for match in re.finditer(r'([a-f0-9]{64}):\$(\w+)', relevant_part):
+            pairs[match.group(1)] = f"${match.group(2)}"
+        return pairs
+
+    def getHash2c(self):
+        html = self.fetch_html()
+        scripts = self.find_relevant_script(html)[0:1]
+        pairs = self.extract_pairs_from_scripts(scripts)
+        return next((h for h, k in pairs.items() if k == "$2a"), None)
+
+    def generate_request_headers(self):
+        return {
+            'authorization': self.beToken,
+            'user-agent': self.headers['user-agent'],
+            'x-m-device-id': self.client_id,
+            'x-m-platform': 'WEB',
+            'x-m-property': 'MPLAY',
+            'x-m-sid': self.client_id
+        }
 
 
 def get_bearer_token():
     """
     Gets the BEARER_TOKEN for authentication.
-
-    Returns:
-        str: The bearer token string.
+    Anche i manifestanti per strada dio bellissimo.
     """
-    global beToken
-    beToken = generate_betoken("username", "password")
-    print(f"beToken: {beToken}")
-    return beToken
+    global class_mediaset_api
+    if class_mediaset_api is None:
+        class_mediaset_api = MediasetAPI()
+    return class_mediaset_api
             
 
 
-def get_playback_url(BEARER_TOKEN, CONTENT_ID):
+def get_playback_url(CONTENT_ID):
     """
     Gets the playback URL for the specified content.
 
@@ -51,7 +116,7 @@ def get_playback_url(BEARER_TOKEN, CONTENT_ID):
         dict: The playback JSON object.
     """
     headers = get_headers()
-    headers['authorization'] = f'Bearer {BEARER_TOKEN}'
+    headers['authorization'] = f'Bearer {class_mediaset_api.getBearerToken()}'
     
     json_data = {
         'contentId': CONTENT_ID,
@@ -165,12 +230,11 @@ def parse_smil_for_media_info(smil_xml):
         'subtitles': subtitles
     }
 
-def get_tracking_info(BEARER_TOKEN, PLAYBACK_JSON):
+def get_tracking_info(PLAYBACK_JSON):
     """
     Retrieves media information including videos and subtitles from the playback JSON.
 
     Args:
-        BEARER_TOKEN (str): The authentication token.
         PLAYBACK_JSON (dict): The playback JSON object.
 
     Returns:
@@ -178,7 +242,7 @@ def get_tracking_info(BEARER_TOKEN, PLAYBACK_JSON):
     """
     params = {
         "format": "SMIL",
-        "auth": BEARER_TOKEN,
+        "auth": class_mediaset_api.getBearerToken(),
         "formats": "MPEG-DASH",
         "assetTypes": "HR,browser,widevine,geoIT|geoNo:HR,browser,geoIT|geoNo:SD,browser,widevine,geoIT|geoNo:SD,browser,geoIT|geoNo:SS,browser,widevine,geoIT|geoNo:SS,browser,geoIT|geoNo",
         "balance": "true",
@@ -208,12 +272,11 @@ def get_tracking_info(BEARER_TOKEN, PLAYBACK_JSON):
         return None
 
 
-def generate_license_url(BEARER_TOKEN, tracking_info):
+def generate_license_url(tracking_info):
     """
     Generates the URL to obtain the Widevine license.
 
     Args:
-        BEARER_TOKEN (str): The authentication token.
         tracking_info (dict): The tracking info dictionary.
 
     Returns:
@@ -223,7 +286,7 @@ def generate_license_url(BEARER_TOKEN, tracking_info):
         'releasePid': tracking_info['tracking_data'].get('pid'),
         'account': f"http://access.auth.theplatform.com/data/Account/{tracking_info['tracking_data'].get('aid')}",
         'schema': '1.0',
-        'token': BEARER_TOKEN,
+        'token': class_mediaset_api.getBearerToken(),
     }
     
     return f"{'https://widevine.entitlement.theplatform.eu/wv/web/ModularDrm/getRawWidevineLicense'}?{urlencode(params)}"

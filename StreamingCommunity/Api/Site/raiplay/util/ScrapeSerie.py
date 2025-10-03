@@ -42,7 +42,7 @@ class GetSerieInfo:
             response.raise_for_status()
             json_data = response.json()
 
-            # Dio cane ma chi ha fatto le cose cosi di merda
+            # Dio santissimo ma chi ha fatto le cose cosi di merda.
             type_check_1 = "tv" if json_data.get('program_info', {}).get('layout', 'single') == 'multi' else "film"
             #type_check_2 = "tv" if "tv" in json_data.get('track_info', {}).get('typology', '') else "film"
 
@@ -87,6 +87,7 @@ class GetSerieInfo:
         try:
             season = self.seasons_manager.get_season_by_number(number_season)
 
+            # Se stai leggendo questo codice spieami perche hai fatto cosi.
             url = f"{self.base_url}/programmi/{self.program_name}/{self.publishing_block_id}/{season.id}/episodes.json"
             response = httpx.get(url=url, headers=get_headers(), timeout=max_timeout)
             response.raise_for_status()

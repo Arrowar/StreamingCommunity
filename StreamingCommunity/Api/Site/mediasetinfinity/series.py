@@ -31,7 +31,7 @@ from StreamingCommunity.Api.Template.Class.SearchType import MediaItem
 # Player
 from .util.fix_mpd import get_manifest
 from StreamingCommunity import DASH_Downloader
-from .util.get_license import get_bearer_token, get_playback_url, get_tracking_info, generate_license_url
+from .util.get_license import get_playback_url, get_tracking_info, generate_license_url
 
 
 # Variable
@@ -63,10 +63,9 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
     mp4_path = os_manager.get_sanitize_path(os.path.join(site_constant.SERIES_FOLDER, scrape_serie.series_name, f"S{index_season_selected}"))
 
     # Generate mpd and license URLs
-    bearer = get_bearer_token()
-    playback_json = get_playback_url(bearer, obj_episode.id)
-    tracking_info = get_tracking_info(bearer, playback_json)
-    license_url = generate_license_url(bearer, tracking_info['videos'][0])
+    playback_json = get_playback_url(obj_episode.id)
+    tracking_info = get_tracking_info(playback_json)
+    license_url = generate_license_url(tracking_info['videos'][0])
     mpd_url = get_manifest(tracking_info['videos'][0]['url'])
 
     # Download the episode

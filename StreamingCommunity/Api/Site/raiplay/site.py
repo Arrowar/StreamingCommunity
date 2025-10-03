@@ -40,6 +40,7 @@ def determine_media_type(item):
         if not program_name:
             return "film"
 
+        # Dio bastardo guarda che giro bisogna fare per avere il tipo di media
         scraper = GetSerieInfo(program_name)
         scraper.collect_info_title()
         return scraper.prog_tipology, scraper.prog_description, scraper.prog_year

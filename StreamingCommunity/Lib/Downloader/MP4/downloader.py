@@ -102,7 +102,7 @@ def MP4_downloader(url: str, path: str, referer: str = None, headers_: dict = No
     else:
         headers['User-Agent'] = get_userAgent()
 
-    # Set interrupt handler (only in main thread). In background threads (e.g., Django), skip custom signal handling.
+    # Set interrupt handler (only in main thread)
     temp_path = f"{path}.temp"
     interrupt_handler = InterruptHandler()
     original_handler = None
@@ -117,14 +117,12 @@ def MP4_downloader(url: str, path: str, referer: str = None, headers_: dict = No
                 ),
             )
     except Exception:
-        # If setting signal handler fails (non-main thread), continue without it
         original_handler = None
 
     # Ensure the output directory exists
     os.makedirs(os.path.dirname(path), exist_ok=True)
 
     try:
-        # Use unified HTTP client (verify/timeout/proxy from config)
         with create_client() as client:
             with client.stream("GET", url, headers=headers) as response:
                 response.raise_for_status()
@@ -134,20 +132,20 @@ def MP4_downloader(url: str, path: str, referer: str = None, headers_: dict = No
                     console.print("[bold red]No video stream found.[/bold red]")
                     return None, False
 
-                # Create a fancy progress bar
+                # Create progress bar with percentage instead of n_fmt/total_fmt
+                console.print("[cyan]You can safely stop the download with [bold]Ctrl+c[bold] [cyan]")
                 progress_bar = tqdm(
                     total=total,
                     ascii='░▒█',
-                    bar_format=f"{Colors.YELLOW}[MP4]{Colors.WHITE}: "
-                               f"{Colors.RED}{{percentage:.2f}}% {Colors.MAGENTA}{{bar}} {Colors.WHITE}[ "
-                               f"{Colors.YELLOW}{{n_fmt}}{Colors.WHITE} / {Colors.RED}{{total_fmt}} {Colors.WHITE}] "
-                               f"{Colors.YELLOW}{{elapsed}} {Colors.WHITE}< {Colors.CYAN}{{remaining}}{Colors.WHITE}, "
-                               f"{Colors.YELLOW}{{rate_fmt}}{{postfix}} ",
-                    unit='iB',
+                    bar_format=f"{Colors.YELLOW}[MP4]{Colors.CYAN} Downloading{Colors.WHITE}: "
+                               f"{Colors.RED}{{percentage:.1f}}% {Colors.MAGENTA}{{bar:40}} {Colors.WHITE}"
+                               f"{Colors.DARK_GRAY}[{Colors.YELLOW}{{elapsed}}{Colors.WHITE} < {Colors.CYAN}{{remaining}}{Colors.DARK_GRAY}] "
+                               f"{Colors.LIGHT_CYAN}{{rate_fmt}}",
+                    unit='B',
                     unit_scale=True,
-                    desc='Downloading',
+                    unit_divisor=1024,
                     mininterval=0.05,
-                    file=sys.stdout                         # Using file=sys.stdout to force in-place updates because sys.stderr may not support carriage returns in this environment.  
+                    file=sys.stdout
                 )
 
                 downloaded = 0
@@ -171,6 +169,7 @@ def MP4_downloader(url: str, path: str, referer: str = None, headers_: dict = No
             os.rename(temp_path, path)
 
         if os.path.exists(path):
+            print("")
             console.print(Panel(
                 f"[bold green]Download completed{' (Partial)' if interrupt_handler.force_quit else ''}![/bold green]\n"
                 f"[cyan]File size: [bold red]{internet_manager.format_file_size(os.path.getsize(path))}[/bold red]\n"

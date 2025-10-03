@@ -82,6 +82,15 @@ def title_search(query: str) -> int:
                     except Exception:
                         date = ""
 
+        date = item.get('year', '')
+        if not date and item.get('updated'):
+            try:
+                
+                timestamp_ms = int(item.get('updated', 0))
+                date = datetime.fromtimestamp(timestamp_ms / 1000).year
+            except (ValueError, TypeError):
+                date = ''
+
         media_search_manager.add_media({
             "url": item.get("cardLink", "").get("value", ""),
             "id": item.get("guid", ""),

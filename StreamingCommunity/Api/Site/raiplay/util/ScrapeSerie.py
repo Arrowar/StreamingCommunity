@@ -88,7 +88,7 @@ class GetSerieInfo:
             season = self.seasons_manager.get_season_by_number(number_season)
 
             # Se stai leggendo questo codice spieami perche hai fatto cosi.
-            url = f"{self.base_url}/{self.path_id.replace(".json", "")}/{self.publishing_block_id}/{season.id}/episodes.json"
+            url = f"{self.base_url}/{self.path_id.replace('.json', '')}/{self.publishing_block_id}/{season.id}/episodes.json"
             response = httpx.get(url=url, headers=get_headers(), timeout=max_timeout)
             response.raise_for_status()
             

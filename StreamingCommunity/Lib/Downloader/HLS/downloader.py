@@ -182,6 +182,11 @@ class M3U8Manager:
             elif str(FILTER_CUSTOM_RESOLUTION).replace("p", "").replace("px", "").isdigit():
                 resolution_value = int(str(FILTER_CUSTOM_RESOLUTION).replace("p", "").replace("px", ""))
                 self.video_url, self.video_res = self.parser._video.get_custom_uri(resolution_value)
+
+                # Fallback to best if custom resolution not found
+                if self.video_url is None:
+                    self.video_url, self.video_res = self.parser._video.get_best_uri()
+
             else:
                 logging.error("Resolution not recognized.")
                 self.video_url, self.video_res = self.parser._video.get_best_uri()

@@ -11,6 +11,7 @@ from typing import Dict, Optional
 
 # External libraries
 import httpx
+from curl_cffi import requests
 from tqdm import tqdm
 from rich.console import Console
 
@@ -94,12 +95,7 @@ class M3U8_Segments:
         self.key_base_url = f"{parsed_url.scheme}://{parsed_url.netloc}/"
         
         try:
-            client_params = {
-                'headers': self.custom_headers, 
-                'timeout': MAX_TIMEOUT, 
-                'verify': REQUEST_VERIFY
-            }
-            response = httpx.get(url=key_uri, **client_params)
+            response = requests.get(url=key_uri, headers=self.custom_headers, timeout=MAX_TIMEOUT, allow_redirects=True, impersonate="chrome136")
             response.raise_for_status()
 
             hex_content = binascii.hexlify(response.content).decode('utf-8')
@@ -146,12 +142,7 @@ class M3U8_Segments:
         """
         if self.is_index_url:
             try:
-                client_params = {
-                    'headers': self.custom_headers, 
-                    'timeout': MAX_TIMEOUT, 
-                    'verify': REQUEST_VERIFY
-                }
-                response = httpx.get(self.url, **client_params, follow_redirects=True)
+                response = requests.get(url=self.url, headers=self.custom_headers, timeout=MAX_TIMEOUT, allow_redirects=True, impersonate="chrome136")
                 response.raise_for_status()
                 
                 self.parse_data(response.text)

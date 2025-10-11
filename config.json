@@ -12,7 +12,7 @@
         "movie_folder_name": "Movie",
         "serie_folder_name": "Serie",
         "anime_folder_name": "Anime",
-        "map_episode_name": "E%(episode)_%(episode_name)",
+        "map_episode_name": "S%(season)E%(episode).%(episode_name)",
         "add_siteName": false
     },
     "QBIT_CONFIG": {
@@ -44,7 +44,7 @@
         "use_acodec": true,
         "use_bitrate": true,
         "use_gpu": false,
-        "default_preset": "ultrafast",
+        "default_preset": "slow",
         "force_resolution": "Best"
     },
     "REQUESTS": {

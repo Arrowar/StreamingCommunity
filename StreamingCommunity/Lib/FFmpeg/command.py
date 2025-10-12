@@ -23,16 +23,28 @@ from ..M3U8 import M3U8_Codec
 # Config
 DEBUG_MODE = config_manager.get_bool("DEFAULT", "debug")
 DEBUG_FFMPEG = "debug" if DEBUG_MODE else "error"
-USE_CODEC = config_manager.get_bool("M3U8_CONVERSION", "use_codec")
-USE_VCODEC = config_manager.get_bool("M3U8_CONVERSION", "use_vcodec")
-USE_ACODEC = config_manager.get_bool("M3U8_CONVERSION", "use_acodec")
-USE_BITRATE = config_manager.get_bool("M3U8_CONVERSION", "use_bitrate")
 USE_GPU = config_manager.get_bool("M3U8_CONVERSION", "use_gpu")
-FFMPEG_DEFAULT_PRESET = config_manager.get("M3U8_CONVERSION", "default_preset")
+PARAM_VIDEO = config_manager.get_list("M3U8_CONVERSION", "param_video")
+PARAM_AUDIO = config_manager.get_list("M3U8_CONVERSION", "param_audio")
+PARAM_FINAL = config_manager.get_list("M3U8_CONVERSION", "param_final")
 
 
 # Variable
 console = Console()
+
+
+def add_encoding_params(ffmpeg_cmd: List[str]):
+    """
+    Add encoding parameters to the ffmpeg command.
+    
+    Parameters:
+        ffmpeg_cmd (List[str]): List of the FFmpeg command to modify
+    """
+    if PARAM_FINAL:
+        ffmpeg_cmd.extend(PARAM_FINAL)
+    else:
+        ffmpeg_cmd.extend(PARAM_VIDEO)
+        ffmpeg_cmd.extend(PARAM_AUDIO)
 
 
 def check_subtitle_encoders() -> Tuple[Optional[bool], Optional[bool]]:
@@ -51,7 +63,6 @@ def check_subtitle_encoders() -> Tuple[Optional[bool], Optional[bool]]:
             check=True
         )
         
-        # Check for encoder presence in output
         output = result.stdout
         mov_text_supported = "mov_text" in output
         webvtt_supported = "webvtt" in output
@@ -74,11 +85,9 @@ def select_subtitle_encoder() -> Optional[str]:
     """
     mov_text_supported, webvtt_supported = check_subtitle_encoders()
     
-    # Return early if check failed
     if mov_text_supported is None:
         return None
         
-    # Prioritize mov_text over webvtt
     if mov_text_supported:
         logging.info("Using 'mov_text' as the subtitle encoder.")
         return "mov_text"
@@ -98,7 +107,7 @@ def join_video(video_path: str, out_path: str, codec: M3U8_Codec = None):
     Parameters:
         - video_path (str): The path to the video file.
         - out_path (str): The path to save the output file.
-        - codec (M3U8_Codec): The video codec to use. Defaults to 'copy'.
+        - codec (M3U8_Codec): The video codec to use (non utilizzato con nuova configurazione).
     """
     ffmpeg_cmd = [get_ffmpeg_path()]
 
@@ -113,42 +122,11 @@ def join_video(video_path: str, out_path: str, codec: M3U8_Codec = None):
     # Insert input video path
     ffmpeg_cmd.extend(['-i', video_path])
 
-    # Add output Parameters
-    if USE_CODEC and codec is not None:
-        if USE_VCODEC:
-            if codec.video_codec_name: 
-                if not USE_GPU: 
-                    ffmpeg_cmd.extend(['-c:v', codec.video_codec_name])
-                else: 
-                    ffmpeg_cmd.extend(['-c:v', 'h264_nvenc'])
-            else: 
-                console.log("[red]Cant find vcodec for 'join_audios'")
-        else:
-            if USE_GPU:
-                ffmpeg_cmd.extend(['-c:v', 'h264_nvenc'])
+    # Add encoding parameters (prima dell'output)
+    add_encoding_params(ffmpeg_cmd)
 
-
-        if USE_ACODEC:
-            if codec.audio_codec_name: 
-                ffmpeg_cmd.extend(['-c:a', codec.audio_codec_name])
-            else: 
-                console.log("[red]Cant find acodec for 'join_audios'")
-
-        if USE_BITRATE:
-            ffmpeg_cmd.extend(['-b:v',  f'{codec.video_bitrate // 1000}k'])
-            ffmpeg_cmd.extend(['-b:a',  f'{codec.audio_bitrate // 1000}k'])
-
-    else:
-        ffmpeg_cmd.extend(['-c', 'copy'])
-
-    # Ultrafast preset always or fast for gpu
-    if not USE_GPU:
-        ffmpeg_cmd.extend(['-preset', FFMPEG_DEFAULT_PRESET])
-    else:
-        ffmpeg_cmd.extend(['-preset', 'fast'])
-
-    # Overwrite
-    ffmpeg_cmd += [out_path, "-y"]
+    # Output file and overwrite
+    ffmpeg_cmd.extend([out_path, '-y'])
 
     # Run join
     if DEBUG_MODE:
@@ -169,6 +147,8 @@ def join_audios(video_path: str, audio_tracks: List[Dict[str, str]], out_path: s
         - audio_tracks (list[dict[str, str]]): A list of dictionaries containing information about audio tracks.
             Each dictionary should contain the 'path' and 'name' keys.
         - out_path (str): The path to save the output file.
+        - codec (M3U8_Codec): The video codec to use (non utilizzato con nuova configurazione).
+        - limit_duration_diff (float): Maximum duration difference in seconds.
     """
     use_shortest = False
     duration_diffs = []
@@ -210,59 +190,25 @@ def join_audios(video_path: str, audio_tracks: List[Dict[str, str]], out_path: s
     for i, audio_track in enumerate(audio_tracks):
         ffmpeg_cmd.extend(['-i', audio_track.get('path')])
 
-
     # Map the video and audio streams
-    ffmpeg_cmd.append('-map')
-    ffmpeg_cmd.append('0:v')            # Map video stream from the first input (video_path)
+    ffmpeg_cmd.extend(['-map', '0:v'])
     
     for i in range(1, len(audio_tracks) + 1):
-        ffmpeg_cmd.append('-map')
-        ffmpeg_cmd.append(f'{i}:a')     # Map audio streams from subsequent inputs
+        ffmpeg_cmd.extend(['-map', f'{i}:a'])
 
-    # Add output Parameters
-    if USE_CODEC:
-        if USE_VCODEC:
-            if codec.video_codec_name: 
-                if not USE_GPU: 
-                    ffmpeg_cmd.extend(['-c:v', codec.video_codec_name])
-                else: 
-                    ffmpeg_cmd.extend(['-c:v', 'h264_nvenc'])
-            else: 
-                console.log("[red]Cant find vcodec for 'join_audios'")
-        else:
-            if USE_GPU:
-                ffmpeg_cmd.extend(['-c:v', 'h264_nvenc'])
-
-        if USE_ACODEC:
-            if codec.audio_codec_name: 
-                ffmpeg_cmd.extend(['-c:a', codec.audio_codec_name])
-            else: 
-                console.log("[red]Cant find acodec for 'join_audios'")
-
-        if USE_BITRATE:
-            ffmpeg_cmd.extend(['-b:v',  f'{codec.video_bitrate // 1000}k'])
-            ffmpeg_cmd.extend(['-b:a',  f'{codec.audio_bitrate // 1000}k'])
-
-    else:
-        ffmpeg_cmd.extend(['-c', 'copy'])
-
-    # Ultrafast preset always or fast for gpu
-    if not USE_GPU:
-        ffmpeg_cmd.extend(['-preset', FFMPEG_DEFAULT_PRESET])
-    else:
-        ffmpeg_cmd.extend(['-preset', 'fast'])
+    # Add encoding parameters (prima di -shortest e output)
+    add_encoding_params(ffmpeg_cmd)
 
     # Use shortest input path if any audio track has significant difference
     if use_shortest:
         ffmpeg_cmd.extend(['-shortest', '-strict', 'experimental'])
 
-    # Overwrite
-    ffmpeg_cmd += [out_path, "-y"]
+    # Output file and overwrite
+    ffmpeg_cmd.extend([out_path, '-y'])
 
     # Run join
     if DEBUG_MODE:
         subprocess.run(ffmpeg_cmd, check=True)
-        
     else:
         capture_ffmpeg_real_time(ffmpeg_cmd, "[yellow]FFMPEG [cyan]Join audio")
         print()
@@ -294,11 +240,8 @@ def join_subtitle(video_path: str, subtitles_list: List[Dict[str, str]], out_pat
         ffmpeg_cmd += ["-map", f"{idx + 1}:s"]
         ffmpeg_cmd += ["-metadata:s:s:{}".format(idx), "title={}".format(subtitle['language'])]
 
-    # Add output Parameters
-    if USE_CODEC:
-        ffmpeg_cmd.extend(['-c:v', 'copy', '-c:a', 'copy', '-c:s', select_subtitle_encoder()])
-    else:
-        ffmpeg_cmd.extend(['-c', 'copy', '-c:s', select_subtitle_encoder()])
+    # For subtitles, we always use copy for video/audio and only encoder for subtitles
+    ffmpeg_cmd.extend(['-c:v', 'copy', '-c:a', 'copy', '-c:s', select_subtitle_encoder()])
 
     # Overwrite
     ffmpeg_cmd += [out_path, "-y"]
@@ -307,7 +250,6 @@ def join_subtitle(video_path: str, subtitles_list: List[Dict[str, str]], out_pat
     # Run join
     if DEBUG_MODE:
         subprocess.run(ffmpeg_cmd, check=True)
-
     else:
         capture_ffmpeg_real_time(ffmpeg_cmd, "[yellow]FFMPEG [cyan]Join subtitle")
         print()

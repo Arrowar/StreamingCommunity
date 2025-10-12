@@ -27,6 +27,7 @@ from .util.get_license import get_playback_session, CrunchyrollClient
 # Variable
 console = Console()
 max_timeout = config_manager.get_int("REQUESTS", "timeout")
+extension_output = config_manager.get("M3U8_CONVERSION", "extension")
 
 
 def download_film(select_title: MediaItem) -> str:
@@ -49,8 +50,8 @@ def download_film(select_title: MediaItem) -> str:
         return None, True
 
     # Define filename and path for the downloaded video
-    mp4_name = os_manager.get_sanitize_file(select_title.name) + ".mp4"
-    mp4_path = os.path.join(site_constant.MOVIE_FOLDER, mp4_name.replace(".mp4", ""))
+    mp4_name = os_manager.get_sanitize_file(select_title.name) + extension_output
+    mp4_path = os.path.join(site_constant.MOVIE_FOLDER, mp4_name.replace(extension_output, ""))
 
     # Generate mpd and license URLs
     url_id = select_title.get('url').split('/')[-1]

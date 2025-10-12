@@ -1,6 +1,7 @@
 # 25.07.25
 
 import re
+import logging
 from urllib.parse import urljoin
 import xml.etree.ElementTree as ET
 from typing import List, Dict, Optional, Tuple, Any
@@ -456,6 +457,7 @@ class MPDParser:
                 )
                 
                 response.raise_for_status()
+                logging.info(f"Successfully fetched MPD: {response.content}")
                 self.root = ET.fromstring(response.content)
                 break
 
@@ -479,9 +481,6 @@ class MPDParser:
             if pssh_element is not None and pssh_element.text:
                 self.pssh = pssh_element.text
                 break
-
-        if not self.pssh:
-            console.print("[bold red]PSSH not found in MPD![/bold red]")
 
     def _parse_representations(self) -> None:
         """Parse all representations from the MPD"""

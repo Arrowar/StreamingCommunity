@@ -1,6 +1,7 @@
 # 16.04.24
 
 import re
+import time
 import logging
 import threading
 import subprocess
@@ -29,6 +30,7 @@ def capture_output(process: subprocess.Popen, description: str) -> None:
     """
     try:
         max_length = 0
+        start_time = time.time()
 
         for line in iter(process.stdout.readline, ''):          
             try:
@@ -44,8 +46,7 @@ def capture_output(process: subprocess.Popen, description: str) -> None:
 
                 if "size=" in line:
                     try:
-
-                        # Parse the output line to extract relevant information
+                        elapsed_time = time.time() - start_time
                         data = parse_output_line(line)
 
                         if 'q' in data:
@@ -55,11 +56,25 @@ def capture_output(process: subprocess.Popen, description: str) -> None:
                         else:
                             byte_size = int(re.findall(r'\d+', data.get('size', '0'))[0]) * 1000
 
+                        # Extract additional information
+                        fps = data.get('fps', 'N/A')
+                        time_processed = data.get('time', 'N/A')
+                        bitrate = data.get('bitrate', 'N/A')
+                        speed = data.get('speed', 'N/A')
+
+                        # Format elapsed time as HH:MM:SS
+                        elapsed_formatted = format_time(elapsed_time)
 
                         # Construct the progress string with formatted output information
-                        progress_string = (f"{description}[white]: "
-                                           f"([green]'speed': [yellow]{data.get('speed', 'N/A')}[white], "
-                                           f"[green]'size': [yellow]{internet_manager.format_file_size(byte_size)}[white])")
+                        progress_string = (
+                            f"{description}[white]: "
+                            f"([green]'fps': [yellow]{fps}[white], "
+                            f"[green]'speed': [yellow]{speed}[white], "
+                            f"[green]'size': [yellow]{internet_manager.format_file_size(byte_size)}[white], "
+                            f"[green]'time': [yellow]{time_processed}[white], "
+                            f"[green]'bitrate': [yellow]{bitrate}[white], "
+                            f"[green]'elapsed': [yellow]{elapsed_formatted}[white])"
+                        )
                         max_length = max(max_length, len(progress_string))
 
                         # Print the progress string to the console, overwriting the previous line
@@ -79,6 +94,19 @@ def capture_output(process: subprocess.Popen, description: str) -> None:
             terminate_process(process)
         except Exception as e:
             logging.error(f"Error terminating process: {e}")
+
+
+def format_time(seconds: float) -> str:
+    """
+    Format seconds into HH:MM:SS format.
+
+    Parameters:
+        - seconds (float): Time in seconds.
+    """
+    hours = int(seconds // 3600)
+    minutes = int((seconds % 3600) // 60)
+    secs = int(seconds % 60)
+    return f"{hours:02d}:{minutes:02d}:{secs:02d}"
 
 
 def parse_output_line(line: str) -> dict:

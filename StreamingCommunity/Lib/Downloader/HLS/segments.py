@@ -39,6 +39,7 @@ DEFAULT_AUDIO_WORKERS = config_manager.get_int('M3U8_DOWNLOAD', 'default_audio_w
 MAX_TIMEOUT = config_manager.get_int("REQUESTS", "timeout")
 SEGMENT_MAX_TIMEOUT = config_manager.get_int("M3U8_DOWNLOAD", "segment_timeout")
 LIMIT_SEGMENT = config_manager.get_int('M3U8_DOWNLOAD', 'limit_segment')
+ENABLE_RETRY = config_manager.get_bool('M3U8_DOWNLOAD', 'enable_retry')
 
 
 # Variable
@@ -69,6 +70,8 @@ class M3U8_Segments:
             self.limit_segments = LIMIT_SEGMENT if LIMIT_SEGMENT > 0 else None
         else:
             self.limit_segments = limit_segments
+            
+        self.enable_retry = ENABLE_RETRY
 
         # Util class
         self.decryption: M3U8_Decryption = None 
@@ -287,8 +290,8 @@ class M3U8_Segments:
                 console.print("\n[red]Download interrupted by user (Ctrl+C).")
                 break
 
-        # Retry failed segments
-        if not self.download_interrupted:
+        # Retry failed segments only if enabled
+        if self.enable_retry and not self.download_interrupted:
             await self._retry_failed_segments(client, temp_dir, semaphore, progress_bar)
 
     async def _retry_failed_segments(self, client: httpx.AsyncClient, temp_dir: str, semaphore: asyncio.Semaphore, 
@@ -481,6 +484,6 @@ class M3U8_Segments:
     def _display_error_summary(self) -> None:
         """Generate final error report."""
         console.print(f"\n[green]Retry Summary: "
-                     f"[cyan]Max retries: [red]{self.info_maxRetry} "
-                     f"[cyan]Total retries: [red]{self.info_nRetry} "
-                     f"[cyan]Failed segments: [red]{self.info_nFailed}")
+            f"[cyan]Max retries: [red]{self.info_maxRetry} [white] | "
+            f"[cyan]Total retries: [red]{self.info_nRetry} [white] | "
+            f"[cyan]Failed segments: [red]{self.info_nFailed}")

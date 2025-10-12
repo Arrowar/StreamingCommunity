@@ -31,6 +31,7 @@ from StreamingCommunity.Api.Player.supervideo import VideoSource
 # Variable
 console = Console()
 max_timeout = config_manager.get_int("REQUESTS", "timeout")
+extension_output = config_manager.get("M3U8_CONVERSION", "extension")
 
 
 def download_film(select_title: MediaItem) -> str:
@@ -92,8 +93,8 @@ def download_film(select_title: MediaItem) -> str:
     master_playlist = video_source.get_playlist()
 
     # Define the filename and path for the downloaded film
-    title_name = os_manager.get_sanitize_file(select_title.name) + ".mp4"
-    mp4_path = os.path.join(site_constant.MOVIE_FOLDER, title_name.replace(".mp4", ""))
+    title_name = os_manager.get_sanitize_file(select_title.name) + extension_output
+    mp4_path = os.path.join(site_constant.MOVIE_FOLDER, title_name.replace(extension_output, ""))
 
     # Download the film using the m3u8 playlist, and output filename
     hls_process = HLS_Downloader(

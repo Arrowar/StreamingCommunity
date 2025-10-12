@@ -25,6 +25,7 @@
         "default_video_workers": 8,
         "default_audio_workers": 8,
         "segment_timeout": 5,
+        "enable_retry": true,
         "specific_list_audio": [
             "ita"
         ],
@@ -39,13 +40,12 @@
         "get_only_link": false
     },
     "M3U8_CONVERSION": {
-        "use_codec": false,
-        "use_vcodec": true,
-        "use_acodec": true,
-        "use_bitrate": true,
         "use_gpu": false,
-        "default_preset": "slow",
-        "force_resolution": "Best"
+        "param_video": ["-c:v", "libx265", "-crf", "28", "-preset", "medium"],
+        "param_audio": ["-c:a", "libopus", "-b:a", "128k"],
+        "param_final": ["-c", "copy"],
+        "force_resolution": "Best",
+        "extension": ".mp4"
     },
     "REQUESTS": {
         "verify": false,

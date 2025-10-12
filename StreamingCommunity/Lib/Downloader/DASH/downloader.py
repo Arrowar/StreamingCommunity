@@ -37,6 +37,7 @@ MERGE_SUBTITLE = config_manager.get_bool('M3U8_DOWNLOAD', 'merge_subs')
 FILTER_CUSTOM_REOLUTION = str(config_manager.get('M3U8_CONVERSION', 'force_resolution')).strip().lower()
 CLEANUP_TMP = config_manager.get_bool('M3U8_DOWNLOAD', 'cleanup_tmp_folder')
 RETRY_LIMIT = config_manager.get_int('REQUESTS', 'max_retry')
+EXTENSION_OUTPUT = config_manager.get("M3U8_CONVERSION", "extension")
 
 
 # Variable
@@ -256,7 +257,6 @@ class DASH_Downloader:
 
         # Fetch keys immediately after obtaining PSSH
         if not self.parser.pssh:
-            console.print("[red]No PSSH found: segments are not encrypted, skipping decryption.")
             self.download_segments(clear=True)
             return True
 
@@ -316,7 +316,7 @@ class DASH_Downloader:
                 # Decrypt video
                 decrypted_path = os.path.join(self.decrypted_dir, "video.mp4")
                 result_path = decrypt_with_mp4decrypt(
-                    encrypted_path, KID, KEY, output_path=decrypted_path
+                    "Video", encrypted_path, KID, KEY, output_path=decrypted_path
                 )
 
                 if not result_path:
@@ -365,7 +365,7 @@ class DASH_Downloader:
                 # Decrypt audio
                 decrypted_path = os.path.join(self.decrypted_dir, "audio.mp4")
                 result_path = decrypt_with_mp4decrypt(
-                    encrypted_path, KID, KEY, output_path=decrypted_path
+                    f"Audio {audio_language}", encrypted_path, KID, KEY, output_path=decrypted_path
                 )
 
                 if not result_path:
@@ -381,9 +381,110 @@ class DASH_Downloader:
         return True
 
     def download_segments(self, clear=False):
-        # Download segments and concatenate them
-        # clear=True: no decryption needed
-        pass
+        """
+        Download video/audio segments without decryption (for clear content).
+        
+        Parameters:
+            clear (bool): If True, content is not encrypted and doesn't need decryption
+        """
+        if not clear:
+            console.print("[yellow]Warning: download_segments called with clear=False[/yellow]")
+            return False
+        
+        video_segments_count = 0
+        
+        # Download subtitles
+        self.download_subtitles()
+        
+        # Download video
+        video_rep = self.get_representation_by_type("video")
+        if video_rep:
+            encrypted_path = os.path.join(self.encrypted_dir, f"{video_rep['id']}_encrypted.m4s")
+            
+            # If m4s file doesn't exist, start downloading
+            if not os.path.exists(encrypted_path):
+                video_downloader = MPD_Segments(
+                    tmp_folder=self.encrypted_dir,
+                    representation=video_rep,
+                    pssh=self.parser.pssh
+                )
+                
+                try:
+                    result = video_downloader.download_streams(description="Video")
+                    
+                    # Store the video segment count for limiting audio
+                    video_segments_count = video_downloader.get_segments_count()
+                    
+                    # Check for interruption or failure
+                    if result.get("stopped"):
+                        self.stopped = True
+                        self.error = "Download interrupted"
+                        return False
+                    
+                    if result.get("nFailed", 0) > 0:
+                        self.error = f"Failed segments: {result['nFailed']}"
+                        return False
+                    
+                except Exception as ex:
+                    self.error = str(ex)
+                    console.print(f"[red]Error downloading video: {ex}[/red]")
+                    return False
+            
+            # NO DECRYPTION: just copy/move to decrypted folder
+            decrypted_path = os.path.join(self.decrypted_dir, "video.mp4")
+            if os.path.exists(encrypted_path) and not os.path.exists(decrypted_path):
+                shutil.copy2(encrypted_path, decrypted_path)
+
+        else:
+            self.error = "No video found"
+            console.print(f"[red]{self.error}[/red]")
+            return False
+        
+        # Download audio with segment limiting
+        audio_rep = self.get_representation_by_type("audio")
+        if audio_rep:
+            encrypted_path = os.path.join(self.encrypted_dir, f"{audio_rep['id']}_encrypted.m4s")
+            
+            # If m4s file doesn't exist, start downloading
+            if not os.path.exists(encrypted_path):
+                audio_language = audio_rep.get('language', 'Unknown')
+                
+                audio_downloader = MPD_Segments(
+                    tmp_folder=self.encrypted_dir,
+                    representation=audio_rep,
+                    pssh=self.parser.pssh,
+                    limit_segments=video_segments_count if video_segments_count > 0 else None
+                )
+                
+                try:
+                    result = audio_downloader.download_streams(description=f"Audio {audio_language}")
+                    
+                    # Check for interruption or failure
+                    if result.get("stopped"):
+                        self.stopped = True
+                        self.error = "Download interrupted"
+                        return False
+                    
+                    if result.get("nFailed", 0) > 0:
+                        self.error = f"Failed segments: {result['nFailed']}"
+                        return False
+                    
+                except Exception as ex:
+                    self.error = str(ex)
+                    console.print(f"[red]Error downloading audio: {ex}[/red]")
+                    return False
+            
+            # NO DECRYPTION: just copy/move to decrypted folder
+            decrypted_path = os.path.join(self.decrypted_dir, "audio.mp4")
+            if os.path.exists(encrypted_path) and not os.path.exists(decrypted_path):
+                shutil.copy2(encrypted_path, decrypted_path)
+                
+        else:
+            self.error = "No audio found"
+            console.print(f"[red]{self.error}[/red]")
+            return False
+        
+        return True
 
     def finalize_output(self):
         """
@@ -455,7 +556,7 @@ class DASH_Downloader:
         
         # Handle failed sync case
         if use_shortest:
-            new_filename = output_file.replace(".mp4", "_failed_sync.mp4")
+            new_filename = output_file.replace(EXTENSION_OUTPUT, f"_failed_sync{EXTENSION_OUTPUT}")
             if os.path.exists(output_file):
                 os.rename(output_file, new_filename)
                 output_file = new_filename

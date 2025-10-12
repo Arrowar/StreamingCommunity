@@ -11,10 +11,10 @@ from rich.console import Console
 
 # Internal utilities
 from StreamingCommunity.Util.os import os_manager
+from StreamingCommunity.Util.config_json import config_manager
 from StreamingCommunity.Util.headers import get_headers
-from StreamingCommunity.Util.os import get_wvd_path
 from StreamingCommunity.Util.message import start_message
-
+from StreamingCommunity.Util.os import get_wvd_path
 
 # Logic class
 from .util.get_license import generate_license_url
@@ -29,6 +29,7 @@ from StreamingCommunity.Api.Player.mediapolisvod import VideoSource
 
 # Variable
 console = Console()
+extension_output = config_manager.get("M3U8_CONVERSION", "extension")
 
 
 def download_film(select_title: MediaItem) -> Tuple[str, bool]:
@@ -51,8 +52,8 @@ def download_film(select_title: MediaItem) -> Tuple[str, bool]:
     master_playlist = VideoSource.extract_m3u8_url(first_item_path)
 
     # Define the filename and path for the downloaded film
-    mp4_name = os_manager.get_sanitize_file(select_title.name) + ".mp4"
-    mp4_path = os.path.join(site_constant.MOVIE_FOLDER, mp4_name.replace(".mp4", ""))
+    mp4_name = os_manager.get_sanitize_file(select_title.name) + extension_output
+    mp4_path = os.path.join(site_constant.MOVIE_FOLDER, mp4_name.replace(extension_output, ""))
 
     # HLS
     if ".mpd" not in master_playlist:

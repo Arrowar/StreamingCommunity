@@ -42,6 +42,7 @@ GET_ONLY_LINK = config_manager.get_int('M3U8_DOWNLOAD', 'get_only_link')
 FILTER_CUSTOM_RESOLUTION = str(config_manager.get('M3U8_CONVERSION', 'force_resolution')).strip().lower()
 RETRY_LIMIT = config_manager.get_int('REQUESTS', 'max_retry')
 MAX_TIMEOUT = config_manager.get_int("REQUESTS", "timeout")
+EXTENSION_OUTPUT = config_manager.get("M3U8_CONVERSION", "extension")
 
 console = Console()
 
@@ -94,7 +95,7 @@ class PathManager:
         """
         self.m3u8_url = m3u8_url
         self.output_path = self._sanitize_output_path(output_path)
-        base_name = os.path.basename(self.output_path).replace(".mp4", "")
+        base_name = os.path.basename(self.output_path).replace(EXTENSION_OUTPUT, "")
         self.temp_dir = os.path.join(os.path.dirname(self.output_path), f"{base_name}_tmp")
 
     def _sanitize_output_path(self, path: Optional[str]) -> str:
@@ -103,10 +104,10 @@ class PathManager:
         Creates a hash-based filename if no path is provided.
         """
         if not path:
-            path = "download.mp4"
+            path = f"download{EXTENSION_OUTPUT}"
             
-        if not path.endswith(".mp4"):
-            path += ".mp4"
+        if not path.endswith(EXTENSION_OUTPUT):
+            path += EXTENSION_OUTPUT
 
         return os_manager.get_sanitize_path(path)
 
@@ -225,17 +226,6 @@ class M3U8Manager:
             
             data_rows.append(["Video", available_video, str(FILTER_CUSTOM_RESOLUTION), downloadable_video])
             
-            # Codec information
-            if self.parser.codec is not None:
-                available_codec_info = (
-                    f"v: {self.parser.codec.video_codec_name} "
-                    f"(b: {self.parser.codec.video_bitrate // 1000}k), "
-                    f"a: {self.parser.codec.audio_codec_name} "
-                    f"(b: {self.parser.codec.audio_bitrate // 1000}k)"
-                )
-                set_codec_info = available_codec_info if config_manager.get_bool("M3U8_CONVERSION", "use_codec") else "copy"
-                
-                data_rows.append(["Codec", available_codec_info, set_codec_info, set_codec_info])
 
             # Subtitle information
             available_subtitles = self.parser._subtitle.get_all_uris_and_names() or []
@@ -688,11 +678,11 @@ class HLS_Downloader:
 
         new_filename = self.path_manager.output_path
         if missing_ts and use_shortest:
-            new_filename = new_filename.replace(".mp4", "_failed_sync_ts.mp4")
+            new_filename = new_filename.replace(EXTENSION_OUTPUT, f"_failed_sync_ts{EXTENSION_OUTPUT}")
         elif missing_ts:
-            new_filename = new_filename.replace(".mp4", "_failed_ts.mp4")
+            new_filename = new_filename.replace(EXTENSION_OUTPUT, f"_failed_ts{EXTENSION_OUTPUT}")
         elif use_shortest:
-            new_filename = new_filename.replace(".mp4", "_failed_sync.mp4")
+            new_filename = new_filename.replace(EXTENSION_OUTPUT, f"_failed_sync{EXTENSION_OUTPUT}")
 
         if missing_ts or use_shortest:
             os.rename(self.path_manager.output_path, new_filename)

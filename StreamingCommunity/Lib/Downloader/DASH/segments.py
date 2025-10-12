@@ -24,6 +24,7 @@ DEFAULT_VIDEO_WORKERS = config_manager.get_int('M3U8_DOWNLOAD', 'default_video_w
 DEFAULT_AUDIO_WORKERS = config_manager.get_int('M3U8_DOWNLOAD', 'default_audio_workers')
 SEGMENT_MAX_TIMEOUT = config_manager.get_int("M3U8_DOWNLOAD", "segment_timeout")
 LIMIT_SEGMENT = config_manager.get_int('M3U8_DOWNLOAD', 'limit_segment')
+ENABLE_RETRY = config_manager.get_bool('M3U8_DOWNLOAD', 'enable_retry')
 
 
 # Variable
@@ -50,7 +51,8 @@ class MPD_Segments:
             self.limit_segments = LIMIT_SEGMENT if LIMIT_SEGMENT > 0 else None
         else:
             self.limit_segments = limit_segments
-            
+        
+        self.enable_retry = ENABLE_RETRY
         self.download_interrupted = False
         self.info_nFailed = 0
         
@@ -171,10 +173,11 @@ class MPD_Segments:
                     client, segment_urls, temp_dir, semaphore, REQUEST_MAX_RETRY, estimator, progress_bar
                 )
 
-                # Retry failed segments 
-                await self._retry_failed_segments(
-                    client, segment_urls, temp_dir, semaphore, REQUEST_MAX_RETRY, estimator, progress_bar
-                )
+                # Retry failed segments only if enabled
+                if self.enable_retry:
+                    await self._retry_failed_segments(
+                        client, segment_urls, temp_dir, semaphore, REQUEST_MAX_RETRY, estimator, progress_bar
+                    )
 
                 # Concatenate all segment files in order
                 await self._concatenate_segments(concat_path, len(segment_urls))
@@ -458,8 +461,7 @@ class MPD_Segments:
         successful_segments = len(self.downloaded_segments)
 
         console.print(f"[green]Download Summary: "
-              f"[cyan]Successful: [red]{successful_segments}/{total_segments} "
-              f"[cyan]Max retries: [red]{getattr(self, 'info_maxRetry', 0)} "
-              f"[cyan]Total retries: [red]{getattr(self, 'info_nRetry', 0)} "
-              f"[cyan]Failed segments: [red]{getattr(self, 'info_nFailed', 0)} "
-              f"[cyan]Failed indices: [red]{failed_indices} \n")
+              f"[cyan]Max retries: [red]{getattr(self, 'info_maxRetry', 0)} [white]| "
+              f"[cyan]Total retries: [red]{getattr(self, 'info_nRetry', 0)} [white]| "
+              f"[cyan]Failed segments: [red]{getattr(self, 'info_nFailed', 0)} [white]| "
+              f"[cyan]Failed indices: [red]{failed_indices}")

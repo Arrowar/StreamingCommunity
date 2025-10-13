@@ -87,11 +87,13 @@ class GetSerieInfo:
             if not season:
                 logging.error(f"Season {number_season} not found")
                 return
-            
+
             custom_headers = self.headers.copy()
-            custom_headers['x-inertia'] = 'true'
-            custom_headers['x-version'] = self.version
-            response = create_client(headers=custom_headers).get(f'{self.url}/titles/{self.media_id}-{self.series_name}/season-{number_season}')
+            custom_headers.update({
+                'x-inertia': 'true',
+                'x-inertia-version': self.version,
+            })
+            response = create_client(headers=custom_headers).get(f"{self.url}/titles/{self.media_id}-{self.series_name}/season-{number_season}")
 
             # Extract episodes from JSON response
             json_response = response.json().get('props', {}).get('loadedSeason', {}).get('episodes', [])

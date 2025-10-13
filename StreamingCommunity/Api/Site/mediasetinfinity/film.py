@@ -23,7 +23,7 @@ from StreamingCommunity.Api.Template.Class.SearchType import MediaItem
 # Player
 from .util.fix_mpd import get_manifest
 from StreamingCommunity import DASH_Downloader
-from .util.get_license import get_bearer_token, get_playback_url, get_tracking_info, generate_license_url
+from .util.get_license import get_playback_url, get_tracking_info, generate_license_url
 
 
 # Variable
@@ -48,9 +48,7 @@ def download_film(select_title: MediaItem) -> Tuple[str, bool]:
     title_name = os_manager.get_sanitize_file(select_title.name) + extension_output
     mp4_path = os.path.join(site_constant.MOVIE_FOLDER, title_name.replace(extension_output, ""))
 
-    # Generate mpd and license URLs
-    bearer = get_bearer_token()
-
+    # Get playback URL and tracking info
     playback_json = get_playback_url(select_title.id)
     tracking_info = get_tracking_info(playback_json)['videos'][0]
 

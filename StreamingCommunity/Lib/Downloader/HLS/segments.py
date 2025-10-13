@@ -11,7 +11,6 @@ from typing import Dict, Optional
 
 # External libraries
 import httpx
-from curl_cffi import requests
 from tqdm import tqdm
 from rich.console import Console
 

@@ -458,7 +458,7 @@ class MPD_Segments:
         """
         total_segments = len(self.selected_representation.get('segment_urls', []))
         failed_indices = [i for i in range(total_segments) if i not in self.downloaded_segments]
-        successful_segments = len(self.downloaded_segments)
+        #successful_segments = len(self.downloaded_segments)
 
         console.print(f"[green]Download Summary: "
               f"[cyan]Max retries: [red]{getattr(self, 'info_maxRetry', 0)} [white]| "

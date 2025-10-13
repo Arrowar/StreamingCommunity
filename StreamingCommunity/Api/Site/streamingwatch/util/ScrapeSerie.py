@@ -11,12 +11,9 @@ from bs4 import BeautifulSoup
 # Internal utilities
 from StreamingCommunity.Util.headers import get_userAgent
 from StreamingCommunity.Util.http_client import create_client
-from StreamingCommunity.Util.config_json import config_manager
 from StreamingCommunity.Api.Player.Helper.Vixcloud.util import SeasonManager, Episode
 
 
-# Variable
-max_timeout = config_manager.get_int("REQUESTS", "timeout")
 
 
 class GetSerieInfo:

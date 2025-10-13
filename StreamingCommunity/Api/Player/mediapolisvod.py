@@ -1,21 +1,12 @@
 # 11.04.25
 
 
-# External libraries
-import httpx
-
-
 # Internal utilities
-from StreamingCommunity.Util.config_json import config_manager
+from StreamingCommunity.Util.http_client import create_client
 from StreamingCommunity.Util.headers import get_headers
 
 
-# Variable
-MAX_TIMEOUT = config_manager.get_int("REQUESTS", "timeout")
-REQUEST_VERIFY = config_manager.get_bool('REQUESTS', 'verify')
-
 class VideoSource:
-   
     @staticmethod
     def extract_m3u8_url(video_url: str) -> str:
         """Extract the m3u8 streaming URL from a RaiPlay video URL."""
@@ -29,7 +20,7 @@ class VideoSource:
                 return "Error: Unable to determine video JSON URL"
                         
         try:
-            response = httpx.get(video_url, headers=get_headers(), timeout=MAX_TIMEOUT, verify=REQUEST_VERIFY)
+            response = create_client(headers=get_headers()).get(video_url)
             if response.status_code != 200:
                 return f"Error: Failed to fetch video data (Status: {response.status_code})"
                 
@@ -50,8 +41,8 @@ class VideoSource:
                 'cont': element_key,
                 'output': '62',
             }
-            stream_response = httpx.get('https://mediapolisvod.rai.it/relinker/relinkerServlet.htm', params=params, headers=get_headers(), timeout=MAX_TIMEOUT, verify=REQUEST_VERIFY)
-            
+
+            stream_response = create_client(headers=get_headers()).get('https://mediapolisvod.rai.it/relinker/relinkerServlet.htm', params=params)
             if stream_response.status_code != 200:
                 return f"Error: Failed to fetch stream URL (Status: {stream_response.status_code})"
                 

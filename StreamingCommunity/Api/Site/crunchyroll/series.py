@@ -1,8 +1,8 @@
 # 16.03.25
 
 import os
-from typing import Tuple
 from urllib.parse import urlparse, parse_qs
+from typing import Tuple
 
 
 # External library
@@ -12,7 +12,7 @@ from rich.prompt import Prompt
 
 # Internal utilities
 from StreamingCommunity.Util.message import start_message
-from StreamingCommunity.Util.os import os_manager, get_wvd_path
+from StreamingCommunity.Util.os import os_manager
 
 
 # Logic class
@@ -72,7 +72,6 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
 
     # Download the episode
     dash_process = DASH_Downloader(
-        cdm_device=get_wvd_path(),
         license_url='https://www.crunchyroll.com/license/v1/license/widevine',
         mpd_url=mpd_url,
         mpd_sub_list=mpd_list_sub,

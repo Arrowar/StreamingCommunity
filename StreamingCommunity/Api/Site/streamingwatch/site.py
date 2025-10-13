@@ -4,13 +4,12 @@ import re
 
 
 # External libraries
-import httpx
 from bs4 import BeautifulSoup
 from rich.console import Console
 
 
 # Internal utilities
-from StreamingCommunity.Util.config_json import config_manager
+from StreamingCommunity.Util.http_client import create_client
 from StreamingCommunity.Util.headers import get_userAgent
 from StreamingCommunity.Util.table import TVShowManager
 
@@ -24,18 +23,13 @@ from StreamingCommunity.Api.Template.Class.SearchType import MediaManager
 console = Console()
 media_search_manager = MediaManager()
 table_show_manager = TVShowManager()
-max_timeout = config_manager.get_int("REQUESTS", "timeout")
 
 
 def extract_nonce() -> str:
     """Extract nonce value from the page script"""
-    response = httpx.get(
-        site_constant.FULL_URL, 
-        headers={'user-agent': get_userAgent()}, 
-        timeout=max_timeout
-    )
-    
+    response = create_client(headers={'user-agent': get_userAgent()}).get(site_constant.FULL_URL)
     soup = BeautifulSoup(response.content, 'html.parser')
+
     script = soup.find('script', id='live-search-js-extra')
     if script:
         match = re.search(r'"admin_ajax_nonce":"([^"]+)"', script.text)
@@ -73,15 +67,7 @@ def title_search(query: str) -> int:
             '_wpnonce': _wpnonce
         }
 
-        response = httpx.post(
-            search_url,
-            headers={
-                'origin': site_constant.FULL_URL,
-                'user-agent': get_userAgent()
-            },
-            data=data,
-            timeout=max_timeout
-        )
+        response = create_client(headers={'origin': site_constant.FULL_URL, 'user-agent': get_userAgent()}).post(search_url, data=data)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
 

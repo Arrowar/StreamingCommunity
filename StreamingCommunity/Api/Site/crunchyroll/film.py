@@ -11,7 +11,7 @@ from rich.console import Console
 # Internal utilities
 from StreamingCommunity.Util.message import start_message
 from StreamingCommunity.Util.config_json import config_manager
-from StreamingCommunity.Util.os import os_manager, get_wvd_path
+from StreamingCommunity.Util.os import os_manager
 
 
 # Logic class
@@ -26,7 +26,6 @@ from .util.get_license import get_playback_session, CrunchyrollClient
 
 # Variable
 console = Console()
-max_timeout = config_manager.get_int("REQUESTS", "timeout")
 extension_output = config_manager.get("M3U8_CONVERSION", "extension")
 
 
@@ -61,7 +60,6 @@ def download_film(select_title: MediaItem) -> str:
 
     # Download the episode
     dash_process = DASH_Downloader(
-        cdm_device=get_wvd_path(),
         license_url='https://www.crunchyroll.com/license/v1/license/widevine',
         mpd_url=mpd_url,
         mpd_sub_list=mpd_list_sub,

@@ -1,11 +1,11 @@
 # 28.07.25
 
 from typing import Tuple, List, Dict
-from curl_cffi import requests
 
 
 # Internal utilities
 from StreamingCommunity.Util.config_json import config_manager
+from StreamingCommunity.Util.http_client import create_client_curl
 from StreamingCommunity.Util.headers import get_userAgent
 
 
@@ -44,17 +44,13 @@ class CrunchyrollClient:
         headers['authorization'] = f'Basic {PUBLIC_TOKEN}'
         headers['content-type'] = 'application/x-www-form-urlencoded'
         
-        response = requests.post(
-            'https://www.crunchyroll.com/auth/v1/token',
-            cookies=self._get_cookies(),
-            headers=headers,
-            data={
-                'device_id': self.device_id,
-                'device_type': 'Chrome on Windows',
-                'grant_type': 'etp_rt_cookie',
-            },
-            impersonate="chrome136"
-        )
+        data = {
+            'device_id': self.device_id,
+            'device_type': 'Chrome on Windows',
+            'grant_type': 'etp_rt_cookie',
+        }
+
+        response = create_client_curl(headers=headers).post('https://www.crunchyroll.com/auth/v1/token', cookies=self._get_cookies(), data=data)
         
         if response.status_code == 400:
             print("Error 400: Please enter a correct 'etp_rt' value in config.json. You can find the value in the request headers.")
@@ -69,14 +65,8 @@ class CrunchyrollClient:
 
     def get_streams(self, media_id: str) -> Dict:
         """Ottieni gli stream disponibili"""
-        response = requests.get(
-            f'https://www.crunchyroll.com/playback/v3/{media_id}/web/chrome/play',
-            cookies=self._get_cookies(),
-            headers=self._get_headers(),
-            params={'locale': self.locale},
-            impersonate="chrome136"
-        )
-        
+        response = create_client_curl(headers=self._get_headers()).get(f'https://www.crunchyroll.com/playback/v3/{media_id}/web/chrome/play', cookies=self._get_cookies(), params={'locale': self.locale})
+
         if response.status_code == 403:
             raise Exception("Playback is Rejected: The current subscription does not have access to this content")
         
@@ -94,12 +84,7 @@ class CrunchyrollClient:
 
     def delete_active_stream(self, media_id: str, token: str) -> bool:
         """Elimina uno stream attivo"""
-        response = requests.delete(
-            f'https://www.crunchyroll.com/playback/v1/token/{media_id}/{token}',
-            cookies=self._get_cookies(),
-            headers=self._get_headers(),
-            impersonate="chrome136"
-        )
+        response = create_client_curl(headers=self._get_headers()).delete(f'https://www.crunchyroll.com/playback/v1/token/{media_id}/{token}', cookies=self._get_cookies())
         response.raise_for_status()
         return response.status_code in [200, 204]
 

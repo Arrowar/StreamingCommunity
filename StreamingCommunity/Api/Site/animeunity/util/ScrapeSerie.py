@@ -3,19 +3,10 @@
 import logging
 
 
-# External libraries
-import httpx
-
-
 # Internal utilities
-from StreamingCommunity.Util.headers import get_userAgent
-from StreamingCommunity.Util.config_json import config_manager
+from StreamingCommunity.Util.headers import get_headers
+from StreamingCommunity.Util.http_client import create_client
 from StreamingCommunity.Api.Player.Helper.Vixcloud.util import EpisodeManager, Episode
-
-
-# Variable
-max_timeout = config_manager.get_int("REQUESTS", "timeout")
-
 
 
 class ScrapeSerieAnime:
@@ -27,7 +18,7 @@ class ScrapeSerieAnime:
             url (str): Url of the streaming site
         """
         self.is_series = False
-        self.headers = {'user-agent': get_userAgent()}
+        self.headers = get_headers()
         self.url = url
         self.episodes_cache = None
 
@@ -61,11 +52,7 @@ class ScrapeSerieAnime:
         """
         try:
             # Get initial episode count
-            response = httpx.get(
-                url=f"{self.url}/info_api/{self.media_id}/",
-                headers=self.headers,
-                timeout=max_timeout
-            )
+            response = create_client(headers=self.headers).get(f"{self.url}/info_api/{self.media_id}/")
             response.raise_for_status()
             initial_count = response.json()["episodes_count"]
             
@@ -75,18 +62,15 @@ class ScrapeSerieAnime:
             # Fetch episodes in chunks
             while start_range <= initial_count:
                 end_range = min(start_range + 119, initial_count)
+
+                params={
+                    "start_range": start_range,
+                    "end_range": end_range
+                }
                 
-                response = httpx.get(
-                    url=f"{self.url}/info_api/{self.media_id}/1",
-                    params={
-                        "start_range": start_range,
-                        "end_range": end_range
-                    },
-                    headers=self.headers,
-                    timeout=max_timeout
-                )
+                response = create_client(headers=self.headers).get(f"{self.url}/info_api/{self.media_id}/1", params=params)
                 response.raise_for_status()
-                
+
                 chunk_episodes = response.json().get("episodes", [])
                 all_episodes.extend(chunk_episodes)
                 start_range = end_range + 1

@@ -10,7 +10,7 @@ from rich.console import Console
 
 # Internal utilities
 from StreamingCommunity.Util.config_json import config_manager
-from StreamingCommunity.Util.os import os_manager, get_wvd_path
+from StreamingCommunity.Util.os import os_manager
 from StreamingCommunity.Util.message import start_message
 from StreamingCommunity.Util.headers import get_headers
 
@@ -59,7 +59,6 @@ def download_film(select_title: MediaItem) -> Tuple[str, bool]:
 
     # Download the episode
     dash_process =  DASH_Downloader(
-        cdm_device=get_wvd_path(),
         license_url=license_url,
         mpd_url=mpd_url,
         output_path=os.path.join(mp4_path, title_name),

@@ -2,15 +2,14 @@
 
 import logging
 
+
 # External libraries
-import httpx
 from bs4 import BeautifulSoup
 from rich.console import Console
 
 
 # Internal utilities
-from StreamingCommunity.Util.config_json import config_manager
-from StreamingCommunity.Util.headers import get_userAgent, get_headers
+from StreamingCommunity.Util.headers import get_headers
 from StreamingCommunity.Util.http_client import create_client
 from StreamingCommunity.Util.table import TVShowManager
 
@@ -24,7 +23,6 @@ from StreamingCommunity.Api.Template.Class.SearchType import MediaManager
 console = Console()
 media_search_manager = MediaManager()
 table_show_manager = TVShowManager()
-max_timeout = config_manager.get_int("REQUESTS", "timeout")
 
 
 def get_session_and_csrf() -> dict:
@@ -72,13 +70,7 @@ def title_search(query: str) -> int:
 
     # Make the GET request
     try:
-        response = httpx.get(
-            search_url, 
-            headers={'User-Agent': get_userAgent()},
-            timeout=max_timeout,
-            verify=False
-        )
-
+        response = create_client(headers=get_headers()).get(search_url)
     except Exception as e:
         console.print(f"[red]Site: {site_constant.SITE_NAME}, request search error: {e}")
         return 0

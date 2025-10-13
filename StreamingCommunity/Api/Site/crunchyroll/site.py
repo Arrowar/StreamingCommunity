@@ -4,12 +4,12 @@ import sys
 
 
 # External libraries
-from curl_cffi import requests
 from rich.console import Console
 
 
 # Internal utilities
 from StreamingCommunity.Util.config_json import config_manager
+from StreamingCommunity.Util.http_client import create_client_curl
 from StreamingCommunity.Util.table import TVShowManager
 
 
@@ -23,7 +23,6 @@ from .util.get_license import CrunchyrollClient
 console = Console()
 media_search_manager = MediaManager()
 table_show_manager = TVShowManager()
-max_timeout = config_manager.get_int("REQUESTS", "timeout")
 
 
 def title_search(query: str) -> int:
@@ -68,13 +67,7 @@ def title_search(query: str) -> int:
     console.print(f"[cyan]Search url: [yellow]{api_url}")
 
     try:
-        response = requests.get(
-            api_url,
-            params=params,
-            headers=headers,
-            timeout=max_timeout,
-            impersonate="chrome136"
-        )
+        response = create_client_curl(headers=headers).get(api_url, params=params)
         response.raise_for_status()
 
     except Exception as e:

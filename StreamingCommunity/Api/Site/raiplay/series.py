@@ -11,7 +11,6 @@ from rich.prompt import Prompt
 
 # Internal utilities
 from StreamingCommunity.Util.headers import get_headers, get_userAgent
-from StreamingCommunity.Util.os import get_wvd_path
 from StreamingCommunity.Util.message import start_message
 
 
@@ -91,7 +90,6 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
         }
 
         dash_process = DASH_Downloader(
-            cdm_device=get_wvd_path(),
             license_url=full_license_url.split("?")[0],
             mpd_url=master_playlist,
             output_path=os.path.join(mp4_path, mp4_name),

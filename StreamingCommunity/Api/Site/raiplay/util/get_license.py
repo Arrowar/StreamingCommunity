@@ -1,18 +1,9 @@
 # 16.03.25
 
 
-# External library
-import httpx
-
-
 # Internal utilities
-from StreamingCommunity.Util.config_json import config_manager
+from StreamingCommunity.Util.http_client import create_client
 from StreamingCommunity.Util.headers import get_headers
-
-
-# Variable
-MAX_TIMEOUT = config_manager.get_int("REQUESTS", "timeout")
-
 
 
 def generate_license_url(mpd_id: str):
@@ -29,8 +20,8 @@ def generate_license_url(mpd_id: str):
         'cont': mpd_id,
         'output': '62',
     }
-
-    response = httpx.get('https://mediapolisvod.rai.it/relinker/relinkerServlet.htm', params=params, headers=get_headers(), timeout=MAX_TIMEOUT)
+    
+    response = create_client(headers=get_headers()).get('https://mediapolisvod.rai.it/relinker/relinkerServlet.htm', params=params)
     response.raise_for_status() 
 
     # Extract the license URL from the response in two lines

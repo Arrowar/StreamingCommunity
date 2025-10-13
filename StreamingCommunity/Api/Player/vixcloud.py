@@ -6,21 +6,18 @@ from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 
 
 # External libraries
-import httpx
 from bs4 import BeautifulSoup
 from rich.console import Console
 
 
 # Internal utilities
 from StreamingCommunity.Util.headers import get_userAgent
-from StreamingCommunity.Util.config_json import config_manager
+from StreamingCommunity.Util.http_client import create_client
 from .Helper.Vixcloud.util import WindowVideo, WindowParameter, StreamsCollection
 from .Helper.Vixcloud.js_parser import JavaScriptParser
 
 
 # Variable
-MAX_TIMEOUT = config_manager.get_int("REQUESTS", "timeout")
-REQUEST_VERIFY = config_manager.get_bool('REQUESTS', 'verify')
 console = Console()
 
 
@@ -57,7 +54,7 @@ class VideoSource:
             }
 
         try:
-            response = httpx.get(f"{self.url}/iframe/{self.media_id}", headers=self.headers, params=params, timeout=MAX_TIMEOUT, verify=REQUEST_VERIFY)
+            response = create_client(headers=self.headers).get(f"{self.url}/iframe/{self.media_id}", params=params)
             response.raise_for_status()
 
             # Parse response with BeautifulSoup to get iframe source
@@ -100,7 +97,7 @@ class VideoSource:
         """
         try:
             if self.iframe_src is not None:
-                response = httpx.get(self.iframe_src, headers=self.headers, timeout=MAX_TIMEOUT, verify=REQUEST_VERIFY)
+                response = create_client(headers=self.headers).get(self.iframe_src)
                 response.raise_for_status()
 
                 # Parse response with BeautifulSoup to get content
@@ -109,14 +106,6 @@ class VideoSource:
 
                 # Parse script to get video information
                 self.parse_script(script_text=script)
-
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
-                console.print("[yellow]This content will be available soon![/yellow]")
-                return
-            
-            logging.error(f"Error getting content: {e}")
-            raise
 
         except Exception as e:
             logging.error(f"Error getting content: {e}")
@@ -178,7 +167,7 @@ class VideoSourceAnime(VideoSource):
             str: Parsed script content
         """
         try:
-            response = httpx.get(f"{self.url}/embed-url/{episode_id}", headers=self.headers, timeout=MAX_TIMEOUT, verify=REQUEST_VERIFY)
+            response = create_client(headers=self.headers).get(f"{self.url}/embed-url/{episode_id}")
             response.raise_for_status()
 
             # Extract and clean embed URL
@@ -186,7 +175,7 @@ class VideoSourceAnime(VideoSource):
             self.iframe_src = embed_url
 
             # Fetch video content using embed URL
-            video_response = httpx.get(embed_url, verify=REQUEST_VERIFY)
+            video_response = create_client(headers=self.headers).get(embed_url)
             video_response.raise_for_status()
 
             # Parse response with BeautifulSoup to get content of the scriot

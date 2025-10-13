@@ -5,19 +5,13 @@ import logging
 
 
 # External libraries
-import httpx
 from bs4 import BeautifulSoup
 
 
 # Internal utilities
-from StreamingCommunity.Util.headers import get_userAgent
-from StreamingCommunity.Util.config_json import config_manager
+from StreamingCommunity.Util.headers import get_headers
+from StreamingCommunity.Util.http_client import create_client
 from StreamingCommunity.Api.Player.Helper.Vixcloud.util import SeasonManager
-
-
-# Variable
-max_timeout = config_manager.get_int("REQUESTS", "timeout")
-ssl_verify = config_manager.get_bool("REQUESTS", "verify")
 
 
 class GetSerieInfo:
@@ -31,7 +25,7 @@ class GetSerieInfo:
             - series_name (str, optional): Name of the TV series
         """
         self.is_series = False
-        self.headers = {'user-agent': get_userAgent()}
+        self.headers = get_headers()
         self.url = url
         self.media_id = media_id
         self.seasons_manager = SeasonManager()
@@ -48,12 +42,7 @@ class GetSerieInfo:
             Exception: If there's an error fetching series information
         """
         try:
-            response = httpx.get(
-                url=f"{self.url}/titles/{self.media_id}-{self.series_name}",
-                headers=self.headers,
-                timeout=max_timeout,
-                verify=ssl_verify
-            )
+            response = create_client(headers=self.headers).get(f"{self.url}/titles/{self.media_id}-{self.series_name}")
             response.raise_for_status()
 
             # Extract series info from JSON response
@@ -99,16 +88,10 @@ class GetSerieInfo:
                 logging.error(f"Season {number_season} not found")
                 return
             
-            response = httpx.get(
-                url=f'{self.url}/titles/{self.media_id}-{self.series_name}/season-{number_season}', 
-                headers={
-                    'User-Agent': self.headers['user-agent'],
-                    'x-inertia': 'true',
-                    'x-inertia-version': self.version,
-                },
-                timeout=max_timeout,
-                verify=ssl_verify
-            )
+            custom_headers = self.headers.copy()
+            custom_headers['x-inertia'] = 'true'
+            custom_headers['x-version'] = self.version
+            response = create_client(headers=custom_headers).get(f'{self.url}/titles/{self.media_id}-{self.series_name}/season-{number_season}')
 
             # Extract episodes from JSON response
             json_response = response.json().get('props', {}).get('loadedSeason', {}).get('episodes', [])

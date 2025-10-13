@@ -1,15 +1,15 @@
 # 10.12.23
 
-# External libraries
 import urllib.parse
-import httpx
-from curl_cffi import requests
+
+
+# External libraries
 from rich.console import Console
 
 
 # Internal utilities
-from StreamingCommunity.Util.config_json import config_manager
 from StreamingCommunity.Util.headers import get_userAgent
+from StreamingCommunity.Util.http_client import create_client, create_client_curl
 from StreamingCommunity.Util.table import TVShowManager
 from StreamingCommunity.TelegramHelp.telegram_bot import get_bot_instance
 
@@ -18,21 +18,18 @@ from StreamingCommunity.TelegramHelp.telegram_bot import get_bot_instance
 from StreamingCommunity.Api.Template.config_loader import site_constant
 from StreamingCommunity.Api.Template.Class.SearchType import MediaManager
 
+
+# Variable
 console = Console()
 media_search_manager = MediaManager()
 table_show_manager = TVShowManager()
-max_timeout = config_manager.get_int("REQUESTS", "timeout")
 
 
 def get_token(user_agent: str) -> dict:
     """
     Retrieve session cookies from the site.
     """
-    response = requests.get(
-        site_constant.FULL_URL,
-        headers={'user-agent': user_agent},
-        impersonate="chrome120"
-    )
+    response = create_client_curl(headers={'user-agent': user_agent}).get(site_constant.FULL_URL)
     response.raise_for_status()
     all_cookies = {name: value for name, value in response.cookies.items()}
 
@@ -80,13 +77,7 @@ def title_search(query: str) -> int:
 
     # First call: /livesearch
     try:
-        response1 = httpx.post(
-            f'{site_constant.FULL_URL}/livesearch',
-            cookies=cookies,
-            headers=headers,
-            json={'title': query},
-            timeout=max_timeout
-        )
+        response1 = create_client(headers=headers).post(f'{site_constant.FULL_URL}/livesearch', cookies=cookies, json={'title': query})
         response1.raise_for_status()
         process_results(response1.json().get('records', []), seen_titles, media_search_manager, choices)
 
@@ -107,13 +98,7 @@ def title_search(query: str) -> int:
             'dubbed': False,
             'season': False
         }
-        response2 = httpx.post(
-            f'{site_constant.FULL_URL}/archivio/get-animes',
-            cookies=cookies,
-            headers=headers,
-            json=json_data,
-            timeout=max_timeout
-        )
+        response2 = create_client(headers=headers).post(f'{site_constant.FULL_URL}/archivio/get-animes', cookies=cookies, json=json_data)
         response2.raise_for_status()
         process_results(response2.json().get('records', []), seen_titles, media_search_manager, choices)
 

@@ -10,7 +10,6 @@ from bs4 import BeautifulSoup
 # Internal utilities
 from StreamingCommunity.Util.headers import get_userAgent
 from StreamingCommunity.Util.http_client import create_client
-from StreamingCommunity.Util.config_json import config_manager
 from StreamingCommunity.Util.os import os_manager
 
 
@@ -19,8 +18,6 @@ from ..site import get_session_and_csrf
 from StreamingCommunity.Api.Player.sweetpixel import VideoSource
 
 
-# Variable
-max_timeout = config_manager.get_int("REQUESTS", "timeout")
 
 
 class ScrapSerie:
@@ -34,7 +31,7 @@ class ScrapSerie:
         )
 
         try:
-            self.response = self.client.get(self.url, timeout=max_timeout, follow_redirects=True)
+            self.response = self.client.get(self.url)
             self.response.raise_for_status()
 
         except Exception as e:

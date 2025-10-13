@@ -13,7 +13,7 @@ from rich.table import Table
 
 # Internal utilities
 from StreamingCommunity.Util.config_json import config_manager
-from StreamingCommunity.Util.os import os_manager, internet_manager
+from StreamingCommunity.Util.os import os_manager, internet_manager, get_wvd_path
 from StreamingCommunity.Util.http_client import create_client
 from StreamingCommunity.Util.headers import get_userAgent
 
@@ -45,18 +45,17 @@ console = Console()
 
 
 class DASH_Downloader:
-    def __init__(self, cdm_device, license_url, mpd_url, mpd_sub_list: list = None, output_path: str = None):
+    def __init__(self, license_url, mpd_url, mpd_sub_list: list = None, output_path: str = None):
         """
         Initialize the DASH Downloader with necessary parameters.
 
         Parameters:
-            - cdm_device (str): Path to the CDM device for decryption.
             - license_url (str): URL to obtain the license for decryption.
             - mpd_url (str): URL of the MPD manifest file.
             - mpd_sub_list (list): List of subtitle dicts with keys: 'language', 'url', 'format'.
             - output_path (str): Path to save the final output file.
         """
-        self.cdm_device = cdm_device
+        self.cdm_device = get_wvd_path()
         self.license_url = license_url
         self.mpd_url = mpd_url
         self.mpd_sub_list = mpd_sub_list or []

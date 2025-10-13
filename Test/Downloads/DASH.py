@@ -10,7 +10,6 @@ sys.path.append(src_path)
 
 
 from StreamingCommunity.Util.message import start_message
-from StreamingCommunity.Util.os import get_wvd_path
 from StreamingCommunity.Util.logger import Logger
 from StreamingCommunity import DASH_Downloader
 
@@ -22,7 +21,6 @@ license_url = ""
 mpd_url = ""
 
 dash_process = DASH_Downloader(
-    cdm_device=get_wvd_path(),
     license_url=license_url,
     mpd_url=mpd_url,
     output_path="out.mp4",

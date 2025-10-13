@@ -3,8 +3,8 @@
 from urllib.parse import urlparse, urlunparse
 
 
-# External library
-import httpx
+# Internal utilities
+from StreamingCommunity.Util.http_client import create_client
 
 
 def try_mpd(url, qualities):
@@ -42,7 +42,7 @@ def try_mpd(url, qualities):
         mpd_url = urlunparse(parsed._replace(path=new_path)).strip()
 
         try:
-            r = httpx.head(mpd_url, timeout=5)
+            r = create_client().head(mpd_url)
             if r.status_code == 200:
                 return mpd_url
             

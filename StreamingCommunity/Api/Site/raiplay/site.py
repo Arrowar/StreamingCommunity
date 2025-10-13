@@ -1,13 +1,12 @@
 # 21.05.24
 
 # External libraries
-import httpx
 from rich.console import Console
 
 
 # Internal utilities
-from StreamingCommunity.Util.config_json import config_manager
-from StreamingCommunity.Util.headers import get_userAgent
+from StreamingCommunity.Util.headers import get_headers
+from StreamingCommunity.Util.http_client import create_client
 from StreamingCommunity.Util.table import TVShowManager
 from StreamingCommunity.Api.Template.config_loader import site_constant
 from StreamingCommunity.Api.Template.Class.SearchType import MediaManager
@@ -21,7 +20,6 @@ from .util.ScrapeSerie import GetSerieInfo
 console = Console()
 media_search_manager = MediaManager()
 table_show_manager = TVShowManager()
-max_timeout = config_manager.get_int("REQUESTS", "timeout")
 
 
 def determine_media_type(item):
@@ -67,13 +65,7 @@ def title_search(query: str) -> int:
     }
 
     try:
-        response = httpx.post(
-            search_url, 
-            headers={'user-agent': get_userAgent()}, 
-            json=json_data, 
-            timeout=max_timeout, 
-            follow_redirects=True
-        )
+        response = create_client(headers=get_headers()).post(search_url, json=json_data)
         response.raise_for_status()
 
     except Exception as e:

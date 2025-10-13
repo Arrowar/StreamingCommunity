@@ -4,14 +4,13 @@ import json
 
 
 # External libraries
-import httpx
 from bs4 import BeautifulSoup
 from rich.console import Console
 
 
 # Internal utilities
-from StreamingCommunity.Util.config_json import config_manager
 from StreamingCommunity.Util.headers import get_userAgent
+from StreamingCommunity.Util.http_client import create_client
 from StreamingCommunity.Util.table import TVShowManager
 from StreamingCommunity.TelegramHelp.telegram_bot import get_bot_instance
 
@@ -25,8 +24,6 @@ from StreamingCommunity.Api.Template.Class.SearchType import MediaManager
 console = Console()
 media_search_manager = MediaManager()
 table_show_manager = TVShowManager()
-max_timeout = config_manager.get_int("REQUESTS", "timeout")
-ssl_verify = config_manager.get_bool("REQUESTS", "verify")
 
 
 def title_search(query: str) -> int:
@@ -46,13 +43,7 @@ def title_search(query: str) -> int:
     table_show_manager.clear()
 
     try:
-        response = httpx.get(
-            f"{site_constant.FULL_URL}/it", 
-            headers={'user-agent': get_userAgent()}, 
-            timeout=max_timeout,
-            verify=ssl_verify,
-	    follow_redirects=True
-        )
+        response = create_client(headers={'user-agent': get_userAgent()}).get(f"{site_constant.FULL_URL}/it")
         response.raise_for_status()
 
         soup = BeautifulSoup(response.text, 'html.parser')
@@ -66,17 +57,7 @@ def title_search(query: str) -> int:
     console.print(f"[cyan]Search url: [yellow]{search_url}")
 
     try:
-        response = httpx.get(
-            search_url, 
-            headers = {
-                'referer': site_constant.FULL_URL,
-                'user-agent': get_userAgent(),
-                'x-inertia': 'true',
-                'x-inertia-version': version
-            },
-            timeout=max_timeout,
-            verify=ssl_verify
-        )
+        response = create_client(headers={'user-agent': get_userAgent(), 'x-inertia': 'true', 'x-inertia-version': version}).get(search_url)
         response.raise_for_status()
 
     except Exception as e:

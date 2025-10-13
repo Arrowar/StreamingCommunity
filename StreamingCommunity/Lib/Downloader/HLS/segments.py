@@ -19,6 +19,7 @@ from rich.console import Console
 # Internal utilities
 from StreamingCommunity.Util.color import Colors
 from StreamingCommunity.Util.headers import get_userAgent
+from StreamingCommunity.Util.http_client import create_client_curl
 from StreamingCommunity.Util.config_json import config_manager
 
 
@@ -98,7 +99,7 @@ class M3U8_Segments:
         self.key_base_url = f"{parsed_url.scheme}://{parsed_url.netloc}/"
         
         try:
-            response = requests.get(url=key_uri, headers=self.custom_headers, timeout=MAX_TIMEOUT, allow_redirects=True, impersonate="chrome136")
+            response = create_client_curl(headers=self.custom_headers).get(key_uri)
             response.raise_for_status()
 
             hex_content = binascii.hexlify(response.content).decode('utf-8')
@@ -145,7 +146,7 @@ class M3U8_Segments:
         """
         if self.is_index_url:
             try:
-                response = requests.get(url=self.url, headers=self.custom_headers, timeout=MAX_TIMEOUT, allow_redirects=True, impersonate="chrome136")
+                response = create_client_curl(headers=self.custom_headers).get(self.url)
                 response.raise_for_status()
                 
                 self.parse_data(response.text)

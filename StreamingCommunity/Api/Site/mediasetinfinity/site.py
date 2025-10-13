@@ -4,12 +4,11 @@ from datetime import datetime
 
 
 # External libraries
-import httpx
 from rich.console import Console
 
 
 # Internal utilities
-from StreamingCommunity.Util.config_json import config_manager
+from StreamingCommunity.Util.http_client import create_client
 from StreamingCommunity.Util.table import TVShowManager
 from StreamingCommunity.Api.Template.config_loader import site_constant
 from StreamingCommunity.Api.Template.Class.SearchType import MediaManager
@@ -23,7 +22,6 @@ from .util.get_license import get_bearer_token
 console = Console()
 media_search_manager = MediaManager()
 table_show_manager = TVShowManager()
-max_timeout = config_manager.get_int("REQUESTS", "timeout")
 
 
 def title_search(query: str) -> int:
@@ -46,15 +44,9 @@ def title_search(query: str) -> int:
         'extensions': f'{{"persistedQuery":{{"version":1,"sha256Hash":"{class_mediaset_api.getHash256()}"}}}}',
         'variables': f'{{"first":10,"property":"search","query":"{query}","uxReference":"filteredSearch"}}',
     }
+    
     try:
-        response = httpx.get(
-            search_url, 
-            headers=class_mediaset_api.generate_request_headers(), 
-            params=params,
-            timeout=max_timeout, 
-            follow_redirects=True
-        )
-
+        response = create_client(headers=class_mediaset_api.generate_request_headers()).get(search_url, params=params)
         response.raise_for_status()
     except Exception as e:
         console.print(f"[red]Site: {site_constant.SITE_NAME}, request search error: {e}")

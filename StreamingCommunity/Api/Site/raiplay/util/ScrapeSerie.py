@@ -3,18 +3,11 @@
 import logging
 
 
-# External libraries
-import httpx
-
-
 # Internal utilities
 from StreamingCommunity.Util.headers import get_headers
-from StreamingCommunity.Util.config_json import config_manager
+from StreamingCommunity.Util.http_client import create_client
 from StreamingCommunity.Api.Player.Helper.Vixcloud.util import SeasonManager
 
-
-# Variable
-max_timeout = config_manager.get_int("REQUESTS", "timeout")
 
 
 class GetSerieInfo:
@@ -32,7 +25,7 @@ class GetSerieInfo:
         """Get series info including seasons."""
         try:
             program_url = f"{self.base_url}/{self.path_id}"
-            response = httpx.get(url=program_url, headers=get_headers(), timeout=max_timeout)
+            response = create_client(headers=get_headers()).get(program_url)
             
             # If 404, content is not yet available
             if response.status_code == 404:
@@ -89,7 +82,7 @@ class GetSerieInfo:
 
             # Se stai leggendo questo codice spieami perche hai fatto cosi.
             url = f"{self.base_url}/{self.path_id.replace('.json', '')}/{self.publishing_block_id}/{season.id}/episodes.json"
-            response = httpx.get(url=url, headers=get_headers(), timeout=max_timeout)
+            response = create_client(headers=get_headers()).get(url)
             response.raise_for_status()
             
             episodes_data = response.json()

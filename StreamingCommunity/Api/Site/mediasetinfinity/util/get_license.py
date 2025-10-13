@@ -7,19 +7,17 @@ import xml.etree.ElementTree as ET
 
 
 # External library
-import httpx
 from bs4 import BeautifulSoup
 from rich.console import Console
 
 
 # Internal utilities
-from StreamingCommunity.Util.config_json import config_manager
+from StreamingCommunity.Util.http_client import create_client
 from StreamingCommunity.Util.headers import get_headers, get_userAgent
 
 
 # Variable
 console = Console()
-MAX_TIMEOUT = config_manager.get_int("REQUESTS", "timeout")
 network_data = []
 class_mediaset_api = None
 
@@ -51,17 +49,13 @@ class MediasetAPI:
             'appName': self.app_name,
             'client_id': self.client_id,
         }
-        response = httpx.post(
-            'https://api-ott-prod-fe.mediaset.net/PROD/play/idm/anonymous/login/v2.0',
-            headers=self.headers,
-            json=json_data,
-        )
+        response = create_client(headers=self.headers).post('https://api-ott-prod-fe.mediaset.net/PROD/play/idm/anonymous/login/v2.0', json=json_data)
         return response.json()['response']['beToken']
 
     def fetch_html(self, timeout=10):
-        r = httpx.get("https://mediasetinfinity.mediaset.it/", timeout=timeout, headers=self.headers)
-        r.raise_for_status()
-        return r.text
+        response = create_client(headers=self.headers).get("https://mediasetinfinity.mediaset.it/")
+        response.raise_for_status()
+        return response.text
 
     def find_relevant_script(self, html):
         soup = BeautifulSoup(html, "html.parser")
@@ -124,13 +118,7 @@ def get_playback_url(CONTENT_ID):
     }
 
     try:
-        response = httpx.post(
-            'https://api-ott-prod-fe.mediaset.net/PROD/play/playback/check/v2.0',
-            headers=headers,
-            json=json_data,
-            follow_redirects=True,
-            timeout=MAX_TIMEOUT
-        )
+        response = create_client(headers=headers).post('https://api-ott-prod-fe.mediaset.net/PROD/play/playback/check/v2.0', json=json_data)
         response.raise_for_status()
         resp_json = response.json()
 
@@ -255,13 +243,7 @@ def get_tracking_info(PLAYBACK_JSON):
         params['publicUrl'] = PLAYBACK_JSON['publicUrl']
 
     try:
-        response = httpx.get(
-            PLAYBACK_JSON['url'],
-            headers={'user-agent': get_userAgent()},
-            params=params,
-            follow_redirects=True,
-            timeout=MAX_TIMEOUT
-        )
+        response = create_client(headers={'user-agent': get_userAgent()}).get(PLAYBACK_JSON['url'], params=params)
         response.raise_for_status()
 
         results = parse_smil_for_media_info(response.text)

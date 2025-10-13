@@ -12,7 +12,7 @@ from rich.prompt import Prompt
 # Internal utilities
 from StreamingCommunity.Util.headers import get_headers
 from StreamingCommunity.Util.message import start_message
-from StreamingCommunity.Util.os import os_manager, get_wvd_path
+from StreamingCommunity.Util.os import os_manager
 
 
 # Logic class
@@ -70,7 +70,6 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
 
     # Download the episode
     dash_process = DASH_Downloader(
-        cdm_device=get_wvd_path(),
         license_url=license_url,
         mpd_url=mpd_url,
         mpd_sub_list=tracking_info['subtitles'],

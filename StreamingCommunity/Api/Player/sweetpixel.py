@@ -3,18 +3,10 @@
 import logging
 
 
-# External libraries
-
-
 # Internal utilities
-from StreamingCommunity.Util.config_json import config_manager
 from StreamingCommunity.Util.headers import get_userAgent
 from StreamingCommunity.Util.http_client import create_client
 
-
-# Variable
-MAX_TIMEOUT = config_manager.get_int("REQUESTS", "timeout")
-REQUEST_VERIFY = config_manager.get_bool('REQUESTS', 'verify')
 
 class VideoSource:
     def __init__(self, site_url, episode_data, session_id, csrf_token):

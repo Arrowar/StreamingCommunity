@@ -4,18 +4,13 @@ import logging
 
 
 # External libraries
-import httpx
 from bs4 import BeautifulSoup
 
 
 # Internal utilities
 from StreamingCommunity.Util.headers import get_userAgent
-from StreamingCommunity.Util.config_json import config_manager
+from StreamingCommunity.Util.http_client import create_client
 from StreamingCommunity.Api.Player.Helper.Vixcloud.util import SeasonManager
-
-
-# Variable
-max_timeout = config_manager.get_int("REQUESTS", "timeout")
 
 
 class GetSerieInfo:
@@ -34,7 +29,7 @@ class GetSerieInfo:
         """
         Retrieve all episodes for all seasons
         """
-        response = httpx.get(self.url, headers=self.headers)
+        response = create_client(headers=self.headers).get(self.url)
         soup = BeautifulSoup(response.text, "html.parser")
         self.series_name = soup.find("title").get_text(strip=True).split(" - ")[0]
 

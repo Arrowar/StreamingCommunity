@@ -146,7 +146,6 @@ mpd_url = "https://example.com/stream.mpd"
 license_url = "https://example.com/get_license"
 
 dash_process = DASH_Downloader(
-    cdm_device=get_wvd_path(),
     license_url=license_url,
     mpd_url=mpd_url,
     output_path="output.mp4",

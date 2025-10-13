@@ -4,13 +4,12 @@ import sys
 
 
 # External libraries
-import httpx
 from rich.console import Console
 
 
 # Internal utilities
 from .obj_tmbd import Json_film
-from StreamingCommunity.Util.config_json import config_manager
+from StreamingCommunity.Util.http_client import create_client
 from StreamingCommunity.Util.table import TVShowManager
 
 
@@ -18,7 +17,6 @@ from StreamingCommunity.Util.table import TVShowManager
 console = Console()
 table_show_manager = TVShowManager()
 api_key = "a800ed6c93274fb857ea61bd9e7256c5"
-MAX_TIMEOUT = config_manager.get_int("REQUESTS", "timeout")
 
 
 def get_select_title(table_show_manager, generic_obj):
@@ -113,7 +111,7 @@ class TheMovieDB:
 
         params['api_key'] = self.api_key
         url = f"{self.base_url}/{endpoint}"
-        response = httpx.get(url, params=params, timeout=MAX_TIMEOUT)
+        response = create_client().get(url, params=params)
         response.raise_for_status()
         
         return response.json()

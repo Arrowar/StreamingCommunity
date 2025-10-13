@@ -3,18 +3,10 @@
 import logging
 
 
-# External libraries
-from curl_cffi import requests
-
-
 # Internal utilities
-from StreamingCommunity.Util.config_json import config_manager
 from StreamingCommunity.Api.Player.Helper.Vixcloud.util import SeasonManager
+from StreamingCommunity.Util.http_client import create_client_curl
 from .get_license import CrunchyrollClient
-
-
-# Variable
-max_timeout = config_manager.get_int("REQUESTS", "timeout")
 
 
 def get_series_seasons(series_id, headers, params):
@@ -22,12 +14,7 @@ def get_series_seasons(series_id, headers, params):
     Fetches the seasons for a given series ID from Crunchyroll.
     """
     url = f'https://www.crunchyroll.com/content/v2/cms/series/{series_id}/seasons'
-    response = requests.get(
-        url,
-        params=params,
-        headers=headers,
-        impersonate="chrome136"
-    )
+    response = create_client_curl(headers=headers).get(url, params=params)
     return response
 
 
@@ -36,12 +23,7 @@ def get_season_episodes(season_id, headers, params):
     Fetches the episodes for a given season ID from Crunchyroll.
     """
     url = f'https://www.crunchyroll.com/content/v2/cms/seasons/{season_id}/episodes'
-    response = requests.get(
-        url,
-        params=params,
-        headers=headers,
-        impersonate="chrome136"
-    )
+    response = create_client_curl(headers=headers).get(url, params=params)
     return response
 
 
@@ -137,12 +119,8 @@ class GetSerieInfo:
             'ratings': 'true',
             'locale': 'it-IT',
         }
-        response = requests.get(
-            url,
-            params=params,
-            headers=headers,
-            impersonate="chrome136"
-        )
+        
+        response = create_client_curl(headers=headers).get(url, params=params)
 
         if response.status_code != 200:
             logging.warning(f"Failed to fetch audio locales for episode {episode_id}")

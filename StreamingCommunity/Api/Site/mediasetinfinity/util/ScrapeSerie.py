@@ -5,17 +5,13 @@ from urllib.parse import urlparse
 
 
 # External libraries
-import httpx
 from bs4 import BeautifulSoup
 
 
 # Internal utilities
-from StreamingCommunity.Util.config_json import config_manager
 from StreamingCommunity.Util.headers import get_headers, get_userAgent
+from StreamingCommunity.Util.http_client import create_client
 from StreamingCommunity.Api.Player.Helper.Vixcloud.util import SeasonManager
-
-# Variable
-max_timeout = config_manager.get_int("REQUESTS", "timeout")
 
 
 class GetSerieInfo:
@@ -46,20 +42,14 @@ class GetSerieInfo:
 
     def _get_series_data(self):
         """Get series data through the API"""
-        headers = {'User-Agent': get_userAgent()}
-        params = {'byGuid': self.serie_id}
-
-        with httpx.Client(timeout=max_timeout, follow_redirects=True) as client:
-            response = client.get(
-                f'https://feed.entertainment.tv.theplatform.eu/f/{self.public_id}/mediaset-prod-all-series-v2',
-                params=params,
-                headers=headers
-            )
-
-        if response.status_code == 200:
+        try:
+            params = {'byGuid': self.serie_id}
+            response = create_client(headers=self.headers).get(f'https://feed.entertainment.tv.theplatform.eu/f/{self.public_id}/mediaset-prod-all-series-v2', params=params)
+            response.raise_for_status()
             return response.json()
-        else:
-            logging.error(f"Failed to get series data: {response.status_code}")
+        
+        except Exception as e:
+            logging.error(f"Failed to get series data with error: {e}")
             return None
 
     def _process_available_seasons(self, data):
@@ -106,32 +96,30 @@ class GetSerieInfo:
 
     def _extract_season_sb_ids(self, stagioni_disponibili):
         """Extract sb IDs from season pages"""
-        with httpx.Client(timeout=max_timeout, follow_redirects=True) as client:
-            for season in stagioni_disponibili:
-                response_page = client.get(
-                    season['page_url'],
-                    headers={'User-Agent': get_userAgent()}
-                )
-                
-                print("Response for _extract_season_sb_ids:", response_page.status_code, " season index:", season['tvSeasonNumber'])
-                soup = BeautifulSoup(response_page.text, 'html.parser')
-                
-                # Try first with 'Episodi', then with 'Puntate intere'
-                link = soup.find('a', string='Episodi')
-                if not link:
-                    #print("Using word: Puntate intere")
-                    link = soup.find('a', string='Puntate intere')
+        client = create_client()
+        
+        for season in stagioni_disponibili:
+            response_page = client.get(season['page_url'], headers={'User-Agent': get_userAgent()})
+            
+            print("Response for _extract_season_sb_ids:", response_page.status_code, " season index:", season['tvSeasonNumber'])
+            soup = BeautifulSoup(response_page.text, 'html.parser')
+            
+            # Try first with 'Episodi', then with 'Puntate intere'
+            link = soup.find('a', string='Episodi')
+            if not link:
+                #print("Using word: Puntate intere")
+                link = soup.find('a', string='Puntate intere')
 
-                    if link is None:
-                        link = soup.find('a', class_ = 'titleCarousel')
-                
-                if link and link.has_attr('href'):
-                    if not link.string == 'Puntate intere':
-                        print("Using word: Episodi")
-                        
-                    season['sb'] = link['href'].split(',')[-1]
-                else:
-                    logging.warning(f"Link 'Episodi' or 'Puntate intere' not found for season {season['tvSeasonNumber']}")
+                if link is None:
+                    link = soup.find('a', class_ = 'titleCarousel')
+            
+            if link and link.has_attr('href'):
+                if not link.string == 'Puntate intere':
+                    print("Using word: Episodi")
+                    
+                season['sb'] = link['href'].split(',')[-1]
+            else:
+                logging.warning(f"Link 'Episodi' or 'Puntate intere' not found for season {season['tvSeasonNumber']}")
 
     def _get_season_episodes(self, season):
         """Get episodes for a specific season"""
@@ -147,11 +135,11 @@ class GetSerieInfo:
             'range': '0-100',
         }
         episode_url = f"https://feed.entertainment.tv.theplatform.eu/f/{self.public_id}/mediaset-prod-all-programs-v2"
-
-        with httpx.Client(timeout=max_timeout, follow_redirects=True) as client:
-            episode_response = client.get(episode_url, headers=episode_headers, params=params)
         
-        if episode_response.status_code == 200:
+        try:
+            episode_response = create_client(headers=episode_headers).get(episode_url, params=params)
+            episode_response.raise_for_status()
+            
             episode_data = episode_response.json()
             season['episodes'] = []
             
@@ -166,8 +154,9 @@ class GetSerieInfo:
                 season['episodes'].append(episode_info)
             
             print(f"Found {len(season['episodes'])} episodes for season {season['tvSeasonNumber']}")
-        else:
-            logging.error(f"Failed to get episodes for season {season['tvSeasonNumber']}: {episode_response.status_code}")
+
+        except Exception as e:
+            logging.error(f"Failed to get episodes for season {season['tvSeasonNumber']} with error: {e}")
 
     def collect_season(self) -> None:
         """

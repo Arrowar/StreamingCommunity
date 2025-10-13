@@ -5,21 +5,17 @@ from typing import List, Dict
 
 
 # External libraries
-import httpx
 from bs4 import BeautifulSoup
 
 
 # Internal utilities
 from StreamingCommunity.Util.headers import get_userAgent
-from StreamingCommunity.Util.config_json import config_manager
+from StreamingCommunity.Util.http_client import create_client
 
 
 # Logic class
 from StreamingCommunity.Api.Template.Class.SearchType import MediaItem
 
-
-# Variable
-max_timeout = config_manager.get_int("REQUESTS", "timeout")
 
 
 class GetSerieInfo:
@@ -43,8 +39,7 @@ class GetSerieInfo:
             int: Number of seasons of the TV series. Returns -1 if parsing fails.
         """
         try:
-            # Make an HTTP request to the series URL
-            response = httpx.get(self.url, headers=self.headers, timeout=max_timeout, follow_redirects=True)
+            response = create_client(headers=self.headers).get(self.url)
             response.raise_for_status()
 
             # Find the seasons container
@@ -72,9 +67,7 @@ class GetSerieInfo:
             List[Dict[str, str]]: List of dictionaries containing episode information.
         """
         try:
-
-            # Make an HTTP request to the series URL
-            response = httpx.get(self.url, headers=self.headers, timeout=max_timeout, follow_redirects=True)
+            response = create_client(headers=self.headers).get(self.url)
             response.raise_for_status()
 
             # Parse HTML content of the page

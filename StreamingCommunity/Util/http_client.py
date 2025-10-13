@@ -8,6 +8,7 @@ from typing import Any, Dict, Optional, Union
 
 # External library
 import httpx
+from curl_cffi import requests
 
 
 # Logic class
@@ -102,6 +103,33 @@ def create_async_client(
         http2=http2,
         proxies=proxies if proxies is not None else _get_proxies(),
     )
+
+
+def create_client_curl(
+    *,
+    headers: Optional[Dict[str, str]] = None,
+    cookies: Optional[Dict[str, str]] = None,
+    timeout: Optional[Union[int, float]] = None,
+    verify: Optional[bool] = None,
+    proxies: Optional[Dict[str, str]] = None,
+    impersonate: str = "chrome136",
+    allow_redirects: bool = True,
+):
+    """Factory for a configured curl_cffi session."""
+    session = requests.Session()
+    session.headers.update(_default_headers(headers))
+    if cookies:
+        session.cookies.update(cookies)
+    session.timeout = timeout if timeout is not None else _get_timeout()
+    session.verify = _get_verify() if verify is None else verify
+    if proxies is not None:
+        session.proxies = proxies
+    elif _get_proxies():
+        session.proxies = _get_proxies()
+    session.impersonate = impersonate
+    session.allow_redirects = allow_redirects
+    
+    return session
 
 
 def _sleep_with_backoff(attempt: int, base: float = 1.1, cap: float = 10.0) -> None:

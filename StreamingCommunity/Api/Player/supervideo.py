@@ -7,17 +7,11 @@ import logging
 # External libraries
 import jsbeautifier
 from bs4 import BeautifulSoup
-from curl_cffi import requests
 
 
 # Internal utilities
-from StreamingCommunity.Util.config_json import config_manager
+from StreamingCommunity.Util.http_client import create_client_curl
 from StreamingCommunity.Util.headers import get_headers
-
-
-# Variable
-MAX_TIMEOUT = config_manager.get_int("REQUESTS", "timeout")
-REQUEST_VERIFY = config_manager.get_bool('REQUESTS', 'verify')
 
 
 class VideoSource:
@@ -42,10 +36,11 @@ class VideoSource:
             - str: The response content if successful, None otherwise.
         """
         try:
-            response = requests.get(url, headers=self.headers, timeout=MAX_TIMEOUT, impersonate="chrome136", verify=REQUEST_VERIFY)
+            response = create_client_curl(headers=self.headers).get(url)
             if response.status_code >= 400:
                 logging.error(f"Request failed with status code: {response.status_code}")
                 return None
+            
             return response.text
         
         except Exception as e:

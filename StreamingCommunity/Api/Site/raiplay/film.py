@@ -5,7 +5,6 @@ from typing import Tuple
 
 
 # External library
-import httpx
 from rich.console import Console
 
 
@@ -13,8 +12,8 @@ from rich.console import Console
 from StreamingCommunity.Util.os import os_manager
 from StreamingCommunity.Util.config_json import config_manager
 from StreamingCommunity.Util.headers import get_headers
+from StreamingCommunity.Util.http_client import create_client
 from StreamingCommunity.Util.message import start_message
-from StreamingCommunity.Util.os import get_wvd_path
 
 # Logic class
 from .util.get_license import generate_license_url
@@ -47,7 +46,7 @@ def download_film(select_title: MediaItem) -> Tuple[str, bool]:
     console.print(f"\n[bold yellow]Download:[/bold yellow] [red]{site_constant.SITE_NAME}[/red] → [cyan]{select_title.name}[/cyan] \n")
 
     # Extract m3u8 URL from the film's URL
-    response = httpx.get(select_title.url + ".json", headers=get_headers(), timeout=10)
+    response = create_client(headers=get_headers()).get(select_title.url + ".json")
     first_item_path =  "https://www.raiplay.it" + response.json().get("first_item_path")
     master_playlist = VideoSource.extract_m3u8_url(first_item_path)
 
@@ -67,7 +66,6 @@ def download_film(select_title: MediaItem) -> Tuple[str, bool]:
         license_url = generate_license_url(select_title.mpd_id)
 
         dash_process = DASH_Downloader(
-            cdm_device=get_wvd_path(),
             license_url=license_url,
             mpd_url=master_playlist,
             output_path=os.path.join(mp4_path, mp4_name),

@@ -2,7 +2,6 @@
 
 
 # External libraries
-import httpx
 from bs4 import BeautifulSoup
 from rich.console import Console
 
@@ -10,6 +9,7 @@ from rich.console import Console
 # Internal utilities
 from StreamingCommunity.Util.config_json import config_manager
 from StreamingCommunity.Util.headers import get_userAgent
+from StreamingCommunity.Util.http_client import create_client
 from StreamingCommunity.Util.table import TVShowManager
 from StreamingCommunity.TelegramHelp.telegram_bot import get_bot_instance
 
@@ -46,12 +46,7 @@ def title_search(query: str) -> int:
     console.print(f"[cyan]Search url: [yellow]{search_url}")
 
     try:
-        response = httpx.post(
-            search_url, 
-            headers={'user-agent': get_userAgent()}, 
-            timeout=max_timeout, 
-            follow_redirects=True
-        )
+        response = create_client(headers={'user-agent': get_userAgent()}).get(search_url)
         response.raise_for_status()
 
     except Exception as e:

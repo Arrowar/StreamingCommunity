@@ -44,8 +44,9 @@ def download_film(select_title: MediaItem):
     console.print(f"\n[bold yellow]Download:[/bold yellow] [red]{site_constant.SITE_NAME}[/red] ([cyan]{scrape_serie.get_name()}[/cyan]) \n")
 
     # Define filename and path for the downloaded video
-    mp4_name = f"{scrape_serie.get_name()}.mp4"
-    mp4_path = os.path.join(site_constant.ANIME_FOLDER, scrape_serie.get_name())
+    serie_name_with_year = os_manager.get_sanitize_file_with_year(scrape_serie.get_name(), select_title.date)
+    mp4_name = f"{serie_name_with_year}.mp4"
+    mp4_path = os.path.join(site_constant.ANIME_FOLDER, serie_name_with_year.replace('.mp4', ''))
 
     # Create output folder
     os_manager.create_path(mp4_path)

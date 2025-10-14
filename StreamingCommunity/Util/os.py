@@ -93,6 +93,50 @@ class OsManager:
         # Ensure the final file name includes the extension
         return name + ext
 
+    def get_sanitize_file_with_year(self, filename: str, year: str) -> str:
+        """
+        Sanitize filename and append year in format 'Title (YYYY)'.
+
+        Parameters:
+            filename (str): The original filename.
+            year (str): The year to append (can be full date, will extract year).
+
+        Returns:
+            str: Sanitized filename with year in format 'Title (YYYY)'.
+        """
+        if not filename:
+            return filename
+
+        # Extract year from date string (handles formats like '2024', '2024-01-01', etc.)
+        year_str = ""
+        if year:
+            year_str = str(year).split('-')[0].strip()
+            # Validate it's a 4-digit year
+            if year_str.isdigit() and len(year_str) == 4:
+                year_str = f" ({year_str})"
+            else:
+                year_str = ""
+
+        # Decode and sanitize the base name
+        decoded = unidecode(filename)
+        sanitized = sanitize_filename(decoded)
+
+        # Split name and extension
+        name, ext = os.path.splitext(sanitized)
+
+        # Append year to name
+        name_with_year = name + year_str
+
+        # Calculate available length for name considering the '...' and extension
+        max_name_length = self.max_length - len('...') - len(ext)
+
+        # Truncate name if it exceeds the max name length
+        if len(name_with_year) > max_name_length:
+            name_with_year = name_with_year[:max_name_length] + '...'
+
+        # Ensure the final file name includes the extension
+        return name_with_year + ext
+
     def get_sanitize_path(self, path: str) -> str:
         """Sanitize complete path."""
         if not path:

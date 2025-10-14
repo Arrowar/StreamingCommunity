@@ -47,7 +47,7 @@ def download_film(select_title: MediaItem) -> str:
     master_playlist = video_source.get_m3u8_url(select_title.url)
 
     # Define the filename and path for the downloaded film
-    title_name = os_manager.get_sanitize_file(select_title.name) + extension_output
+    title_name = os_manager.get_sanitize_file_with_year(select_title.name, select_title.date) + extension_output
     mp4_path = os.path.join(site_constant.MOVIE_FOLDER, title_name.replace(extension_output, ""))
 
     # Download the film using the m3u8 playlist, and output filename

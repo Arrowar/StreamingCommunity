@@ -45,7 +45,7 @@ def download_film(select_title: MediaItem) -> Tuple[str, bool]:
     console.print(f"\n[bold yellow]Download:[/bold yellow] [red]{site_constant.SITE_NAME}[/red] → [cyan]{select_title.name}[/cyan] \n")
 
     # Define the filename and path for the downloaded film
-    title_name = os_manager.get_sanitize_file(select_title.name) + extension_output
+    title_name = os_manager.get_sanitize_file_with_year(select_title.name, select_title.date) + extension_output
     mp4_path = os.path.join(site_constant.MOVIE_FOLDER, title_name.replace(extension_output, ""))
 
     # Generate mpd and license URLs

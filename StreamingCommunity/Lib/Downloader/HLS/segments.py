@@ -168,7 +168,7 @@ class M3U8_Segments:
         """
         Get the file path for a temporary segment.
         """
-        return os.path.join(temp_dir, f"seg_{index:06d}.tmp")
+        return os.path.join(temp_dir, f"seg_{index:06d}.ts")
 
     async def _download_init_segment(self, client: httpx.AsyncClient, output_path: str, progress_bar: tqdm) -> bool:
         """
@@ -214,7 +214,7 @@ class M3U8_Segments:
     async def _download_single_segment(self, client: httpx.AsyncClient, ts_url: str, index: int, temp_dir: str,
                                        semaphore: asyncio.Semaphore, max_retry: int) -> tuple:
         """
-        Downloads a single TS segment and saves to temp file.
+        Downloads a single TS segment and saves to temp file IMMEDIATELY.
 
         Returns:
             tuple: (index, success, retry_count, file_size)
@@ -242,11 +242,13 @@ class M3U8_Segments:
                                 return index, False, attempt, 0
                             raise e
 
-                    # Write to temp file
+                    # Write segment to temp file IMMEDIATELY
                     with open(temp_file, 'wb') as f:
                         f.write(segment_content)
-
-                    return index, True, attempt, len(segment_content)
+                    
+                    size = len(segment_content)
+                    del segment_content
+                    return index, True, attempt, size
 
                 except Exception:
                     if attempt + 1 == max_retry:
@@ -350,6 +352,7 @@ class M3U8_Segments:
                 if os.path.exists(temp_file):
                     with open(temp_file, 'rb') as infile:
                         outfile.write(infile.read())
+                    os.remove(temp_file)
 
     async def download_segments_async(self, description: str, type: str):
         """
@@ -467,13 +470,12 @@ class M3U8_Segments:
         """Ensure resource cleanup and final reporting."""
         progress_bar.close()
         
-        # Delete temp segment files
+        # Delete temp directory if exists
         if temp_dir and os.path.exists(temp_dir):
             try:
-                for idx in range(len(self.segments)):
-                    temp_file = self._get_temp_segment_path(temp_dir, idx)
-                    if os.path.exists(temp_file):
-                        os.remove(temp_file)
+                # Remove any remaining files (in case of interruption)
+                for file in os.listdir(temp_dir):
+                    os.remove(os.path.join(temp_dir, file))
                 os.rmdir(temp_dir)
             except Exception as e:
                 console.print(f"[yellow]Warning: Could not clean temp directory: {e}")

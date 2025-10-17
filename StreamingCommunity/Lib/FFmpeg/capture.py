@@ -129,6 +129,10 @@ def parse_output_line(line: str) -> dict:
             if len(key_value) == 2:
                 key = key_value[0]
                 value = key_value[1]
+
+                # Remove milliseconds from time value
+                if key == 'time' and isinstance(value, str) and '.' in value:
+                    value = value.split('.')[0]
                 data[key] = value
 
         return data

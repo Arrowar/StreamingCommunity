@@ -318,7 +318,7 @@ class ConfigManager:
             logging.error(f"Download of {filename} failed: {e}")
             raise
     
-    def get(self, section: str, key: str, data_type: type = str, from_site: bool = False) -> Any:
+    def get(self, section: str, key: str, data_type: type = str, from_site: bool = False, default: Any = None) -> Any:
         """
         Read a value from the configuration.
         
@@ -327,9 +327,10 @@ class ConfigManager:
             key (str): Key to read
             data_type (type, optional): Expected data type. Default: str
             from_site (bool, optional): Whether to read from the site configuration. Default: False
+            default (Any, optional): Default value if key is not found. Default: None
             
         Returns:
-            Any: The key value converted to the specified data type
+            Any: The key value converted to the specified data type, or default if not found
         """
         cache_key = f"{'site' if from_site else 'config'}.{section}.{key}"
         logging.info(f"Reading key: {cache_key}")
@@ -343,9 +344,15 @@ class ConfigManager:
         
         # Check if the section and key exist
         if section not in config_source:
+            if default is not None:
+                logging.info(f"Section '{section}' not found. Returning default value.")
+                return default
             raise ValueError(f"Section '{section}' not found in {'site' if from_site else 'main'} configuration")
         
         if key not in config_source[section]:
+            if default is not None:
+                logging.info(f"Key '{key}' not found in section '{section}'. Returning default value.")
+                return default
             raise ValueError(f"Key '{key}' not found in section '{section}' of {'site' if from_site else 'main'} configuration")
         
         # Get and convert the value
@@ -356,7 +363,7 @@ class ConfigManager:
         self.cache[cache_key] = converted_value
         
         return converted_value
-    
+
     def _convert_to_data_type(self, value: Any, data_type: type) -> Any:
         """
         Convert the value to the specified data type.
@@ -399,30 +406,30 @@ class ConfigManager:
             raise ValueError(f"Cannot convert '{value}' to {data_type.__name__}: {str(e)}")
     
     # Getters for main configuration
-    def get_string(self, section: str, key: str) -> str:
+    def get_string(self, section: str, key: str, default: str = None) -> str:
         """Read a string from the main configuration."""
-        return self.get(section, key, str)
-    
-    def get_int(self, section: str, key: str) -> int:
+        return self.get(section, key, str, default=default)
+
+    def get_int(self, section: str, key: str, default: int = None) -> int:
         """Read an integer from the main configuration."""
-        return self.get(section, key, int)
-    
-    def get_float(self, section: str, key: str) -> float:
+        return self.get(section, key, int, default=default)
+
+    def get_float(self, section: str, key: str, default: float = None) -> float:
         """Read a float from the main configuration."""
-        return self.get(section, key, float)
-    
-    def get_bool(self, section: str, key: str) -> bool:
+        return self.get(section, key, float, default=default)
+
+    def get_bool(self, section: str, key: str, default: bool = None) -> bool:
         """Read a boolean from the main configuration."""
-        return self.get(section, key, bool)
-    
-    def get_list(self, section: str, key: str) -> List[str]:
+        return self.get(section, key, bool, default=default)
+
+    def get_list(self, section: str, key: str, default: List[str] = None) -> List[str]:
         """Read a list from the main configuration."""
-        return self.get(section, key, list)
-    
-    def get_dict(self, section: str, key: str) -> dict:
+        return self.get(section, key, list, default=default)
+
+    def get_dict(self, section: str, key: str, default: dict = None) -> dict:
         """Read a dictionary from the main configuration."""
-        return self.get(section, key, dict)
-    
+        return self.get(section, key, dict, default=default)
+
     # Getters for site configuration
     def get_site(self, section: str, key: str) -> Any:
         """Read a value from the site configuration."""

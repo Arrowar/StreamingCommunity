@@ -11,7 +11,7 @@ from rich.console import Console
 from StreamingCommunity.Util.os import os_manager
 from StreamingCommunity.Util.config_json import config_manager
 from StreamingCommunity.Util.message import start_message
-from StreamingCommunity.TelegramHelp.telegram_bot import TelegramSession, get_bot_instance
+from StreamingCommunity.TelegramHelp.telegram_bot import TelegramSession
 
 
 # Logic class

@@ -15,7 +15,7 @@ from StreamingCommunity.Util.headers import get_headers
 from StreamingCommunity.Util.http_client import create_client
 from StreamingCommunity.Util.message import start_message
 from StreamingCommunity.Util.config_json import config_manager
-from StreamingCommunity.TelegramHelp.telegram_bot import get_bot_instance, TelegramSession
+from StreamingCommunity.TelegramHelp.telegram_bot import TelegramSession
 
 
 # Logic class

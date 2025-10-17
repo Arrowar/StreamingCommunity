@@ -51,7 +51,7 @@ def download_film(select_title: MediaItem) -> Tuple[str, bool]:
     master_playlist = VideoSource.extract_m3u8_url(first_item_path)
 
     # Define the filename and path for the downloaded film
-    mp4_name = os_manager.get_sanitize_file_with_year(select_title.name, select_title.date) + extension_output
+    mp4_name = os_manager.get_sanitize_file(select_title.name, select_title.date) + extension_output
     mp4_path = os.path.join(site_constant.MOVIE_FOLDER, mp4_name.replace(extension_output, ""))
 
     # HLS

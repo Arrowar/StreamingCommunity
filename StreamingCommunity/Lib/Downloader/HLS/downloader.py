@@ -1,14 +1,12 @@
 # 17.10.24
 
 import os
-import time
 import logging
 import shutil
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 
 # External libraries
-import httpx
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
@@ -17,7 +15,7 @@ from rich.table import Table
 # Internal utilities
 from StreamingCommunity.Util.config_json import config_manager
 from StreamingCommunity.Util.headers import get_userAgent
-from StreamingCommunity.Util.http_client import create_client
+from StreamingCommunity.Util.http_client import fetch
 from StreamingCommunity.Util.os import os_manager, internet_manager
 
 
@@ -40,8 +38,6 @@ MERGE_SUBTITLE = config_manager.get_bool('M3U8_DOWNLOAD', 'merge_subs')
 CLEANUP_TMP = config_manager.get_bool('M3U8_DOWNLOAD', 'cleanup_tmp_folder')
 GET_ONLY_LINK = config_manager.get_int('M3U8_DOWNLOAD', 'get_only_link')
 FILTER_CUSTOM_RESOLUTION = str(config_manager.get('M3U8_CONVERSION', 'force_resolution')).strip().lower()
-RETRY_LIMIT = config_manager.get_int('REQUESTS', 'max_retry')
-MAX_TIMEOUT = config_manager.get_int("REQUESTS", "timeout")
 EXTENSION_OUTPUT = config_manager.get("M3U8_CONVERSION", "extension")
 
 console = Console()
@@ -52,9 +48,9 @@ class HLSClient:
     def __init__(self, custom_headers: Optional[Dict[str, str]] = None):
         self.headers = custom_headers if custom_headers else {'User-Agent': get_userAgent()}
 
-    def request(self, url: str, return_content: bool = False) -> Optional[httpx.Response]:
+    def request(self, url: str, return_content: bool = False) -> Optional[Union[str, bytes]]:
         """
-        Makes HTTP GET requests with retry logic.
+        Makes HTTP GET requests with retry logic using http_client.
 
         Args:
             url: Target URL to request
@@ -68,21 +64,12 @@ class HLSClient:
             logging.error("URL is None or empty, cannot make request")
             return None
 
-        client = create_client(headers=self.headers)
-
-        for attempt in range(RETRY_LIMIT):
-            try:
-                response = client.get(url)
-                response.raise_for_status()
-                return response.content if return_content else response.text
-
-            except Exception as e:
-                logging.error(f"Attempt {attempt+1} failed for URL {url}: {str(e)}")
-                if attempt < RETRY_LIMIT - 1:  # Don't sleep on last attempt
-                    time.sleep(1.5 ** attempt)
-        
-        logging.error(f"All {RETRY_LIMIT} attempts failed for URL: {url}")
-        return None
+        return fetch(
+            url,
+            method="GET",
+            headers=self.headers,
+            return_content=return_content
+        )
 
 
 class PathManager:

@@ -57,13 +57,6 @@ class SiteConstant:
         return os.path.join(base_path, config_manager.get('OUT_FOLDER', 'anime_folder_name'))
     
     @property
-    def COOKIE(self):
-        try:
-            return config_manager.get_dict('SITE_EXTRA', self.SITE_NAME)
-        except KeyError:
-            return None
-    
-    @property
     def TELEGRAM_BOT(self):
         return config_manager.get_bool('DEFAULT', 'telegram_bot')
 

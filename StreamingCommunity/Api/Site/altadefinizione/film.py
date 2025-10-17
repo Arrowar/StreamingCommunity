@@ -44,18 +44,6 @@ def download_film(select_title: MediaItem) -> str:
     Return:
         - str: output path if successful, otherwise None
     """
-    if site_constant.TELEGRAM_BOT:
-        bot = get_bot_instance()
-        bot.send_message(f"Download in corso:\n{select_title.name}", None)
-
-        # Viene usato per lo screen
-        console.print(f"## Download: [red]{select_title.name} ##")
-
-        # Get script_id
-        script_id = TelegramSession.get_session()
-        if script_id != "unknown":
-            TelegramSession.updateScriptId(script_id, select_title.name)
-
     start_message()
     console.print(f"\n[bold yellow]Download:[/bold yellow] [red]{site_constant.SITE_NAME}[/red] → [cyan]{select_title.name}[/cyan] \n")
     

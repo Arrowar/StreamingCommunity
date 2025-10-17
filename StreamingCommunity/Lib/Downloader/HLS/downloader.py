@@ -31,7 +31,6 @@ from .segments import M3U8_Segments
 
 
 # Config
-ENABLE_SUBTITLE = config_manager.get_bool('M3U8_DOWNLOAD', 'download_subtitle')
 DOWNLOAD_SPECIFIC_AUDIO = config_manager.get_list('M3U8_DOWNLOAD', 'specific_list_audio')
 DOWNLOAD_SPECIFIC_SUBTITLE = config_manager.get_list('M3U8_DOWNLOAD', 'specific_list_subtitles')
 MERGE_SUBTITLE = config_manager.get_bool('M3U8_DOWNLOAD', 'merge_subs')
@@ -185,15 +184,15 @@ class M3U8Manager:
                 if s.get('language') in DOWNLOAD_SPECIFIC_AUDIO
             ]
 
+            # Subtitle info
             self.sub_streams = []
-            if ENABLE_SUBTITLE:
-                if "*" in DOWNLOAD_SPECIFIC_SUBTITLE:
-                    self.sub_streams = self.parser._subtitle.get_all_uris_and_names() or []
-                else:
-                    self.sub_streams = [
-                        s for s in (self.parser._subtitle.get_all_uris_and_names() or [])
-                        if s.get('language') in DOWNLOAD_SPECIFIC_SUBTITLE
-                    ]
+            if "*" in DOWNLOAD_SPECIFIC_SUBTITLE:
+                self.sub_streams = self.parser._subtitle.get_all_uris_and_names() or []
+            else:
+                self.sub_streams = [
+                    s for s in (self.parser._subtitle.get_all_uris_and_names() or [])
+                    if s.get('language') in DOWNLOAD_SPECIFIC_SUBTITLE
+                ]
 
     def log_selection(self):
         """Log the stream selection information in a formatted table."""

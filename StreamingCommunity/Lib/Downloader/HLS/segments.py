@@ -485,7 +485,6 @@ class M3U8_Segments:
 
     def _display_error_summary(self) -> None:
         """Generate final error report."""
-        console.print(f"\n[green]Retry Summary: "
-            f"[cyan]Max retries: [red]{self.info_maxRetry} [white] | "
+        console.print(f" [cyan]Max retries: [red]{self.info_maxRetry} [white] | "
             f"[cyan]Total retries: [red]{self.info_nRetry} [white] | "
             f"[cyan]Failed segments: [red]{self.info_nFailed}")

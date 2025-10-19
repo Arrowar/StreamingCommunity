@@ -9,7 +9,7 @@ from rich.console import Console
 
 # Internal utilities
 from StreamingCommunity.Util.headers import get_userAgent
-from StreamingCommunity.Util.http_client import create_client, create_client_curl
+from StreamingCommunity.Util.http_client import create_client_curl
 from StreamingCommunity.Util.table import TVShowManager
 from StreamingCommunity.TelegramHelp.telegram_bot import get_bot_instance
 
@@ -77,7 +77,7 @@ def title_search(query: str) -> int:
 
     # First call: /livesearch
     try:
-        response1 = create_client(headers=headers).post(f'{site_constant.FULL_URL}/livesearch', cookies=cookies, json={'title': query})
+        response1 = create_client_curl(headers=headers).post(f'{site_constant.FULL_URL}/livesearch', cookies=cookies, data={'title': query})
         response1.raise_for_status()
         process_results(response1.json().get('records', []), seen_titles, media_search_manager, choices)
 
@@ -98,7 +98,7 @@ def title_search(query: str) -> int:
             'dubbed': False,
             'season': False
         }
-        response2 = create_client(headers=headers).post(f'{site_constant.FULL_URL}/archivio/get-animes', cookies=cookies, json=json_data)
+        response2 = create_client_curl(headers=headers).post(f'{site_constant.FULL_URL}/archivio/get-animes', cookies=cookies, data=json_data)
         response2.raise_for_status()
         process_results(response2.json().get('records', []), seen_titles, media_search_manager, choices)
 

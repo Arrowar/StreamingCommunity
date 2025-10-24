@@ -2,6 +2,8 @@
 
 import os
 import shutil
+import logging
+from typing import Optional, Dict
 
 
 # External libraries
@@ -72,6 +74,10 @@ class DASH_Downloader:
         self.error = None
         self.stopped = False
         self.output_file = None
+        
+        # For progress tracking
+        self.current_downloader: Optional[MPD_Segments] = None
+        self.current_download_type: Optional[str] = None
 
     def _setup_temp_dirs(self):
         """
@@ -268,6 +274,10 @@ class DASH_Downloader:
                     pssh=self.parser.pssh
                 )
 
+                # Set current downloader for progress tracking
+                self.current_downloader = video_downloader
+                self.current_download_type = 'video'
+
                 try:
                     result = video_downloader.download_streams(description="Video")
                     
@@ -287,6 +297,10 @@ class DASH_Downloader:
                 except Exception as ex:
                     self.error = str(ex)
                     return False
+                
+                finally:
+                    self.current_downloader = None
+                    self.current_download_type = None
 
                 # Decrypt video
                 decrypted_path = os.path.join(self.decrypted_dir, "video.mp4")
@@ -320,6 +334,10 @@ class DASH_Downloader:
                     limit_segments=video_segments_count if video_segments_count > 0 else None
                 )
 
+                # Set current downloader for progress tracking
+                self.current_downloader = audio_downloader
+                self.current_download_type = f"audio_{audio_language}"
+
                 try:
                     result = audio_downloader.download_streams(description=f"Audio {audio_language}")
 
@@ -336,6 +354,10 @@ class DASH_Downloader:
                 except Exception as ex:
                     self.error = str(ex)
                     return False
+                
+                finally:
+                    self.current_downloader = None
+                    self.current_download_type = None
 
                 # Decrypt audio
                 decrypted_path = os.path.join(self.decrypted_dir, "audio.mp4")
@@ -384,6 +406,10 @@ class DASH_Downloader:
                     pssh=self.parser.pssh
                 )
                 
+                # Set current downloader for progress tracking
+                self.current_downloader = video_downloader
+                self.current_download_type = 'video'
+                
                 try:
                     result = video_downloader.download_streams(description="Video")
                     
@@ -404,6 +430,10 @@ class DASH_Downloader:
                     self.error = str(ex)
                     console.print(f"[red]Error downloading video: {ex}[/red]")
                     return False
+                
+                finally:
+                    self.current_downloader = None
+                    self.current_download_type = None
             
             # NO DECRYPTION: just copy/move to decrypted folder
             decrypted_path = os.path.join(self.decrypted_dir, "video.mp4")
@@ -431,6 +461,10 @@ class DASH_Downloader:
                     limit_segments=video_segments_count if video_segments_count > 0 else None
                 )
                 
+                # Set current downloader for progress tracking
+                self.current_downloader = audio_downloader
+                self.current_download_type = f"audio_{audio_language}"
+                
                 try:
                     result = audio_downloader.download_streams(description=f"Audio {audio_language}")
                     
@@ -448,6 +482,10 @@ class DASH_Downloader:
                     self.error = str(ex)
                     console.print(f"[red]Error downloading audio: {ex}[/red]")
                     return False
+                
+                finally:
+                    self.current_downloader = None
+                    self.current_download_type = None
             
             # NO DECRYPTION: just copy/move to decrypted folder
             decrypted_path = os.path.join(self.decrypted_dir, "audio.mp4")
@@ -578,3 +616,18 @@ class DASH_Downloader:
             "error": self.error,
             "stopped": self.stopped
         }
+    
+    def get_progress_data(self) -> Optional[Dict]:
+        """Get current download progress data."""
+        if not self.current_downloader:
+            return None
+
+        try:
+            progress = self.current_downloader.get_progress_data()
+            if progress:
+                progress['download_type'] = self.current_download_type
+            return progress
+            
+        except Exception as e:
+            logging.error(f"Error getting progress data: {e}")
+            return None

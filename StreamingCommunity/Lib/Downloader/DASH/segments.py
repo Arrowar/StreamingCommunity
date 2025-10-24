@@ -3,6 +3,7 @@
 import os
 import asyncio
 import time
+from typing import Dict, Optional
 
 
 # External libraries
@@ -68,6 +69,9 @@ class MPD_Segments:
         # Segment tracking - store only metadata, not content
         self.segment_status = {}  # {idx: {'downloaded': bool, 'size': int}}
         self.segments_lock = asyncio.Lock()
+        
+        # Estimator for progress tracking
+        self.estimator: Optional[M3U8_Ts_Estimator] = None
 
     def get_concat_path(self, output_dir: str = None):
         """
@@ -150,7 +154,7 @@ class MPD_Segments:
         semaphore = asyncio.Semaphore(concurrent_downloads)
 
         # Initialize estimator
-        estimator = M3U8_Ts_Estimator(total_segments=len(segment_urls) + 1)
+        self.estimator = M3U8_Ts_Estimator(total_segments=len(segment_urls) + 1)
 
         self.segment_status = {}
         self.downloaded_segments = set()
@@ -166,17 +170,17 @@ class MPD_Segments:
             async with httpx.AsyncClient(timeout=timeout_config, limits=limits) as client:
                 
                 # Download init segment
-                await self._download_init_segment(client, init_url, concat_path, estimator, progress_bar)
+                await self._download_init_segment(client, init_url, concat_path, progress_bar)
 
                 # Download all segments to temp files
                 await self._download_segments_batch(
-                    client, segment_urls, temp_dir, semaphore, REQUEST_MAX_RETRY, estimator, progress_bar
+                    client, segment_urls, temp_dir, semaphore, REQUEST_MAX_RETRY, progress_bar
                 )
 
                 # Retry failed segments only if enabled
                 if self.enable_retry:
                     await self._retry_failed_segments(
-                        client, segment_urls, temp_dir, semaphore, REQUEST_MAX_RETRY, estimator, progress_bar
+                        client, segment_urls, temp_dir, semaphore, REQUEST_MAX_RETRY, progress_bar
                     )
 
                 # Concatenate all segments IN ORDER
@@ -192,7 +196,7 @@ class MPD_Segments:
         self._verify_download_completion()
         return self._generate_results(stream_type)
 
-    async def _download_init_segment(self, client, init_url, concat_path, estimator, progress_bar):
+    async def _download_init_segment(self, client, init_url, concat_path, progress_bar):
         """
         Download the init segment and update progress/estimator.
         """
@@ -208,25 +212,28 @@ class MPD_Segments:
             with open(concat_path, 'wb') as outfile:
                 if response.status_code == 200:
                     outfile.write(response.content)
-                    estimator.add_ts_file(len(response.content))
+                    if self.estimator:
+                        self.estimator.add_ts_file(len(response.content))
 
             progress_bar.update(1)
-            self._throttled_progress_update(len(response.content), estimator, progress_bar)
+            if self.estimator:
+                self._throttled_progress_update(len(response.content), progress_bar)
 
         except Exception as e:
             progress_bar.close()
             raise RuntimeError(f"Error downloading init segment: {e}")
 
-    def _throttled_progress_update(self, content_size: int, estimator, progress_bar):
+    def _throttled_progress_update(self, content_size: int, progress_bar):
         """
         Throttled progress update to reduce CPU usage.
         """
         current_time = time.time()
         if current_time - self._last_progress_update > self._progress_update_interval:
-            estimator.update_progress_bar(content_size, progress_bar)
+            if self.estimator:
+                self.estimator.update_progress_bar(content_size, progress_bar)
             self._last_progress_update = current_time
 
-    async def _download_segments_batch(self, client, segment_urls, temp_dir, semaphore, max_retry, estimator, progress_bar):
+    async def _download_segments_batch(self, client, segment_urls, temp_dir, semaphore, max_retry, progress_bar):
         """
         Download segments to temporary files - write immediately to disk, not memory.
         """
@@ -287,15 +294,16 @@ class MPD_Segments:
                 self.info_nRetry += nretry
                     
                 progress_bar.update(1)
-                estimator.add_ts_file(size)
-                self._throttled_progress_update(size, estimator, progress_bar)
+                if self.estimator:
+                    self.estimator.add_ts_file(size)
+                    self._throttled_progress_update(size, progress_bar)
 
             except KeyboardInterrupt:
                 self.download_interrupted = True
                 console.print("\n[red]Download interrupted by user (Ctrl+C).")
                 break
 
-    async def _retry_failed_segments(self, client, segment_urls, temp_dir, semaphore, max_retry, estimator, progress_bar):
+    async def _retry_failed_segments(self, client, segment_urls, temp_dir, semaphore, max_retry, progress_bar):
         """
         Retry failed segments up to 3 times.
         """
@@ -354,8 +362,9 @@ class MPD_Segments:
                     self.info_nRetry += nretry
                     
                     progress_bar.update(0)
-                    estimator.add_ts_file(size)
-                    self._throttled_progress_update(size, estimator, progress_bar)
+                    if self.estimator:
+                        self.estimator.add_ts_file(size)
+                        self._throttled_progress_update(size, progress_bar)
 
                 except KeyboardInterrupt:
                     self.download_interrupted = True
@@ -475,3 +484,23 @@ class MPD_Segments:
             f"[cyan]Total retries: [red]{getattr(self, 'info_nRetry', 0)} [white]| "
             f"[cyan]Failed segments: [red]{getattr(self, 'info_nFailed', 0)} [white]| "
             f"[cyan]Failed indices: [red]{failed_indices}")
+    
+    def get_progress_data(self) -> Dict:
+        """Returns current download progress data for API."""
+        if not self.estimator:
+            return None
+            
+        total = self.get_segments_count()
+        downloaded = len(self.downloaded_segments)
+        percentage = (downloaded / total * 100) if total > 0 else 0
+        stats = self.estimator.get_stats(downloaded, total)
+        
+        return {
+            'total_segments': total,
+            'downloaded_segments': downloaded,
+            'failed_segments': self.info_nFailed,
+            'current_speed': stats['download_speed'],
+            'estimated_size': stats['estimated_total_size'],
+            'percentage': round(percentage, 2),
+            'eta_seconds': stats['eta_seconds']
+        }

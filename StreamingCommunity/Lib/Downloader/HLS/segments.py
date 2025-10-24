@@ -488,3 +488,20 @@ class M3U8_Segments:
         console.print(f" [cyan]Max retries: [red]{self.info_maxRetry} [white] | "
             f"[cyan]Total retries: [red]{self.info_nRetry} [white] | "
             f"[cyan]Failed segments: [red]{self.info_nFailed}")
+        
+    def get_progress_data(self) -> Dict:
+        """Returns current download progress data for API consumption."""
+        total = self.get_segments_count()
+        downloaded = len(self.downloaded_segments)
+        percentage = (downloaded / total * 100) if total > 0 else 0
+        stats = self.class_ts_estimator.get_stats(downloaded, total)
+        
+        return {
+            'total_segments': total,
+            'downloaded_segments': downloaded,
+            'failed_segments': self.info_nFailed,
+            'current_speed': stats['download_speed'],
+            'estimated_size': stats['estimated_total_size'],
+            'percentage': round(percentage, 2),
+            'eta_seconds': stats['eta_seconds']
+        }

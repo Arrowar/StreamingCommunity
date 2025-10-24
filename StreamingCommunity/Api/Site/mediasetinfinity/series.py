@@ -22,7 +22,8 @@ from StreamingCommunity.Api.Template.Util import (
     map_episode_title,
     validate_selection, 
     validate_episode_selection, 
-    display_episodes_list
+    display_episodes_list,
+    display_seasons_list
 )
 from StreamingCommunity.Api.Template.config_loader import site_constant
 from StreamingCommunity.Api.Template.Class.SearchType import MediaItem
@@ -148,20 +149,11 @@ def download_series(select_season: MediaItem, season_selection: str = None, epis
         - episode_selection (str, optional): Pre-defined episode selection that bypasses manual input
     """
     scrape_serie = GetSerieInfo(select_season.url)
-
-    # Get total number of seasons 
     seasons_count = scrape_serie.getNumberSeason()
-
-    # Prompt user for season selection and download episodes
-    console.print(f"\n[green]Seasons found: [red]{seasons_count}")
 
     # If season_selection is provided, use it instead of asking for input
     if season_selection is None:
-        index_season_selected = msg.ask(
-            "\n[cyan]Insert season number [yellow](e.g., 1), [red]* [cyan]to download all seasons, "
-            "[yellow](e.g., 1-2) [cyan]for a range of seasons, or [yellow](e.g., 3-*) [cyan]to download from a specific season to the end"
-        )
-
+        index_season_selected = display_seasons_list(scrape_serie.seasons_manager)
     else:
         index_season_selected = season_selection
         console.print(f"\n[cyan]Using provided season selection: [yellow]{season_selection}")
@@ -173,8 +165,6 @@ def download_series(select_season: MediaItem, season_selection: str = None, epis
     # Loop through the selected seasons and download episodes
     for i_season in list_season_select:
         if len(list_season_select) > 1 or index_season_selected == "*":
-            # Download all episodes if multiple seasons are selected or if '*' is used
             download_episode(i_season, scrape_serie, download_all=True)
         else:
-            # Otherwise, let the user select specific episodes for the single season
             download_episode(i_season, scrape_serie, download_all=False, episode_selection=episode_selection)

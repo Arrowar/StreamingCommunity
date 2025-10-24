@@ -16,13 +16,14 @@ class GetSerieInfo:
         self.base_url = "https://www.raiplay.it"
         self.path_id = path_id
         self.series_name = None
-        self.prog_tipology = "film"
         self.prog_description = None
         self.prog_year = None
         self.seasons_manager = SeasonManager()
+        self.season_block_mapping = {}      # Map season number to block_id
+        self.all_seasons_data = []          # Store all seasons before filtering
 
     def collect_info_title(self) -> None:
-        """Get series info including seasons."""
+        """Get series info including seasons from all multimedia blocks."""
         try:
             program_url = f"{self.base_url}/{self.path_id}"
             response = create_client(headers=get_headers()).get(program_url)
@@ -36,76 +37,118 @@ class GetSerieInfo:
             json_data = response.json()
 
             # Get basic program info
-            self.prog_description = json_data.get('program_info', '').get('vanity', '')
-            self.prog_year = json_data.get('program_info', '').get('year', '')
-            self.series_name = json_data.get('program_info', '').get('title', '')
+            program_info = json_data.get('program_info', {})
+            self.prog_description = program_info.get('vanity', '') or program_info.get('description', '')
+            self.prog_year = program_info.get('year', '')
+            self.series_name = program_info.get('title', '') or program_info.get('name', '')
             
-            # Look for seasons in the 'blocks' property
+            # Collect all seasons from all multimedia blocks
+            self.all_seasons_data = []
+            blocks_found = {}
+            
             for block in json_data.get('blocks', []):
-
-                # Check if block is a season block or episodi block
-                if block.get('type') == 'RaiPlay Multimedia Block':
-                    if block.get('name', '').lower() == 'episodi':
-                        self.publishing_block_id = block.get('id')
-
-                        # Extract seasons from sets array
-                        for season_set in block.get('sets', []):
-                            self.prog_tipology = "tv"
-
-                            if 'stagione' in season_set.get('name', '').lower():
-                                self._add_season(season_set, block.get('id'))
-                                
-                    elif 'stagione' in block.get('name', '').lower():
-                        self.publishing_block_id = block.get('id')
-                        self.prog_tipology = "tv"
-
-                        # Extract season directly from block's sets
-                        for season_set in block.get('sets', []):
-                            self._add_season(season_set, block.get('id'))
+                block_type = block.get('type', '')
+                block_name = block.get('name', 'N/A')
+                block_id = block.get('id', '')
+                
+                # Only process multimedia blocks with sets
+                if block_type == 'RaiPlay Multimedia Block' and 'sets' in block:
+                    sets = block.get('sets', [])
+                    
+                    for season_set in sets:
+                        episode_size = season_set.get('episode_size', {})
+                        episode_count = episode_size.get('number', 0)
+                        
+                        # Only add sets with episodes
+                        if episode_count > 0:
+                            self.all_seasons_data.append({
+                                'season_set': season_set,
+                                'block_id': block_id,
+                                'block_name': block_name
+                            })
+                            
+                            # Track which blocks we found
+                            if block_name not in blocks_found:
+                                blocks_found[block_name] = 0
+                            blocks_found[block_name] += 1
+            
+            # Add all collected seasons without any filtering (oldest first)
+            for season_data in reversed(self.all_seasons_data):
+                self._add_season(
+                    season_data['season_set'],
+                    season_data['block_id'],
+                    season_data['block_name']
+                )
 
         except Exception as e:
             logging.error(f"Unexpected error collecting series info: {e}")
 
-    def _add_season(self, season_set: dict, block_id: str):
+    def _add_season(self, season_set: dict, block_id: str, block_name: str):
+        """Add a season combining set name and block name."""
+        set_name = season_set.get('name', '')
+        season_number = len(self.seasons_manager.seasons) + 1
+        
+        # Store block_id mapping
+        self.season_block_mapping[season_number] = {
+            'block_id': block_id,
+            'set_id': season_set.get('id', '')
+        }
+        
         self.seasons_manager.add_season({
             'id': season_set.get('id', ''),
-            'number': len(self.seasons_manager.seasons) + 1,
-            'name': season_set.get('name', ''),
-            'path': season_set.get('path_id', ''),
-            'episodes_count': season_set.get('episode_size', {}).get('number', 0)
+            'number': season_number,
+            'name': set_name,
+            #'episodes_count': season_set.get('episode_size', {}).get('number', 0),
+            'type': block_name
         })
 
     def collect_info_season(self, number_season: int) -> None:
-        """Get episodes for a specific season."""
+        """Get episodes for a specific season using episodes.json endpoint."""
         try:
             season = self.seasons_manager.get_season_by_number(number_season)
-
-            # Se stai leggendo questo codice spieami perche hai fatto cosi.
-            url = f"{self.base_url}/{self.path_id.replace('.json', '')}/{self.publishing_block_id}/{season.id}/episodes.json"
+            block_info = self.season_block_mapping[number_season]
+            block_id = block_info['block_id']
+            set_id = block_info['set_id']
+            
+            # Build episodes endpoint URL
+            base_path = self.path_id.replace('.json', '')
+            url = f"{self.base_url}/{base_path}/{block_id}/{set_id}/episodes.json"
+            
             response = create_client(headers=get_headers()).get(url)
             response.raise_for_status()
             
             episodes_data = response.json()
+            
+            # Navigate nested structure to find cards
             cards = []
+            seasons = episodes_data.get('seasons', [])
+            if seasons:
+                for season_data in seasons:
+                    episodes = season_data.get('episodes', [])
+                    for episode in episodes:
+                        cards.extend(episode.get('cards', []))
             
-            # Extract episodes from different possible structures 
-            if 'seasons' in episodes_data:
-                for season_data in episodes_data.get('seasons', []):
-                    for episode_set in season_data.get('episodes', []):
-                        cards.extend(episode_set.get('cards', []))
-            
+            # Fallback to direct cards if nested structure not found
             if not cards:
                 cards = episodes_data.get('cards', [])
 
             # Add episodes to season
             for ep in cards:
+                video_url = ep.get('video_url', '')
+                mpd_id = ''
+                if video_url and '=' in video_url:
+                    mpd_id = video_url.split("=")[1].strip()
+                
+                weblink = ep.get('weblink', '') or ep.get('url', '')
+                episode_url = f"{self.base_url}{weblink}" if weblink else ''
+                
                 episode = {
                     'id': ep.get('id', ''),
                     'number': ep.get('episode', ''),
-                    'name': ep.get('episode_title', '') or ep.get('toptitle', ''),
-                    'duration': ep.get('duration', ''),
-                    'url': f"{self.base_url}{ep.get('weblink', '')}" if 'weblink' in ep else f"{self.base_url}{ep.get('url', '')}",
-                    'mpd_id': ep.get('video_url').split("=")[1].strip()
+                    'name': ep.get('episode_title', '') or ep.get('name', '') or ep.get('toptitle', ''),
+                    'duration': ep.get('duration', '') or ep.get('duration_in_minutes', ''),
+                    'url': episode_url,
+                    'mpd_id': mpd_id
                 }
                 season.episodes.add(episode)
 

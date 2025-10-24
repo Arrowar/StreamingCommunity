@@ -6,7 +6,8 @@ from .manage_ep import (
     validate_episode_selection, 
     validate_selection, 
     dynamic_format_number,
-    display_episodes_list
+    display_episodes_list,
+    display_seasons_list
 )
 
 __all__ = [
@@ -15,5 +16,6 @@ __all__ = [
     "validate_episode_selection",
     "validate_selection",
     "dynamic_format_number",
-    "display_episodes_list"
+    "display_episodes_list",
+    display_seasons_list
 ]

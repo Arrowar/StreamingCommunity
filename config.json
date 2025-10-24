@@ -12,7 +12,7 @@
         "movie_folder_name": "Movie",
         "serie_folder_name": "Serie",
         "anime_folder_name": "Anime",
-        "map_episode_name": "S%(season)E%(episode).%(episode_name)",
+        "map_episode_name": "%(episode_name) S%(season)E%(episode)",
         "add_siteName": false
     },
     "QBIT_CONFIG": {

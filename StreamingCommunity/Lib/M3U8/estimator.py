@@ -4,6 +4,7 @@ import time
 import logging
 import threading
 from collections import deque
+from typing import Dict
 
 
 # External libraries
@@ -166,3 +167,47 @@ class M3U8_Ts_Estimator:
         self._running = False
         if self.speed_thread.is_alive():
             self.speed_thread.join(timeout=5.0)
+
+    def get_speed_data(self) -> Dict[str, str]:
+        """Returns current speed data thread-safe."""
+        with self.lock:
+            return self.speed.copy()
+    
+    def get_average_segment_size(self) -> int:
+        """Returns average segment size in bytes."""
+        with self.lock:
+            if not self.ts_file_sizes:
+                return 0
+            return int(sum(self.ts_file_sizes) / len(self.ts_file_sizes))
+    
+    def get_stats(self, downloaded_count: int = None, total_segments: int = None) -> Dict:
+        """Returns comprehensive statistics for API."""
+        with self.lock:
+            avg_size = self.get_average_segment_size()
+            total_downloaded = sum(self.ts_file_sizes)
+            
+            # Calculate ETA
+            eta_seconds = 0
+            if downloaded_count is not None and total_segments is not None:
+                speed = self.speed.get('download', 'N/A')
+                if speed != 'N/A' and ' ' in speed:
+                    try:
+                        speed_value, speed_unit = speed.split(' ', 1)
+                        speed_bps = float(speed_value) * (1024 * 1024 if 'MB/s' in speed_unit else 1024 if 'KB/s' in speed_unit else 1)
+                        
+                        remaining_segments = total_segments - downloaded_count
+                        if remaining_segments > 0 and avg_size > 0 and speed_bps > 0:
+                            eta_seconds = int((avg_size * remaining_segments) / speed_bps)
+                    except:
+                        pass
+            
+            return {
+                'total_segments': self.total_segments,
+                'downloaded_count': len(self.ts_file_sizes),
+                'average_segment_size': avg_size,
+                'total_downloaded_bytes': total_downloaded,
+                'estimated_total_size': self.calculate_total_size(),
+                'upload_speed': self.speed.get('upload', 'N/A'),
+                'download_speed': self.speed.get('download', 'N/A'),
+                'eta_seconds': eta_seconds
+            }

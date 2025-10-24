@@ -1,6 +1,7 @@
 # 19.06.24
 
 import sys
+import time
 import logging
 from typing import List
 
@@ -207,6 +208,71 @@ def validate_episode_selection(list_episode_select: List[int], episodes_count: i
             # Prompt the user for valid input again
             input_episodes = input(f"Enter valid episode numbers (1-{episodes_count}): ")
             list_episode_select = list(map(int, input_episodes.split(',')))
+
+
+def display_seasons_list(seasons_manager) -> str:
+    """
+    Display seasons list and handle user input.
+
+    Parameters:
+        - seasons_manager: Manager object containing seasons information.
+
+    Returns:
+        last_command (str): Last command entered by the user.
+    """
+    if len(seasons_manager.seasons) == 1:
+        console.print("\n[green]Only one season available, selecting it automatically[/green]")
+        time.sleep(1)
+        return "1"
+    
+    # Set up table for displaying seasons
+    table_show_manager = TVShowManager()
+
+    # Check if 'type' and 'id' attributes exist in the first season
+    has_type = hasattr(seasons_manager.seasons[0], 'type') and (seasons_manager.seasons[0].type) is not None and str(seasons_manager.seasons[0].type) != ''
+    has_id = hasattr(seasons_manager.seasons[0], 'id') and (seasons_manager.seasons[0].id) is not None and str(seasons_manager.seasons[0].id) != ''
+
+    # Add columns to the table
+    column_info = {
+        "Index": {'color': 'red'},
+        "Name": {'color': 'yellow'}
+    }
+
+    if has_type:
+        column_info["Type"] = {'color': 'magenta'}
+    
+    if has_id:
+        column_info["ID"] = {'color': 'cyan'}
+
+    table_show_manager.add_column(column_info)
+
+    # Populate the table with seasons information
+    for i, season in enumerate(seasons_manager.seasons):
+        season_name = season.name if hasattr(season, 'name') else 'N/A'
+        season_info = {
+            'Index': str(i + 1),
+            'Name': season_name
+        }
+
+        # Add 'Type' and 'ID' if they exist
+        if has_type:
+            season_type = season.type if hasattr(season, 'type') else 'N/A'
+            season_info['Type'] = season_type
+        
+        if has_id:
+            season_id = season.id if hasattr(season, 'id') else 'N/A'
+            season_info['ID'] = season_id
+
+        table_show_manager.add_tv_show(season_info)
+
+    # Run the table and handle user input
+    last_command = table_show_manager.run()
+
+    if last_command in ("q", "quit"):
+        console.print("\n[red]Quit ...")
+        sys.exit(0)
+
+    return last_command
 
 
 def display_episodes_list(episodes_manager) -> str:

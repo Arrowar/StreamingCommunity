@@ -23,7 +23,8 @@ from StreamingCommunity.Api.Template.Util import (
     map_episode_title,
     validate_selection, 
     validate_episode_selection, 
-    display_episodes_list
+    display_episodes_list,
+    display_seasons_list
 )
 from StreamingCommunity.Api.Template.config_loader import site_constant
 from StreamingCommunity.Api.Template.Class.SearchType import MediaItem
@@ -71,17 +72,8 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
             m3u8_url=master_playlist,
             output_path=os.path.join(mp4_path, mp4_name)
         ).start()
-    # Get streaming URL
-    master_playlist = VideoSource.extract_m3u8_url(obj_episode.url)
 
-    # HLS
-    if ".mpd" not in master_playlist:
-        r_proc = HLS_Downloader(
-            m3u8_url=master_playlist,
-            output_path=os.path.join(mp4_path, mp4_name)
-        ).start()
-
-    # MPD
+    # MPD (DASH)
     else:
         full_license_url = generate_license_url(obj_episode.mpd_id)
         license_headers = {
@@ -169,15 +161,10 @@ def download_series(select_season: MediaItem, season_selection: str = None, epis
     # Get seasons info
     scrape_serie.collect_info_title()
     seasons_count = len(scrape_serie.seasons_manager)
-    console.print(f"\n[green]Seasons found: [red]{seasons_count}")
 
     # If season_selection is provided, use it instead of asking for input
     if season_selection is None:
-        index_season_selected = msg.ask(
-            "\n[cyan]Insert season number [yellow](e.g., 1), [red]* [cyan]to download all seasons, "
-            "[yellow](e.g., 1-2) [cyan]for a range of seasons, or [yellow](e.g., 3-*) [cyan]to download from a specific season to the end"
-        )
-
+        index_season_selected = display_seasons_list(scrape_serie.seasons_manager)
     else:
         index_season_selected = season_selection
         console.print(f"\n[cyan]Using provided season selection: [yellow]{season_selection}")

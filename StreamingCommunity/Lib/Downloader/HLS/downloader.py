@@ -155,6 +155,7 @@ class M3U8Manager:
         """
         Selects video, audio, and subtitle streams based on configuration.
         If it's a master playlist, only selects video stream.
+        Auto-selects first audio if only one is available and none match filters.
         """
         if not self.is_master:
             self.video_url, self.video_res = self.m3u8_url, "undefined"
@@ -162,6 +163,7 @@ class M3U8Manager:
             self.sub_streams = []
 
         else:
+            # Video selection logic
             if str(FILTER_CUSTOM_RESOLUTION) == "best":
                 self.video_url, self.video_res = self.parser._video.get_best_uri()
             elif str(FILTER_CUSTOM_RESOLUTION) == "worst":
@@ -173,18 +175,29 @@ class M3U8Manager:
                 # Fallback to best if custom resolution not found
                 if self.video_url is None:
                     self.video_url, self.video_res = self.parser._video.get_best_uri()
-
             else:
                 logging.error("Resolution not recognized.")
                 self.video_url, self.video_res = self.parser._video.get_best_uri()
 
-            # Audio info
+            # Audio selection with auto-select fallback
+            all_audio = self.parser._audio.get_all_uris_and_names() or []
+            
+            # Try to match with configured languages
             self.audio_streams = [
-                s for s in (self.parser._audio.get_all_uris_and_names() or [])
+                s for s in all_audio
                 if s.get('language') in DOWNLOAD_SPECIFIC_AUDIO
             ]
+            
+            # Auto-select first audio if:
+            # 1. No audio matched the filters
+            # 2. At least one audio track is available
+            # 3. Filters are configured (not empty)
+            if not self.audio_streams and all_audio and DOWNLOAD_SPECIFIC_AUDIO:
+                first_audio_lang = all_audio[0].get('language', 'unknown')
+                console.print(f"\n[yellow]Auto-selecting first available audio track: {first_audio_lang}[/yellow]")
+                self.audio_streams = [all_audio[0]]
 
-            # Subtitle info
+            # Subtitle selection
             self.sub_streams = []
             if "*" in DOWNLOAD_SPECIFIC_SUBTITLE:
                 self.sub_streams = self.parser._subtitle.get_all_uris_and_names() or []
@@ -212,27 +225,22 @@ class M3U8Manager:
             
             data_rows.append(["Video", available_video, str(FILTER_CUSTOM_RESOLUTION), downloadable_video])
             
-
             # Subtitle information
             available_subtitles = self.parser._subtitle.get_all_uris_and_names() or []
-            available_sub_languages = [sub.get('language') for sub in available_subtitles]
-            
-            if available_sub_languages:
+            if available_subtitles:
+                available_sub_languages = [sub.get('language') for sub in available_subtitles]
                 available_subs = ', '.join(available_sub_languages)
-                
-                downloadable_sub_languages = available_sub_languages if "*" in DOWNLOAD_SPECIFIC_SUBTITLE else list(set(available_sub_languages) & set(DOWNLOAD_SPECIFIC_SUBTITLE))
+                downloadable_sub_languages = [sub.get('language') for sub in self.sub_streams]
                 downloadable_subs = ', '.join(downloadable_sub_languages) if downloadable_sub_languages else "Nothing"
                 
                 data_rows.append(["Subtitle", available_subs, ', '.join(DOWNLOAD_SPECIFIC_SUBTITLE), downloadable_subs])
 
             # Audio information
             available_audio = self.parser._audio.get_all_uris_and_names() or []
-            available_audio_languages = [audio.get('language') for audio in available_audio]
-            
-            if available_audio_languages:
+            if available_audio:
+                available_audio_languages = [audio.get('language') for audio in available_audio]
                 available_audios = ', '.join(available_audio_languages)
-                
-                downloadable_audio_languages = list(set(available_audio_languages) & set(DOWNLOAD_SPECIFIC_AUDIO))
+                downloadable_audio_languages = [audio.get('language') for audio in self.audio_streams]
                 downloadable_audios = ', '.join(downloadable_audio_languages) if downloadable_audio_languages else "Nothing"
                 
                 data_rows.append(["Audio", available_audios, ', '.join(DOWNLOAD_SPECIFIC_AUDIO), downloadable_audios])
@@ -263,7 +271,8 @@ class M3U8Manager:
 
         console.print(table)
         print("")
-            
+
+
 class DownloadManager:
     """Manages downloading of video, audio, and subtitle streams."""
     def __init__(self, temp_dir: str, client: HLSClient, url_fixer: M3U8_UrlFix, custom_headers: Optional[Dict[str, str]] = None):
@@ -282,6 +291,10 @@ class DownloadManager:
         self.stopped = False
         self.video_segments_count = 0
 
+        # For progress tracking
+        self.current_downloader: Optional[M3U8_Segments] = None
+        self.current_download_type: Optional[str] = None
+
     def download_video(self, video_url: str) -> bool:
         """
         Downloads video segments from the M3U8 playlist.
@@ -299,11 +312,19 @@ class DownloadManager:
                 tmp_folder=video_tmp_dir,
                 custom_headers=self.custom_headers
             )
+
+            # Set current downloader for progress tracking
+            self.current_downloader = downloader
+            self.current_download_type = 'video'
             
             # Download video and get segment count
             result = downloader.download_streams("Video", "video")
             self.video_segments_count = downloader.get_segments_count()
             self.missing_segments.append(result)
+
+            # Reset current downloader after completion
+            self.current_downloader = None
+            self.current_download_type = None
 
             if result.get('stopped', False):
                 self.stopped = True
@@ -313,6 +334,8 @@ class DownloadManager:
         
         except Exception as e:
             logging.error(f"Error downloading video from {video_url}: {str(e)}")
+            self.current_downloader = None
+            self.current_download_type = None
             return False
 
     def download_audio(self, audio: Dict) -> bool:
@@ -334,9 +357,18 @@ class DownloadManager:
                 limit_segments=self.video_segments_count if self.video_segments_count > 0 else None,
                 custom_headers=self.custom_headers
             )
-            
+
+            # Set current downloader for progress tracking
+            self.current_downloader = downloader
+            self.current_download_type = f"audio_{audio['language']}"
+
+            # Download audio
             result = downloader.download_streams(f"Audio {audio['language']}", "audio")
             self.missing_segments.append(result)
+
+            # Reset current downloader after completion
+            self.current_downloader = None
+            self.current_download_type = None
 
             if result.get('stopped', False):
                 self.stopped = True
@@ -346,6 +378,8 @@ class DownloadManager:
         
         except Exception as e:
             logging.error(f"Error downloading audio {audio.get('language', 'unknown')}: {str(e)}")
+            self.current_downloader = None
+            self.current_download_type = None
             return False
 
     def download_subtitle(self, sub: Dict) -> bool:
@@ -645,6 +679,7 @@ class HLS_Downloader:
         """Prints download summary including file size, duration, and any missing segments."""
         missing_ts = False
         missing_info = ""
+
         for item in self.download_manager.missing_segments:
             if int(item['nFailed']) >= 1:
                 missing_ts = True
@@ -652,12 +687,6 @@ class HLS_Downloader:
 
         file_size = internet_manager.format_file_size(os.path.getsize(self.path_manager.output_path))
         duration = print_duration_table(self.path_manager.output_path, description=False, return_string=True)
-
-        panel_content = (
-            f"[cyan]File size: [bold red]{file_size}[/bold red]\n"
-            f"[cyan]Duration: [bold]{duration}[/bold]\n"
-            f"[cyan]Output: [bold]{os.path.abspath(self.path_manager.output_path)}[/bold]"
-        )
 
         if missing_ts:
             panel_content += f"\n{missing_info}"
@@ -674,9 +703,19 @@ class HLS_Downloader:
             os.rename(self.path_manager.output_path, new_filename)
             self.path_manager.output_path = new_filename
 
-        print("")
-        console.print(Panel(
-            panel_content,
-            title=f"{os.path.basename(self.path_manager.output_path.replace('.mp4', ''))}",
-            border_style="green"
-        ))
+        console.print(f"[yellow]Output [red]{os.path.abspath(self.path_manager.output_path)} [cyan]with size [red]{file_size} [cyan]and duration [red]{duration}")
+
+    def get_progress_data(self) -> Optional[Dict]:
+        """Get current download progress data."""
+        if not self.download_manager.current_downloader:
+            return None
+
+        try:
+            progress = self.download_manager.current_downloader.get_progress_data()
+            if progress:
+                progress['download_type'] = self.download_manager.current_download_type
+            return progress
+            
+        except Exception as e:
+            logging.error(f"Error getting progress data: {e}")
+            return None

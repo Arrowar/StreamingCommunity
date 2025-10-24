@@ -78,7 +78,6 @@ def download_film(select_title: MediaItem) -> Tuple[str, bool]:
         # Get final output path and status
         r_proc = dash_process.get_status()
 
-
     if r_proc['error'] is not None:
         try: 
             os.remove(r_proc['path'])

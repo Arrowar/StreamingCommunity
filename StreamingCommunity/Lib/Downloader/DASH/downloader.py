@@ -542,20 +542,7 @@ class DASH_Downloader:
         if os.path.exists(output_file):
             file_size = internet_manager.format_file_size(os.path.getsize(output_file))
             duration = print_duration_table(output_file, description=False, return_string=True)
-
-            panel_content = (
-                f"[cyan]File size: [bold red]{file_size}[/bold red]\n"
-                f"[cyan]Duration: [bold]{duration}[/bold]\n"
-                f"[cyan]Output: [bold]{os.path.abspath(output_file)}[/bold]"
-            )
-
-            print("")
-            console.print(Panel(
-                panel_content,
-                title=f"{os.path.basename(output_file.replace('.mp4', ''))}",
-                border_style="green"
-            ))
-
+            console.print(f"[yellow]Output [red]{os.path.abspath(output_file)} [cyan]with size [red]{file_size} [cyan]and duration [red]{duration}")
         else:
             console.print(f"[red]Output file not found: {output_file}")
 

@@ -12,29 +12,10 @@ from StreamingCommunity.Api.Template.config_loader import site_constant
 from StreamingCommunity.Api.Template.Class.SearchType import MediaManager
 
 
-# Logic Import
-from .util.ScrapeSerie import GetSerieInfo
-
-
 # Variable
 console = Console()
 media_search_manager = MediaManager()
 table_show_manager = TVShowManager()
-
-
-def determine_media_type(item):
-    """
-    Determine if the item is a film or TV series by checking actual seasons count
-    using GetSerieInfo.
-    """
-    try:
-        scraper = GetSerieInfo(item.get('path_id'))
-        scraper.collect_info_title()
-        return scraper.prog_tipology, scraper.prog_description, scraper.prog_year
-    
-    except Exception as e:
-        console.print(f"[red]Error determining media type: {e}[/red]")
-        return None, None, None
 
 
 def title_search(query: str) -> int:
@@ -72,24 +53,49 @@ def title_search(query: str) -> int:
         console.print(f"[red]Site: {site_constant.SITE_NAME}, request search error: {e}")
         return 0
 
-    # Limit to only 15 results for performance
-    data = response.json().get('agg').get('titoli').get('cards')[:15]
+    try:
+        response_data = response.json()
+        cards = response_data.get('agg', {}).get('titoli', {}).get('cards', [])
+        
+        # Limit to only 15 results for performance
+        data = cards[:15]
+        console.print(f"[cyan]Found {len(cards)} results, processing first {len(data)}...[/cyan]")
+        
+    except Exception as e:
+        console.print(f"[red]Error parsing search results: {e}[/red]")
+        return 0
     
     # Process each item and add to media manager
-    for item in data:
-        media_type, prog_description, prog_year = determine_media_type(item)
-        if media_type is None:
-            continue
+    for idx, item in enumerate(data, 1):
+        try:
+            # Get path_id
+            path_id = item.get('path_id', '')
+            if not path_id:
+                console.print("[yellow]Skipping item due to missing path_id[/yellow]")
+                continue
 
-        media_search_manager.add_media({
-            'id': item.get('id', ''),
-            'name': item.get('titolo', ''),
-            'type': media_type,
-            'path_id': item.get('path_id', ''),
-            'url': f"https://www.raiplay.it{item.get('url', '')}",
-            'image': f"https://www.raiplay.it{item.get('immagine', '')}",
-            'desc': prog_description,
-            'year': prog_year
-        })
-          
+            # Get image URL - handle both relative and absolute URLs
+            image = item.get('immagine', '')
+            if image and not image.startswith('http'):
+                image = f"https://www.raiplay.it{image}"
+            
+            # Get URL - handle both relative and absolute URLs
+            url = item.get('url', '')
+            if url and not url.startswith('http'):
+                url = f"https://www.raiplay.it{url}"
+
+            media_search_manager.add_media({
+                'id': item.get('id', ''),
+                'name': item.get('titolo', 'Unknown'),
+                'type': "tv",
+                'path_id': path_id,
+                'url': url,
+                'image': image,
+                'year': image.split("/")[5]
+            })
+    
+        except Exception as e:
+            console.print(f"[red]Error processing item '{item.get('titolo', 'Unknown')}': {e}[/red]")
+            continue
+    
     return media_search_manager.get_length()

@@ -95,9 +95,6 @@ def update():
     except importlib.metadata.PackageNotFoundError:
         current_version = source_code_version
 
-    # Get execution mode
-    execution_mode = get_execution_mode()
-
     # Get commit details
     latest_commit = response_commits[0] if response_commits else None
     if latest_commit:

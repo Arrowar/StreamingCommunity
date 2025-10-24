@@ -8,7 +8,6 @@ from typing import Any, Dict, List, Optional, Union
 
 # External libraries
 from rich.console import Console
-from rich.panel import Panel
 from rich.table import Table
 
 
@@ -688,9 +687,7 @@ class HLS_Downloader:
         file_size = internet_manager.format_file_size(os.path.getsize(self.path_manager.output_path))
         duration = print_duration_table(self.path_manager.output_path, description=False, return_string=True)
 
-        if missing_ts:
-            panel_content += f"\n{missing_info}"
-
+        # Rename output file if there were missing segments or shortest used
         new_filename = self.path_manager.output_path
         if missing_ts and use_shortest:
             new_filename = new_filename.replace(EXTENSION_OUTPUT, f"_failed_sync_ts{EXTENSION_OUTPUT}")
@@ -699,6 +696,7 @@ class HLS_Downloader:
         elif use_shortest:
             new_filename = new_filename.replace(EXTENSION_OUTPUT, f"_failed_sync{EXTENSION_OUTPUT}")
 
+        # Rename the file accordingly
         if missing_ts or use_shortest:
             os.rename(self.path_manager.output_path, new_filename)
             self.path_manager.output_path = new_filename

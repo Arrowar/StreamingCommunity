@@ -198,7 +198,8 @@ class M3U8_Ts_Estimator:
                         remaining_segments = total_segments - downloaded_count
                         if remaining_segments > 0 and avg_size > 0 and speed_bps > 0:
                             eta_seconds = int((avg_size * remaining_segments) / speed_bps)
-                    except:
+                    
+                    except Exception:
                         pass
             
             return {

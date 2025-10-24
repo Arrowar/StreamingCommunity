@@ -76,6 +76,7 @@ def MP4_downloader(url: str, path: str, referer: str = None, headers_: dict = No
     - Single Ctrl+C: Completes download gracefully
     - Triple Ctrl+C: Saves partial download and exits
     """
+    url = url.strip()
     if TELEGRAM_BOT:
         bot = get_bot_instance()
         console.log("####")
@@ -134,20 +135,23 @@ def MP4_downloader(url: str, path: str, referer: str = None, headers_: dict = No
 
                 # Create progress bar with percentage instead of n_fmt/total_fmt
                 console.print("[cyan]You can safely stop the download with [bold]Ctrl+c[bold] [cyan]")
+                
                 progress_bar = tqdm(
                     total=total,
                     ascii='░▒█',
                     bar_format=f"{Colors.YELLOW}MP4{Colors.CYAN} Downloading{Colors.WHITE}: "
-                               f"{Colors.RED}{{percentage:.1f}}% {Colors.MAGENTA}{{bar:40}} {Colors.WHITE}"
-                               f"{Colors.DARK_GRAY}[{Colors.YELLOW}{{elapsed}}{Colors.WHITE} < {Colors.CYAN}{{remaining}}{Colors.DARK_GRAY}] "
-                               f"{Colors.LIGHT_CYAN}{{rate_fmt}}",
+                               f"{Colors.MAGENTA}{{bar:40}} "
+                               f"{Colors.LIGHT_GREEN}{{n_fmt}}{Colors.WHITE}/{Colors.CYAN}{{total_fmt}}"
+                               f" {Colors.DARK_GRAY}[{Colors.YELLOW}{{elapsed}}{Colors.WHITE} < {Colors.CYAN}{{remaining}}{Colors.DARK_GRAY}]"
+                               f"{Colors.WHITE}{{postfix}} ",
                     unit='B',
                     unit_scale=True,
                     unit_divisor=1024,
                     mininterval=0.05,
                     file=sys.stdout
                 )
-
+                
+                start_time = time.time()
                 downloaded = 0
                 with open(temp_path, 'wb') as file, progress_bar as bar:
                     try:
@@ -160,6 +164,14 @@ def MP4_downloader(url: str, path: str, referer: str = None, headers_: dict = No
                                 size = file.write(chunk)
                                 downloaded += size
                                 bar.update(size)
+                                
+                                # Update postfix with speed and final size
+                                elapsed = time.time() - start_time
+                                if elapsed > 0:
+                                    speed = downloaded / elapsed
+                                    speed_str = internet_manager.format_transfer_speed(speed)
+                                    postfix_str = f"{Colors.LIGHT_MAGENTA}@ {Colors.LIGHT_CYAN}{speed_str}"
+                                    bar.set_postfix_str(postfix_str)
 
                     except KeyboardInterrupt:
                         if not interrupt_handler.force_quit:

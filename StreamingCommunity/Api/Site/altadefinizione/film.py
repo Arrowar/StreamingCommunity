@@ -30,7 +30,6 @@ from StreamingCommunity.Api.Player.supervideo import VideoSource
 
 # Variable
 console = Console()
-max_timeout = config_manager.get_int("REQUESTS", "timeout")
 extension_output = config_manager.get("M3U8_CONVERSION", "extension")
 
 

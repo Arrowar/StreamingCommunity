@@ -7,7 +7,6 @@ from rich.console import Console
 
 
 # Internal utilities
-from StreamingCommunity.Util.config_json import config_manager
 from StreamingCommunity.Util.headers import get_userAgent
 from StreamingCommunity.Util.http_client import create_client
 from StreamingCommunity.Util.table import TVShowManager
@@ -23,7 +22,6 @@ from StreamingCommunity.Api.Template.Class.SearchType import MediaManager
 console = Console()
 media_search_manager = MediaManager()
 table_show_manager = TVShowManager()
-max_timeout = config_manager.get_int("REQUESTS", "timeout")
 
 
 def title_search(query: str) -> int:

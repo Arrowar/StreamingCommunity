@@ -45,7 +45,7 @@
         "param_subtitles": ["-c:s", "webvtt"],
         "param_final": ["-c", "copy"],
         "force_resolution": "Best",
-        "extension": ".mkv"
+        "extension": "mkv"
     },
     "REQUESTS": {
         "verify": false,

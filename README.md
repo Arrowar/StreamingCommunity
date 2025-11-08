@@ -273,6 +273,40 @@ To enable qBittorrent integration, follow the setup guide [here](https://github.
     - 480p (640x480)
     - 360p (640x360)
 
+
+#### Output fomat Options
+- `extension`: Choose video format:
+  * `"mp4"`: Output as MP4 file
+  * `"mkv"`: Output as MKV file
+
+Final video will be saved with the selected extension. For each format, specific subtitles parameters need to be set in the M3U8_CONVERSION section.
+
+MP4 example:
+```json
+{
+    "M3U8_CONVERSION": {
+        "param_subtitles": [
+            "-c:s",
+            "mov_text"
+        ],
+        "extension": "mp4"
+    }
+}
+```
+
+MKV example:
+```json
+{
+    "M3U8_CONVERSION": {
+        "param_subtitles": [
+            "-c:s",
+            "webvtt"
+        ],
+        "extension": "mkv"
+    }
+}
+```
+
 #### Link options
 - `get_only_link`: Return M3U8 playlist/index URL instead of downloading
 

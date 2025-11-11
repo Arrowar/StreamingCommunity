@@ -8,7 +8,7 @@ from typing import List, Dict, Optional, Tuple, Any
 
 
 # External library
-from curl_cffi import requests
+import httpx as requests
 from rich.console import Console
 
 

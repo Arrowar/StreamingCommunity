@@ -8,7 +8,7 @@ from typing import Any, Dict, Optional, Union
 
 # External library
 import httpx
-from curl_cffi import requests
+import httpx as requests
 
 
 # Logic class
@@ -147,8 +147,8 @@ def create_client_curl(
     impersonate: str = "chrome136",
     allow_redirects: bool = True,
 ):
-    """Factory for a configured curl_cffi session."""
-    session = requests.Session()
+    """Factory for a configured httpx session."""
+    session = httpx.Client()
     session.headers.update(_default_headers(headers))
     if cookies:
         session.cookies.update(cookies)

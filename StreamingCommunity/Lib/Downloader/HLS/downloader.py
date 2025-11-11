@@ -483,7 +483,7 @@ class MergeManager:
         if not self.audio_streams and not self.sub_streams:
             merged_file = join_video(
                 video_path=video_file,
-                out_path=os.path.join(self.temp_dir, f'video.{EXTENSION_OUTPUT}'),
+                out_path=os.path.join(self.temp_dir, f'video{EXTENSION_OUTPUT}'),
                 codec=self.parser.codec
             )
 
@@ -501,7 +501,7 @@ class MergeManager:
                         })
 
                 if existing_audio_tracks:
-                    merged_audio_path = os.path.join(self.temp_dir, f'merged_audio.{EXTENSION_OUTPUT}')
+                    merged_audio_path = os.path.join(self.temp_dir, f'merged_audio{EXTENSION_OUTPUT}')
                     merged_file, use_shortest = join_audios(
                         video_path=video_file,
                         audio_tracks=existing_audio_tracks,
@@ -522,7 +522,7 @@ class MergeManager:
                         })
 
                 if existing_sub_tracks:
-                    merged_subs_path = os.path.join(self.temp_dir, f'final.{EXTENSION_OUTPUT}')
+                    merged_subs_path = os.path.join(self.temp_dir, f'final{EXTENSION_OUTPUT}')
                     merged_file = join_subtitle(
                         video_path=merged_file,
                         subtitles_list=existing_sub_tracks,

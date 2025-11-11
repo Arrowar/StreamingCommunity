@@ -1,4 +1,4 @@
-from curl_cffi import requests
+import httpx as requests
 import json
 from rich.console import Console
 from rich.table import Table

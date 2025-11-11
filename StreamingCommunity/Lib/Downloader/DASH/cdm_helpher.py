@@ -5,7 +5,7 @@ import logging
 
 
 # External libraries
-from curl_cffi import requests
+import httpx as requests
 from rich.console import Console
 from pywidevine.cdm import Cdm
 from pywidevine.device import Device

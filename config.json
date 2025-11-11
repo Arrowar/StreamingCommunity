@@ -8,7 +8,7 @@
         "bypass_dns": false
     },
     "OUT_FOLDER": {
-        "root_path": "Video",
+        "root_path": "/storage/emulated/0/Download/Termux/Video",
         "movie_folder_name": "Movie",
         "serie_folder_name": "Serie",
         "anime_folder_name": "Anime",

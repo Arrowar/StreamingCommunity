@@ -103,10 +103,9 @@ class PathManager:
             os.makedirs(os.path.join(self.temp_dir, subdir), exist_ok=True)
             
         # Create a .ignore file to prevent temp directory from being indexed by Jellyfin
-        if IGNORE_JELLYFIN_INDEXING:
-            ignore_path = os.path.join(self.temp_dir, '.ignore')
-            with open(ignore_path, 'a', encoding='utf-8'):
-                os.utime(ignore_path, None)
+        ignore_path = os.path.join(self.temp_dir, '.ignore')
+        with open(ignore_path, 'a', encoding='utf-8'):
+            os.utime(ignore_path, None)
 
     def move_final_file(self, final_file: str):
         """Moves the final merged file to the desired output location."""

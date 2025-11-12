@@ -79,17 +79,45 @@ def title_search(query: str) -> int:
 
     for i, dict_title in enumerate(data):
         try:
+            images = dict_title.get('images') or []
+            filename = None
+            preferred_types = ['poster', 'cover', 'cover_mobile', 'background']
+            for ptype in preferred_types:
+                for img in images:
+                    if img.get('type') == ptype and img.get('filename'):
+                        filename = img.get('filename')
+                        break
+
+                if filename:
+                    break
+
+            if not filename and images:
+                filename = images[0].get('filename')
+
+            image_url = None
+            if filename:
+                image_url = f"{site_constant.FULL_URL.replace('stream', 'cdn.stream')}/images/{filename}"
+
+            # Extract date: prefer last_air_date, otherwise try translations (last_air_date or release_date)
+            date = dict_title.get('last_air_date')
+            if not date:
+                for trans in dict_title.get('translations') or []:
+                    if trans.get('key') in ('last_air_date', 'release_date') and trans.get('value'):
+                        date = trans.get('value')
+                        break
+
             media_search_manager.add_media({
                 'id': dict_title.get('id'),
                 'slug': dict_title.get('slug'),
                 'name': dict_title.get('name'),
                 'type': dict_title.get('type'),
-                'date': dict_title.get('last_air_date'),
-                'image': f"{site_constant.FULL_URL.replace('stream', 'cdn.stream')}/images/{dict_title.get('images')[0].get('filename')}"
+                'date': date,
+                'image': image_url
             })
 
             if site_constant.TELEGRAM_BOT:
-                choice_text = f"{i} - {dict_title.get('name')} ({dict_title.get('type')}) - {dict_title.get('last_air_date')}"
+                choice_date = date if date else "N/A"
+                choice_text = f"{i} - {dict_title.get('name')} ({dict_title.get('type')}) - {choice_date}"
                 choices.append(choice_text)
             
         except Exception as e:

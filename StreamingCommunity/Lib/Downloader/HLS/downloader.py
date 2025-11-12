@@ -35,7 +35,6 @@ DOWNLOAD_SPECIFIC_SUBTITLE = config_manager.get_list('M3U8_DOWNLOAD', 'specific_
 MERGE_SUBTITLE = config_manager.get_bool('M3U8_DOWNLOAD', 'merge_subs')
 CLEANUP_TMP = config_manager.get_bool('M3U8_DOWNLOAD', 'cleanup_tmp_folder')
 GET_ONLY_LINK = config_manager.get_int('M3U8_DOWNLOAD', 'get_only_link')
-IGNORE_JELLYFIN_INDEXING = config_manager.get_bool('M3U8_DOWNLOAD', 'ignore_jellyfin_indexing')
 FILTER_CUSTOM_RESOLUTION = str(config_manager.get('M3U8_CONVERSION', 'force_resolution')).strip().lower()
 EXTENSION_OUTPUT = config_manager.get("M3U8_CONVERSION", "extension")
 
@@ -102,6 +101,7 @@ class PathManager:
         os.makedirs(self.temp_dir, exist_ok=True)
         for subdir in ['video', 'audio', 'subs']:
             os.makedirs(os.path.join(self.temp_dir, subdir), exist_ok=True)
+            
         # Create a .ignore file to prevent temp directory from being indexed by Jellyfin
         if IGNORE_JELLYFIN_INDEXING:
             ignore_path = os.path.join(self.temp_dir, '.ignore')

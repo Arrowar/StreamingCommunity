@@ -36,8 +36,7 @@
         ],
         "limit_segment": 0,
         "cleanup_tmp_folder": true,
-        "get_only_link": false,
-        "ignore_jellyfin_indexing": true
+        "get_only_link": false
     },
     "M3U8_CONVERSION": {
         "use_gpu": false,

@@ -24,7 +24,9 @@ show_trending = config_manager.get_bool('DEFAULT', 'show_trending')
 api_key = os.environ.get("TMDB_API_KEY")
 
 if not api_key and show_trending:
-    raise ValueError("TMDB_API_KEY non trovata nel file .env")
+    show_trending = False
+    print("TMDB_API_KEY non trovata nel file .env")
+    #raise ValueError("TMDB_API_KEY non trovata nel file .env")
 
 
 def get_select_title(table_show_manager, generic_obj):
@@ -155,6 +157,10 @@ class TheMovieDB:
         Fetch and display the top 5 trending TV shows of the week.
         Uses cached data if available, otherwise makes a new request.
         """
+
+        if not show_trending:
+            return
+
         if self._cached_trending_tv is None:
             self._cached_trending_tv = self._make_request("trending/tv/week").get("results", [])
         
@@ -172,6 +178,10 @@ class TheMovieDB:
         Fetch and display the top 5 trending films of the week.
         Uses cached data if available, otherwise makes a new request.
         """
+
+        if not show_trending:
+            return
+
         if self._cached_trending_movies is None:
             self._cached_trending_movies = self._make_request("trending/movie/week").get("results", [])
         

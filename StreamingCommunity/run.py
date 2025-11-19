@@ -278,45 +278,23 @@ def force_exit():
     print("Uscita forzata con os._exit(0)")
     os._exit(0)
 
-# Check for .env file
 def check_env_file():
-    console.print("[blue]Checking for .env file...[/blue]")
-    required_keys = ['TMDB_API_KEY']  # Add any other required keys here
+    required_keys = ['TMDB_API_KEY']
 
     env_path = os.path.join(os.getcwd(), '.env')
     if not os.path.isfile(env_path):
-        console.print("[red]ERROR: .env file is missing!")
-        console.print("[red]The program cannot function correctly without the .env configuration file.")
-        console.print("\n[yellow]Please create a .env file in the current directory with the necessary configurations.")
-        console.print("\n[yellow]-> The program will not work until the .env file is created.")
-        # Ask user to create .env file and insert required API keys (loop throug array of required keys)
+        console.print("\n[red]Please create a .env file in the current directory with the necessary configurations.")
 
-        console.print("\n[cyan]Let's create the .env file now.[/cyan]")
         for key in required_keys:
             while True:
                 value = console.input(f"[cyan]Please enter the value for [bold]{key}[/bold]: [/cyan]").strip()
-                if value:
-                    with open(env_path, 'a') as f:
-                        f.write(f"{key}={value}\n")
-                    console.print(f"[green]{key} added to .env file.[/green]")
-                    break
-                else:
-                    console.print(f"[red]{key} cannot be empty. Please enter a valid value.[/red]")
+
+                with open(env_path, 'a') as f:
+                    f.write(f"{key}={value}\n")
+                console.print(f"[green]{key} added to .env file.[/green]")
+                break
+
         console.print("\n[green].env file created successfully. Please restart the application.[/green]")
-        
-        sys.exit(0)
-    else:
-        console.print("[green].env file found.[/green]")
-        # If .env file exists, check for required keys and if values are not empty
-        with open(env_path, 'r') as f:
-            env_content = f.read()
-            for key in required_keys:
-                if f"{key}=" not in env_content or f"{key}=\n" in env_content:
-                    console.print(f"[red]ERROR: {key} is missing or empty in .env file!")
-                    console.print("[red]The program cannot function correctly without the necessary configurations.")
-                    console.print(f"\n[yellow]Please update the .env file and provide a valid value for {key}.")
-                    console.print("\n[yellow]-> The program will not work until the .env file is updated.")
-                    sys.exit(0)
 
 def check_dns():
     """Check DNS configuration and exit if required."""

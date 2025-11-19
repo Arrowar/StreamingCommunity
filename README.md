@@ -75,6 +75,15 @@ python test_run.py
 # Linux/MacOS
 python3 test_run.py
 ```
+---
+
+## TMDB API Key required
+To enable search features, you need to obtain a TMDB API key:
+1. Sign up at [The Movie Database (TMDB)](https://developer.themoviedb.org/docs/getting-started)
+2. Navigate to your account settings and find the API section
+3. Generate a new API key
+4. Add the API key to your .env file (inside the StreamingCommunity directory) under the `TMDB_API_KEY` variable or insert it when required during execution
+
 
 ---
 

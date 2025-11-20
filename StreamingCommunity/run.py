@@ -278,6 +278,7 @@ def force_exit():
     print("Uscita forzata con os._exit(0)")
     os._exit(0)
 
+
 def check_env_file():
     required_keys = ['TMDB_API_KEY']
 
@@ -286,15 +287,24 @@ def check_env_file():
         console.print("\n[red]Please create a .env file in the current directory with the necessary configurations.")
 
         for key in required_keys:
+            console.print(f"\n[yellow]To get your {key}:[/yellow]")
+            console.print(f"[cyan]1. Go to: https://www.themoviedb.org/settings/api/request")
+            console.print(f"[cyan]2. Register or log in to your account")
+            console.print(f"[cyan]3. Create an API request and copy your API key\n[/cyan]")
+            
             while True:
                 value = console.input(f"[cyan]Please enter the value for [bold]{key}[/bold]: [/cyan]").strip()
-
-                with open(env_path, 'a') as f:
-                    f.write(f"{key}={value}\n")
-                console.print(f"[green]{key} added to .env file.[/green]")
-                break
+                
+                if value:
+                    with open(env_path, 'a') as f:
+                        f.write(f"{key}={value}\n")
+                    console.print(f"[green]{key} added to .env file.[/green]")
+                    break
+                else:
+                    console.print(f"[red]Error: {key} cannot be empty. Please try again.[/red]")
 
         console.print("\n[green].env file created successfully. Please restart the application.[/green]")
+
 
 def check_dns():
     """Check DNS configuration and exit if required."""

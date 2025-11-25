@@ -88,29 +88,29 @@ class GetSerieInfo:
             episode_content = table_content.find_all("li")
             list_dict_episode = []
 
-            # Get the season from seasons_manager
-            season = self.seasons_manager.get_season_by_number(n_season)
-            
-            if season:
-                season.episodes.episodes = []
-
             for episode_div in episode_content:
-                index = episode_div.find("a").get("data-num")
-                link = episode_div.find("a").get("data-link")
-                name = episode_div.find("a").get("data-num")
+                episode_link = episode_div.find("a")
+                if not episode_link:
+                    continue
+                
+                # Extract episode information from data attributes
+                data_num = episode_link.get("data-num", "")
+                data_link = episode_link.get("data-link", "")
+                data_title = episode_link.get("data-title", "")
+                
+                # Parse episode number from data-num
+                episode_number = data_num.split('x')[-1] if 'x' in data_num else data_num
+                
+                # Use data-title if available
+                episode_name = data_title if data_title else f"Episodio {episode_number}"
 
                 obj_episode = {
-                    'number': index,
-                    'name': name,
-                    'url': link,
-                    'id': index
+                    'number': episode_number,
+                    'name': episode_name,
+                    'url': data_link,
+                    'id': episode_number
                 }
-                
                 list_dict_episode.append(obj_episode)
-                
-                # Add episode to the season in seasons_manager
-                if season:
-                    season.episodes.add(obj_episode)
 
             return list_dict_episode
         
@@ -132,23 +132,20 @@ class GetSerieInfo:
         """
         Get all episodes for a specific season.
         """
-        season = self.seasons_manager.get_season_by_number(season_number)
+        episodes = self.get_episode_number(season_number)
         
-        if not season:
-            logging.error(f"Season {season_number} not found")
+        if not episodes:
+            logging.error(f"No episodes found for season {season_number}")
             return []
         
-        # If episodes are not loaded yet, fetch them
-        if not season.episodes.episodes:
-            self.get_episode_number(season_number)
-        
-        return season.episodes.episodes
+        return episodes
         
     def selectEpisode(self, season_number: int, episode_index: int) -> dict:
         """
         Get information for a specific episode in a specific season.
         """
-        episodes = self.getEpisodeSeasons(season_number)
+        episodes = self.get_episode_number(season_number)
+        
         if not episodes or episode_index < 0 or episode_index >= len(episodes):
             logging.error(f"Episode index {episode_index} is out of range for season {season_number}")
             return None

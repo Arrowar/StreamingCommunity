@@ -29,6 +29,18 @@ def get_widevine_keys(pssh, license_url, cdm_device_path, headers=None, payload=
     Returns:
         list: List of dicts {'kid': ..., 'key': ...} (only CONTENT keys) or None if error.
     """
+    if not pssh:
+        console.print("[bold red]Invalid PSSH data.[/bold red]")
+        return None
+    
+    if not license_url:
+        console.print("[bold red]Invalid license URL.[/bold red]")
+        return None
+
+    if not cdm_device_path:
+        console.print("[bold red]Invalid CDM device path.[/bold red]")
+        return None
+
     try:
         device = Device.load(cdm_device_path)
         cdm = Cdm.from_device(device)

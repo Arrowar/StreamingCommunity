@@ -70,6 +70,7 @@ def get_user_input(string_to_search: str = None):
     else:
         return msg.ask(f"\n[purple]Insert a word to search in [green]{site_constant.SITE_NAME}").strip()
 
+
 def process_search_result(select_title, selections=None):
     """
     Handles the search result and initiates the download for either a film or series.

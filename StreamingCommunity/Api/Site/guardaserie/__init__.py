@@ -70,7 +70,8 @@ def get_user_input(string_to_search: str = None):
         
     else:
         return msg.ask(f"\n[purple]Insert a word to search in [green]{site_constant.SITE_NAME}").strip()
-    
+
+
 def process_search_result(select_title, selections=None):
     """
     Handles the search result and initiates the download for either a film or series.
@@ -102,6 +103,7 @@ def process_search_result(select_title, selections=None):
     media_search_manager.clear()
     table_show_manager.clear()
     return True
+
 
 def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_item: dict = None, selections: dict = None):
     """

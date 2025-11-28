@@ -26,6 +26,7 @@ DEFAULT_AUDIO_WORKERS = config_manager.get_int('M3U8_DOWNLOAD', 'default_audio_w
 SEGMENT_MAX_TIMEOUT = config_manager.get_int("M3U8_DOWNLOAD", "segment_timeout")
 LIMIT_SEGMENT = config_manager.get_int('M3U8_DOWNLOAD', 'limit_segment')
 ENABLE_RETRY = config_manager.get_bool('M3U8_DOWNLOAD', 'enable_retry')
+CLEANUP_TMP = config_manager.get_bool('M3U8_DOWNLOAD', 'cleanup_tmp_folder')
 
 
 # Variable
@@ -456,7 +457,7 @@ class MPD_Segments:
         progress_bar.close()
         
         # Delete temp segment files
-        if temp_dir and os.path.exists(temp_dir):
+        if CLEANUP_TMP and temp_dir and os.path.exists(temp_dir):
             try:
                 for idx in range(len(self.selected_representation.get('segment_urls', []))):
                     temp_file = os.path.join(temp_dir, f"seg_{idx:06d}.tmp")
@@ -465,8 +466,8 @@ class MPD_Segments:
                 os.rmdir(temp_dir)
 
             except Exception as e:
-                print(f"[yellow]Warning: Could not clean temp directory: {e}")
-        
+                console.print(f"[yellow]Warning: Could not clean temp directory: {e}")
+
         if getattr(self, 'info_nFailed', 0) > 0:
             self._display_error_summary()
             

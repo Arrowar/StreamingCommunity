@@ -356,6 +356,32 @@ class RepresentationParser:
 
 class MPDParser:
     @staticmethod
+    def _is_ad_period(period_id: str, base_url: str) -> bool:
+        """
+        Detect if a Period is an advertisement or bumper.
+        Returns True if it's an ad, False if it's main content.
+        """
+        ad_indicators = [
+            '_ad/',           # Generic ad marker in URL
+            'ad_bumper',      # Ad bumper
+            '/creative/',     # Ad creative folder
+            '_OandO/',        # Pluto TV bumpers
+        ]
+        
+        # Check BaseURL for ad indicators
+        for indicator in ad_indicators:
+            if indicator in base_url:
+                return True
+        
+        # Check Period ID for patterns
+        if period_id:
+            if '_subclip_' in period_id:
+                return False
+            # Short periods (< 60s) are usually ads/bumpers
+        
+        return False
+    
+    @staticmethod
     def _deduplicate_videos(representations: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
         Remove duplicate video representations with same resolution.
@@ -464,8 +490,8 @@ class MPDParser:
     def _fetch_and_parse_mpd(self, custom_headers: Dict[str, str]) -> None:
         """Fetch MPD content and parse XML"""
         response = requests.get(self.mpd_url, headers=custom_headers, timeout=max_timeout, impersonate="chrome124")
-        
         response.raise_for_status()
+        
         logging.info(f"Successfully fetched MPD: {response.content}")
         self.root = ET.fromstring(response.content)
 
@@ -512,42 +538,46 @@ class MPDParser:
         return base
 
     def _parse_representations(self) -> None:
-        """Parse all representations from the MPD and aggregate segments for same rep IDs"""
+        """Parse all representations from the MPD, filtering out ads and aggregating main content"""
         base_url = self._get_initial_base_url()
         representation_parser = RepresentationParser(self.mpd_url, self.ns)
         
         # Dictionary to aggregate representations by ID
         rep_aggregator = {}
+        periods = self.root.findall('.//mpd:Period', self.ns)
 
-        for period in self.root.findall('.//mpd:Period', self.ns):
+        for period_idx, period in enumerate(periods):
+            period_id = period.get('id', f'period_{period_idx}')
             period_base_url = self._get_period_base_url(period, base_url)
+            
+            # CHECK IF THIS IS AN AD PERIOD
+            is_ad = self._is_ad_period(period_id, period_base_url)
+            
+            # Skip ad periods
+            if is_ad:
+                continue
             
             for adapt_set in period.findall('mpd:AdaptationSet', self.ns):
                 representations = representation_parser.parse_adaptation_set(adapt_set, period_base_url)
                 
-                # Aggregate representations with same ID
                 for rep in representations:
                     rep_id = rep['id']
                     
                     if rep_id not in rep_aggregator:
                         rep_aggregator[rep_id] = rep
+                        #print(f"      ✨ New Rep {rep_id} ({rep['type']}): {len(rep['segment_urls'])} segments")
                     else:
                         existing = rep_aggregator[rep_id]
                         
-                        # Concatenate segment URLs (skip init_url if already present)
+                        # Concatenate segment URLs
                         if rep['segment_urls']:
                             existing['segment_urls'].extend(rep['segment_urls'])
-                        
                         # Update init_url only if it wasn't set before
                         if not existing['init_url'] and rep['init_url']:
                             existing['init_url'] = rep['init_url']
         
         # Convert aggregated dict back to list
         self.representations = list(rep_aggregator.values())
-        
-        # !!!!!DEBUG 
-        #for rep in self.representations:
-        #    print(f"Rep {rep['id']}: Total {len(rep['segment_urls'])} segments after aggregation")
 
     def _deduplicate_representations(self) -> None:
         """Remove duplicate video and audio representations"""

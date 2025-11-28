@@ -59,8 +59,11 @@ class DASH_Downloader:
         self.license_url = license_url
         self.mpd_url = mpd_url
         self.mpd_sub_list = mpd_sub_list or []
-        self.out_path = os.path.splitext(os.path.abspath(os_manager.get_sanitize_path(output_path)))[0]
-        self.original_output_path = output_path
+        
+        # Sanitize the output path to remove invalid characters
+        sanitized_output_path = os_manager.get_sanitize_path(output_path)
+        self.out_path = os.path.splitext(os.path.abspath(sanitized_output_path))[0]
+        self.original_output_path = sanitized_output_path
         self.file_already_exists = os.path.exists(self.original_output_path)
         self.parser = None
 
@@ -519,15 +522,23 @@ class DASH_Downloader:
         use_shortest = False
 
         # Merge video and audio
-        if os.path.exists(video_file) and os.path.exists(audio_file):
-            audio_tracks = [{"path": audio_file}]
-            merged_file, use_shortest = join_audios(video_file, audio_tracks, output_file)
-            
-        elif os.path.exists(video_file):
-            merged_file = join_video(video_file, output_file, codec=None)
-            
-        else:
-            console.print("[red]Video file missing, cannot export[/red]")
+        merged_file = None
+        try:
+            if os.path.exists(video_file) and os.path.exists(audio_file):
+                audio_tracks = [{"path": audio_file}]
+                merged_file, use_shortest = join_audios(video_file, audio_tracks, output_file)
+                
+            elif os.path.exists(video_file):
+                merged_file = join_video(video_file, output_file, codec=None)
+                
+            else:
+                console.print("[red]Video file missing, cannot export[/red]")
+                self.error = "Video file missing, cannot export"
+                return None
+                
+        except Exception as e:
+            console.print(f"[red]Error during merge: {e}[/red]")
+            self.error = f"Merge failed: {e}"
             return None
         
         # Merge subtitles if available
@@ -583,23 +594,27 @@ class DASH_Downloader:
             console.print(f"[yellow]Output [red]{os.path.abspath(output_file)} [cyan]with size [red]{file_size} [cyan]and duration [red]{duration}")
         else:
             console.print(f"[red]Output file not found: {output_file}")
+            self.error = f"Output file not found: {output_file}"
+            return None
 
-        # Clean up: delete only the tmp directory, not the main directory
-        if os.path.exists(self.tmp_dir):
-            shutil.rmtree(self.tmp_dir, ignore_errors=True)
+        if CLEANUP_TMP:
+            
+            # Clean up: delete only the tmp directory, not the main directory
+            if os.path.exists(self.tmp_dir):
+                shutil.rmtree(self.tmp_dir, ignore_errors=True)
 
-        # Only remove the temp base directory if it was created specifically for this download
-        # and if the final output is NOT inside this directory
-        output_dir = os.path.dirname(self.original_output_path)
-        
-        # Check if out_path is different from the actual output directory
-        # and if it's empty, then it's safe to remove
-        if (self.out_path != output_dir and os.path.exists(self.out_path) and not os.listdir(self.out_path)):
-            try:
-                os.rmdir(self.out_path)
+            # Only remove the temp base directory if it was created specifically for this download
+            # and if the final output is NOT inside this directory
+            output_dir = os.path.dirname(self.original_output_path)
+            
+            # Check if out_path is different from the actual output directory
+            # and if it's empty, then it's safe to remove
+            if (self.out_path != output_dir and os.path.exists(self.out_path) and not os.listdir(self.out_path)):
+                try:
+                    os.rmdir(self.out_path)
 
-            except Exception as e:
-                console.print(f"[red]Cannot remove directory {self.out_path}: {e}")
+                except Exception as e:
+                    pass
 
         # Verify the final file exists before returning
         if os.path.exists(output_file):

@@ -161,14 +161,11 @@ def validate_selection(list_season_select: List[int], seasons_count: int) -> Lis
 
             # If the list is empty, the input was completely invalid
             if not valid_seasons:
-                logging.error(f"Invalid selection: The selected seasons are outside the available range (1-{seasons_count}). Please try again.")
-
-                # Re-prompt for valid input
-                input_seasons = input(f"Enter valid season numbers (1-{seasons_count}): ")
+                input_seasons = msg.ask(f"[red]Enter valid season numbers (1-{seasons_count})")
                 list_season_select = list(map(int, input_seasons.split(',')))
-                continue  # Re-prompt the user if the selection is invalid
+                continue
             
-            return valid_seasons  # Return the valid seasons if the input is correct
+            return valid_seasons
         
         except ValueError:
             logging.error("Error: Please enter valid integers separated by commas.")

@@ -15,15 +15,17 @@ from StreamingCommunity.Api.Player.Helper.Vixcloud.util import SeasonManager
 
 
 class GetSerieInfo:
-    def __init__(self, url):
+    def __init__(self, url, min_duration=10):
         """
         Initialize the GetSerieInfo class for scraping TV series information.
         
         Args:
             - url (str): The URL of the streaming site.
+            - min_duration (int): Minimum duration in minutes for episodes to be included
         """
         self.headers = get_headers()
         self.url = url
+        self.min_duration = min_duration
         self.seasons_manager = SeasonManager()
         self.serie_id = None
         self.public_id = None
@@ -71,6 +73,7 @@ class GetSerieInfo:
             if season:
                 stagioni_disponibili.append({
                     'tvSeasonNumber': season['tvSeasonNumber'],
+                    'title': season.get('title', ''),
                     'url': url,
                     'id': str(url).split("/")[-1],
                     'guid': season['guid']
@@ -104,33 +107,33 @@ class GetSerieInfo:
             print("Response for _extract_season_sb_ids:", response_page.status_code, " season index:", season['tvSeasonNumber'])
             soup = BeautifulSoup(response_page.text, 'html.parser')
             
-            # Try first with 'Episodi', then with 'Puntate intere'
-            link = soup.find('a', string='Episodi')
-            if not link:
-                #print("Using word: Puntate intere")
-                link = soup.find('a', string='Puntate intere')
-
-                if link is None:
-                    link = soup.find('a', class_ = 'titleCarousel')
+            # Check for titleCarousel links (multiple categories)
+            carousel_links = soup.find_all('a', class_='titleCarousel')
             
-            if link and link.has_attr('href'):
-                if not link.string == 'Puntate intere':
-                    print("Using word: Episodi")
-                    
-                season['sb'] = link['href'].split(',')[-1]
+            if carousel_links:
+                print(f"Found {len(carousel_links)} titleCarousel categories")
+                season['categories'] = []
+                
+                for carousel_link in carousel_links:
+                    if carousel_link.has_attr('href'):
+                        category_title = carousel_link.find('h2')
+                        category_name = category_title.text.strip() if category_title else 'Unnamed'
+                        sb_id = carousel_link['href'].split(',')[-1]
+                        
+                        season['categories'].append({
+                            'name': category_name,
+                            'sb': sb_id
+                        })
             else:
-                logging.warning(f"Link 'Episodi' or 'Puntate intere' not found for season {season['tvSeasonNumber']}")
+                logging.warning(f"No titleCarousel categories found for season {season['tvSeasonNumber']}")
 
-    def _get_season_episodes(self, season):
+    def _get_season_episodes(self, season, sb_id, category_name):
         """Get episodes for a specific season"""
-        if not season.get('sb'):
-            return
-
         episode_headers = {
             'user-agent': get_userAgent(),
         }
         params = {
-            'byCustomValue': "{subBrandId}{" + str(season["sb"].replace('sb', '')) + "}",
+            'byCustomValue': "{subBrandId}{" + str(sb_id.replace('sb', '')) + "}",
             'sort': ':publishInfo_lastPublished|asc,tvSeasonEpisodeNumber|asc',
             'range': '0-100',
         }
@@ -141,22 +144,33 @@ class GetSerieInfo:
             episode_response.raise_for_status()
             
             episode_data = episode_response.json()
-            season['episodes'] = []
+            episodes = []
+            filtered_count = 0
             
             for entry in episode_data.get('entries', []):
+                duration = int(entry.get('mediasetprogram$duration', 0) / 60) if entry.get('mediasetprogram$duration') else 0
+                
+                # Filter episodes by minimum duration
+                if duration < self.min_duration:
+                    filtered_count += 1
+                    continue
+                
                 episode_info = {
                     'id': entry.get('guid'),
                     'title': entry.get('title'),
-                    'duration': int(entry.get('mediasetprogram$duration', 0) / 60) if entry.get('mediasetprogram$duration') else 0,
+                    'duration': duration,
                     'url': entry.get('media', [{}])[0].get('publicUrl') if entry.get('media') else None,
-                    'name': entry.get('title')
+                    'name': entry.get('title'),
+                    'category': category_name
                 }
-                season['episodes'].append(episode_info)
+                episodes.append(episode_info)
             
-            print(f"Found {len(season['episodes'])} episodes for season {season['tvSeasonNumber']}")
+            print(f"Found {len(episodes)} episodes for season {season['tvSeasonNumber']} ({category_name})")
+            return episodes
 
         except Exception as e:
             logging.error(f"Failed to get episodes for season {season['tvSeasonNumber']} with error: {e}")
+            return []
 
     def collect_season(self) -> None:
         """
@@ -191,7 +205,12 @@ class GetSerieInfo:
             
             # Step 7: Get episodes for each season
             for season in self.stagioni_disponibili:
-                self._get_season_episodes(season)
+                if 'categories' in season:
+                    season['episodes'] = []
+                    for category in season['categories']:
+                        episodes = self._get_season_episodes(season, category['sb'], category['name'])
+                        if episodes:
+                            season['episodes'].extend(episodes)
                 
             # Step 8: Populate seasons manager
             self._populate_seasons_manager()
@@ -209,14 +228,15 @@ class GetSerieInfo:
             if season_data.get('episodes') and len(season_data['episodes']) > 0:
                 season_obj = self.seasons_manager.add_season({
                     'number': season_data['tvSeasonNumber'],
-                    'name': f"Season {season_data['tvSeasonNumber']}"
+                    'name': f"Season {season_data['tvSeasonNumber']}",
+                    'id': season_data.get('title', '')
                 })
                 
                 if season_obj:
                     for episode in season_data['episodes']:
                         season_obj.episodes.add(episode)
                     seasons_with_episodes += 1
-
+        
     # ------------- FOR GUI -------------
     def getNumberSeason(self) -> int:
         """

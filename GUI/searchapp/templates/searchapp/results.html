@@ -154,47 +154,31 @@
                   {% endif %}
               </div>
 
-              <!-- Download Form -->
-              <form class="dl-form space-y-3" action="{% url 'start_download' %}" method="post">
-                {% csrf_token %}
-                <input type="hidden" name="source_alias" value="{{ item.source_alias }}">
-                <input type="hidden" name="item_payload" value='{{ item.payload_json|escape }}'>
-                <!-- Hidden fields that will be filled by JS from the combo ranges -->
-                <input type="hidden" name="season" value="">
-                <input type="hidden" name="episode" value="">
-                
-                <!-- Combo ranges: hidden by default and shown via JS depending on type -->
-                <div class="combo-wrapper space-y-2 hidden">
-                  <div class="season-range grid grid-cols-2 gap-2 hidden">
-                    <div>
-                      <label class="block text-xs font-medium text-gray-300 mb-1">Stagione da</label>
-                      <select class="season-from w-full"></select>
-                    </div>
-                    <div>
-                      <label class="block text-xs font-medium text-gray-300 mb-1">Stagione a</label>
-                      <select class="season-to w-full"></select>
-                    </div>
-                  </div>
-                  <div class="episode-range grid grid-cols-2 gap-2 hidden">
-                    <div>
-                      <label class="block text-xs font-medium text-gray-300 mb-1">Episodio da</label>
-                      <select class="episode-from w-full"></select>
-                    </div>
-                    <div>
-                      <label class="block text-xs font-medium text-gray-300 mb-1">Episodio a</label>
-                      <select class="episode-to w-full"></select>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Download Button -->
-                <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500/50 flex items-center justify-center">
+              <!-- Download Form/Button -->
+              {% if item.is_movie %}
+                <!-- Film: Download diretto -->
+                <form class="dl-form space-y-3" action="{% url 'start_download' %}" method="post">
+                  {% csrf_token %}
+                  <input type="hidden" name="source_alias" value="{{ item.source_alias }}">
+                  <input type="hidden" name="item_payload" value='{{ item.payload_json|escape }}'>
+                  
+                  <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500/50 flex items-center justify-center">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                    </svg>
+                    Scarica
+                  </button>
+                </form>
+              {% else %}
+                <!-- Serie: Vai alla pagina dettagli -->
+                <a href="{% url 'series_detail' %}?source_alias={{ item.source_alias }}&item_payload={{ item.payload_json|urlencode }}" class="block w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500/50 flex items-center justify-center text-center">
                   <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
                   </svg>
-                  Scarica
-                </button>
-              </form>
+                  Visualizza Episodi
+                </a>
+              {% endif %}
               </div>
             </div>
           {% endfor %}
@@ -283,161 +267,11 @@
       border-color: #d1d5db !important;
     }
     
-    /* Force black text for season/episode selects (requested) */
-    /* always comment in english */
-    .combo-wrapper select.season-from,
-    .combo-wrapper select.season-to,
-    .combo-wrapper select.episode-from,
-    .combo-wrapper select.episode-to {
-      color: #111827 !important;
-    }
-    .combo-wrapper select.season-from option,
-    .combo-wrapper select.season-to option,
-    .combo-wrapper select.episode-from option,
-    .combo-wrapper select.episode-to option {
-      color: #111827 !important;
-    }
-    
     /* Smooth scrolling */
     html {
       scroll-behavior: smooth;
     }
   </style>
-  <script>
-    (function(){
-      function getCookie(name) {
-        const value = `; ${document.cookie}`;
-        const parts = value.split(`; ${name}=`);
-        if (parts.length === 2) return parts.pop().split(';').shift();
-      }
-
-      function buildRangeString(fromVal, toVal){
-        const f = parseInt(fromVal, 10);
-        const t = parseInt(toVal, 10);
-        if (!f && !t) return "";
-        if (!!f && !t) return String(f);
-        if (!f && !!t) return String(t);
-        return f === t ? String(f) : `${f}-${t}`;
-      }
-
-      function populateSelect(selectEl, min, max){
-        selectEl.innerHTML = '';
-        const emptyOpt = document.createElement('option');
-        emptyOpt.value = '';
-        emptyOpt.textContent = '-';
-        selectEl.appendChild(emptyOpt);
-        for (let i=min; i<=max; i++){
-          const opt = document.createElement('option');
-          opt.value = String(i);
-          opt.textContent = String(i);
-          selectEl.appendChild(opt);
-        }
-      }
-
-      async function fetchMetadata(form){
-        const payloadInput = form.querySelector('input[name="item_payload"]');
-        const siteInput = form.querySelector('input[name="source_alias"]');
-        if (!payloadInput || !siteInput) return null;
-        let payload;
-        try { payload = JSON.parse(payloadInput.value); } catch { return null; }
-        try {
-          const res = await fetch('{% url "series_metadata" %}', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-CSRFToken': getCookie('csrftoken') || document.querySelector('input[name=csrfmiddlewaretoken]')?.value || ''
-            },
-            body: JSON.stringify({ source_alias: siteInput.value, item_payload: payload })
-          });
-          if (!res.ok) return null;
-          return await res.json();
-        } catch (e) { return null; }
-      }
-
-      function setupForm(form){
-        const hiddenSeason = form.querySelector('input[name="season"]');
-        const hiddenEpisode = form.querySelector('input[name="episode"]');
-        const comboWrapper = form.querySelector('.combo-wrapper');
-        const seasonRange = form.querySelector('.season-range');
-        const episodeRange = form.querySelector('.episode-range');
-        const seasonFrom = form.querySelector('.season-from');
-        const seasonTo = form.querySelector('.season-to');
-        const episodeFrom = form.querySelector('.episode-from');
-        const episodeTo = form.querySelector('.episode-to');
-
-        if (!hiddenSeason || !hiddenEpisode || !comboWrapper) return;
-
-        const payload = (()=>{ try { return JSON.parse(form.querySelector('input[name="item_payload"]').value) } catch { return {} }})();
-        const type = (payload.type || payload.media_type || '').toLowerCase();
-        if (type === 'film' || type === 'movie' || type === 'ova') {
-          comboWrapper.classList.add('hidden');
-          hiddenSeason.value = '';
-          hiddenEpisode.value = '';
-          return;
-        }
-
-        comboWrapper.classList.remove('hidden');
-
-        fetchMetadata(form).then(data => {
-          if (!data || data.error) {
-            // metadata failure: hide selection entirely and force full download
-            comboWrapper?.classList.add('hidden');
-            if (hiddenSeason) hiddenSeason.value = '*';
-            if (hiddenEpisode) hiddenEpisode.value = '*';
-            return;
-          }
-
-          const seasonsCount = data.seasonsCount || 0;
-          const epsMap = data.episodesPerSeason || {};
-
-          if (seasonsCount <= 1) {
-            // Single-season series: show only episode range, set season=1
-            seasonRange?.classList.add('hidden');
-            episodeRange?.classList.remove('hidden');
-            const maxEp = epsMap[1] || 100;
-            populateSelect(episodeFrom, 1, Math.max(1, maxEp));
-            populateSelect(episodeTo, 1, Math.max(1, maxEp));
-            if (hiddenSeason) hiddenSeason.value = '1';
-          } else {
-            seasonRange?.classList.remove('hidden');
-            episodeRange?.classList.remove('hidden');
-            populateSelect(seasonFrom, 1, seasonsCount);
-            populateSelect(seasonTo, 1, seasonsCount);
-
-            function refreshEpisodeRange(){
-              const sFrom = parseInt(seasonFrom.value || '1', 10);
-              const sTo = parseInt(seasonTo.value || String(seasonsCount), 10);
-              // If multiple seasons selected, episode range will be for first season selection as hint
-              const firstSeason = isNaN(sFrom) ? 1 : sFrom;
-              const maxEp = epsMap[firstSeason] || 100;
-              populateSelect(episodeFrom, 1, Math.max(1, maxEp));
-              populateSelect(episodeTo, 1, Math.max(1, maxEp));
-            }
-
-            seasonFrom.addEventListener('change', refreshEpisodeRange);
-            seasonTo.addEventListener('change', refreshEpisodeRange);
-            refreshEpisodeRange();
-          }
-        });
-
-        function syncHidden(){
-          const s = buildRangeString(seasonFrom?.value || '', seasonTo?.value || '');
-          const e = buildRangeString(episodeFrom?.value || '', episodeTo?.value || '');
-          hiddenSeason.value = s;
-          hiddenEpisode.value = e;
-        }
-
-        [seasonFrom, seasonTo, episodeFrom, episodeTo].forEach(el => {
-          if (el) el.addEventListener('change', syncHidden);
-        });
-        syncHidden();
-      }
-
-      document.addEventListener('DOMContentLoaded', function(){
-        document.querySelectorAll('form.dl-form').forEach(setupForm);
-      });
-    })();
-  </script>
 </body>
 </html>
 

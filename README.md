@@ -167,6 +167,20 @@ dash_process.get_status()
 
 See [DASH example](./Test/Downloads/DASH.py) for complete usage.
 
+<summary>Ⓜ️ MEGA</summary>
+
+```python
+mega = Mega_Downloader()
+m = mega.login()
+
+output_path = m.download_url(
+    url="https://mega.nz/file/0kgCWZZB#7u....",
+    dest_path=".\\prova.mp4"
+)
+```
+
+See [MEGA example](./Test/Downloads/MEGA.py) for complete usage.
+
 ---
 
 ## Configuration

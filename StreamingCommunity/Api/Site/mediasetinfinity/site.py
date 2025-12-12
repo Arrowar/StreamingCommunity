@@ -56,6 +56,9 @@ def title_search(query: str) -> int:
     resp_json = response.json()
     items = resp_json.get("data", {}).get("getSearchPage", {}).get("areaContainersConnection", {}).get("areaContainers", [])[0].get("areas", [])[0].get("sections", [])[0].get("collections", [])[0].get("itemsConnection", {}).get("items", [])
 
+    if len(items) == 1:
+        return 0
+
     # Process items
     for item in items:
         is_series = (

@@ -1,3 +1,6 @@
+# 06-06-2025 By @FrancescoGrazioso -> "https://github.com/FrancescoGrazioso"
+
+
 from django.apps import AppConfig
 
 

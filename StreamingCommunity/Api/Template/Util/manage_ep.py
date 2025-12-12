@@ -291,24 +291,41 @@ def display_episodes_list(episodes_manager) -> str:
     # Set up table for displaying episodes
     table_show_manager = TVShowManager()
 
+    # Check if any episode has a non-empty category
+    has_category = False
+    for media in episodes_manager:
+        category = media.get('category') if isinstance(media, dict) else getattr(media, 'category', None)
+        if category is not None and str(category).strip() != '':
+            has_category = True
+            break
+
     # Add columns to the table
     column_info = {
         "Index": {'color': 'red'},
         "Name": {'color': 'magenta'},
-        "Duration": {'color': 'blue'}
     }
+    
+    if has_category:
+        column_info["Category"] = {'color': 'green'}
+    
+    column_info["Duration"] = {'color': 'blue'}
+    
     table_show_manager.add_column(column_info)
 
     # Populate the table with episodes information
     for i, media in enumerate(episodes_manager):
         name = media.get('name') if isinstance(media, dict) else getattr(media, 'name', None)
         duration = media.get('duration') if isinstance(media, dict) else getattr(media, 'duration', None)
+        category = media.get('category') if isinstance(media, dict) else getattr(media, 'category', None)
 
         episode_info = {
             'Index': str(i + 1),
             'Name': name,
-            'Duration': duration
+            'Duration': duration,
         }
+        
+        if has_category:
+            episode_info['Category'] = category
 
         table_show_manager.add_tv_show(episode_info)
 

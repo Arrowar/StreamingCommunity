@@ -169,6 +169,7 @@ class OsManager:
             bool: True if path created successfully, False otherwise.
         """
         try:
+            path = str(path)
             sanitized_path = self.get_sanitize_path(path)
             os.makedirs(sanitized_path, mode=mode, exist_ok=True)
             return True

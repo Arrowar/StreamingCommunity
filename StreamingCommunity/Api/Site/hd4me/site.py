@@ -36,7 +36,7 @@ def title_search(query: str) -> int:
     media_search_manager.clear()
     table_show_manager.clear()
 
-    search_url = f"https://hd4me.net/lista-film"
+    search_url = "https://hd4me.net/lista-film"
     console.print(f"[cyan]Search url: [yellow]{search_url}")
 
     try:
@@ -63,10 +63,11 @@ def title_search(query: str) -> int:
 
         if query.lower() in title.lower():
             media_dict = {
-                'url': 'https://hd4me.net' + href,
+                'id': id_attr,
                 'name': title,
                 'type': 'film',
-                'id': id_attr
+                'url': 'https://hd4me.net' + href,
+                'image': None
             }
             media_search_manager.add_media(media_dict)
 

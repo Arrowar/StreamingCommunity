@@ -53,9 +53,9 @@ def title_search(query: str) -> int:
         try:
             serie_info = {
                 'name': serie_div.find('a').get("title").replace("streaming guardaserie", ""),
-                'url': serie_div.find('a').get("href"),
                 'type': 'tv',
-                'image': f"{site_constant.FULL_URL}/{serie_div.find('img').get('src')}",
+                'url': serie_div.find('a').get("href"),
+                'image': f"{site_constant.FULL_URL}/{serie_div.find('img').get('src')}"
             }
             media_search_manager.add_media(serie_info)
 

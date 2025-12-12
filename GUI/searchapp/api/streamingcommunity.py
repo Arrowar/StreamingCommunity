@@ -51,33 +51,14 @@ class StreamingCommunityAPI(BaseStreamingAPI):
                 for element in database.media_list:
                     item_dict = element.__dict__.copy() if hasattr(element, '__dict__') else {}
                     
-                    # Extract basic info
-                    title = item_dict.get('title') or item_dict.get('name') or 'Unknown'
-                    item_type = (item_dict.get('type') or 'unknown').lower()
-                    
-                    # Extract poster/image
-                    poster = (item_dict.get('poster') or item_dict.get('poster_url') or item_dict.get('image') or item_dict.get('backdrop'))
-                    if isinstance(poster, dict):
-                        poster = poster.get('url') or poster.get('large')
-                    
-                    # Extract year
-                    year = item_dict.get('year')
-                    release_date = item_dict.get('release_date') or item_dict.get('first_air_date')
-                    if not year and release_date:
-                        try:
-                            year = int(str(release_date)[:4])
-                        except:
-                            pass
-                    
                     media_item = MediaItem(
                         id=item_dict.get('id'),
-                        title=title,
+                        title=item_dict.get('name'),
                         slug=item_dict.get('slug', ''),
-                        type=item_type,
+                        type=item_dict.get('type'),
                         url=item_dict.get('url'),
-                        poster=poster,
-                        release_date=release_date,
-                        year=year,
+                        poster=item_dict.get('image'),
+                        release_date=item_dict.get('date'),
                         raw_data=item_dict
                     )
                     results.append(media_item)

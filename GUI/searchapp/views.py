@@ -42,28 +42,22 @@ def _media_item_to_display_dict(item: MediaItem, source_alias: str) -> Dict[str,
                     parsed_date = datetime.strptime(str(item.release_date)[:10], fmt)
                     display_release = str(parsed_date.year)
                     break
-                except:
+
+                except Exception:
                     continue
+
             if not display_release:
                 try:
                     display_release = str(int(str(item.release_date)[:4]))
-                except:
+
+                except Exception:
                     display_release = str(item.release_date)
-        except:
+
+        except Exception:
             pass
     
     result['display_release'] = display_release
-    
-    # Store full item data as JSON
-    try:
-        result['payload_json'] = json.dumps(item.to_dict())
-    except:
-        result['payload_json'] = json.dumps({
-            'id': item.id,
-            'title': item.title,
-            'slug': item.slug,
-            'type': item.type
-        })
+    result['payload_json'] = json.dumps(item.to_dict())
     
     return result
 
@@ -106,12 +100,7 @@ def search(request: HttpRequest) -> HttpResponse:
     )
 
 
-def _run_download_in_thread(
-    site: str,
-    item_payload: Dict[str, Any],
-    season: str = None,
-    episodes: str = None,
-) -> None:
+def _run_download_in_thread(site: str, item_payload: Dict[str, Any], season: str = None, episodes: str = None) -> None:
     """Run download in background thread."""
     def _task():
         try:
@@ -214,12 +203,7 @@ def start_download(request: HttpRequest) -> HttpResponse:
         return redirect("search_home")
 
     # Extract title for message
-    title = (
-        item_payload.get("display_title")
-        or item_payload.get("title")
-        or item_payload.get("name")
-        or "contenuto selezionato"
-    )
+    title = item_payload.get("title")
 
     # For animeunity, default to all episodes if not specified and not a movie
     site = source_alias.split("_")[0].lower()
@@ -316,23 +300,19 @@ def series_detail(request: HttpRequest) -> HttpResponse:
             messages.error(request, "Errore nel parsing dei dati.")
             return redirect("search_home")
         
-        title = (
-            item_payload.get("display_title")
-            or item_payload.get("title")
-            or item_payload.get("name")
-            or "Serie"
-        )
+        title = item_payload.get("title")
         
         # Prepare download parameters
         if download_type == "full_season":
             episode_selection = "*"
             msg_detail = f"stagione {season_number} completa"
+            
         else:
             episode_selection = selected_episodes.strip() if selected_episodes else None
             if not episode_selection:
                 messages.error(request, "Nessun episodio selezionato.")
                 return redirect("series_detail") + f"?source_alias={source_alias}&item_payload={item_payload_raw}"
-            msg_detail = f"episodi {episode_selection} della stagione {season_number}"
+            msg_detail = f"S{season_number}:E{episode_selection}"
         
         # Start download
         _run_download_in_thread(source_alias, item_payload, season_number, episode_selection)

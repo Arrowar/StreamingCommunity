@@ -79,12 +79,12 @@ def title_search(query: str) -> int:
                     date = ''
 
         media_search_manager.add_media({
-            "url": item.get("cardLink", {}).get("value", ""),
             "id": item.get("guid", ""),
             "name": item.get("cardTitle", "No Title"),
             "type": item_type,
             "image": None,
             "date": date,
+            "url": item.get("cardLink", {}).get("value", "")
         })
 
     return media_search_manager.get_length()

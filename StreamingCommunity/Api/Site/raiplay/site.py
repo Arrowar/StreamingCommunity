@@ -86,9 +86,9 @@ def title_search(query: str) -> int:
 
             media_search_manager.add_media({
                 'id': item.get('id', ''),
-                'name': item.get('titolo', 'Unknown'),
-                'type': "tv",
                 'path_id': path_id,
+                'name': item.get('titolo', 'Unknown'),
+                'type': 'tv',
                 'url': url,
                 'image': image,
                 'year': image.split("/")[5]

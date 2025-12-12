@@ -102,9 +102,9 @@ def title_search(query: str) -> int:
             title = item.get("title", "")
 
             media_search_manager.add_media({
-                'url': url,
                 'name': title,
-                'type': tipo
+                'type': tipo,
+                'url': url
             })
             found += 1
 

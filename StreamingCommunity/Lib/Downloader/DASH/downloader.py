@@ -613,7 +613,7 @@ class DASH_Downloader:
                 try:
                     os.rmdir(self.out_path)
 
-                except Exception as e:
+                except Exception:
                     pass
 
         # Verify the final file exists before returning

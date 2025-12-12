@@ -706,7 +706,10 @@ class HLS_Downloader:
             os.rename(self.path_manager.output_path, new_filename)
             self.path_manager.output_path = new_filename
 
-        console.print(f"[yellow]Output [red]{os.path.abspath(self.path_manager.output_path)} [cyan]with size [red]{file_size} [cyan]and duration [red]{duration}")
+        # Display file information
+        console.print(f"[yellow]Output[white]: [red]{os.path.abspath(self.path_manager.output_path)} \n"
+            f"  [cyan]with size[white]: [red]{file_size} \n"
+            f"      [cyan]and duration[white]: [red]{duration}")
 
     def get_progress_data(self) -> Optional[Dict]:
         """Get current download progress data."""

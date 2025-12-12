@@ -588,14 +588,11 @@ class DASH_Downloader:
                 self.output_file = new_filename
 
         # Display file information
-        if os.path.exists(output_file):
-            file_size = internet_manager.format_file_size(os.path.getsize(output_file))
-            duration = print_duration_table(output_file, description=False, return_string=True)
-            console.print(f"[yellow]Output [red]{os.path.abspath(output_file)} [cyan]with size [red]{file_size} [cyan]and duration [red]{duration}")
-        else:
-            console.print(f"[red]Output file not found: {output_file}")
-            self.error = f"Output file not found: {output_file}"
-            return None
+        file_size = internet_manager.format_file_size(os.path.getsize(output_file))
+        duration = print_duration_table(output_file, description=False, return_string=True)
+        console.print(f"[yellow]Output[white]: [red]{os.path.abspath(output_file)} \n"
+            f"  [cyan]with size[white]: [red]{file_size} \n"
+            f"      [cyan]and duration[white]: [red]{duration}")
 
         if CLEANUP_TMP:
             

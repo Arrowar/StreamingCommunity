@@ -14,7 +14,6 @@ import threading
 from tqdm import tqdm
 from rich.console import Console
 from rich.prompt import Prompt
-from rich.panel import Panel
 
 
 # Internal utilities
@@ -182,14 +181,11 @@ def MP4_downloader(url: str, path: str, referer: str = None, headers_: dict = No
             os.rename(temp_path, path)
 
         if os.path.exists(path):
-            print("")
-            console.print(Panel(
-                f"[bold green]Download completed{' (Partial)' if interrupt_handler.force_quit else ''}![/bold green]\n"
-                f"[cyan]File size: [bold red]{internet_manager.format_file_size(os.path.getsize(path))}[/bold red]\n"
-                f"[cyan]Duration: [bold]{print_duration_table(path, description=False, return_string=True)}[/bold]", 
-                title=f"{os.path.basename(path.replace(f'.{extension_output}', ''))}", 
-                border_style="green"
-            ))
+            file_size = internet_manager.format_file_size(os.path.getsize(path))
+            duration = print_duration_table(path, description=False, return_string=True)
+            console.print(f"[yellow]Output[white]: [red]{os.path.abspath(path)} \n"
+            f"  [cyan]with size[white]: [red]{file_size} \n"
+            f"      [cyan]and duration[white]: [red]{duration}")
 
             if TELEGRAM_BOT:
                 message = f"Download completato{'(Parziale)' if interrupt_handler.force_quit else ''}\nDimensione: {internet_manager.format_file_size(os.path.getsize(path))}\nDurata: {print_duration_table(path, description=False, return_string=True)}\nTitolo: {os.path.basename(path.replace(f'.{extension_output}', ''))}"

@@ -17,7 +17,6 @@ from Crypto.Cipher import AES
 from Crypto.PublicKey import RSA
 from Crypto.Util import Counter
 from rich.console import Console
-from rich.panel import Panel
 
 
 # Internal utilities
@@ -33,6 +32,7 @@ from .crypto import (
 from StreamingCommunity.Util.color import Colors
 from StreamingCommunity.Util.config_json import config_manager
 from StreamingCommunity.Util.os import internet_manager, os_manager
+from StreamingCommunity.Util.headers import get_userAgent
 from ...FFmpeg import print_duration_table
 
 
@@ -240,9 +240,10 @@ class Mega_Downloader:
         start_time = time.time()
         downloaded = 0
 
+        console.print("[cyan]You can safely stop the download with [bold]Ctrl+c[bold] [cyan]")
         with open(output_path, 'wb') as output_file:
-            with httpx.Client(timeout=None) as client:
-                with client.stream('GET', file_url) as response:
+            with httpx.Client(timeout=None, headers={'User-Agent': get_userAgent()}) as client:
+                with client.stream('GET', file_url, headers={'User-Agent': get_userAgent()}) as response:
                     response.raise_for_status()
                     
                     progress_bar = tqdm(
@@ -312,13 +313,9 @@ class Mega_Downloader:
                 output_path.unlink()
             raise ValueError('Mismatched mac')
         
-        print("")
-        console.print(Panel(
-            f"[bold green]Download completed![/bold green]\n"
-            f"[cyan]File size: [bold red]{internet_manager.format_file_size(os.path.getsize(output_path))}[/bold red]\n"
-            f"[cyan]Duration: [bold]{print_duration_table(output_path, description=False, return_string=True)}[/bold]", 
-            title=f"{os.path.basename(str(output_path).replace(f'.{EXTENSION_OUTPUT}', ''))}", 
-            border_style="green"
-        ))
-
-        return output_path
+        # Display file information
+        file_size = internet_manager.format_file_size(os.path.getsize(output_path))
+        duration = print_duration_table(output_path, description=False, return_string=True) 
+        console.print(f"[yellow]Output[white]: [red]{os.path.abspath(output_path)} \n"
+            f"  [cyan]with size[white]: [red]{file_size} \n"
+            f"      [cyan]and duration[white]: [red]{duration}")

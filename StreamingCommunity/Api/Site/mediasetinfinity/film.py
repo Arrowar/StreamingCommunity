@@ -52,7 +52,7 @@ def download_film(select_title: MediaItem) -> Tuple[str, bool]:
     playback_json = get_playback_url(select_title.id)
     tracking_info = get_tracking_info(playback_json)['videos'][0]
 
-    license_url = generate_license_url(tracking_info)
+    license_url, license_params = generate_license_url(tracking_info)
     mpd_url = get_manifest(tracking_info['url'])
 
     # Download the episode
@@ -63,7 +63,7 @@ def download_film(select_title: MediaItem) -> Tuple[str, bool]:
     )
     dash_process.parse_manifest(custom_headers=get_headers())
 
-    if dash_process.download_and_decrypt():
+    if dash_process.download_and_decrypt(query_params=license_params):
         dash_process.finalize_output()
 
     # Get final output path and status

@@ -2,7 +2,6 @@
 
 import re
 import uuid
-from urllib.parse import urlencode
 import xml.etree.ElementTree as ET
 
 
@@ -271,4 +270,4 @@ def generate_license_url(tracking_info):
         'token': class_mediaset_api.getBearerToken(),
     }
     
-    return f"{'https://widevine.entitlement.theplatform.eu/wv/web/ModularDrm/getRawWidevineLicense'}?{urlencode(params)}"
+    return f"{'https://widevine.entitlement.theplatform.eu/wv/web/ModularDrm/getRawWidevineLicense'}", params

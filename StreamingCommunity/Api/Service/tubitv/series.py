@@ -142,16 +142,10 @@ def download_series(select_season: MediaItem, season_selection: str = None, epis
         - episode_selection (str, optional): Pre-defined episode selection that bypasses manual input
     """
     start_message()
-
-    # Get bearer token
-    try:
-        bearer_token = get_bearer_token()
-    except Exception as e:
-        console.print(f"[red]Error getting bearer token: {e}")
-        return
+    bearer_token = get_bearer_token()
 
     # Init class
-    scrape_serie = GetSerieInfo(select_season.url, bearer_token)
+    scrape_serie = GetSerieInfo(select_season.url, bearer_token, select_season.name)
 
     # Collect information about season
     scrape_serie.getNumberSeason()

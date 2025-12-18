@@ -34,8 +34,8 @@ def get_bearer_token():
         'platform': 'web',
         'device_id': generate_device_id(),
         'credentials': {
-            'email': config.get('email'),
-            'password': config.get('password')
+            'email': str(config.get('email')).strip(),
+            'password': str(config.get('password')).strip()
         },
     }
 

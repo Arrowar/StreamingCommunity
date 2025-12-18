@@ -45,8 +45,8 @@ class RateLimiter:
 class CrunchyrollClient:
     def __init__(self) -> None:
         config = config_manager.get_dict("SITE_LOGIN", "crunchyroll")
-        self.device_id = config.get('device_id')
-        self.etp_rt = config.get('etp_rt')
+        self.device_id = str(config.get('device_id')).strip()
+        self.etp_rt = str(config.get('etp_rt')).strip()
         self.locale = "it-IT"
         
         self.access_token: Optional[str] = None

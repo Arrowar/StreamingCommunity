@@ -157,11 +157,16 @@ class M3U8_Segments:
     def get_type_stream(self, segments) -> str:
         self.is_stream_ts = (".ts" in self.segments[len(self.segments) // 2]) if self.segments else False
         self.is_stream_mp4 = (".mp4" in self.segments[len(self.segments) // 2]) if self.segments else False
+        self.is_stream_aac = (".aac" in self.segments[len(self.segments) // 2]) if self.segments else False
 
         if self.is_stream_ts:
             return "ts"
         elif self.is_stream_mp4:
             return "mp4"
+        elif self.is_stream_aac:
+            return "aac"
+        else:
+            return None
 
     def get_info(self) -> None:
         """
@@ -386,10 +391,9 @@ class M3U8_Segments:
         temp_dir = os.path.join(self.tmp_folder, "segments_temp")
         os.makedirs(temp_dir, exist_ok=True)
 
-        if self.stream_type == "ts":
+        if self.stream_type in ["ts", "aac"]:
 
             # Initialize progress bar
-            print("")
             total_segments = len(self.segments) + (1 if self.has_init_segment else 0)
             progress_bar = tqdm(
                 total=total_segments,

@@ -1,38 +1,38 @@
 {
-    "cb01new": {
-        "domain": "shop",
-        "full_url": "https://cb01net.shop/",
-        "old_domain": "homes",
-        "time_change": "2025-12-15 19:20:30"
-    },
-    "animeunity": {
-        "domain": "so",
-        "full_url": "https://www.animeunity.so/",
-        "old_domain": "so",
-        "time_change": "2025-07-08 13:59:31"
-    },
-    "animeworld": {
-        "domain": "ac",
-        "full_url": "https://www.animeworld.ac/",
-        "old_domain": "ac",
-        "time_change": "2025-03-21 12:20:27"
-    },
-    "guardaserie": {
-        "domain": "asia",
-        "full_url": "https://guardaserietv.asia/",
-        "old_domain": "club",
-        "time_change": "2025-12-11 19:21:07"
-    },
-    "altadefinizione": {
-        "domain": "bond",
-        "full_url": "https://altadefinizionegratis.bond/",
-        "old_domain": "cfd",
-        "time_change": "2025-12-17 07:23:58"
-    },
-    "streamingcommunity": {
-        "domain": "cam",
-        "full_url": "https://streamingcommunityz.cam/",
-        "old_domain": "digital",
-        "time_change": "2025-12-15 12:51:09"
-    }
+  "cb01new": {
+    "domain": "shop",
+    "full_url": "https://cb01net.shop/",
+    "old_domain": "homes",
+    "time_change": "2025-12-15 19:20:30"
+  },
+  "animeunity": {
+    "domain": "so",
+    "full_url": "https://www.animeunity.so/",
+    "old_domain": "so",
+    "time_change": "2025-07-08 13:59:31"
+  },
+  "animeworld": {
+    "domain": "ac",
+    "full_url": "https://www.animeworld.ac/",
+    "old_domain": "ac",
+    "time_change": "2025-03-21 12:20:27"
+  },
+  "guardaserie": {
+    "domain": "asia",
+    "full_url": "https://guardaserietv.asia/",
+    "old_domain": "club",
+    "time_change": "2025-12-11 19:21:07"
+  },
+  "altadefinizione": {
+    "domain": "bond",
+    "full_url": "https://altadefinizionegratis.bond/",
+    "old_domain": "cfd",
+    "time_change": "2025-12-17 07:23:58"
+  },
+  "streamingcommunity": {
+    "domain": "fun",
+    "full_url": "https://streamingcommunityz.fun/",
+    "old_domain": "cam",
+    "time_change": "2025-12-18 15:25:18"
+  }
 }

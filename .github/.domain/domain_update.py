@@ -3,7 +3,7 @@
 import os
 import json
 from datetime import datetime
-from urllib.parse import urlparse, unquote
+from urllib.parse import urlparse
 
 
 # External libraries
@@ -21,34 +21,6 @@ ua =  ua_generator.generate(device='desktop', browser=('chrome', 'edge'))
 
 def get_headers():
     return ua.headers.get()
-
-def get_tld(url_str):
-    try:
-        parsed = urlparse(unquote(url_str))
-        domain = parsed.netloc.lower()
-        parts = domain.split('.')
-        return parts[-1] if len(parts) >= 2 else None
-    
-    except Exception:
-        return None
-
-def get_base_domain(url_str):
-    try:
-        parsed = urlparse(url_str)
-        domain = parsed.netloc.lower()
-        parts = domain.split('.')
-        return '.'.join(parts[:-1]) if len(parts) > 2 else parts[0]
-    
-    except Exception:
-        return None
-
-def get_base_url(url_str):
-    try:
-        parsed = urlparse(url_str)
-        return f"{parsed.scheme}://{parsed.netloc}"
-    
-    except Exception:
-        return None
 
 def log(msg, level='INFO'):
     levels = {

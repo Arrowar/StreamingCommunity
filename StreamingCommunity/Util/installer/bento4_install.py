@@ -10,7 +10,6 @@ from typing import Optional
 # External library
 import requests
 from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeRemainingColumn
 
 
 # Internal utilities
@@ -61,21 +60,10 @@ class Bento4Downloader:
         try:
             response = requests.get(url, stream=True)
             response.raise_for_status()
-            total_size = int(response.headers.get('content-length', 0))
             
-            with open(destination, 'wb') as file, \
-                Progress(
-                    SpinnerColumn(),
-                    TextColumn("[progress.description]{task.description}"),
-                    BarColumn(),
-                    TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-                    TimeRemainingColumn()
-                ) as progress:
-                
-                download_task = progress.add_task("[green]Downloading Bento4", total=total_size)
+            with open(destination, 'wb') as file:
                 for chunk in response.iter_content(chunk_size=8192):
-                    size = file.write(chunk)
-                    progress.update(download_task, advance=size)
+                    file.write(chunk)
 
             return True
         
@@ -129,7 +117,7 @@ class Bento4Downloader:
             )
             
             zip_path = os.path.join(self.base_dir, "bento4.zip")
-            console.print(f"[bold blue]Downloading Bento4 from {download_url}[/]")
+            console.print(f"[blue]Downloading Bento4 from {download_url}")
 
             if self._download_file(download_url, zip_path):
                 extracted_files = self._extract_executables(zip_path)
@@ -142,7 +130,7 @@ class Bento4Downloader:
 
         except Exception as e:
             logging.error(f"Error downloading Bento4: {e}")
-            console.print(f"[bold red]Error downloading Bento4: {str(e)}[/]")
+            console.print(f"[red]Error downloading Bento4: {str(e)}")
             return []
 
 
@@ -182,7 +170,7 @@ def check_mp4decrypt() -> Optional[str]:
             return mp4decrypt_path
 
         # STEP 3: Download if not found anywhere
-        console.print("[cyan]mp4decrypt not found. Downloading...[/]")
+        console.print("[cyan]mp4decrypt not found. Downloading...")
         downloader = Bento4Downloader()
         extracted_files = downloader.download()
         

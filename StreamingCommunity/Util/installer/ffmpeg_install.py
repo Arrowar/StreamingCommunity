@@ -12,7 +12,6 @@ from typing import Optional, Tuple
 # External library
 import requests
 from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeRemainingColumn
 
 
 # Internal utilities
@@ -91,7 +90,7 @@ class FFMPEGDownloader:
                     return ffmpeg_path, ffprobe_path, ffplay_path
 
             # STEP 2: Check in binary directory
-            console.print("[cyan]Checking for FFmpeg in binary directory...[/]")
+            console.print("[cyan]Checking for FFmpeg in binary directory...")
             config = FFMPEG_CONFIGURATION[self.os_name]
             executables = [exe.format(arch=self.arch) for exe in config['executables']]
             found_executables = []
@@ -136,29 +135,9 @@ class FFMPEGDownloader:
             logging.error(f"Error checking existing binaries: {e}")
             return (None, None, None)
 
-    def _get_latest_version(self, repo: str) -> Optional[str]:
-        """
-        Get the latest FFmpeg version from the GitHub releases page.
-
-        Returns:
-            Optional[str]: The latest version string, or None if retrieval fails.
-        """
-        try:
-            # Use GitHub API to fetch the latest release
-            response = requests.get(f'https://api.github.com/repos/{repo}/releases/latest')
-            response.raise_for_status()
-            latest_release = response.json()
-
-            # Extract the tag name or version from the release
-            return latest_release.get('tag_name')
-        
-        except Exception as e:
-            logging.error(f"Unable to get version from GitHub: {e}")
-            return None
-
     def _download_file(self, url: str, destination: str) -> bool:
         """
-        Download a file from URL with a Rich progress bar display.
+        Download a file from URL.
 
         Parameters:
             url (str): The URL to download the file from. Should be a direct download link.
@@ -170,21 +149,10 @@ class FFMPEGDownloader:
         try:
             response = requests.get(url, stream=True)
             response.raise_for_status()
-            total_size = int(response.headers.get('content-length', 0))
             
-            with open(destination, 'wb') as file, \
-                Progress(
-                    SpinnerColumn(),
-                    TextColumn("[progress.description]{task.description}"),
-                    BarColumn(),
-                    TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-                    TimeRemainingColumn()
-                ) as progress:
-                
-                download_task = progress.add_task("[green]Downloading FFmpeg", total=total_size)
+            with open(destination, 'wb') as file:
                 for chunk in response.iter_content(chunk_size=8192):
-                    size = file.write(chunk)
-                    progress.update(download_task, advance=size)
+                    file.write(chunk)
             return True
         
         except Exception as e:
@@ -250,7 +218,7 @@ class FFMPEGDownloader:
         if self.os_name == 'linux':
             try:
                 # Attempt to install FFmpeg using apt
-                console.print("[bold blue]Trying to install FFmpeg using 'sudo apt install ffmpeg'[/]")
+                console.print("[blue]Trying to install FFmpeg using 'sudo apt install ffmpeg'")
                 result = subprocess.run(
                     ['sudo', 'apt', 'install', '-y', 'ffmpeg'],
                     stdout=subprocess.PIPE,
@@ -264,11 +232,11 @@ class FFMPEGDownloader:
                     if ffmpeg_path and ffprobe_path:
                         return ffmpeg_path, ffprobe_path, None
                 else:
-                    console.print("[bold yellow]Failed to install FFmpeg via apt. Proceeding with static download.[/]")
+                    console.print("[yellow]Failed to install FFmpeg via apt. Proceeding with static download.")
                     
             except Exception as e:
                 logging.error(f"Error during 'sudo apt install ffmpeg': {e}")
-                console.print("[bold red]Error during 'sudo apt install ffmpeg'. Proceeding with static download.[/]")
+                console.print("[red]Error during 'sudo apt install ffmpeg'. Proceeding with static download.")
 
         # Proceed with static download if apt installation fails or is not applicable
         config = FFMPEG_CONFIGURATION[self.os_name]
@@ -283,22 +251,22 @@ class FFMPEGDownloader:
                 
                 # Log the current operation
                 logging.info(f"Processing {executable}")
-                console.print(f"[bold blue]Downloading {executable} from GitHub[/]")
+                console.print(f"[blue]Downloading {executable} from GitHub")
                 
                 # Download the file
                 if not self._download_file(download_url, download_path):
-                    console.print(f"[bold red]Failed to download {executable}[/]")
+                    console.print(f"[red]Failed to download {executable}")
                     continue
 
                 # Extract the file
                 if self._extract_file(download_path, final_path):
                     successful_extractions.append(final_path)
                 else:
-                    console.print(f"[bold red]Failed to extract {executable}[/]")
+                    console.print(f"[red]Failed to extract {executable}")
 
             except Exception as e:
                 logging.error(f"Error processing {executable}: {e}")
-                console.print(f"[bold red]Error processing {executable}: {str(e)}[/]")
+                console.print(f"[red]Error processing {executable}: {str(e)}")
                 continue
 
         # Return the results based on successful extractions

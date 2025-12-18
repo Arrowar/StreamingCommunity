@@ -15,7 +15,8 @@ from pathvalidate import sanitize_filename, sanitize_filepath
 
 
 # Internal utilities
-from .installer import check_ffmpeg, check_mp4decrypt, check_device_wvd_path
+from .installer import check_ffmpeg, check_mp4decrypt, check_device_wvd_path, check_megatools
+from StreamingCommunity.Lib.DASH.cdm_helpher import get_info_wvd
 
 
 # Variable
@@ -38,37 +39,6 @@ class OsManager:
     def _get_max_length(self) -> int:
         """Get max filename length based on OS."""
         return 255 if self.system == 'windows' else 4096
-
-    def _normalize_windows_path(self, path: str) -> str:
-        """Normalize Windows paths."""
-        if not path or self.system != 'windows':
-            return path
-
-        # Preserve network paths (UNC and IP-based)
-        if path.startswith('\\\\') or path.startswith('//'):
-            return path.replace('/', '\\')
-
-        # Handle drive letters
-        if len(path) >= 2 and path[1] == ':':
-            drive = path[0:2]
-            rest = path[2:].replace('/', '\\').lstrip('\\')
-            return f"{drive}\\{rest}"
-
-        return path.replace('/', '\\')
-
-    def _normalize_mac_path(self, path: str) -> str:
-        """Normalize macOS paths."""
-        if not path or self.system != 'darwin':
-            return path
-
-        # Convert Windows separators to Unix
-        normalized = path.replace('\\', '/')
-
-        # Ensure absolute paths start with /
-        if normalized.startswith('/'):
-            return os.path.normpath(normalized)
-
-        return normalized
 
     def get_sanitize_file(self, filename: str, year: str = None) -> str:
         """Sanitize filename. Optionally append a year in format ' (YYYY)' if year is provided and valid."""
@@ -196,55 +166,6 @@ class OsManager:
             logging.error(f"Folder removal error: {e}")
             return False
 
-    def remove_files_except_one(self, folder_path: str, keep_file: str) -> None:
-        """
-        Delete all files in a folder except for one specified file.
-
-        Parameters:
-            - folder_path (str): The path to the folder containing the files.
-            - keep_file (str): The filename to keep in the folder.
-        """
-
-        try:
-            # First, try to make all files writable
-            for root, dirs, files in os.walk(self.temp_dir):
-                for dir_name in dirs:
-                    dir_path = os.path.join(root, dir_name)
-                    os.chmod(dir_path, 0o755)  # rwxr-xr-x
-                for file_name in files:
-                    file_path = os.path.join(root, file_name)
-                    os.chmod(file_path, 0o644)  # rw-r--r--
-            
-            # Then remove the directory tree
-            shutil.rmtree(self.temp_dir, ignore_errors=True)
-            
-            # If directory still exists after rmtree, try force remove
-            if os.path.exists(self.temp_dir):
-                import subprocess
-                subprocess.run(['rm', '-rf', self.temp_dir], check=True)
-                
-        except Exception as e:
-            logging.error(f"Failed to cleanup temporary directory: {str(e)}")
-            pass
-
-    def check_file(self, file_path: str) -> bool:
-        """
-        Check if a file exists at the given file path.
-
-        Parameters:
-            file_path (str): The path to the file.
-
-        Returns:
-            bool: True if the file exists, False otherwise.
-        """
-        try:
-            logging.info(f"Check if file exists: {file_path}")
-            return os.path.exists(file_path)
-
-        except Exception as e:
-            logging.error(f"An error occurred while checking file existence: {e}")
-            return False
-
 
 class InternetManager():
     def format_file_size(self, size_bytes: float) -> str:
@@ -294,6 +215,7 @@ class OsSummary:
         self.ffplay_path = None
         self.mp4decrypt_path = None
         self.wvd_path = None
+        self.megatools_path = None
         self.init()
 
     def init(self):
@@ -302,6 +224,7 @@ class OsSummary:
         self.ffmpeg_path, self.ffprobe_path, _ = check_ffmpeg()
         self.mp4decrypt_path = check_mp4decrypt()
         self.wvd_path = check_device_wvd_path()
+        self.megatools_path = check_megatools()
         self._display_binary_paths()
 
     def _display_binary_paths(self):
@@ -310,15 +233,17 @@ class OsSummary:
             'ffmpeg': self.ffmpeg_path,
             'ffprobe': self.ffprobe_path,
             'mp4decrypt': self.mp4decrypt_path,
-            'wvd': self.wvd_path
+            'wvd': self.wvd_path,
+            'megatools': self.megatools_path
         }
         
         path_strings = []
         for name, path in paths.items():
             path_str = f"'{path}'" if path else "None"
-            path_strings.append(f"[red]{name} [bold yellow]{path_str}[/bold yellow]")
+            path_strings.append(f"[red]{name} [yellow]{path_str}")
         
-        console.print(f"[cyan]Path: {', [white]'.join(path_strings)}")
+        console.print(f"[cyan]Utilities: {', [white]'.join(path_strings)}")
+        get_info_wvd(self.wvd_path)
 
 
 # Initialize the os_summary, internet_manager, and os_manager when the module is imported
@@ -365,3 +290,7 @@ def get_mp4decrypt_path():
 def get_wvd_path():
     """Returns the path of wvd."""
     return os_summary.wvd_path
+
+def get_megatools_path():
+    """Returns the path of megatools."""
+    return os_summary.megatools_path

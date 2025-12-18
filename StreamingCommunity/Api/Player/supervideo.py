@@ -38,7 +38,7 @@ class VideoSource:
         try:
             response = create_client_curl(headers=self.headers).get(url)
             if response.status_code >= 400:
-                logging.error(f"Request failed with status code: {response.status_code}")
+                logging.error(f"Request failed with status code: {response.status_code}, to url: {url}")
                 return None
             
             return response.text

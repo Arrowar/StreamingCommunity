@@ -222,7 +222,7 @@ def display_seasons_list(seasons_manager) -> str:
         last_command (str): Last command entered by the user.
     """
     if len(seasons_manager.seasons) == 1:
-        console.print("\n[green]Only one season available, selecting it automatically[/green]")
+        console.print("\n[green]Only one season available, selecting it automatically")
         time.sleep(1)
         return "1"
     

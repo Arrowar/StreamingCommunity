@@ -12,14 +12,14 @@ sys.path.append(src_path)
 
 from StreamingCommunity.Util.message import start_message
 from StreamingCommunity.Util.logger import Logger
-from StreamingCommunity import MP4_downloader
+from StreamingCommunity.Lib.MP4 import MP4_Downloader
 
 
 start_message()
 Logger()
-path, kill_handler = MP4_downloader(
+path, kill_handler = MP4_Downloader(
     url="https://148-251-75-109.top/Getintopc.com/IDA_Pro_2020.mp4",
-    path=r".\\Video\\undefined.mp4"
+    path=r".\Video\Prova.mp4"
 )
 
 thereIsError = path is None

@@ -19,24 +19,21 @@ from rich.prompt import Prompt
 
 # Internal utilities
 from .global_search import global_search
-from StreamingCommunity.Api.Template.loader import load_search_functions
+from StreamingCommunity.Api.Template.loader import load_search_functions, folder_name as lazy_loader_folder
 from StreamingCommunity.Util.message import start_message
 from StreamingCommunity.Util.config_json import config_manager
 from StreamingCommunity.Util.os import os_manager
 from StreamingCommunity.Util.logger import Logger
 from StreamingCommunity.Upload.update import update as git_update
-from StreamingCommunity.TelegramHelp.telegram_bot import get_bot_instance, TelegramSession
 
 
 # Config
-TELEGRAM_BOT = config_manager.get_bool('DEFAULT', 'telegram_bot')
 COLOR_MAP = {
     "anime": "red",
     "film_&_serie": "yellow", 
-    "serie": "blue",
-    "torrent": "white"
+    "serie": "blue"
 }
-CATEGORY_MAP = {1: "anime", 2: "film_&_serie", 3: "serie", 4: "torrent"}
+CATEGORY_MAP = {1: "anime", 2: "film_&_serie", 3: "serie"}
 
 
 # Variable
@@ -196,13 +193,13 @@ def execute_hooks(stage: str) -> None:
             if stdout:
                 logging.info(f"Hook '{name}' stdout: {stdout}")
                 try:
-                    console.print(f"[cyan][hook:{name} stdout][/cyan]\n{stdout}")
+                    console.print(f"[cyan][hook:{name} stdout]\n{stdout}")
                 except Exception:
                     pass
             if stderr:
                 logging.warning(f"Hook '{name}' stderr: {stderr}")
                 try:
-                    console.print(f"[yellow][hook:{name} stderr][/yellow]\n{stderr}")
+                    console.print(f"[yellow][hook:{name} stderr]\n{stderr}")
                 except Exception:
                     pass
 
@@ -275,7 +272,7 @@ def setup_argument_parser(search_functions):
     for alias, (_func, _use_for) in search_functions.items():
         module_name = alias.split("_")[0].lower()
         try:
-            mod = importlib.import_module(f'StreamingCommunity.Api.Site.{module_name}')
+            mod = importlib.import_module(f'StreamingCommunity.Api.{lazy_loader_folder}.{module_name}')
             module_info[module_name] = int(getattr(mod, 'indice'))
         except Exception:
             continue
@@ -352,7 +349,7 @@ def build_function_mappings(search_functions):
     for alias, (func, use_for) in search_functions.items():
         module_name = alias.split("_")[0]
         try:
-            mod = importlib.import_module(f'StreamingCommunity.Api.Site.{module_name}')
+            mod = importlib.import_module(f'StreamingCommunity.Api.{lazy_loader_folder}.{module_name}')
             site_index = str(getattr(mod, 'indice'))
             input_to_function[site_index] = func
             choice_labels[site_index] = (module_name.capitalize(), use_for.lower())
@@ -373,7 +370,7 @@ def handle_direct_site_selection(args, input_to_function, module_name_to_functio
     
     if func_to_run is None:
         available_sites = ", ".join(sorted(module_name_to_function.keys()))
-        console.print(f"[red]Unknown site:[/red] '{args.site}'. Available: [yellow]{available_sites}[/yellow]")
+        console.print(f"[red]Unknown site: '{args.site}'. Available: [yellow]{available_sites}")
         return False
     
     # Handle auto-first option
@@ -386,9 +383,9 @@ def handle_direct_site_selection(args, input_to_function, module_name_to_functio
                 func_to_run(direct_item=item_dict)
                 return True
             else:
-                console.print("[yellow]No results found. Falling back to interactive mode.[/yellow]")
+                console.print("[yellow]No results found. Falling back to interactive mode.")
         except Exception as e:
-            console.print(f"[red]Auto-first failed:[/red] {str(e)}")
+            console.print(f"[red]Auto-first failed: {str(e)}")
     
     run_function(func_to_run, search_terms=search_terms)
     return True
@@ -396,51 +393,29 @@ def handle_direct_site_selection(args, input_to_function, module_name_to_functio
 
 def get_user_site_selection(args, choice_labels):
     """Get site selection from user (interactive or category-based)."""
-    bot = get_bot_instance() if TELEGRAM_BOT else None
-    
     if args.category:
         selected_category = CATEGORY_MAP.get(args.category)
         category_sites = [(key, label[0]) for key, label in choice_labels.items() if label[1] == selected_category]
         
         if len(category_sites) == 1:
-            console.print(f"[green]Selezionato automaticamente: {category_sites[0][1]}[/green]")
+            console.print(f"[green]Selezionato automaticamente: {category_sites[0][1]}")
             return category_sites[0][0]
         
-        # Multiple sites in category
-        color = COLOR_MAP.get(selected_category, 'white')
-        prompt_items = [f"[{color}]({k}) {v}[/{color}]" for k, v in category_sites]
-        prompt_line = ", ".join(prompt_items)
-        
-        if TELEGRAM_BOT:
-            console.print(f"\nInsert site: {prompt_line}")
-            return bot.ask("select_site", f"Insert site: {prompt_line}", None)
-        else:
-            return msg.ask(f"\n[cyan]Insert site: {prompt_line}", choices=[k for k, _ in category_sites], show_choices=False)
-    
     else:
         # Show all sites
         legend_text = " | ".join([f"[{color}]{cat.capitalize()}[/{color}]" for cat, color in COLOR_MAP.items()])
         legend_text += " | [magenta]Global[/magenta]"
-        console.print(f"\n[bold cyan]Category Legend:[/bold cyan] {legend_text}")
+        console.print(f"\n[cyan]Category Legend: {legend_text}")
         
-        if TELEGRAM_BOT:
-            category_legend = "Categorie: \n" + " | ".join([cat.capitalize() for cat in COLOR_MAP.keys()]) + " | Global"
-            prompt_message = "Inserisci il sito:\n" + "\n".join([f"{key}: {label[0]}" for key, label in choice_labels.items()])
-            console.print(f"\n{prompt_message}")
-            return bot.ask("select_provider", f"{category_legend}\n\n{prompt_message}", None)
-        else:
-            choice_keys = list(choice_labels.keys()) + ["global"]
-            prompt_message = "[cyan]Insert site: " + ", ".join([
-                f"[{COLOR_MAP.get(label[1], 'white')}]({key}) {label[0]}[/{COLOR_MAP.get(label[1], 'white')}]" 
-                for key, label in choice_labels.items()
-            ]) + ", [magenta](global) Global[/magenta]"
-            return msg.ask(prompt_message, choices=choice_keys, default="0", show_choices=False, show_default=False)
+        choice_keys = list(choice_labels.keys()) + ["global"]
+        prompt_message = "[cyan]Insert site: " + ", ".join([
+            f"[{COLOR_MAP.get(label[1], 'white')}]({key}) {label[0]}[/{COLOR_MAP.get(label[1], 'white')}]" 
+            for key, label in choice_labels.items()
+        ]) + ", [magenta](global) Global[/magenta]"
+        return msg.ask(prompt_message, choices=choice_keys, default="0", show_choices=False, show_default=False)
 
 
 def main(script_id=0):
-    if TELEGRAM_BOT:
-        get_bot_instance().send_message(f"Avviato script {script_id}", None)
-
     Logger()
     execute_hooks('pre_run')
     initialize()
@@ -471,18 +446,12 @@ def main(script_id=0):
         if category in input_to_function:
             run_function(input_to_function[category], search_terms=args.search)
         else:
-            if TELEGRAM_BOT:
-                get_bot_instance().send_message("Categoria non valida", None)
             console.print("[red]Invalid category.")
 
             if getattr(args, 'not_close'):
                 restart_script()
             else:
                 force_exit()
-                if TELEGRAM_BOT:
-                    get_bot_instance().send_message("Chiusura in corso", None)
-                    script_id = TelegramSession.get_session()
-                    if script_id != "unknown":
-                        TelegramSession.deleteScriptId(script_id)
+                
     finally:
         execute_hooks('post_run')

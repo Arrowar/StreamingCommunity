@@ -2,8 +2,7 @@
     "DEFAULT": {
         "debug": false,
         "show_message": true,
-        "fetch_domain_online": true,
-        "telegram_bot": false
+        "fetch_domain_online": true
     },
     "OUT_FOLDER": {
         "root_path": "Video",
@@ -12,12 +11,6 @@
         "anime_folder_name": "Anime",
         "map_episode_name": "%(episode_name) S%(season)E%(episode)",
         "add_siteName": false
-    },
-    "QBIT_CONFIG": {
-        "host": "192.168.1.1",
-        "port": "5555",
-        "user": "root",
-        "pass": "toor"
     },
     "M3U8_DOWNLOAD": {
         "default_video_workers": 8,
@@ -58,6 +51,10 @@
         "crunchyroll": {
             "device_id": "",
             "etp_rt": ""
+        },
+        "tubi": {
+            "email:": "",
+            "password": ""
         }
     }
 }

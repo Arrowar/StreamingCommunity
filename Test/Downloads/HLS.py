@@ -12,14 +12,16 @@ sys.path.append(src_path)
 
 from StreamingCommunity.Util.message import start_message
 from StreamingCommunity.Util.logger import Logger
-from StreamingCommunity import HLS_Downloader
+from StreamingCommunity.Lib.HLS import HLS_Downloader
 
 
 start_message()
 Logger()
 hls_process =  HLS_Downloader(
-    output_path=".\\Video\\test.mp4",
-    m3u8_url="https://acdn.ak-stream-videoplatform.sky.it/hls/2024/11/21/968275/master.m3u8"
+    m3u8_url="",
+    headers={},
+    license_url=None,
+    output_path=r".\Video\Prova.",
 ).start()
 
 thereIsError = hls_process['error'] is not None

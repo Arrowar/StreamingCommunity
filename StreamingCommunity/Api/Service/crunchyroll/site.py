@@ -7,11 +7,10 @@ from rich.console import Console
 # Internal utilities
 from StreamingCommunity.Util.config_json import config_manager
 from StreamingCommunity.Util.table import TVShowManager
+from StreamingCommunity.Api.Template import site_constants, MediaManager
 
 
 # Logic class
-from StreamingCommunity.Api.Template.config_loader import site_constant
-from StreamingCommunity.Api.Template.object import MediaManager
 from .util.get_license import CrunchyrollClient
 
 
@@ -62,7 +61,7 @@ def title_search(query: str) -> int:
         response.raise_for_status()
 
     except Exception as e:
-        console.print(f"[red]Site: {site_constant.SITE_NAME}, request search error: {e}")
+        console.print(f"[red]Site: {site_constants.SITE_NAME}, request search error: {e}")
         return 0
 
     data = response.json()

@@ -16,8 +16,7 @@ from StreamingCommunity.Lib.HLS import HLS_Downloader
 
 # Logic class
 from StreamingCommunity.Api.Player.vixcloud import VideoSource
-from StreamingCommunity.Api.Template.config_loader import site_constant
-from StreamingCommunity.Api.Template.object import MediaItem
+from StreamingCommunity.Api.Template import site_constants, MediaItem
 
 
 # Variable
@@ -37,10 +36,10 @@ def download_film(select_title: MediaItem) -> str:
         - str: output path
     """
     start_message()
-    console.print(f"\n[yellow]Download: [red]{site_constant.SITE_NAME} → [cyan]{select_title.name} \n")
+    console.print(f"\n[yellow]Download: [red]{site_constants.SITE_NAME} → [cyan]{select_title.name} \n")
 
     # Init class
-    video_source = VideoSource(f"{site_constant.FULL_URL}/it", False, select_title.id)
+    video_source = VideoSource(f"{site_constants.FULL_URL}/it", False, select_title.id)
 
     # Retrieve scws and if available master playlist
     video_source.get_iframe(select_title.id)
@@ -48,12 +47,12 @@ def download_film(select_title: MediaItem) -> str:
     master_playlist = video_source.get_playlist()
 
     if master_playlist is None:
-        console.print(f"[red]Site: {site_constant.SITE_NAME}, error: No master playlist found")
+        console.print(f"[red]Site: {site_constants.SITE_NAME}, error: No master playlist found")
         return None
 
     # Define the filename and path for the downloaded film
     title_name = f"{os_manager.get_sanitize_file(select_title.name, select_title.date)}.{extension_output}"
-    mp4_path = os.path.join(site_constant.MOVIE_FOLDER, title_name.replace(extension_output, ""))
+    mp4_path = os.path.join(site_constants.MOVIE_FOLDER, title_name.replace(extension_output, ""))
 
     # Download the film using the m3u8 playlist, and output filename
     hls_process = HLS_Downloader(

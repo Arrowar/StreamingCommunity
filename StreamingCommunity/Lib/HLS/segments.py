@@ -17,8 +17,7 @@ from rich.console import Console
 
 # Internal utilities
 from StreamingCommunity.Util.color import Colors
-from StreamingCommunity.Util.headers import get_userAgent
-from StreamingCommunity.Util.http_client import create_client_curl
+from StreamingCommunity.Util.http_client import create_client_curl, get_userAgent
 from StreamingCommunity.Util.os import get_wvd_path
 from StreamingCommunity.Util.config_json import config_manager
 

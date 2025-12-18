@@ -15,7 +15,7 @@ from rich.console import Console
 # Internal utilities
 from .version import __version__ as source_code_version, __author__, __title__
 from StreamingCommunity.Util.config_json import config_manager
-from StreamingCommunity.Util.headers import get_userAgent
+from StreamingCommunity.Util.http_client import get_userAgent
 
 
 # Variable
@@ -96,12 +96,12 @@ def update():
         console.print(f"\n[cyan]New version available: [yellow]{last_version}")
 
     console.print(
-        f"\n[red]{__title__} has been downloaded [yellow]{total_download_count}"
+        f"\n[red]{__title__} has been downloaded: [yellow]{total_download_count}"
         f"\n[yellow]{get_execution_mode()} - [green]Current installed version: [yellow]{current_version} "
         f"[green]last commit: [white]'[yellow]{latest_commit_message.splitlines()[0]}[white]'\n"
-        f"      [cyan]Help the repository grow today by leaving a [yellow]star [cyan]and [yellow]sharing "
+        f"  [cyan]Help the repository grow today by leaving a [yellow]star [cyan]and [yellow]sharing "
         f"[cyan]it with others online!\n"
-        f"              [magenta]If you'd like to support development and keep the program updated, consider leaving a "
+        f"      [magenta]If you'd like to support development and keep the program updated, consider leaving a "
         f"[yellow]donation[magenta]. Thank you!"
     )
     

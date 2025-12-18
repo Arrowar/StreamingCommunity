@@ -14,8 +14,7 @@ from rich.table import Table
 
 # Internal utilities
 from StreamingCommunity.Util.config_json import config_manager
-from StreamingCommunity.Util.headers import get_userAgent
-from StreamingCommunity.Util.http_client import fetch
+from StreamingCommunity.Util.http_client import fetch, get_userAgent
 from StreamingCommunity.Util.os import os_manager, internet_manager
 
 

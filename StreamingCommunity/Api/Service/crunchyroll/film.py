@@ -17,8 +17,7 @@ from StreamingCommunity.Lib.DASH.downloader import DASH_Downloader
 
 # Logic class
 from .util.get_license import get_playback_session, CrunchyrollClient
-from StreamingCommunity.Api.Template.config_loader import site_constant
-from StreamingCommunity.Api.Template.object import MediaItem
+from StreamingCommunity.Api.Template import site_constants, MediaItem
 
 
 # Variable
@@ -37,7 +36,7 @@ def download_film(select_title: MediaItem) -> str:
         - str: output path if successful, otherwise None
     """
     start_message()
-    console.print(f"\n[yellow]Download: [red]{site_constant.SITE_NAME} → [cyan]{select_title.name} \n")
+    console.print(f"\n[yellow]Download: [red]{site_constants.SITE_NAME} → [cyan]{select_title.name} \n")
 
     # Initialize Crunchyroll client
     client = CrunchyrollClient()
@@ -47,7 +46,7 @@ def download_film(select_title: MediaItem) -> str:
 
     # Define filename and path for the downloaded video
     mp4_name = os_manager.get_sanitize_file(select_title.name, select_title.date) + extension_output
-    mp4_path = os.path.join(site_constant.MOVIE_FOLDER, mp4_name.replace(extension_output, ""))
+    mp4_path = os.path.join(site_constants.MOVIE_FOLDER, mp4_name.replace(extension_output, ""))
 
     # Generate mpd and license URLs
     url_id = select_title.get('url').split('/')[-1]

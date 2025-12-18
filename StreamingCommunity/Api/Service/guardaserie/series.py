@@ -17,7 +17,7 @@ from StreamingCommunity.Lib.HLS import HLS_Downloader
 
 # Logic class
 from .util.ScrapeSerie import GetSerieInfo
-from StreamingCommunity.Api.Template.Util import (
+from StreamingCommunity.Api.Template.episode_manager import (
     manage_selection, 
     map_episode_title, 
     dynamic_format_number, 
@@ -26,8 +26,7 @@ from StreamingCommunity.Api.Template.Util import (
     display_episodes_list,
     display_seasons_list
 )
-from StreamingCommunity.Api.Template.config_loader import site_constant
-from StreamingCommunity.Api.Template.object import MediaItem
+from StreamingCommunity.Api.Template import site_constants, MediaItem
 from StreamingCommunity.Api.Player.supervideo import VideoSource
 
 
@@ -55,11 +54,11 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
     # Get episode information
     obj_episode = scrape_serie.selectEpisode(index_season_selected, index_episode_selected-1)
     index_season_selected_formatted = dynamic_format_number(str(index_season_selected))
-    console.print(f"\n[yellow]Download: [red]{site_constant.SITE_NAME} → [cyan]{scrape_serie.tv_name} \\ [magenta]{obj_episode.get('name')}[/magenta] ([cyan]S{index_season_selected_formatted}E{index_episode_selected}) \n")
+    console.print(f"\n[yellow]Download: [red]{site_constants.SITE_NAME} → [cyan]{scrape_serie.tv_name} \\ [magenta]{obj_episode.get('name')}[/magenta] ([cyan]S{index_season_selected_formatted}E{index_episode_selected}) \n")
 
     # Define filename and path for the downloaded video
     mp4_name = f"{map_episode_title(scrape_serie.tv_name, index_season_selected_formatted, index_episode_selected, obj_episode.get('name'))}.{extension_output}"
-    mp4_path = os.path.join(site_constant.SERIES_FOLDER, scrape_serie.tv_name, f"S{index_season_selected_formatted}")
+    mp4_path = os.path.join(site_constants.SERIES_FOLDER, scrape_serie.tv_name, f"S{index_season_selected_formatted}")
 
     # Setup video source
     video_source = VideoSource(obj_episode.get('url'))

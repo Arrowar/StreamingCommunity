@@ -8,7 +8,7 @@ from rich.console import Console
 from .serie import download_episode
 from .util.ScrapeSerie import ScrapeSerieAnime
 from StreamingCommunity.Api.Player.vixcloud import VideoSourceAnime
-from StreamingCommunity.Api.Template.config_loader import site_constant
+from StreamingCommunity.Api.Template import site_constants
 from StreamingCommunity.Api.Template.object import MediaItem
 
 
@@ -26,8 +26,8 @@ def download_film(select_title: MediaItem):
     """
 
     # Init class
-    scrape_serie = ScrapeSerieAnime(site_constant.FULL_URL)
-    video_source = VideoSourceAnime(site_constant.FULL_URL)
+    scrape_serie = ScrapeSerieAnime(site_constants.FULL_URL)
+    video_source = VideoSourceAnime(site_constants.FULL_URL)
 
     # Set up video source (only configure scrape_serie now)
     scrape_serie.setup(None, select_title.id, select_title.slug)

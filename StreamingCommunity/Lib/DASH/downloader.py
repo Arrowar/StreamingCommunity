@@ -14,8 +14,7 @@ from rich.table import Table
 # Internal utilities
 from StreamingCommunity.Util.config_json import config_manager
 from StreamingCommunity.Util.os import os_manager, internet_manager, get_wvd_path
-from StreamingCommunity.Util.http_client import create_client
-from StreamingCommunity.Util.headers import get_userAgent
+from StreamingCommunity.Util.http_client import create_client, get_userAgent
 
 
 # Logic class

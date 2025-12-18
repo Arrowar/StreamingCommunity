@@ -7,14 +7,9 @@ from rich.console import Console
 
 
 # Internal utilities
-from StreamingCommunity.Util.headers import get_userAgent
-from StreamingCommunity.Util.http_client import create_client
+from StreamingCommunity.Util.http_client import create_client, get_userAgent
 from StreamingCommunity.Util.table import TVShowManager
-
-
-# Logic class
-from StreamingCommunity.Api.Template.config_loader import site_constant
-from StreamingCommunity.Api.Template.object import MediaManager
+from StreamingCommunity.Api.Template import site_constants, MediaManager
 
 
 # Variable
@@ -36,14 +31,14 @@ def title_search(query: str) -> int:
     media_search_manager.clear()
     table_show_manager.clear()
 
-    search_url = f"{site_constant.FULL_URL}/?story={query}&do=search&subaction=search"
+    search_url = f"{site_constants.FULL_URL}/?story={query}&do=search&subaction=search"
     console.print(f"[cyan]Search url: [yellow]{search_url}")
 
     try:
         response = create_client(headers={'user-agent': get_userAgent()}).get(search_url)
         response.raise_for_status()
     except Exception as e:
-        console.print(f"[red]Site: {site_constant.SITE_NAME}, request search error: {e}")
+        console.print(f"[red]Site: {site_constants.SITE_NAME}, request search error: {e}")
         return 0
 
     # Create soup instance
@@ -64,7 +59,7 @@ def title_search(query: str) -> int:
         if img_tag:
             img_src = img_tag.get("src")
             if img_src and img_src.startswith("/"):
-                image_url = f"{site_constant.FULL_URL}{img_src}"
+                image_url = f"{site_constants.FULL_URL}{img_src}"
             else:
                 image_url = img_src
 

@@ -9,13 +9,9 @@ from bs4 import BeautifulSoup
 
 
 # Internal utilities
-from StreamingCommunity.Util.headers import get_userAgent
-from StreamingCommunity.Util.http_client import create_client
-from StreamingCommunity.Api.Template.object import SeasonManager
+from StreamingCommunity.Util.http_client import create_client, get_userAgent
+from StreamingCommunity.Api.Template.object import SeasonManager, MediaItem
 
-
-# Logic class
-from StreamingCommunity.Api.Template.object import MediaItem
 
 
 class GetSerieInfo:

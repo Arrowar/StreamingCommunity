@@ -6,8 +6,7 @@ from typing import Tuple, Optional
 
 # Internal utilities
 from StreamingCommunity.Util.config_json import config_manager
-from StreamingCommunity.Util.headers import get_userAgent, get_headers
-from StreamingCommunity.Util.http_client import create_client
+from StreamingCommunity.Util.http_client import create_client, get_userAgent, get_headers
 
 
 # Variable

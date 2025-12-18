@@ -18,8 +18,7 @@ from StreamingCommunity.Lib.HLS import HLS_Downloader
 
 # Logic class
 from .util.get_license import get_bearer_token, get_playback_url
-from StreamingCommunity.Api.Template.config_loader import site_constant
-from StreamingCommunity.Api.Template.object import MediaItem
+from StreamingCommunity.Api.Template import site_constants, MediaItem
 
 
 # Variable
@@ -48,7 +47,7 @@ def download_film(select_title: MediaItem) -> Tuple[str, bool]:
         - bool: Whether download was stopped
     """
     start_message()
-    console.print(f"\n[yellow]Download: [red]{site_constant.SITE_NAME} → [cyan]{select_title.name} \n")
+    console.print(f"\n[yellow]Download: [red]{site_constants.SITE_NAME} → [cyan]{select_title.name} \n")
 
     # Extract content ID from URL
     content_id = extract_content_id(select_title.url)
@@ -72,7 +71,7 @@ def download_film(select_title: MediaItem) -> Tuple[str, bool]:
 
     # Define the filename and path for the downloaded film
     mp4_name = os_manager.get_sanitize_file(select_title.name, select_title.date) + extension_output
-    mp4_path = os.path.join(site_constant.MOVIE_FOLDER, mp4_name.replace(extension_output, ""))
+    mp4_path = os.path.join(site_constants.MOVIE_FOLDER, mp4_name.replace(extension_output, ""))
 
     # HLS Download
     r_proc = HLS_Downloader(

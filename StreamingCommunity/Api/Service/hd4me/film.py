@@ -10,15 +10,14 @@ from rich.console import Console
 
 # Internal utilities
 from StreamingCommunity.Util.os import os_manager
-from StreamingCommunity.Util.headers import get_headers
-from StreamingCommunity.Util.http_client import create_client_curl
+from StreamingCommunity.Util.http_client import create_client_curl, get_headers
 from StreamingCommunity.Util.message import start_message
 from StreamingCommunity.Util.config_json import config_manager
 from StreamingCommunity.Lib.MEGA import MEGA_Downloader
 
 
 # Logic class
-from StreamingCommunity.Api.Template.config_loader import site_constant
+from StreamingCommunity.Api.Template import site_constants
 from StreamingCommunity.Api.Template.object import MediaItem
 
 
@@ -38,7 +37,7 @@ def download_film(select_title: MediaItem) -> str:
         - str: output path if successful, otherwise None
     """
     start_message()
-    console.print(f"\n[yellow]Download: [red]{site_constant.SITE_NAME} → [cyan]{select_title.name} \n")
+    console.print(f"\n[yellow]Download: [red]{site_constants.SITE_NAME} → [cyan]{select_title.name} \n")
     
     mega_link = None
     try:
@@ -58,18 +57,18 @@ def download_film(select_title: MediaItem) -> str:
                 break
 
     except Exception as e:
-        console.print(f"[red]Site: {site_constant.SITE_NAME}, request error: {e}, get mostraguarda")
+        console.print(f"[red]Site: {site_constants.SITE_NAME}, request error: {e}, get mostraguarda")
         return None
 
     # Define the filename and path for the downloaded film
     title_name = os_manager.get_sanitize_file(select_title.name, select_title.date) + extension_output
-    mp4_path = os.path.join(site_constant.MOVIE_FOLDER, title_name.replace(extension_output, ""))
+    mp4_path = os.path.join(site_constants.MOVIE_FOLDER, title_name.replace(extension_output, ""))
 
     # Download the film using the mega downloader
     mega = MEGA_Downloader(choose_files=True)
 
     if mega_link is None:
-        console.print(f"[red]Site: {site_constant.SITE_NAME}, error: Mega link not found for url: {select_title.url}")
+        console.print(f"[red]Site: {site_constants.SITE_NAME}, error: Mega link not found for url: {select_title.url}")
         return None
 
     output_path = mega.download_url(

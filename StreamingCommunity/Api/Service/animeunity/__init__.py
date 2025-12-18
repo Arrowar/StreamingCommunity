@@ -6,9 +6,7 @@ from rich.prompt import Prompt
 
 
 # Internal utilities
-from StreamingCommunity.Api.Template import get_select_title
-from StreamingCommunity.Api.Template.config_loader import site_constant
-from StreamingCommunity.Api.Template.object import MediaItem
+from StreamingCommunity.Api.Template import site_constants, MediaItem, get_select_title
 
 
 # Logic class
@@ -81,7 +79,7 @@ def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_
     if string_to_search is not None:
         actual_search_query = string_to_search.strip()
     else:
-        actual_search_query = msg.ask(f"\n[purple]Insert a word to search in [green]{site_constant.SITE_NAME}").strip()
+        actual_search_query = msg.ask(f"\n[purple]Insert a word to search in [green]{site_constants.SITE_NAME}").strip()
 
     # Search on database
     len_database = title_search(actual_search_query)

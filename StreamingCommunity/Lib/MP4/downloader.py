@@ -17,8 +17,7 @@ from rich.prompt import Prompt
 
 # Internal utilities
 from StreamingCommunity.Util.color import Colors
-from StreamingCommunity.Util.headers import get_userAgent
-from StreamingCommunity.Util.http_client import create_client
+from StreamingCommunity.Util.http_client import create_client, get_userAgent
 from StreamingCommunity.Util.config_json import config_manager
 from StreamingCommunity.Util.os import internet_manager, os_manager
 

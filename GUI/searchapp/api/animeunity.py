@@ -11,7 +11,7 @@ from .base import BaseStreamingAPI, MediaItem, Season, Episode
 
 # External utilities
 from StreamingCommunity.Util.config_json import config_manager
-from StreamingCommunity.Api.Site.animeunity.util.ScrapeSerie import ScrapeSerieAnime
+from StreamingCommunity.Api.Service.animeunity.util.ScrapeSerie import ScrapeSerieAnime
 
 
 

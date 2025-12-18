@@ -12,10 +12,6 @@ from typing import Any, List
 from rich.console import Console
 
 
-# Internal utilities
-from StreamingCommunity.Util.headers import get_userAgent
-
-
 # Variable
 console = Console()
 
@@ -110,7 +106,7 @@ class ConfigManager:
         console.print(f"[cyan]Downloading configuration: [green]{self.reference_config_url}")
 
         try:
-            response = requests.get(self.reference_config_url, timeout=8, headers={'User-Agent': get_userAgent()})
+            response = requests.get(self.reference_config_url, timeout=8, headers={'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
             
             if response.status_code == 200:
                 with open(self.file_path, 'wb') as f:
@@ -137,7 +133,7 @@ class ConfigManager:
         """Load site data from GitHub and update local domains.json file."""
         domains_github_url = "https://raw.githubusercontent.com/Arrowar/StreamingCommunity/refs/heads/main/.github/.domain/domains.json"
         headers = {
-            "User-Agent": get_userAgent()
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
         }
         
         try:

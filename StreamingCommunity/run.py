@@ -19,7 +19,8 @@ from rich.prompt import Prompt
 
 # Internal utilities
 from .global_search import global_search
-from StreamingCommunity.Api.Template.loader import load_search_functions, folder_name as lazy_loader_folder
+from StreamingCommunity.Api.Template import load_search_functions
+from StreamingCommunity.Api.Template.loader import folder_name as lazy_loader_folder
 from StreamingCommunity.Util.message import start_message
 from StreamingCommunity.Util.config_json import config_manager
 from StreamingCommunity.Util.os import os_manager

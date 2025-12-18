@@ -4,8 +4,7 @@
 from rich.console import Console
 
 # Internal utilities
-from StreamingCommunity.Util.headers import get_userAgent, get_headers
-from StreamingCommunity.Util.http_client import create_client
+from StreamingCommunity.Util.http_client import create_client, get_userAgent, get_headers
 
 
 # Variable

@@ -10,8 +10,7 @@ from bs4 import BeautifulSoup
 
 
 # Internal utilities
-from StreamingCommunity.Util.http_client import create_client_curl
-from StreamingCommunity.Util.headers import get_headers
+from StreamingCommunity.Util.http_client import create_client_curl, get_headers
 
 
 class VideoSource:

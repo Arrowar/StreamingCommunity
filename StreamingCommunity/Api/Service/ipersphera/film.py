@@ -8,16 +8,14 @@ from rich.console import Console
 
 
 # Internal utilities
-from StreamingCommunity.Util.headers import get_headers
-from StreamingCommunity.Util.http_client import create_client
+from StreamingCommunity.Util.http_client import create_client, get_headers
 from StreamingCommunity.Util.message import start_message
 from StreamingCommunity.Util.config_json import config_manager
 from StreamingCommunity.Lib.MEGA import MEGA_Downloader
 
 
 # Logic class
-from StreamingCommunity.Api.Template.config_loader import site_constant
-from StreamingCommunity.Api.Template.object import MediaItem
+from StreamingCommunity.Api.Template import site_constants, MediaItem
 
 
 # Variable
@@ -36,7 +34,7 @@ def download_film(select_title: MediaItem) -> str:
         - str: output path if successful, otherwise None
     """
     start_message()
-    console.print(f"\n[yellow]Download: [red]{site_constant.SITE_NAME} → [cyan]{select_title.name} \n")
+    console.print(f"\n[yellow]Download: [red]{site_constants.SITE_NAME} → [cyan]{select_title.name} \n")
     
     # Extract proton url
     proton_url = None
@@ -52,7 +50,7 @@ def download_film(select_title: MediaItem) -> str:
                 break
     
     except Exception as e:
-        console.print(f"[red]Site: {site_constant.SITE_NAME}, request error: {e}, get proton URL")
+        console.print(f"[red]Site: {site_constants.SITE_NAME}, request error: {e}, get proton URL")
         return None
     
     # Extract mega link
@@ -69,14 +67,14 @@ def download_film(select_title: MediaItem) -> str:
                 break
     
     except Exception as e:
-        console.print(f"[red]Site: {site_constant.SITE_NAME}, request error: {e}, get mega link")
+        console.print(f"[red]Site: {site_constants.SITE_NAME}, request error: {e}, get mega link")
         return None
     
     # Define the filename and path for the downloaded film
     if select_title.type == "film":
-        mp4_path = os.path.join(site_constant.MOVIE_FOLDER, str(select_title.name).replace(extension_output, ""))
+        mp4_path = os.path.join(site_constants.MOVIE_FOLDER, str(select_title.name).replace(extension_output, ""))
     else:
-        mp4_path = os.path.join(site_constant.SERIES_FOLDER, str(select_title.name).replace(extension_output, ""))
+        mp4_path = os.path.join(site_constants.SERIES_FOLDER, str(select_title.name).replace(extension_output, ""))
 
     # Download from MEGA
     mega = MEGA_Downloader(

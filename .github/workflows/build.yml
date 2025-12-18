@@ -125,7 +125,6 @@ jobs:
             --hidden-import=Cryptodome.Cipher --hidden-import=Cryptodome.Cipher.AES \
             --hidden-import=Cryptodome.Util --hidden-import=Cryptodome.Util.Padding \
             --hidden-import=Cryptodome.Random \
-            --hidden-import=telebot \
             --hidden-import=curl_cffi --hidden-import=_cffi_backend \
             --collect-all curl_cffi \
             --additional-hooks-dir=pyinstaller/hooks \

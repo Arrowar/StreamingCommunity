@@ -415,7 +415,7 @@ def get_user_site_selection(args, choice_labels):
 def main():
     Logger()
     execute_hooks('pre_run')
-    #initialize()
+    initialize()
 
     try:
         search_functions = load_search_functions()

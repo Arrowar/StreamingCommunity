@@ -1,8 +1,8 @@
 {
     "DEFAULT": {
         "debug": false,
-        "show_message": false,
-        "fetch_domain_online": false
+        "show_message": true,
+        "fetch_domain_online": true
     },
     "OUT_FOLDER": {
         "root_path": "Video",

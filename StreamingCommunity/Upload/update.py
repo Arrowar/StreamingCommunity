@@ -87,13 +87,7 @@ def update():
 
     # Get commit details
     latest_commit = response_commits[0] if response_commits else None
-    if latest_commit:
-        latest_commit_message = latest_commit.get('commit', {}).get('message', 'No commit message')
-    else:
-        latest_commit_message = 'No commit history available'
-    
-    if str(current_version).replace('v', '') != str(last_version).replace('v', ''):
-        console.print(f"\n[cyan]New version available: [yellow]{last_version}")
+    latest_commit_message = latest_commit.get('commit', {}).get('message', 'No commit message')
 
     console.print(
         f"\n[red]{__title__} has been downloaded: [yellow]{total_download_count}"
@@ -104,5 +98,8 @@ def update():
         f"      [magenta]If you'd like to support development and keep the program updated, consider leaving a "
         f"[yellow]donation[magenta]. Thank you!"
     )
+
+    if str(current_version).replace('v', '') != str(last_version).replace('v', ''):
+        console.print(f"\n[cyan]New version available: [yellow]{last_version}")
     
     time.sleep(1)

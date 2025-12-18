@@ -18,6 +18,7 @@ from StreamingCommunity.Lib.HLS import HLS_Downloader
 
 # Logic
 from .util.get_license import generate_license_url
+from .util.fix_mpd import fix_manifest_url
 from StreamingCommunity.Api.Player.mediapolisvod import VideoSource
 
 
@@ -42,7 +43,7 @@ def download_film(select_title: MediaItem) -> Tuple[str, bool]:
 
     # Extract m3u8 URL from the film's URL
     response = create_client(headers=get_headers()).get(select_title.url + ".json")
-    first_item_path =  "https://www.raiplay.it" + response.json().get("first_item_path")
+    first_item_path = "https://www.raiplay.it" + response.json().get("first_item_path")
     master_playlist = VideoSource.extract_m3u8_url(first_item_path)
 
     # Define the filename and path for the downloaded film
@@ -52,7 +53,7 @@ def download_film(select_title: MediaItem) -> Tuple[str, bool]:
     # HLS
     if ".mpd" not in master_playlist:
         r_proc = HLS_Downloader(
-            m3u8_url=master_playlist,
+            m3u8_url=fix_manifest_url(master_playlist),
             output_path=os.path.join(mp4_path, mp4_name)
         ).start()
 

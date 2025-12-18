@@ -168,6 +168,7 @@ class ConfigManager:
             
         # Check for GitHub structure first
         github_domains_path = os.path.join(base_path, '.github', '.domain', 'domains.json')
+        console.print(f"[cyan]Domain path: [green]{github_domains_path}")
         
         try:
             if os.path.exists(github_domains_path):

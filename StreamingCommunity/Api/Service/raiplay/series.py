@@ -28,6 +28,7 @@ from StreamingCommunity.Lib.HLS import HLS_Downloader
 # Logic
 from .util.ScrapeSerie import GetSerieInfo
 from .util.get_license import generate_license_url
+from .util.fix_mpd import fix_manifest_url
 from StreamingCommunity.Api.Player.mediapolisvod import VideoSource
 
 
@@ -67,7 +68,7 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
     # HLS
     if ".mpd" not in master_playlist:
         r_proc = HLS_Downloader(
-            m3u8_url=master_playlist,
+            m3u8_url=fix_manifest_url(master_playlist),
             output_path=os.path.join(mp4_path, mp4_name)
         ).start()
 

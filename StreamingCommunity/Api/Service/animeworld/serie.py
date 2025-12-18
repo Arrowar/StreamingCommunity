@@ -10,8 +10,7 @@ from rich.prompt import Prompt
 
 
 # Internal utilities
-from StreamingCommunity.Util.os import os_manager
-from StreamingCommunity.Util.message import start_message
+from StreamingCommunity.Util import os_manager, start_message
 from StreamingCommunity.Lib.MP4 import MP4_Downloader
 
 

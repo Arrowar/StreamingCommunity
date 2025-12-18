@@ -13,8 +13,7 @@ from tqdm import tqdm
 
 
 # Internal utilities
-from StreamingCommunity.Util.config_json import config_manager
-from StreamingCommunity.Util.color import Colors
+from StreamingCommunity.Util import config_manager, Colors
 
 
 # Variable

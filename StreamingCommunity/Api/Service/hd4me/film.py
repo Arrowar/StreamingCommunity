@@ -9,10 +9,8 @@ from rich.console import Console
 
 
 # Internal utilities
-from StreamingCommunity.Util.os import os_manager
 from StreamingCommunity.Util.http_client import create_client_curl, get_headers
-from StreamingCommunity.Util.message import start_message
-from StreamingCommunity.Util.config_json import config_manager
+from StreamingCommunity.Util import config_manager, os_manager, start_message
 from StreamingCommunity.Lib.MEGA import MEGA_Downloader
 
 

@@ -10,8 +10,7 @@ src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 sys.path.append(src_path)
 
 
-from StreamingCommunity.Util.message import start_message
-from StreamingCommunity.Util.logger import Logger
+from StreamingCommunity.Util import Logger, start_message
 from StreamingCommunity.Lib.MP4 import MP4_Downloader
 
 

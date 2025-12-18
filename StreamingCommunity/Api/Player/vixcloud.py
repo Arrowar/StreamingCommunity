@@ -20,7 +20,6 @@ from StreamingCommunity.Util.http_client import create_client, get_userAgent
 console = Console()
 
 
-    
 class WindowVideo:
     def __init__(self, data: Dict[str, Any]):
         self.data = data

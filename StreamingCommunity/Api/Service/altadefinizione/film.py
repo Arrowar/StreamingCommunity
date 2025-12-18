@@ -10,10 +10,8 @@ from rich.console import Console
 
 
 # Internal utilities
-from StreamingCommunity.Util.os import os_manager
+from StreamingCommunity.Util import os_manager, start_message, config_manager
 from StreamingCommunity.Util.http_client import create_client, get_headers
-from StreamingCommunity.Util.message import start_message
-from StreamingCommunity.Util.config_json import config_manager
 from StreamingCommunity.Lib.HLS import HLS_Downloader
 
 

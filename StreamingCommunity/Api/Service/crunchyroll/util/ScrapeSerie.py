@@ -9,7 +9,7 @@ from StreamingCommunity.Api.Template.object import SeasonManager
 from .get_license import CrunchyrollClient
 
 
-# Static configuration
+# Variable
 NORMALIZE_SEASON_NUMBERS = False        # Set to True to remap seasons to 1..N range
 
 

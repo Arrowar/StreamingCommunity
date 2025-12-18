@@ -12,14 +12,7 @@ from rich.prompt import Prompt
 # Internal utilities
 from StreamingCommunity.Util import config_manager, start_message
 from StreamingCommunity.Util.http_client import get_headers, get_userAgent
-from StreamingCommunity.Lib.DASH.downloader import DASH_Downloader
-from StreamingCommunity.Lib.HLS import HLS_Downloader
-
-
-# Logic class
-from .util.ScrapeSerie import GetSerieInfo
-from .util.get_license import generate_license_url
-from StreamingCommunity.Api.Player.mediapolisvod import VideoSource
+from StreamingCommunity.Api.Template import site_constants, MediaItem
 from StreamingCommunity.Api.Template.episode_manager import (
     manage_selection, 
     map_episode_title,
@@ -28,7 +21,15 @@ from StreamingCommunity.Api.Template.episode_manager import (
     display_episodes_list,
     display_seasons_list
 )
-from StreamingCommunity.Api.Template import site_constants, MediaItem
+from StreamingCommunity.Lib.DASH.downloader import DASH_Downloader
+from StreamingCommunity.Lib.HLS import HLS_Downloader
+
+
+# Logic
+from .util.ScrapeSerie import GetSerieInfo
+from .util.get_license import generate_license_url
+from StreamingCommunity.Api.Player.mediapolisvod import VideoSource
+
 
 
 # Variable

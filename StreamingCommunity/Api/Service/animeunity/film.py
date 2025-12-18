@@ -4,12 +4,16 @@
 from rich.console import Console
 
 
-# Logic class
+# Internal utilities
+from StreamingCommunity.Api.Template import site_constants
+from StreamingCommunity.Api.Template.object import MediaItem
+
+
+# Logic
 from .serie import download_episode
 from .util.ScrapeSerie import ScrapeSerieAnime
 from StreamingCommunity.Api.Player.vixcloud import VideoSourceAnime
-from StreamingCommunity.Api.Template import site_constants
-from StreamingCommunity.Api.Template.object import MediaItem
+
 
 
 # Variable

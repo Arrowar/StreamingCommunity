@@ -12,7 +12,7 @@ import ua_generator
 from curl_cffi import requests
 
 
-# Logic class
+# Internal utilities
 from StreamingCommunity.Util.config_json import config_manager
 
 

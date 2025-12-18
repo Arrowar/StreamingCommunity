@@ -10,7 +10,7 @@ from rich.prompt import Prompt
 from StreamingCommunity.Api.Template import site_constants, MediaItem, get_select_title
 
 
-# Logic class
+# Logic
 from .site import title_search, table_show_manager, media_search_manager
 from .series import download_series
 

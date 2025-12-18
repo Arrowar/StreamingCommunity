@@ -11,7 +11,7 @@ from StreamingCommunity.Api.Template import site_constants, get_select_title
 from StreamingCommunity.Api.Template.object import MediaItem
 
 
-# Logic class
+# Logic
 from .site import title_search, table_show_manager, media_search_manager
 from .film import download_film
 

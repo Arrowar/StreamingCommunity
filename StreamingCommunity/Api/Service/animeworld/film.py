@@ -9,13 +9,13 @@ from rich.console import Console
 
 # Internal utilities
 from StreamingCommunity.Util import os_manager, start_message
+from StreamingCommunity.Api.Template import site_constants, MediaItem
 from StreamingCommunity.Lib.MP4 import MP4_Downloader
 
 
-# Logic class
+# Logic
 from .util.ScrapeSerie import ScrapSerie
 from StreamingCommunity.Api.Player.sweetpixel import VideoSource
-from StreamingCommunity.Api.Template import site_constants, MediaItem
 
 
 # Variable

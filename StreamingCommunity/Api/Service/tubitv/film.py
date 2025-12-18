@@ -11,12 +11,12 @@ from rich.console import Console
 
 # Internal utilities
 from StreamingCommunity.Util import os_manager, config_manager, start_message
+from StreamingCommunity.Api.Template import site_constants, MediaItem
 from StreamingCommunity.Lib.HLS import HLS_Downloader
 
 
-# Logic class
+# Logic
 from .util.get_license import get_bearer_token, get_playback_url
-from StreamingCommunity.Api.Template import site_constants, MediaItem
 
 
 # Variable

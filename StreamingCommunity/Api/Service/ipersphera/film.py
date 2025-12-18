@@ -10,11 +10,8 @@ from rich.console import Console
 # Internal utilities
 from StreamingCommunity.Util.http_client import create_client, get_headers
 from StreamingCommunity.Util import config_manager, start_message
-from StreamingCommunity.Lib.MEGA import MEGA_Downloader
-
-
-# Logic class
 from StreamingCommunity.Api.Template import site_constants, MediaItem
+from StreamingCommunity.Lib.MEGA import MEGA_Downloader
 
 
 # Variable

@@ -10,12 +10,12 @@ from rich.console import Console
 
 # Internal utilities
 from StreamingCommunity.Util import config_manager, os_manager, start_message
+from StreamingCommunity.Api.Template import site_constants, MediaItem
 from StreamingCommunity.Lib.DASH.downloader import DASH_Downloader
 
 
-# Logic class
+# Logi
 from .util.get_license import get_playback_session, CrunchyrollClient
-from StreamingCommunity.Api.Template import site_constants, MediaItem
 
 
 # Variable

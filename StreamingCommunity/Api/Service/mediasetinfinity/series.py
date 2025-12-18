@@ -12,13 +12,7 @@ from rich.prompt import Prompt
 # Internal utilities
 from StreamingCommunity.Util import os_manager, config_manager, start_message
 from StreamingCommunity.Util.http_client import get_headers
-from StreamingCommunity.Lib.DASH.downloader import DASH_Downloader
-
-
-# Logic class
-from .util.ScrapeSerie import GetSerieInfo
-from .util.fix_mpd import get_manifest
-from .util.get_license import get_playback_url, get_tracking_info, generate_license_url
+from StreamingCommunity.Api.Template import site_constants, MediaItem
 from StreamingCommunity.Api.Template.episode_manager import (
     manage_selection, 
     map_episode_title,
@@ -27,7 +21,13 @@ from StreamingCommunity.Api.Template.episode_manager import (
     display_episodes_list,
     display_seasons_list
 )
-from StreamingCommunity.Api.Template import site_constants, MediaItem
+from StreamingCommunity.Lib.DASH.downloader import DASH_Downloader
+
+
+# Logic
+from .util.ScrapeSerie import GetSerieInfo
+from .util.fix_mpd import get_manifest
+from .util.get_license import get_playback_url, get_tracking_info, generate_license_url
 
 
 # Variable

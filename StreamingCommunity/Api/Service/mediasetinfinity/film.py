@@ -11,13 +11,14 @@ from rich.console import Console
 # Internal utilities
 from StreamingCommunity.Util import os_manager, config_manager, start_message
 from StreamingCommunity.Util.http_client import get_headers
+from StreamingCommunity.Api.Template import site_constants, MediaItem
 from StreamingCommunity.Lib.DASH.downloader import DASH_Downloader
 
 
-# Logic class
+# Logic
 from .util.fix_mpd import get_manifest
 from .util.get_license import get_playback_url, get_tracking_info, generate_license_url
-from StreamingCommunity.Api.Template import site_constants, MediaItem
+
 
 
 # Variable

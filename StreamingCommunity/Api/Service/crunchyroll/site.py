@@ -10,7 +10,7 @@ from StreamingCommunity.Util.table import TVShowManager
 from StreamingCommunity.Api.Template import site_constants, MediaManager
 
 
-# Logic class
+# Logic
 from .util.get_license import CrunchyrollClient
 
 

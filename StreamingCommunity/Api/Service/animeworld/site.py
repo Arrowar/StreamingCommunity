@@ -10,8 +10,8 @@ from rich.console import Console
 
 # Internal utilities
 from StreamingCommunity.Util.http_client import create_client, get_headers
-from StreamingCommunity.Util.table import TVShowManager
 from StreamingCommunity.Api.Template import site_constants, MediaManager
+from StreamingCommunity.Util.table import TVShowManager
 
 
 

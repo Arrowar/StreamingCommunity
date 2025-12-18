@@ -11,11 +11,7 @@ from rich.prompt import Prompt
 
 # Internal utilities
 from StreamingCommunity.Util import config_manager, start_message
-from StreamingCommunity.Lib.HLS import HLS_Downloader
-
-
-# Logic class
-from .util.ScrapeSerie import GetSerieInfo
+from StreamingCommunity.Api.Template import site_constants, MediaItem
 from StreamingCommunity.Api.Template.episode_manager import (
     manage_selection, 
     map_episode_title, 
@@ -25,7 +21,11 @@ from StreamingCommunity.Api.Template.episode_manager import (
     display_episodes_list,
     display_seasons_list
 )
-from StreamingCommunity.Api.Template import site_constants, MediaItem
+from StreamingCommunity.Lib.HLS import HLS_Downloader
+
+
+# Logic 
+from .util.ScrapeSerie import GetSerieInfo
 from StreamingCommunity.Api.Player.supervideo import VideoSource
 
 

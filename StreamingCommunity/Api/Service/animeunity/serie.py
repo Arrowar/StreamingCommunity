@@ -11,15 +11,14 @@ from rich.prompt import Prompt
 
 # Internal utilities
 from StreamingCommunity.Util import os_manager, start_message
+from StreamingCommunity.Api.Template import site_constants, MediaItem
+from StreamingCommunity.Api.Template.episode_manager import manage_selection, dynamic_format_number
 from StreamingCommunity.Lib.MP4 import MP4_Downloader
 
 
-# Logic class
+# Logis
 from .util.ScrapeSerie import ScrapeSerieAnime
 from StreamingCommunity.Api.Player.vixcloud import VideoSourceAnime
-from StreamingCommunity.Api.Template import site_constants, MediaItem
-from StreamingCommunity.Api.Template.episode_manager import manage_selection, dynamic_format_number
-
 
 
 # Variable

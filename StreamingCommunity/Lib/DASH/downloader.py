@@ -229,6 +229,12 @@ class DASH_Downloader:
     def download_and_decrypt(self, custom_headers=None, query_params=None, key=None) -> bool:
         """
         Download and decrypt video/audio streams. Skips download if file already exists.
+
+        Args:
+            - custom_headers (dict): Optional HTTP headers for the license request.
+            - query_params (dict): Optional query parameters to append to the license URL.
+            - license_data (str/bytes): Optional raw license data to bypass HTTP request.
+            - key (str): Optional raw license data to bypass HTTP request.
         """
         if self.file_already_exists:
             console.print(f"[red]File already exists: {self.original_output_path}")

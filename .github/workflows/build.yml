@@ -109,7 +109,6 @@ jobs:
         shell: bash
         run: |
           pyinstaller --onefile --hidden-import=pycryptodomex --hidden-import=ua_generator \
-            --hidden-import=qbittorrentapi --hidden-import=qbittorrent \
             --hidden-import=bs4 --hidden-import=httpx --hidden-import=rich --hidden-import=tqdm \
             --hidden-import=m3u8 --hidden-import=psutil --hidden-import=unidecode \
             --hidden-import=jsbeautifier --hidden-import=jsbeautifier.core \
@@ -126,7 +125,6 @@ jobs:
             --hidden-import=Cryptodome.Cipher --hidden-import=Cryptodome.Cipher.AES \
             --hidden-import=Cryptodome.Util --hidden-import=Cryptodome.Util.Padding \
             --hidden-import=Cryptodome.Random \
-            --hidden-import=telebot \
             --hidden-import=curl_cffi --hidden-import=_cffi_backend \
             --collect-all curl_cffi \
             --additional-hooks-dir=pyinstaller/hooks \

@@ -2,29 +2,20 @@
     "DEFAULT": {
         "debug": false,
         "show_message": true,
-        "show_trending": true,
-        "fetch_domain_online": true,
-        "telegram_bot": false,
-        "bypass_dns": false
+        "fetch_domain_online": true
     },
     "OUT_FOLDER": {
-        "root_path": "/storage/emulated/0/Download/Termux/Video",
+        "root_path": "Video",
         "movie_folder_name": "Movie",
         "serie_folder_name": "Serie",
         "anime_folder_name": "Anime",
         "map_episode_name": "%(episode_name) S%(season)E%(episode)",
         "add_siteName": false
     },
-    "QBIT_CONFIG": {
-        "host": "192.168.1.51",
-        "port": "6666",
-        "user": "admin",
-        "pass": "adminadmin"
-    },
     "M3U8_DOWNLOAD": {
         "default_video_workers": 8,
         "default_audio_workers": 8,
-        "segment_timeout": 5,
+        "segment_timeout": 6,
         "enable_retry": true,
         "specific_list_audio": [
             "ita"
@@ -45,12 +36,12 @@
         "param_subtitles": ["-c:s", "webvtt"],
         "param_final": ["-c", "copy"],
         "force_resolution": "Best",
-        "extension": ".mkv"
+        "extension": "mkv"
     },
     "REQUESTS": {
         "verify": false,
-        "timeout": 15,
-        "max_retry": 3
+        "timeout": 12,
+        "max_retry": 8
     },
     "HOOKS": {
         "pre_run": [],
@@ -60,6 +51,10 @@
         "crunchyroll": {
             "device_id": "",
             "etp_rt": ""
+        },
+        "tubi": {
+            "email": "",
+            "password": ""
         }
     }
 }

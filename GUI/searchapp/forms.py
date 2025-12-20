@@ -1,15 +1,17 @@
+# 06-06-2025 By @FrancescoGrazioso -> "https://github.com/FrancescoGrazioso"
+
+
 from django import forms
+from GUI.searchapp.api import get_available_sites
 
 
-SITE_CHOICES = [
-    ("animeunity", "AnimeUnity"),
-    ("streamingcommunity", "StreamingCommunity"),
-]
+def get_site_choices():
+    sites = get_available_sites()
+    return [(site, site.replace('_', ' ').title()) for site in sites]
 
 
 class SearchForm(forms.Form):
     site = forms.ChoiceField(
-        choices=SITE_CHOICES,
         label="Sito",
         widget=forms.Select(
             attrs={
@@ -28,11 +30,14 @@ class SearchForm(forms.Form):
             }
         ),
     )
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['site'].choices = get_site_choices()
 
 
 class DownloadForm(forms.Form):
     source_alias = forms.CharField(widget=forms.HiddenInput)
     item_payload = forms.CharField(widget=forms.HiddenInput)
-    # Opzionali per serie
     season = forms.CharField(max_length=10, required=False, label="Stagione")
     episode = forms.CharField(max_length=20, required=False, label="Episodio (es: 1-3)")

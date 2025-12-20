@@ -1,163 +1,77 @@
-import threading
-import importlib
-import json
-from typing import Any, Dict, List, Optional
-from datetime import datetime
+# 06-06-2025 By @FrancescoGrazioso -> "https://github.com/FrancescoGrazioso"
 
+
+import json
+import threading
+from datetime import datetime
+from typing import Any, Dict
+
+
+# External utilities
 from django.shortcuts import render, redirect
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.contrib import messages
 
+
+# Internal utilities
 from .forms import SearchForm, DownloadForm
+from GUI.searchapp.api import get_api
+from GUI.searchapp.api.base import MediaItem
 
 
-def _load_site_search(site: str):
-    module_path = f"StreamingCommunity.Api.Site.{site}"
-    mod = importlib.import_module(module_path)
-    return getattr(mod, "search")
-
-
-def _ensure_direct_item(search_fn, item_payload: Dict[str, Any]) -> Dict[str, Any]:
-    """Garantisce un direct_item valido ricostruendolo dal database se mancano campi chiave."""
-    if item_payload.get("id") and (item_payload.get("slug") or item_payload.get("url")):
-        return item_payload
-
-    query = (
-        item_payload.get("title")
-        or item_payload.get("name")
-        or item_payload.get("slug")
-        or item_payload.get("display_title")
-    )
-    if not query:
-        return item_payload
-
-    try:
-        database = search_fn(query, get_onlyDatabase=True)
-        if (
-            not database
-            or not hasattr(database, "media_list")
-            or not database.media_list
-        ):
-            return item_payload
-
-        # Prova match per slug
-        wanted_slug = item_payload.get("slug")
-        if wanted_slug:
-            for el in database.media_list:
-                if getattr(el, "slug", None) == wanted_slug:
-                    return el.__dict__.copy()
-
-        # Altrimenti primo risultato
-        return database.media_list[0].__dict__.copy()
-    except Exception:
-        return item_payload
-
-
-def _search_results_to_list(
-    database_obj: Any, source_alias: str
-) -> List[Dict[str, Any]]:
-    # database_obj expected to be MediaManager with media_list of MediaItem-like objects
-    results = []
-    if not database_obj or not hasattr(database_obj, "media_list"):
-        return results
-    for element in database_obj.media_list:
-        item_dict = element.__dict__.copy() if hasattr(element, "__dict__") else {}
-        # Campi sicuri per il template
-        item_dict["display_title"] = (
-            item_dict.get("title")
-            or item_dict.get("name")
-            or item_dict.get("slug")
-            or "Senza titolo"
-        )
-        item_dict["display_type"] = (
-            item_dict.get("type") or item_dict.get("media_type") or "Unknown"
-        )
-        item_dict["source"] = source_alias.capitalize()
-        item_dict["source_alias"] = source_alias
-
-        # Data di uscita (prova diversi campi comuni; visualizza preferibilmente l'anno)
-        release_raw = (
-            item_dict.get("release_date")
-            or item_dict.get("first_air_date")
-            or item_dict.get("air_date")
-            or item_dict.get("date")
-            or item_dict.get("publish_date")
-            or item_dict.get("publishedAt")
-        )
-        release_year = (
-            item_dict.get("year")
-            or item_dict.get("release_year")
-            or item_dict.get("start_year")
-        )
-        display_release = None
-        if release_raw:
-            # Prova parsing in vari formati comuni
-            parsed_date = None
-            for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%Y/%m/%d", "%d-%m-%Y", "%Y"):
+def _media_item_to_display_dict(item: MediaItem, source_alias: str) -> Dict[str, Any]:
+    """Convert MediaItem to template-friendly dictionary."""
+    result = {
+        'display_title': item.title,
+        'display_type': item.type.capitalize(),
+        'source': source_alias.capitalize(),
+        'source_alias': source_alias,
+        'bg_image_url': item.poster,
+        'is_movie': item.is_movie,
+    }
+    
+    # Format release date
+    display_release = None
+    if item.year:
+        display_release = str(item.year)
+    elif item.release_date:
+        try:
+            for fmt in ('%Y-%m-%d', '%d/%m/%Y', '%Y/%m/%d', '%d-%m-%Y', '%Y'):
                 try:
-                    parsed_date = datetime.strptime(str(release_raw)[:10], fmt)
+                    parsed_date = datetime.strptime(str(item.release_date)[:10], fmt)
+                    display_release = str(parsed_date.year)
                     break
+
                 except Exception:
                     continue
-            if parsed_date:
-                display_release = str(parsed_date.year)
-            else:
-                # Fallback: prova a estrarre l'anno da una stringa tipo 2021-...
-                try:
-                    year_guess = int(str(release_raw)[:4])
-                    display_release = str(year_guess)
-                except Exception:
-                    display_release = str(release_raw)
-        elif release_year:
-            display_release = str(release_year)
-        item_dict["display_release"] = display_release
 
-        # Immagine di sfondo (usa il primo campo disponibile)
-        bg_image_url = (
-            item_dict.get("poster")
-            or item_dict.get("poster_url")
-            or item_dict.get("image")
-            or item_dict.get("image_url")
-            or item_dict.get("cover")
-            or item_dict.get("cover_url")
-            or item_dict.get("thumbnail")
-            or item_dict.get("thumb")
-            or item_dict.get("backdrop")
-            or item_dict.get("backdrop_url")
-        )
-        if isinstance(bg_image_url, dict):
-            # Alcune API possono restituire un oggetto con varie dimensioni
-            # Prova chiavi comuni
-            bg_image_url = (
-                bg_image_url.get("url")
-                or bg_image_url.get("large")
-                or bg_image_url.get("medium")
-                or bg_image_url.get("small")
-            )
-        item_dict["bg_image_url"] = bg_image_url
-        try:
-            item_dict["payload_json"] = json.dumps(item_dict)
+            if not display_release:
+                try:
+                    display_release = str(int(str(item.release_date)[:4]))
+
+                except Exception:
+                    display_release = str(item.release_date)
+
         except Exception:
-            item_dict["payload_json"] = json.dumps(
-                {
-                    k: item_dict.get(k)
-                    for k in ["id", "name", "title", "type", "url", "slug"]
-                    if k in item_dict
-                }
-            )
-        results.append(item_dict)
-    return results
+            pass
+    
+    result['display_release'] = display_release
+    result['payload_json'] = json.dumps(item.to_dict())
+    
+    return result
 
 
 @require_http_methods(["GET"])
 def search_home(request: HttpRequest) -> HttpResponse:
+    """Display search form."""
     form = SearchForm()
     return render(request, "searchapp/home.html", {"form": form})
 
 
 @require_http_methods(["POST"])
 def search(request: HttpRequest) -> HttpResponse:
+    """Handle search requests."""
     form = SearchForm(request.POST)
     if not form.is_valid():
         messages.error(request, "Dati non validi")
@@ -167,9 +81,9 @@ def search(request: HttpRequest) -> HttpResponse:
     query = form.cleaned_data["query"]
 
     try:
-        search_fn = _load_site_search(site)
-        database = search_fn(query, get_onlyDatabase=True)
-        results = _search_results_to_list(database, site)
+        api = get_api(site)
+        media_items = api.search(query)
+        results = [_media_item_to_display_dict(item, site) for item in media_items]
     except Exception as e:
         messages.error(request, f"Errore nella ricerca: {e}")
         return render(request, "searchapp/home.html", {"form": form})
@@ -186,38 +100,31 @@ def search(request: HttpRequest) -> HttpResponse:
     )
 
 
-def _run_download_in_thread(
-    site: str,
-    item_payload: Dict[str, Any],
-    season: Optional[str],
-    episode: Optional[str],
-) -> None:
+def _run_download_in_thread(site: str, item_payload: Dict[str, Any], season: str = None, episodes: str = None) -> None:
+    """Run download in background thread."""
     def _task():
         try:
-            search_fn = _load_site_search(site)
-
-            # Assicura direct_item valido
-            direct_item = _ensure_direct_item(search_fn, item_payload)
-
-            selections = None
-            # Per animeunity consideriamo solo gli episodi
-            if site == "animeunity":
-                selections = {"episode": episode or None} if episode else None
-            else:
-                if season or episode:
-                    selections = {"season": season or None, "episode": episode or None}
-
-            search_fn(direct_item=direct_item, selections=selections)
+            api = get_api(site)
+            
+            # Ensure complete item
+            media_item = api.ensure_complete_item(item_payload)
+            
+            # Start download
+            api.start_download(media_item, season=season, episodes=episodes)
         except Exception:
-            return
+            pass
 
     threading.Thread(target=_task, daemon=True).start()
 
 
 @require_http_methods(["POST"])
 def series_metadata(request: HttpRequest) -> JsonResponse:
+    """
+    API endpoint to get series metadata (seasons/episodes).
+    Returns JSON with series information.
+    """
     try:
-        # Expect either JSON body or standard form fields
+        # Parse request
         if request.content_type and "application/json" in request.content_type:
             body = json.loads(request.body.decode("utf-8"))
             source_alias = body.get("source_alias") or body.get("site")
@@ -230,114 +137,49 @@ def series_metadata(request: HttpRequest) -> JsonResponse:
         if not source_alias or not item_payload:
             return JsonResponse({"error": "Parametri mancanti"}, status=400)
 
-        site = (source_alias.split("_")[0] if source_alias else "").lower()
-        media_type = (
-            item_payload.get("type") or item_payload.get("media_type") or ""
-        ).lower()
-
-        # Films and OVA: no seasons/episodes
-        if media_type in ("film", "movie", "ova"):
-            return JsonResponse(
-                {"isSeries": False, "seasonsCount": 0, "episodesPerSeason": {}}
-            )
-
-        # Guard rail: require id and slug where needed
-        media_id = item_payload.get("id")
-        slug = item_payload.get("slug") or item_payload.get("name")
-
-        if site == "streamingcommunity":
-            # Lazy import to avoid loading heavy package during tests unless needed
-            import importlib
-
-            try:
-                scrape_mod = importlib.import_module(
-                    "StreamingCommunity.Api.Site.streamingcommunity.util.ScrapeSerie"
-                )
-                GetSerieInfo = getattr(scrape_mod, "GetSerieInfo")
-            except Exception as imp_err:
-                return JsonResponse({"error": f"Import error: {imp_err}"}, status=500)
-
-            # Best-effort base_url
-            base_url = ""
-            try:
-                from StreamingCommunity.Util.config_json import config_manager
-
-                base_url = (
-                    config_manager.get_site("streamingcommunity", "full_url") or ""
-                ).rstrip("/")
-            except Exception:
-                base_url = ""
-
-            scraper = GetSerieInfo(url=base_url, media_id=media_id, series_name=slug)
-            seasons_count = scraper.getNumberSeason()
-            episodes_per_season: Dict[int, int] = {}
-            for season_number in range(1, (seasons_count or 0) + 1):
-                try:
-                    episodes = scraper.getEpisodeSeasons(season_number)
-                    episodes_per_season[season_number] = len(episodes or [])
-                except Exception:
-                    episodes_per_season[season_number] = 0
-
-            return JsonResponse(
-                {
-                    "isSeries": True,
-                    "seasonsCount": seasons_count or 0,
-                    "episodesPerSeason": episodes_per_season,
-                }
-            )
-
-        if site == "animeunity":
-            import importlib
-
-            try:
-                scrape_mod = importlib.import_module(
-                    "StreamingCommunity.Api.Site.animeunity.util.ScrapeSerie"
-                )
-                ScrapeSerieAnime = getattr(scrape_mod, "ScrapeSerieAnime")
-            except Exception as imp_err:
-                return JsonResponse({"error": f"Import error: {imp_err}"}, status=500)
-
-            # Best-effort base_url
-            base_url = ""
-            try:
-                from StreamingCommunity.Util.config_json import config_manager
-
-                base_url = (
-                    config_manager.get_site("animeunity", "full_url") or ""
-                ).rstrip("/")
-            except Exception:
-                base_url = ""
-
-            scraper = ScrapeSerieAnime(url=base_url)
-            # Optional fields
-            try:
-                scraper.setup(series_name=slug, media_id=media_id)
-            except Exception:
-                pass
-
-            try:
-                episodes_count = scraper.get_count_episodes()
-            except Exception:
-                episodes_count = None
-
-            return JsonResponse(
-                {
-                    "isSeries": True,
-                    "seasonsCount": 1,
-                    "episodesPerSeason": {1: (episodes_count or 0)},
-                }
-            )
-
-        # Default: unknown site treated as no metadata
-        return JsonResponse(
-            {"isSeries": False, "seasonsCount": 0, "episodesPerSeason": {}}
-        )
+        # Get API instance
+        api = get_api(source_alias)
+        
+        # Convert to MediaItem
+        media_item = api._dict_to_media_item(item_payload)
+        
+        # Check if it's a movie
+        if media_item.is_movie:
+            return JsonResponse({
+                "isSeries": False,
+                "seasonsCount": 0,
+                "episodesPerSeason": {}
+            })
+        
+        # Get series metadata
+        seasons = api.get_series_metadata(media_item)
+        
+        if not seasons:
+            return JsonResponse({
+                "isSeries": False,
+                "seasonsCount": 0,
+                "episodesPerSeason": {}
+            })
+        
+        # Build response
+        episodes_per_season = {
+            season.number: season.episode_count 
+            for season in seasons
+        }
+        
+        return JsonResponse({
+            "isSeries": True,
+            "seasonsCount": len(seasons),
+            "episodesPerSeason": episodes_per_season
+        })
+        
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
 
 
 @require_http_methods(["POST"])
 def start_download(request: HttpRequest) -> HttpResponse:
+    """Handle download requests for movies or individual series selections."""
     form = DownloadForm(request.POST)
     if not form.is_valid():
         messages.error(request, "Dati non validi")
@@ -348,7 +190,7 @@ def start_download(request: HttpRequest) -> HttpResponse:
     season = form.cleaned_data.get("season") or None
     episode = form.cleaned_data.get("episode") or None
 
-    # Normalizza spazi
+    # Normalize
     if season:
         season = str(season).strip() or None
     if episode:
@@ -360,37 +202,28 @@ def start_download(request: HttpRequest) -> HttpResponse:
         messages.error(request, "Payload non valido")
         return redirect("search_home")
 
-    # source_alias is like 'streamingcommunity' or 'animeunity'
+    # Extract title for message
+    title = item_payload.get("title")
+
+    # For animeunity, default to all episodes if not specified and not a movie
     site = source_alias.split("_")[0].lower()
-
-    # Estrai titolo per il messaggio
-    title = (
-        item_payload.get("display_title")
-        or item_payload.get("title")
-        or item_payload.get("name")
-        or "contenuto selezionato"
-    )
-
-    # Per animeunity, se non specificato e se non è un contenuto non seriale (film/ova),
-    # scarica tutti gli episodi evitando prompt
-    media_type = (
-        item_payload.get("type") or item_payload.get("media_type") or ""
-    ).lower()
-    if (
-        site == "animeunity"
-        and not episode
-        and media_type not in ("film", "movie", "ova")
-    ):
+    media_type = (item_payload.get("type") or "").lower()
+    
+    if site == "animeunity" and not episode and media_type not in ("film", "movie", "ova"):
         episode = "*"
 
+    # Start download in background
     _run_download_in_thread(site, item_payload, season, episode)
 
-    # Messaggio di successo con dettagli
+    # Success message
     season_info = ""
     if site != "animeunity" and season:
         season_info = f" (Stagione {season}"
     episode_info = f", Episodi {episode}" if episode else ""
-    season_info += ")" if season_info and not episode_info == "" else ""
+    if season_info and episode_info:
+        season_info += ")"
+    elif season_info:
+        season_info += ")"
 
     messages.success(
         request,
@@ -399,3 +232,95 @@ def start_download(request: HttpRequest) -> HttpResponse:
     )
 
     return redirect("search_home")
+
+
+@require_http_methods(["GET", "POST"])
+def series_detail(request: HttpRequest) -> HttpResponse:
+    """Display series details page with seasons and episodes."""
+    if request.method == "GET":
+        source_alias = request.GET.get("source_alias")
+        item_payload_raw = request.GET.get("item_payload")
+        
+        if not source_alias or not item_payload_raw:
+            messages.error(request, "Parametri mancanti per visualizzare i dettagli della serie.")
+            return redirect("search_home")
+        
+        try:
+            item_payload = json.loads(item_payload_raw)
+        except Exception:
+            messages.error(request, "Errore nel caricamento dei dati della serie.")
+            return redirect("search_home")
+        
+        try:
+            # Get API instance
+            api = get_api(source_alias)
+            
+            # Ensure complete item
+            media_item = api.ensure_complete_item(item_payload)
+            
+            # Get series metadata
+            seasons = api.get_series_metadata(media_item)
+            
+            if not seasons:
+                messages.error(request, "Impossibile recuperare le informazioni sulla serie.")
+                return redirect("search_home")
+            
+            # Convert to template format
+            seasons_data = [season.to_dict() for season in seasons]
+            
+            context = {
+                "title": media_item.title,
+                "source_alias": source_alias,
+                "item_payload": json.dumps(media_item.to_dict()),
+                "seasons": seasons_data,
+                "bg_image_url": media_item.poster,
+            }
+            
+            return render(request, "searchapp/series_detail.html", context)
+            
+        except Exception as e:
+            messages.error(request, f"Errore nel caricamento dei dettagli: {str(e)}")
+            return redirect("search_home")
+    
+    # POST: download season or selected episodes
+    elif request.method == "POST":
+        source_alias = request.POST.get("source_alias")
+        item_payload_raw = request.POST.get("item_payload")
+        season_number = request.POST.get("season_number")
+        download_type = request.POST.get("download_type")
+        selected_episodes = request.POST.get("selected_episodes", "")
+        
+        if not all([source_alias, item_payload_raw, season_number]):
+            messages.error(request, "Parametri mancanti per il download.")
+            return redirect("search_home")
+        
+        try:
+            item_payload = json.loads(item_payload_raw)
+        except Exception:
+            messages.error(request, "Errore nel parsing dei dati.")
+            return redirect("search_home")
+        
+        title = item_payload.get("title")
+        
+        # Prepare download parameters
+        if download_type == "full_season":
+            episode_selection = "*"
+            msg_detail = f"stagione {season_number} completa"
+            
+        else:
+            episode_selection = selected_episodes.strip() if selected_episodes else None
+            if not episode_selection:
+                messages.error(request, "Nessun episodio selezionato.")
+                return redirect("series_detail") + f"?source_alias={source_alias}&item_payload={item_payload_raw}"
+            msg_detail = f"S{season_number}:E{episode_selection}"
+        
+        # Start download
+        _run_download_in_thread(source_alias, item_payload, season_number, episode_selection)
+        
+        messages.success(
+            request,
+            f"Download avviato per '{title}' - {msg_detail}. "
+            f"Il download sta procedendo in background."
+        )
+        
+        return redirect("search_home")

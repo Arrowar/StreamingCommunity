@@ -1,23 +1,17 @@
 <div align="center">
 
-## 📊 Project Status & Info
-[![PyPI Version](https://img.shields.io/pypi/v/streamingcommunity?logo=pypi&logoColor=white&labelColor=2d3748&color=3182ce&style=for-the-badge)](https://pypi.org/project/streamingcommunity)
+<img src="https://i.postimg.cc/Y9t2XgB1/z562m3.png" alt="StreamingCommunity Logo" width="110" style="background: transparent;">
+
+[![PyPI Version](https://img.shields.io/pypi/v/streamingcommunity?logo=pypi&logoColor=white&labelColor=2d3748&color=3182ce&style=for-the-badge)](https://pypi.org/project/streamingcommunity/)
 [![Last Commit](https://img.shields.io/github/last-commit/Arrowar/StreamingCommunity?logo=git&logoColor=white&labelColor=2d3748&color=805ad5&style=for-the-badge)](https://github.com/Arrowar/StreamingCommunity/commits)
-[![Issues](https://img.shields.io/github/issues/Arrowar/StreamingCommunity?logo=github&logoColor=white&labelColor=2d3748&color=ed8936&style=for-the-badge)](https://github.com/Arrowar/StreamingCommunity/issues)
-[![License](https://img.shields.io/github/license/Arrowar/StreamingCommunity?logo=gnu&logoColor=white&labelColor=2d3748&color=e53e3e&style=for-the-badge)](https://github.com/Arrowar/StreamingCommunity/blob/main/LICENSE)
+[![Sponsor](https://img.shields.io/badge/💖_Sponsor-ea4aaa?style=for-the-badge&logo=github-sponsors&logoColor=white&labelColor=2d3748)](https://ko-fi.com/arrowar)
 
-## 💝 Support the Project
-<a href='https://ko-fi.com/E1E11LVC83' target='_blank'>
-    <img height='36' style='border:0px;height:36px;' src='https://storage.ko-fi.com/cdn/kofi4.png?v=6' border='0' alt='Buy Me a Coffee at ko-fi.com' />
-</a>
+---
 
-## 🚀 Download & Install
 [![Windows](https://img.shields.io/badge/🪟_Windows-0078D4?style=for-the-badge&logo=windows&logoColor=white&labelColor=2d3748)](https://github.com/Arrowar/StreamingCommunity/releases/latest/download/StreamingCommunity_win.exe)
 [![macOS](https://img.shields.io/badge/🍎_macOS-000000?style=for-the-badge&logo=apple&logoColor=white&labelColor=2d3748)](https://github.com/Arrowar/StreamingCommunity/releases/latest/download/StreamingCommunity_mac)
 [![Linux latest](https://img.shields.io/badge/🐧_Linux_latest-FCC624?style=for-the-badge&logo=linux&logoColor=black&labelColor=2d3748)](https://github.com/Arrowar/StreamingCommunity/releases/latest/download/StreamingCommunity_linux_latest)
 [![Linux 22.04](https://img.shields.io/badge/🐧_Linux_22.04-FCC624?style=for-the-badge&logo=linux&logoColor=black&labelColor=2d3748)](https://github.com/Arrowar/StreamingCommunity/releases/latest/download/StreamingCommunity_linux_previous)
-
----
 
 *⚡ **Quick Start:** `pip install StreamingCommunity && StreamingCommunity`*
 
@@ -39,8 +33,6 @@
 - 🎓 [Tutorials](#tutorials)
 - 🔗 [Related Projects](#useful-project)
 
----
-
 ## Installation
 
 ### Prerequisites
@@ -56,6 +48,11 @@ pip install -r requirements.txt
 
 # Linux/MacOS  
 pip3 install -r requirements.txt
+
+# Android Termux (step1)
+pip install -r requirements.txt
+# Android Termux (step2)
+termux-initial-setup.sh
 ```
 
 ### Update
@@ -84,6 +81,20 @@ python test_run.py
 # Linux/MacOS
 python3 test_run.py
 ```
+---
+
+## DNS
+
+DNS configuration is **required** to ensure full functionality, better reliability and proper connectivity.
+
+- **Cloudflare DNS:**  
+  - Primary: `1.1.1.1`
+  - Setup guide: https://developers.cloudflare.com/1.1.1.1/setup/
+
+- **Quad9 DNS:**  
+  - Primary: `9.9.9.9`  
+  - Setup guide: https://quad9.net/
+
 
 ---
 
@@ -123,22 +134,6 @@ downloader.download()
 
 See [MP4 example](./Test/Downloads/MP4.py) for complete usage.
 
-<summary>🧲 TOR</summary>
-
-Download content via torrent magnet links.
-
-```python
-from StreamingCommunity import TOR_downloader
-
-client = TOR_downloader()
-
-client.add_magnet_link("magnet:?xt=urn:btih:example_hash&dn=example_name", save_path=".")
-
-client.start_download()
-```
-
-See [Torrent example](./Test/Downloads/TOR.py) for complete usage.
-
 <summary>🎞️ DASH</summary>
 
 ```python
@@ -154,11 +149,23 @@ dash_process.parse_manifest()
 
 if dash_process.download_and_decrypt():
     dash_process.finalize_output()
-
-dash_process.get_status()
 ```
 
 See [DASH example](./Test/Downloads/DASH.py) for complete usage.
+
+<summary>Ⓜ️ MEGA</summary>
+
+```python
+mega = Mega_Downloader()
+m = mega.login()
+
+output_path = m.download_url(
+    url="https://mega.nz/file/0kgCWZZB#7u....",
+    dest_path=".\\prova.mp4"
+)
+```
+
+See [MEGA example](./Test/Downloads/MEGA.py) for complete usage.
 
 ---
 
@@ -203,21 +210,6 @@ You can change some behaviors by tweaking the configuration file. The configurat
 
 #### Additional Options
 - `add_siteName`: Appends site_name to root path (can be changed with `--add_siteName true/false`)
-
-<summary>🔄 QBIT_CONFIG Settings</summary>
-
-```json
-{
-    "QBIT_CONFIG": {
-        "host": "192.168.1.51",
-        "port": "6666",
-        "user": "admin",
-        "pass": "adminadmin"
-    }
-}
-```
-
-To enable qBittorrent integration, follow the setup guide [here](https://github.com/lgallard/qBittorrent-Controller/wiki/How-to-enable-the-qBittorrent-Web-UI).
 
 <summary>📥 M3U8_DOWNLOAD Settings</summary>
 
@@ -281,6 +273,40 @@ To enable qBittorrent integration, follow the setup guide [here](https://github.
     - 720p (1280x720)
     - 480p (640x480)
     - 360p (640x360)
+
+
+#### Output fomat Options
+- `extension`: Choose video format:
+  * `"mp4"`: Output as MP4 file
+  * `"mkv"`: Output as MKV file
+
+Final video will be saved with the selected extension. For each format, specific subtitles parameters need to be set in the M3U8_CONVERSION section.
+
+MP4 example:
+```json
+{
+    "M3U8_CONVERSION": {
+        "param_subtitles": [
+            "-c:s",
+            "mov_text"
+        ],
+        "extension": "mp4"
+    }
+}
+```
+
+MKV example:
+```json
+{
+    "M3U8_CONVERSION": {
+        "param_subtitles": [
+            "-c:s",
+            "webvtt"
+        ],
+        "extension": "mkv"
+    }
+}
+```
 
 #### Link options
 - `get_only_link`: Return M3U8 playlist/index URL instead of downloading
@@ -387,7 +413,6 @@ python test_run.py --global -s "cars"
 python test_run.py --category 1       # Search in anime category
 python test_run.py --category 2       # Search in movies & series
 python test_run.py --category 3       # Search in series
-python test_run.py --category 4       # Search in torrent category
 ```
 
 ### PyPI Installation Usage
@@ -537,84 +562,11 @@ make LOCAL_DIR=/path/to/download run-container
 The `run-container` command mounts also the `config.json` file, so any change to the configuration file is reflected immediately without having to rebuild the image.
 
 
-# Telegram Usage
-
-<summary>⚙️ Basic Configuration</summary>
-
-The bot was created to replace terminal commands and allow interaction via Telegram. Each download runs within a screen session, enabling multiple downloads to run simultaneously.
-
-To run the bot in the background, simply start it inside a screen session and then press Ctrl + A, followed by D, to detach from the session without stopping the bot.
-
-Command Functions:
-
-🔹 /start – Starts a new search for a download. This command performs the same operations as manually running the script in the terminal with test_run.py.
-
-🔹 /list – Displays the status of active downloads, with options to:
-
-Stop an incorrect download using /stop <ID>.
-
-View the real-time output of a download using /screen <ID>.
-
-⚠ Warning: If a download is interrupted, incomplete files may remain in the folder specified in config.json. These files must be deleted manually to avoid storage or management issues.
-
-🛠 Configuration: Currently, the bot's settings are stored in the config.json file, which is located in the same directory as the telegram_bot.py script.
-
-## .env Example:
-
-You need to create an .env file and enter your Telegram token and user ID to authorize only one user to use it
-
-```
-TOKEN_TELEGRAM=IlTuo2131TOKEN$12D3Telegram
-AUTHORIZED_USER_ID=12345678
-DEBUG=False
-```
-
-<summary>📥 Dependencies & Launch</summary>
-
-Install dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-Start the bot (from /StreamingCommunity/TelegramHelp):
-```bash
-python3 telegram_bot.py
-```d
-- 🔹 `/list` – Displays the status of active downloads, with options to:
-  - Stop an incorrect download using `/stop <ID>`
-  - View the real-time output of a download using `/screen <ID>`
-
-⚠️ **Warning:** If a download is interrupted, incomplete files may remain in the folder specified in config.json. These files must be deleted manually.
-
-#### Setup
-1. Create an `.env` file with your Telegram token and user ID:
-```env
-TOKEN_TELEGRAM=IlTuo2131TOKEN$12D3Telegram
-AUTHORIZED_USER_ID=12345678
-DEBUG=False
-```
-
-2. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-3. Start the bot (from `/StreamingCommunity/TelegramHelp`):
-```bash
-python3 telegram_bot.py
-```
-
-**Running in background:**
-Start the bot inside a screen session and press Ctrl + A, followed by D, to detach from the session without stopping the bot.
-
----
-
 # Tutorials
 
 - [Windows](https://www.youtube.com/watch?v=mZGqK4wdN-k)
 - [Linux](https://www.youtube.com/watch?v=0qUNXPE_mTg)
 - [Pypy](https://www.youtube.com/watch?v=C6m9ZKOK0p4)
-- [Compiled](https://www.youtube.com/watch?v=pm4lqsxkTVo)
 
 
 # Useful Project

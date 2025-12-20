@@ -20,33 +20,6 @@ from StreamingCommunity.Util.os import get_ffprobe_path
 console = Console()
 
 
-def has_audio_stream(video_path: str) -> bool:
-    """
-    Check if the input video has an audio stream.
-
-    Parameters:
-        - video_path (str): Path to the input video file.
-
-    Returns:
-        has_audio (bool): True if the input video has an audio stream, False otherwise.
-    """
-    try:
-        ffprobe_cmd = [get_ffprobe_path(), '-v', 'error', '-print_format', 'json', '-select_streams', 'a', '-show_streams', video_path]
-        logging.info(f"FFmpeg command: {ffprobe_cmd}")
-
-        with subprocess.Popen(ffprobe_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) as proc:
-            stdout, stderr = proc.communicate()
-            if stderr:
-                logging.error(f"Error: {stderr}")
-            else:
-                probe_result = json.loads(stdout)
-                return bool(probe_result.get('streams', []))
-            
-    except Exception as e:
-        logging.error(f"Error: {e}")
-        return False
-
-
 def get_video_duration(file_path: str, file_type: str = "file") -> float:
     """
     Get the duration of a media file (video or audio).
@@ -233,15 +206,15 @@ def check_duration_v_a(video_path, audio_path, tolerance=1.0):
 
     # Check if either duration is None and specify which one is None
     if video_duration is None and audio_duration is None:
-        console.print("[yellow]Warning: Both video and audio durations are None. Returning 0 as duration difference.[/yellow]")
+        console.print("[yellow]Warning: Both video and audio durations are None. Returning 0 as duration difference.")
         return False, 0.0, 0.0, 0.0
     
     elif video_duration is None:
-        console.print("[yellow]Warning: Video duration is None. Using audio duration for calculation.[/yellow]")
+        console.print("[yellow]Warning: Video duration is None. Using audio duration for calculation.")
         return False, 0.0, 0.0, audio_duration
     
     elif audio_duration is None:
-        console.print("[yellow]Warning: Audio duration is None. Using video duration for calculation.[/yellow]")
+        console.print("[yellow]Warning: Audio duration is None. Using video duration for calculation.")
         return False, 0.0, video_duration, 0.0
     
     # Calculate the duration difference

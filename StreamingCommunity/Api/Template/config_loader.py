@@ -6,6 +6,7 @@ import inspect
 
 # Internal utilities
 from StreamingCommunity.Util.config_json import config_manager
+from StreamingCommunity.Api.Template.loader import folder_name as lazy_loader_folder
 
 
 def get_site_name_from_stack():
@@ -13,7 +14,7 @@ def get_site_name_from_stack():
         file_path = frame_info.filename
         
         if "__init__" in file_path:
-            parts = file_path.split(f"Site{os.sep}")
+            parts = file_path.split(f"{lazy_loader_folder}{os.sep}")
             
             if len(parts) > 1:
                 site_name = parts[1].split(os.sep)[0]
@@ -55,10 +56,5 @@ class SiteConstant:
         if config_manager.get_bool("OUT_FOLDER", "add_siteName"):
             base_path = os.path.join(base_path, self.SITE_NAME)
         return os.path.join(base_path, config_manager.get('OUT_FOLDER', 'anime_folder_name'))
-    
-    @property
-    def TELEGRAM_BOT(self):
-        return config_manager.get_bool('DEFAULT', 'telegram_bot')
 
-
-site_constant = SiteConstant()
+site_constants = SiteConstant()

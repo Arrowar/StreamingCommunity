@@ -1,8 +1,10 @@
 # 01.03.24
 
+import re
 import time
 import logging
 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+from typing import Dict, Any
 
 
 # External libraries
@@ -11,14 +13,183 @@ from rich.console import Console
 
 
 # Internal utilities
-from StreamingCommunity.Util.headers import get_userAgent
-from StreamingCommunity.Util.http_client import create_client
-from .Helper.Vixcloud.util import WindowVideo, WindowParameter, StreamsCollection
-from .Helper.Vixcloud.js_parser import JavaScriptParser
+from StreamingCommunity.Util.http_client import create_client, get_userAgent
 
 
 # Variable
 console = Console()
+
+
+class WindowVideo:
+    def __init__(self, data: Dict[str, Any]):
+        self.data = data
+        self.id: int = data.get('id', '')
+        self.name: str = data.get('name', '')
+        self.filename: str = data.get('filename', '')
+        self.size: str = data.get('size', '')
+        self.quality: str = data.get('quality', '')
+        self.duration: str = data.get('duration', '')
+        self.views: int = data.get('views', '')
+        self.is_viewable: bool = data.get('is_viewable', '')
+        self.status: str = data.get('status', '')
+        self.fps: float = data.get('fps', '')
+        self.legacy: bool = data.get('legacy', '')
+        self.folder_id: int = data.get('folder_id', '')
+        self.created_at_diff: str = data.get('created_at_diff', '')
+
+    def __str__(self):
+        return f"WindowVideo(id={self.id}, name='{self.name}', filename='{self.filename}', size='{self.size}', quality='{self.quality}', duration='{self.duration}', views={self.views}, is_viewable={self.is_viewable}, status='{self.status}', fps={self.fps}, legacy={self.legacy}, folder_id={self.folder_id}, created_at_diff='{self.created_at_diff}')"
+
+
+class WindowParameter:
+    def __init__(self, data: Dict[str, Any]):
+        self.data = data
+        params = data.get('params', {})
+        self.token: str = params.get('token', '')
+        self.expires: str = str(params.get('expires', ''))
+        self.url = data.get('url')
+
+    def __str__(self):
+        return (f"WindowParameter(token='{self.token}', expires='{self.expires}', url='{self.url}', data={self.data})")
+
+
+class JavaScriptParser:
+    @staticmethod
+    def fix_string(ss):
+        if ss is None:
+            return None
+        
+        ss = str(ss)
+        ss = ss.encode('utf-8').decode('unicode-escape')
+        ss = ss.strip("\"'")
+        ss = ss.strip()
+        
+        return ss
+    
+    @staticmethod
+    def fix_url(url):
+        if url is None:
+            return None
+
+        url = url.replace('\\/', '/')
+        return url
+
+    @staticmethod
+    def parse_value(value):
+        value = JavaScriptParser.fix_string(value)
+
+        if 'http' in str(value) or 'https' in str(value):
+            return JavaScriptParser.fix_url(value)
+        
+        if value is None or str(value).lower() == 'null':
+            return None
+        if str(value).lower() == 'true':
+            return True
+        if str(value).lower() == 'false':
+            return False
+        
+        try:
+            return int(value)
+        except ValueError:
+            try:
+                return float(value)
+            except ValueError:
+                pass
+        
+        return value
+
+    @staticmethod
+    def parse_object(obj_str):
+        obj_str = obj_str.strip('{}').strip()
+        
+        result = {}
+        key_value_pairs = re.findall(r'([\'"]?[\w]+[\'"]?)\s*:\s*([^,{}]+|{[^}]*}|\[[^\]]*\]|\'[^\']*\'|"[^"]*")', obj_str)
+        
+        for key, value in key_value_pairs:
+            key = JavaScriptParser.fix_string(key)
+            value = value.strip()
+
+            if value.startswith('{'):
+                result[key] = JavaScriptParser.parse_object(value)
+            elif value.startswith('['):
+                result[key] = JavaScriptParser.parse_array(value)
+            else:
+                result[key] = JavaScriptParser.parse_value(value)
+        
+        return result
+
+    @staticmethod
+    def parse_array(arr_str):
+        arr_str = arr_str.strip('[]').strip()
+        result = []
+        
+        elements = []
+        current_elem = ""
+        brace_count = 0
+        in_string = False
+        quote_type = None
+
+        for char in arr_str:
+            if char in ['"', "'"]:
+                if not in_string:
+                    in_string = True
+                    quote_type = char
+                elif quote_type == char:
+                    in_string = False
+                    quote_type = None
+            
+            if not in_string:
+                if char == '{':
+                    brace_count += 1
+                elif char == '}':
+                    brace_count -= 1
+                elif char == ',' and brace_count == 0:
+                    elements.append(current_elem.strip())
+                    current_elem = ""
+                    continue
+            
+            current_elem += char
+        
+        if current_elem.strip():
+            elements.append(current_elem.strip())
+        
+        for elem in elements:
+            elem = elem.strip()
+            
+            if elem.startswith('{'):
+                result.append(JavaScriptParser.parse_object(elem))
+            elif 'active' in elem or 'url' in elem:
+                key_value_match = re.search(r'([\w]+)\":([^,}]+)', elem)
+
+                if key_value_match:
+                    key = key_value_match.group(1)
+                    value = key_value_match.group(2)
+                    result[-1][key] = JavaScriptParser.parse_value(value.strip('"\\'))
+            else:
+                result.append(JavaScriptParser.parse_value(elem))
+        
+        return result
+
+    @classmethod
+    def parse(cls, js_string):
+        assignments = re.findall(r'window\.(\w+)\s*=\s*([^;]+);?', js_string, re.DOTALL)
+        result = {}
+        
+        for var_name, value in assignments:
+            value = value.strip()
+            
+            if value.startswith('{'):
+                result[var_name] = cls.parse_object(value)
+            elif value.startswith('['):
+                result[var_name] = cls.parse_array(value)
+            else:
+                result[var_name] = cls.parse_value(value)
+        
+        can_play_fhd_match = re.search(r'window\.canPlayFHD\s*=\s*(\w+);?', js_string)
+        if can_play_fhd_match:
+            result['canPlayFHD'] = cls.parse_value(can_play_fhd_match.group(1))
+        
+        return result
 
 
 class VideoSource:
@@ -78,7 +249,6 @@ class VideoSource:
             # Create window video, streams and parameter objects
             self.canPlayFHD = bool(converter.get('canPlayFHD'))
             self.window_video = WindowVideo(converter.get('video'))
-            self.window_streams = StreamsCollection(converter.get('streams'))
             self.window_parameter = WindowParameter(converter.get('masterPlaylist'))
             time.sleep(0.5)
 

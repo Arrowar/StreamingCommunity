@@ -9,7 +9,6 @@ import importlib
 import threading
 import asyncio
 import subprocess
-from urllib.parse import urlparse
 from typing import Callable, Tuple
 
 
@@ -20,27 +19,19 @@ from rich.prompt import Prompt
 
 # Internal utilities
 from .global_search import global_search
-from StreamingCommunity.Api.Template.loader import load_search_functions
-from StreamingCommunity.Util.message import start_message
-from StreamingCommunity.Util.config_json import config_manager
-from StreamingCommunity.Util.os import internet_manager, os_manager
-from StreamingCommunity.Util.logger import Logger
-from StreamingCommunity.Lib.TMBD import tmdb
+from StreamingCommunity.Api.Template import load_search_functions
+from StreamingCommunity.Api.Template.loader import folder_name as lazy_loader_folder
+from StreamingCommunity.Util import config_manager, os_manager, start_message, Logger
 from StreamingCommunity.Upload.update import update as git_update
-from StreamingCommunity.TelegramHelp.telegram_bot import get_bot_instance, TelegramSession
 
 
 # Config
-SHOW_TRENDING = config_manager.get_bool('DEFAULT', 'show_trending')
-TELEGRAM_BOT = config_manager.get_bool('DEFAULT', 'telegram_bot')
-BYPASS_DNS = config_manager.get_bool('DEFAULT', 'bypass_dns')
 COLOR_MAP = {
     "anime": "red",
     "film_&_serie": "yellow", 
-    "serie": "blue",
-    "torrent": "white"
+    "serie": "blue"
 }
-CATEGORY_MAP = {1: "anime", 2: "film_&_serie", 3: "serie", 4: "torrent"}
+CATEGORY_MAP = {1: "anime", 2: "film_&_serie", 3: "serie"}
 
 
 # Variable
@@ -59,7 +50,7 @@ def run_function(func: Callable[..., None], close_console: bool = False, search_
 
 def initialize():
     """Initialize the application with system checks and setup."""
-    start_message()
+    start_message(False)
     
     # Windows 7 terminal size fix
     if platform.system() == "Windows" and "7" in platform.version():
@@ -70,12 +61,6 @@ def initialize():
         console.log("[red]Install python version > 3.7.16")
         sys.exit(0)
 
-    # Show trending content
-    if SHOW_TRENDING:
-        print()
-        tmdb.display_trending_films()
-        tmdb.display_trending_tv_shows()
-    
     # Attempt GitHub update
     try:
         git_update()
@@ -206,13 +191,13 @@ def execute_hooks(stage: str) -> None:
             if stdout:
                 logging.info(f"Hook '{name}' stdout: {stdout}")
                 try:
-                    console.print(f"[cyan][hook:{name} stdout][/cyan]\n{stdout}")
+                    console.print(f"[cyan][hook:{name} stdout]\n{stdout}")
                 except Exception:
                     pass
             if stderr:
                 logging.warning(f"Hook '{name}' stderr: {stderr}")
                 try:
-                    console.print(f"[yellow][hook:{name} stderr][/yellow]\n{stderr}")
+                    console.print(f"[yellow][hook:{name} stderr]\n{stderr}")
                 except Exception:
                     pass
 
@@ -279,35 +264,13 @@ def force_exit():
     os._exit(0)
 
 
-def check_dns():
-    """Check DNS configuration and exit if required."""
-    if BYPASS_DNS:
-        return
-        
-    hostname_list = [
-        urlparse(site_info.get('full_url')).hostname 
-        for site_info in config_manager.configSite.values() 
-        if urlparse(site_info.get('full_url')).hostname
-    ]
-    
-    if not internet_manager.check_dns_resolve(hostname_list):
-        console.print("[red]\nERROR: DNS configuration is required!")
-        console.print("[red]The program cannot function correctly without proper DNS settings.")
-        console.print("\n[yellow]Please configure one of these DNS servers:")
-        console.print("[red]• Cloudflare (1.1.1.1) 'https://developers.cloudflare.com/1.1.1.1/setup/windows/'")
-        console.print("[red]• Quad9 (9.9.9.9) 'https://docs.quad9.net/Setup_Guides/Windows/Windows_10/'")
-        console.print("\n[yellow]-> The program will not work until you configure your DNS settings.")
-        sys.exit(0)
-
-
 def setup_argument_parser(search_functions):
     """Setup and return configured argument parser."""
-    # Build help text
     module_info = {}
     for alias, (_func, _use_for) in search_functions.items():
         module_name = alias.split("_")[0].lower()
         try:
-            mod = importlib.import_module(f'StreamingCommunity.Api.Site.{module_name}')
+            mod = importlib.import_module(f'StreamingCommunity.Api.{lazy_loader_folder}.{module_name}')
             module_info[module_name] = int(getattr(mod, 'indice'))
         except Exception:
             continue
@@ -322,7 +285,6 @@ def setup_argument_parser(search_functions):
     )
     
     # Add arguments
-    parser.add_argument("script_id", nargs="?", default="unknown", help="ID dello script")
     parser.add_argument('-s', '--search', default=None, help='Search terms')
     parser.add_argument('--global', action='store_true', help='Global search across sites')
     parser.add_argument('--not_close', type=bool, help='Keep console open after execution')
@@ -384,7 +346,7 @@ def build_function_mappings(search_functions):
     for alias, (func, use_for) in search_functions.items():
         module_name = alias.split("_")[0]
         try:
-            mod = importlib.import_module(f'StreamingCommunity.Api.Site.{module_name}')
+            mod = importlib.import_module(f'StreamingCommunity.Api.{lazy_loader_folder}.{module_name}')
             site_index = str(getattr(mod, 'indice'))
             input_to_function[site_index] = func
             choice_labels[site_index] = (module_name.capitalize(), use_for.lower())
@@ -405,7 +367,7 @@ def handle_direct_site_selection(args, input_to_function, module_name_to_functio
     
     if func_to_run is None:
         available_sites = ", ".join(sorted(module_name_to_function.keys()))
-        console.print(f"[red]Unknown site:[/red] '{args.site}'. Available: [yellow]{available_sites}[/yellow]")
+        console.print(f"[red]Unknown site: '{args.site}'. Available: [yellow]{available_sites}")
         return False
     
     # Handle auto-first option
@@ -418,9 +380,9 @@ def handle_direct_site_selection(args, input_to_function, module_name_to_functio
                 func_to_run(direct_item=item_dict)
                 return True
             else:
-                console.print("[yellow]No results found. Falling back to interactive mode.[/yellow]")
+                console.print("[yellow]No results found. Falling back to interactive mode.")
         except Exception as e:
-            console.print(f"[red]Auto-first failed:[/red] {str(e)}")
+            console.print(f"[red]Auto-first failed: {str(e)}")
     
     run_function(func_to_run, search_terms=search_terms)
     return True
@@ -428,55 +390,34 @@ def handle_direct_site_selection(args, input_to_function, module_name_to_functio
 
 def get_user_site_selection(args, choice_labels):
     """Get site selection from user (interactive or category-based)."""
-    bot = get_bot_instance() if TELEGRAM_BOT else None
-    
     if args.category:
         selected_category = CATEGORY_MAP.get(args.category)
         category_sites = [(key, label[0]) for key, label in choice_labels.items() if label[1] == selected_category]
         
         if len(category_sites) == 1:
-            console.print(f"[green]Selezionato automaticamente: {category_sites[0][1]}[/green]")
+            console.print(f"[green]Selezionato automaticamente: {category_sites[0][1]}")
             return category_sites[0][0]
         
-        # Multiple sites in category
-        color = COLOR_MAP.get(selected_category, 'white')
-        prompt_items = [f"[{color}]({k}) {v}[/{color}]" for k, v in category_sites]
-        prompt_line = ", ".join(prompt_items)
-        
-        if TELEGRAM_BOT:
-            console.print(f"\nInsert site: {prompt_line}")
-            return bot.ask("select_site", f"Insert site: {prompt_line}", None)
-        else:
-            return msg.ask(f"\n[cyan]Insert site: {prompt_line}", choices=[k for k, _ in category_sites], show_choices=False)
-    
     else:
         # Show all sites
         legend_text = " | ".join([f"[{color}]{cat.capitalize()}[/{color}]" for cat, color in COLOR_MAP.items()])
-        console.print(f"\n[bold cyan]Category Legend:[/bold cyan] {legend_text}")
+        legend_text += " | [magenta]Global[/magenta]"
+        console.print(f"\n[cyan]Category Legend: {legend_text}")
         
-        if TELEGRAM_BOT:
-            category_legend = "Categorie: \n" + " | ".join([cat.capitalize() for cat in COLOR_MAP.keys()])
-            prompt_message = "Inserisci il sito:\n" + "\n".join([f"{key}: {label[0]}" for key, label in choice_labels.items()])
-            console.print(f"\n{prompt_message}")
-            return bot.ask("select_provider", f"{category_legend}\n\n{prompt_message}", None)
-        else:
-            prompt_message = "[cyan]Insert site: " + ", ".join([
-                f"[{COLOR_MAP.get(label[1], 'white')}]({key}) {label[0]}[/{COLOR_MAP.get(label[1], 'white')}]" 
-                for key, label in choice_labels.items()
-            ])
-            return msg.ask(prompt_message, choices=list(choice_labels.keys()), default="0", show_choices=False, show_default=False)
+        choice_keys = list(choice_labels.keys()) + ["global"]
+        prompt_message = "[cyan]Insert site: " + ", ".join([
+            f"[{COLOR_MAP.get(label[1], 'white')}]({key}) {label[0]}[/{COLOR_MAP.get(label[1], 'white')}]" 
+            for key, label in choice_labels.items()
+        ]) + ", [magenta](global) Global[/magenta]"
+        return msg.ask(prompt_message, choices=choice_keys, default="0", show_choices=False, show_default=False)
 
 
-def main(script_id=0):
-    if TELEGRAM_BOT:
-        get_bot_instance().send_message(f"Avviato script {script_id}", None)
-
+def main():
     Logger()
     execute_hooks('pre_run')
     initialize()
 
     try:
-        check_dns()
         search_functions = load_search_functions()
 
         parser = setup_argument_parser(search_functions)
@@ -495,21 +436,19 @@ def main(script_id=0):
 
         category = get_user_site_selection(args, choice_labels)
 
+        if category == "global":
+            global_search(args.search)
+            return
+
         if category in input_to_function:
             run_function(input_to_function[category], search_terms=args.search)
         else:
-            if TELEGRAM_BOT:
-                get_bot_instance().send_message("Categoria non valida", None)
             console.print("[red]Invalid category.")
 
             if getattr(args, 'not_close'):
                 restart_script()
             else:
                 force_exit()
-                if TELEGRAM_BOT:
-                    get_bot_instance().send_message("Chiusura in corso", None)
-                    script_id = TelegramSession.get_session()
-                    if script_id != "unknown":
-                        TelegramSession.deleteScriptId(script_id)
+                
     finally:
         execute_hooks('post_run')

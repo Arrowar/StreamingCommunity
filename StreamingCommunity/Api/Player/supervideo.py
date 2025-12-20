@@ -10,8 +10,7 @@ from bs4 import BeautifulSoup
 
 
 # Internal utilities
-from StreamingCommunity.Util.http_client import create_client_curl
-from StreamingCommunity.Util.headers import get_headers
+from StreamingCommunity.Util.http_client import create_client_curl, get_headers
 
 
 class VideoSource:
@@ -38,7 +37,7 @@ class VideoSource:
         try:
             response = create_client_curl(headers=self.headers).get(url)
             if response.status_code >= 400:
-                logging.error(f"Request failed with status code: {response.status_code}")
+                logging.error(f"Request failed with status code: {response.status_code}, to url: {url}")
                 return None
             
             return response.text

@@ -75,13 +75,3 @@ class Logger:
             
         except Exception as e:
             print(f"Error creating console.log: {e}")
-            
-    @staticmethod
-    def get_logger(name=None):
-        """
-        Get a specific logger for a module/component.
-        If name is None, returns the root logger.
-        """
-        # Ensure Logger instance is initialized
-        Logger()
-        return logging.getLogger(name)

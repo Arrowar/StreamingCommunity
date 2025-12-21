@@ -8,6 +8,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/*
 
+# Crea un utente non-root
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
 WORKDIR /app
 
 COPY requirements.txt ./
@@ -17,6 +20,12 @@ COPY GUI/requirements.txt ./GUI/requirements.txt
 RUN pip install --no-cache-dir -r GUI/requirements.txt
 
 COPY . .
+
+# Assegna i permessi corretti all'utente non-root
+RUN chown -R appuser:appuser /app
+
+# Cambia all'utente non-root
+USER appuser
 
 ENV PYTHONPATH="/app:${PYTHONPATH}"
 

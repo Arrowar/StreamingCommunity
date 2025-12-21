@@ -166,6 +166,7 @@ def is_png_format_or_codec(file_info):
     format_name = file_info.get('format_name')
     codec_names = file_info.get('codec_names', [])
     
+    console.log(f"[cyan]FFMPEG detect format: [green]{format_name}[cyan], codec: [green]{codec_names}")
     return format_name == 'png_pipe' or 'png' in codec_names
 
 

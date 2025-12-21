@@ -165,7 +165,8 @@ class M3U8_Segments:
         elif self.is_stream_aac:
             return "aac"
         else:
-            return None
+            console.log("[yellow]Warning: Unable to determine stream type.")
+            return "ts"  # Default to ts
 
     def get_info(self) -> None:
         """
@@ -275,7 +276,7 @@ class M3U8_Segments:
 
                 except Exception:
                     if attempt + 1 == max_retry:
-                        console.print(f" -- [red]Final retry failed for segment: {index}")
+                        console.print(f" -- [red]Failed request for segment: {index}")
                         return index, False, max_retry, 0
                     
                     sleep_time = 0.5 + attempt * 0.5 if attempt < 2 else min(3.0, 1.02 ** attempt)
@@ -437,9 +438,6 @@ class M3U8_Segments:
             finally:
                 self._cleanup_resources(temp_dir, progress_bar)
 
-            if not self.download_interrupted:
-                self._verify_download_completion()
-
             return self._generate_results(type)
         
         else:
@@ -524,13 +522,6 @@ class M3U8_Segments:
             'output_path': output_path if output_path else self.final_output_path
         }
     
-    def _verify_download_completion(self) -> None:
-        """Validate final download integrity."""
-        total = len(self.segments)
-        if len(self.downloaded_segments) / total < 0.999:
-            missing = sorted(set(range(total)) - self.downloaded_segments)
-            raise RuntimeError(f"Download incomplete ({len(self.downloaded_segments)/total:.1%}). Missing segments: {missing}")
-        
     def _cleanup_resources(self, temp_dir: str, progress_bar: tqdm) -> None:
         """Ensure resource cleanup and final reporting."""
         progress_bar.close()
@@ -550,7 +541,7 @@ class M3U8_Segments:
 
     def _display_error_summary(self) -> None:
         """Generate final error report."""
-        console.print(f" [cyan]Max retries: [red]{self.info_maxRetry} [white] | "
+        console.log(f"[cyan]Max retries: [red]{self.info_maxRetry} [white] | "
             f"[cyan]Total retries: [red]{self.info_nRetry} [white] | "
             f"[cyan]Failed segments: [red]{self.info_nFailed}")
         

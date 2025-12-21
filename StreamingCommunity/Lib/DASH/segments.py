@@ -480,7 +480,7 @@ class MPD_Segments:
         total_segments = len(self.selected_representation.get('segment_urls', []))
         failed_indices = [i for i in range(total_segments) if i not in self.downloaded_segments]
 
-        console.print(f" [cyan]Max retries: [red]{getattr(self, 'info_maxRetry', 0)} [white]| "
+        console.log(f"[cyan]Max retries: [red]{getattr(self, 'info_maxRetry', 0)} [white]| "
             f"[cyan]Total retries: [red]{getattr(self, 'info_nRetry', 0)} [white]| "
             f"[cyan]Failed segments: [red]{getattr(self, 'info_nFailed', 0)} [white]| "
             f"[cyan]Failed indices: [red]{failed_indices}")

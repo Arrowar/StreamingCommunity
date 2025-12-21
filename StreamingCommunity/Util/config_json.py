@@ -5,7 +5,7 @@ import sys
 import json
 import logging
 import requests
-from typing import Any, List
+from typing import Any, List, Dict
 
 
 # External library
@@ -19,23 +19,20 @@ console = Console()
 class ConfigManager:
     def __init__(self, file_name: str = 'config.json') -> None:
         """
-        Initialize the ConfigManager.
+        Initialize the ConfigManager with caching.
         
         Args:
             file_name (str, optional): Configuration file name. Default: 'config.json'.
         """
-        # Determine the base path - use the current working directory
+        self.base_path = None
         if getattr(sys, 'frozen', False):
-            # If the application is frozen (e.g., PyInstaller)
-            base_path = os.path.dirname(sys.executable)
-
+            self.base_path = os.path.dirname(sys.executable) # PyInstaller
         else:
-            # Use the current working directory where the script is executed
-            base_path = os.getcwd()
+            self.base_path = os.getcwd()
             
         # Initialize file paths
-        self.file_path = os.path.join(base_path, file_name)
-        self.domains_path = os.path.join(base_path, 'domains.json')
+        self.file_path = os.path.join(self.base_path, file_name)
+        self.domains_path = os.path.join(self.base_path, 'domains.json')
         
         # Display the actual file path for debugging
         console.print(f"[cyan]Config path: [green]{self.file_path}")
@@ -46,8 +43,11 @@ class ConfigManager:
         # Initialize data structures
         self.config = {}
         self.configSite = {}
-        self.cache = {}
-
+        
+        # Enhanced caching system
+        self.cache: Dict[str, Any] = {}
+        self._cache_enabled = True
+        
         # Load the configuration
         self.fetch_domain_online = True
         self.load_config()
@@ -64,6 +64,9 @@ class ConfigManager:
             with open(self.file_path, 'r') as f:
                 self.config = json.load(f)
             
+            # Pre-cache commonly used configuration values
+            self._precache_common_configs()
+            
             # Update settings from the configuration
             self._update_settings_from_config()
                 
@@ -78,6 +81,41 @@ class ConfigManager:
             console.print(f"[red]Error loading configuration: {str(e)}")
             self._handle_config_error()
     
+    def _precache_common_configs(self) -> None:
+        common_keys = [
+            ('DEFAULT', 'debug', bool),
+            ('M3U8_CONVERSION', 'use_gpu', bool),
+            ('M3U8_CONVERSION', 'param_video', str),
+            ('M3U8_CONVERSION', 'param_audio', str),
+            ('M3U8_CONVERSION', 'param_final', str),
+            ('M3U8_CONVERSION', 'extension', str),
+            ('M3U8_CONVERSION', 'force_resolution', bool),
+            ('M3U8_DOWNLOAD', 'cleanup_tmp_folder', bool),
+            ('M3U8_DOWNLOAD', 'default_video_workers', int),
+            ('M3U8_DOWNLOAD', 'default_audio_workers', int),
+            ('M3U8_DOWNLOAD', 'segment_timeout', int),
+            ('M3U8_DOWNLOAD', 'enable_retry', bool),
+            ('M3U8_DOWNLOAD', 'merge_subs', bool),
+            ('REQUESTS', 'verify', bool),
+            ('REQUESTS', 'timeout', int),
+            ('REQUESTS', 'max_retry', int),
+            ('OUT_FOLDER', 'map_episode_name', str)
+        ]
+        
+        cached_count = 0
+        for section, key, data_type in common_keys:
+            try:
+                cache_key = f"config.{section}.{key}"
+                
+                if section in self.config and key in self.config[section]:
+                    value = self.config[section][key]
+                    converted_value = self._convert_to_data_type(value, data_type)
+                    self.cache[cache_key] = converted_value
+                    cached_count += 1
+                    
+            except Exception as e:
+                logging.warning(f"Failed to precache {section}.{key}: {e}")
+    
     def _handle_config_error(self) -> None:
         """Handle configuration errors by downloading the reference version."""
         console.print("[yellow]Attempting to retrieve reference configuration...")
@@ -87,8 +125,12 @@ class ConfigManager:
         try:
             with open(self.file_path, 'r') as f:
                 self.config = json.load(f)
+            
+            # Pre-cache after reload
+            self._precache_common_configs()
             self._update_settings_from_config()
             console.print("[green]Reference configuration loaded successfully")
+            
         except Exception as e:
             console.print(f"[red]Critical configuration error: {str(e)}")
             console.print("[red]Unable to proceed. The application will terminate.")
@@ -159,32 +201,20 @@ class ConfigManager:
     
     def _save_domains_to_appropriate_location(self) -> None:
         """Save domains to the appropriate location based on existing files."""
-        if getattr(sys, 'frozen', False):
-            # If the application is frozen (e.g., PyInstaller)
-            base_path = os.path.dirname(sys.executable)
-        else:
-            # Use the current working directory where the script is executed
-            base_path = os.getcwd()
-            
-        # Check for GitHub structure first
-        github_domains_path = os.path.join(base_path, '.github', '.domain', 'domains.json')
+        github_domains_path = os.path.join(self.base_path, '.github', '.domain', 'domains.json')
         console.print(f"[cyan]Domain path: [green]{github_domains_path}")
         
         try:
             if os.path.exists(github_domains_path):
-                
-                # Update existing GitHub structure file
                 with open(github_domains_path, 'w', encoding='utf-8') as f:
                     json.dump(self.configSite, f, indent=4, ensure_ascii=False)
                 
             elif not os.path.exists(self.domains_path):
-                # Save to root only if it doesn't exist and GitHub structure doesn't exist
                 with open(self.domains_path, 'w', encoding='utf-8') as f:
                     json.dump(self.configSite, f, indent=4, ensure_ascii=False)
                 console.print(f"[green]Domains saved to: {self.domains_path}")
                 
             else:
-                # Root file exists, don't overwrite it
                 console.print(f"[yellow]Local domains.json already exists, not overwriting: {self.domains_path}")
                 console.print("[yellow]Tip: Delete the file if you want to recreate it from GitHub")
                 
@@ -203,18 +233,7 @@ class ConfigManager:
     def _load_site_data_from_file(self) -> None:
         """Load site data from local domains.json file."""
         try:
-            # Determine the base path
-            if getattr(sys, 'frozen', False):
-
-                # If the application is frozen (e.g., PyInstaller)
-                base_path = os.path.dirname(sys.executable)
-            else:
-
-                # Use the current working directory where the script is executed
-                base_path = os.getcwd()
-            
-            # Check for GitHub structure first
-            github_domains_path = os.path.join(base_path, '.github', '.domain', 'domains.json')
+            github_domains_path = os.path.join(self.base_path, '.github', '.domain', 'domains.json')
             
             if os.path.exists(github_domains_path):
                 console.print(f"[cyan]Domain path: [green]{github_domains_path}")
@@ -243,17 +262,7 @@ class ConfigManager:
     
     def _handle_site_data_fallback(self) -> None:
         """Handle site data fallback in case of error."""
-        # Determine the base path
-        if getattr(sys, 'frozen', False):
-            
-            # If the application is frozen (e.g., PyInstaller)
-            base_path = os.path.dirname(sys.executable)
-        else:
-            # Use the current working directory where the script is executed
-            base_path = os.getcwd()
-        
-        # Check for GitHub structure first
-        github_domains_path = os.path.join(base_path, '.github', '.domain', 'domains.json')
+        github_domains_path = os.path.join(self.base_path, '.github', '.domain', 'domains.json')
         
         if os.path.exists(github_domains_path):
             console.print("[yellow]Attempting fallback to GitHub structure domains.json file...")
@@ -278,9 +287,45 @@ class ConfigManager:
         console.print("[red]No local domains.json file available for fallback")
         self.configSite = {}
     
+    def clear_cache(self) -> None:
+        """Clear the entire configuration cache."""
+        self.cache.clear()
+        console.print("[green]Configuration cache cleared")
+    
+    def invalidate_cache_key(self, section: str, key: str, from_site: bool = False) -> None:
+        """
+        Invalidate a specific cache entry.
+        
+        Args:
+            section (str): Section in the configuration
+            key (str): Key to invalidate
+            from_site (bool, optional): Whether to invalidate from site config. Default: False
+        """
+        cache_key = f"{'site' if from_site else 'config'}.{section}.{key}"
+        if cache_key in self.cache:
+            del self.cache[cache_key]
+            logging.info(f"Cache invalidated for key: {cache_key}")
+    
+    def get_cache_stats(self) -> Dict[str, int]:
+        """
+        Get cache statistics.
+        
+        Returns:
+            Dict with cache size and memory usage estimate
+        """
+        import sys
+        cache_size = len(self.cache)
+        memory_bytes = sum(sys.getsizeof(k) + sys.getsizeof(v) for k, v in self.cache.items())
+        
+        return {
+            'entries': cache_size,
+            'memory_bytes': memory_bytes,
+            'memory_kb': round(memory_bytes / 1024, 2)
+        }
+    
     def get(self, section: str, key: str, data_type: type = str, from_site: bool = False, default: Any = None) -> Any:
         """
-        Read a value from the configuration.
+        Read a value from the configuration with caching.
         
         Args:
             section (str): Section in the configuration
@@ -293,11 +338,13 @@ class ConfigManager:
             Any: The key value converted to the specified data type, or default if not found
         """
         cache_key = f"{'site' if from_site else 'config'}.{section}.{key}"
-        logging.info(f"Reading key: {cache_key}")
         
         # Check if the value is in the cache
-        if cache_key in self.cache:
+        if self._cache_enabled and cache_key in self.cache:
             return self.cache[cache_key]
+        
+        # Log only if not in cache
+        logging.info(f"Reading key: {cache_key}")
         
         # Choose the appropriate source
         config_source = self.configSite if from_site else self.config
@@ -320,7 +367,8 @@ class ConfigManager:
         converted_value = self._convert_to_data_type(value, data_type)
         
         # Save in cache
-        self.cache[cache_key] = converted_value
+        if self._cache_enabled:
+            self.cache[cache_key] = converted_value
         
         return converted_value
 
@@ -361,6 +409,7 @@ class ConfigManager:
                 raise ValueError(f"Cannot convert {type(value).__name__} to dict")
             else:
                 return value
+                
         except Exception as e:
             logging.error(f"Error converting: {data_type.__name__} to value '{value}' with error: {e}")
             raise ValueError(f"Error converting: {data_type.__name__} to value '{value}' with error: {e}")
@@ -393,7 +442,7 @@ class ConfigManager:
     
     def set_key(self, section: str, key: str, value: Any, to_site: bool = False) -> None:
         """
-        Set a key in the configuration.
+        Set a key in the configuration and update cache.
         
         Args:
             section (str): Section in the configuration

@@ -56,3 +56,4 @@ working_proxies.json
 start.sh
 .DS_Store
 GUI/db.sqlite3
+console.log

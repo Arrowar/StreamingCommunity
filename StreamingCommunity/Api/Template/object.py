@@ -8,6 +8,7 @@ class Episode:
         self.data = data
 
         self.id: int = data.get('id', 0)
+        self.video_id : str = data.get('video_id', '')
         self.number: int = data.get('number', 1)
         self.name: str = data.get('name', '')
         self.duration: int = data.get('duration', 0)

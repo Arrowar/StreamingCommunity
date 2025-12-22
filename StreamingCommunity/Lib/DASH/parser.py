@@ -1,679 +1,507 @@
 # 25.07.25
 
+import math
+import os
 import re
-import logging
+from dataclasses import dataclass, field
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 from urllib.parse import urljoin
 import xml.etree.ElementTree as ET
-from typing import List, Dict, Optional, Tuple, Any
-
 
 # External library
 from curl_cffi import requests
 from rich.console import Console
 
 
-# Internal utilities
-from StreamingCommunity.Util.config_json import config_manager
-
-
 # Variable
 console = Console()
-max_timeout = config_manager.get_int('REQUESTS', 'timeout')
-max_retry = config_manager.get_int('REQUESTS', 'max_retry')
+
+_ISO8601_RE = re.compile(
+    r"^P" r"(?:(?P<days>\d+)D)?" r"(?:T" r"(?:(?P<hours>\d+)H)?" r"(?:(?P<minutes>\d+)M)?" r"(?:(?P<seconds>\d+(?:\.\d+)?)S)?" r")?$"
+)
+
+
+@dataclass
+class _Part:
+    base_url: str
+    rep_id: str
+    bandwidth: Optional[int]
+    init_tmpl: str
+    media_tmpl: str
+    start_number: int
+    segments: int
+    seg_timeline_el: Optional[ET.Element]
+
+
+@dataclass
+class _Stream:
+    kind: str
+    encrypted: bool
+    width: Optional[int]
+    height: Optional[int]
+    bandwidth: Optional[int]
+    rep_id: str
+    fps: Optional[float]
+    codecs: str
+    lang: str
+    channels: Optional[int]
+    role: str
+    segments: int = 0
+    seconds: float = 0.0
+    pssh_set: Set[str] = field(default_factory=set)
+    parts: List[_Part] = field(default_factory=list)
 
 
 
-class CodecQuality:
-    """Utility class to rank codec quality"""
-    VIDEO_CODEC_RANK = {
-        'av01': 5,  # AV1
-        'vp9': 4,   # VP9
-        'vp09': 4,  # VP9
-        'hev1': 3,  # HEVC/H.265
-        'hvc1': 3,  # HEVC/H.265
-        'avc1': 2,  # H.264
-        'avc3': 2,  # H.264
-        'mp4v': 1,  # MPEG-4
-    }
-    
-    AUDIO_CODEC_RANK = {
-        'opus': 5,       # Opus
-        'mp4a.40.2': 4,  # AAC-LC
-        'mp4a.40.5': 3,  # AAC-HE
-        'mp4a': 2,       # Generic AAC
-        'ac-3': 2,       # Dolby Digital
-        'ec-3': 3,       # Dolby Digital Plus
-    }
-    
-    @staticmethod
-    def get_video_codec_rank(codec: Optional[str]) -> int:
-        """Get ranking for video codec"""
-        if not codec:
-            return 0
-        codec_lower = codec.lower()
-        for key, rank in CodecQuality.VIDEO_CODEC_RANK.items():
-            if codec_lower.startswith(key):
-                return rank
-        return 0
-    
-    @staticmethod
-    def get_audio_codec_rank(codec: Optional[str]) -> int:
-        """Get ranking for audio codec"""
-        if not codec:
-            return 0
-        codec_lower = codec.lower()
-        for key, rank in CodecQuality.AUDIO_CODEC_RANK.items():
-            if codec_lower.startswith(key):
-                return rank
-        return 0
-    
+def parse_iso8601_duration_seconds(value: Optional[str]) -> float:
+    if not value:
+        return 0.0
+    m = _ISO8601_RE.match(value.strip())
+    if not m:
+        return 0.0
+    days = int(m.group('days') or 0)
+    hours = int(m.group('hours') or 0)
+    minutes = int(m.group('minutes') or 0)
+    seconds = float(m.group('seconds') or 0)
+    return days * 86400 + hours * 3600 + minutes * 60 + seconds
 
-class URLBuilder:
 
-    @staticmethod
-    def build_url(base: str, template: str, rep_id: Optional[str] = None, number: Optional[int] = None, time: Optional[int] = None, bandwidth: Optional[int] = None) -> str:
-        """Build absolute URL preserving query/hash"""
-        if not template:
+def format_duration(seconds: float) -> str:
+    total = max(0, int(round(seconds)))
+    hours = total // 3600
+    minutes = (total % 3600) // 60
+    secs = total % 60
+    if hours > 0:
+        return f"{hours:02d}h{minutes:02d}m{secs:02d}s"
+    return f"{minutes:02d}m{secs:02d}s"
+
+
+def _parse_frame_rate(value: Optional[str]) -> Optional[float]:
+    if not value:
+        return None
+    v = value.strip()
+    if '/' in v:
+        a, b = v.split('/', 1)
+        try:
+            num = float(a)
+            den = float(b)
+            return None if den == 0 else num / den
+        except ValueError:
             return None
-
-        # Substitute RepresentationID and Bandwidth first
-        if rep_id is not None:
-            template = template.replace('$RepresentationID$', rep_id)
-        if bandwidth is not None:
-            template = template.replace('$Bandwidth$', str(bandwidth))
-
-        # Handle $Number$ with optional formatting
-        template = URLBuilder._replace_number(template, number)
-        
-        # Replace $Time$ if present
-        if '$Time$' in template and time is not None:
-            template = template.replace('$Time$', str(time))
-
-        return URLBuilder._finalize_url(base, template)
-
-    @staticmethod
-    def _replace_number(template: str, number: Optional[int]) -> str:
-        """Handle $Number$ placeholder with formatting"""
-        def _replace_number_match(match):
-            num = number if number is not None else 0
-            fmt = match.group(1)
-
-            if fmt:
-                # fmt like %05d -> convert to python format
-                m = re.match(r'%0(\d+)d', fmt)
-                if m:
-                    width = int(m.group(1))
-                    return str(num).zfill(width)
-                
-            return str(num)
-
-        return re.sub(r'\$Number(\%0\d+d)?\$', _replace_number_match, template)
-
-    @staticmethod
-    def _finalize_url(base: str, template: str) -> str:
-        """Finalize URL construction preserving query and fragment"""
-
-        # Split path/query/fragment to avoid urljoin mangling query
-        split = template.split('#', 1)
-        path_and_query = split[0]
-        frag = ('#' + split[1]) if len(split) == 2 else ''
-        
-        if '?' in path_and_query:
-            path_part, query_part = path_and_query.split('?', 1)
-            abs_path = urljoin(base, path_part)
-
-            # ensure we don't accidentally lose existing query separators
-            final = abs_path + '?' + query_part + frag
-
-        else:
-            abs_path = urljoin(base, path_and_query)
-            final = abs_path + frag
-
-        return final
+    try:
+        return float(v)
+    except ValueError:
+        return None
 
 
-class SegmentTimelineParser:
-    """Parser for SegmentTimeline elements"""
+def _format_fps(value: Optional[float]) -> str:
+    if value is None:
+        return ''
+    if abs(value - round(value)) < 1e-6:
+        return str(int(round(value)))
+    return f"{value:.3f}".rstrip('0').rstrip('.')
+
+
+def _replace_number(template: str, number: int) -> str:
+    def _match(m: re.Match[str]) -> str:
+        fmt = m.group(1)
+        if fmt:
+            mm = re.match(r'%0(\d+)d', fmt)
+            if mm:
+                return str(number).zfill(int(mm.group(1)))
+        return str(number)
+
+    return re.sub(r'\$Number(\%0\d+d)?\$', _match, template)
+
+
+def build_url(base: str, template: str, *, rep_id: Optional[str], bandwidth: Optional[int], number: Optional[int] = None, time: Optional[int] = None) -> Optional[str]:
+    if not template:
+        return None
     
-    def __init__(self, namespace: Dict[str, str]):
-        self.ns = namespace
+    out = template
+    if rep_id is not None:
+        out = out.replace('$RepresentationID$', rep_id)
+    if bandwidth is not None:
+        out = out.replace('$Bandwidth$', str(bandwidth))
+    if '$Number' in out and number is not None:
+        out = _replace_number(out, number)
+    if '$Time$' in out and time is not None:
+        out = out.replace('$Time$', str(time))
 
-    def parse(self, seg_timeline_element, start_number: int = 1) -> Tuple[List[int], List[int]]:
-        """
-        Parse SegmentTimeline and return (number_list, time_list)
-        """
-        number_list = []
-        time_list = []
-        
-        if seg_timeline_element is None:
-            return number_list, time_list
-
-        current_time = 0
-        current_number = start_number
-        
-        for s_element in seg_timeline_element.findall('mpd:S', self.ns):
-            d = s_element.get('d')
-            if d is None:
-                continue
-                
-            d = int(d)
-            
-            # Handle 't' attribute (explicit time)
-            if s_element.get('t') is not None:
-                current_time = int(s_element.get('t'))
-            
-            # Get repeat count (default 0 means 1 segment)
-            r = int(s_element.get('r', 0))
-            
-            # Special case: r=-1 means repeat until end of Period
-            if r == -1:
-                r = 0
-            
-            # Add (r+1) segments
-            for i in range(r + 1):
-                number_list.append(current_number)
-                time_list.append(current_time)
-                current_number += 1
-                current_time += d
-                
-        return number_list, time_list
+    split = out.split('#', 1)
+    path_and_query = split[0]
+    frag = ('#' + split[1]) if len(split) == 2 else ''
+    if '?' in path_and_query:
+        path_part, query_part = path_and_query.split('?', 1)
+        abs_path = urljoin(base, path_part)
+        return abs_path + '?' + query_part + frag
+    return urljoin(base, path_and_query) + frag
 
 
-class RepresentationParser:
-    """Parser for individual representations"""
+def _timeline_count_and_units(seg_timeline_el: Optional[ET.Element], ns: Dict[str, str]) -> Tuple[int, int]:
+    if seg_timeline_el is None:
+        return (0, 0)
     
-    def __init__(self, mpd_url: str, namespace: Dict[str, str]):
-        self.mpd_url = mpd_url
-        self.ns = namespace
-        self.timeline_parser = SegmentTimelineParser(namespace)
+    count = 0
+    units = 0
+    for s_el in seg_timeline_el.findall('mpd:S', ns):
+        d = s_el.get('d')
+        if d is None:
+            continue
 
-    def _resolve_adaptation_base_url(self, adapt_set, initial_base: str) -> str:
-        """Resolve base URL at AdaptationSet level"""
-        base = initial_base
-        
-        # Check for BaseURL at AdaptationSet level
-        adapt_base = adapt_set.find('mpd:BaseURL', self.ns)
-        if adapt_base is not None and adapt_base.text:
-            base_text = adapt_base.text.strip()
-            if base_text.startswith('http'):
-                base = base_text
-            else:
-                base = urljoin(base, base_text)
-        
-        return base
+        d_i = int(d)
+        r = int(s_el.get('r', 0) or 0)
+        if r < 0:
+            r = 0
+        n = r + 1
+        count += n
+        units += d_i * n
 
-    def parse_adaptation_set(self, adapt_set, base_url: str) -> List[Dict[str, Any]]:
-        """
-        Parse all representations in an adaptation set
-        """
-        representations = []
-        mime_type = adapt_set.get('mimeType', '')
-        lang = adapt_set.get('lang', '')
-        
-        # Find SegmentTemplate at AdaptationSet level
-        adapt_seg_template = adapt_set.find('mpd:SegmentTemplate', self.ns)
-        
-        # Risolvi il BaseURL a livello di AdaptationSet
-        adapt_base_url = self._resolve_adaptation_base_url(adapt_set, base_url)
+    return (count, units)
 
-        for rep_element in adapt_set.findall('mpd:Representation', self.ns):
-            representation = self._parse_representation(
-                rep_element, adapt_set, adapt_seg_template, 
-                adapt_base_url,
-                mime_type, lang
-            )
-            if representation:
-                representations.append(representation)
-                
-        return representations
 
-    def _parse_representation(self, rep_element, adapt_set, adapt_seg_template, base_url: str, mime_type: str, lang: str) -> Optional[Dict[str, Any]]:
-        """Parse a single representation"""
-        rep_id = rep_element.get('id')
-        bandwidth = rep_element.get('bandwidth')
-        codecs = rep_element.get('codecs')
-        width = rep_element.get('width')
-        height = rep_element.get('height')
-        audio_sampling_rate = rep_element.get('audioSamplingRate')
+def _timeline_iter_times(seg_timeline_el: Optional[ET.Element], ns: Dict[str, str]) -> Iterable[int]:
+    if seg_timeline_el is None:
+        return
+    
+    current_time = 0
+    for s_el in seg_timeline_el.findall('mpd:S', ns):
+        d = s_el.get('d')
+        if d is None:
+            continue
 
-        # Try to find SegmentTemplate at Representation level
-        rep_seg_template = rep_element.find('mpd:SegmentTemplate', self.ns)
-        seg_tmpl = rep_seg_template if rep_seg_template is not None else adapt_seg_template
-        
-        if seg_tmpl is None:
-            return None
+        d_i = int(d)
+        if s_el.get('t') is not None:
+            current_time = int(s_el.get('t') or 0)
 
-        # Build URLs
-        rep_base_url = self._resolve_base_url(rep_element, adapt_set, base_url)
-        init_url, media_urls = self._build_segment_urls(seg_tmpl, rep_id, bandwidth, rep_base_url)
-
-        # Determine content type first
-        content_type = 'unknown'
-        if mime_type:
-            content_type = mime_type.split('/')[0]
-        elif width or height:
-            content_type = 'video'
-        elif audio_sampling_rate or (codecs and 'mp4a' in codecs.lower()):
-            content_type = 'audio'
-
-        # Clean language: convert None, empty string, or "undefined" to None
-        # For audio tracks without language, generate a generic name
-        clean_lang = None
-        if lang and lang.lower() not in ['undefined', 'none', '']:
-            clean_lang = lang
-        elif content_type == 'audio':
-
-            # Generate generic audio track name based on rep_id or bandwidth
-            if rep_id:
-                clean_lang = f"aud_{rep_id}"
-            else:
-                clean_lang = f"aud_{bandwidth or '0'}"
-
-        return {
-            'id': rep_id,
-            'type': content_type,
-            'codec': codecs,
-            'bandwidth': int(bandwidth) if bandwidth else 0,
-            'width': int(width) if width else 0,
-            'height': int(height) if height else 0,
-            'audio_sampling_rate': int(audio_sampling_rate) if audio_sampling_rate else 0,
-            'language': clean_lang,
-            'init_url': init_url,
-            'segment_urls': media_urls
-        }
-
-    def _resolve_base_url(self, rep_element, adapt_set, initial_base: str) -> str:
-        """Resolve base URL at Representation level (AdaptationSet already resolved)"""
-        base = initial_base
-        
-        # Representation-level BaseURL only
-        if rep_element is not None:
-            rep_base = rep_element.find('mpd:BaseURL', self.ns)
-            if rep_base is not None and rep_base.text:
-                base_text = rep_base.text.strip()
-                if base_text.startswith('http'):
-                    base = base_text
-                else:
-                    base = urljoin(base, base_text)
-
-        return base
-
-    def _build_segment_urls(self, seg_tmpl, rep_id: str, bandwidth: str, base_url: str) -> Tuple[str, List[str]]:
-        """Build initialization and media segment URLs"""
-        init = seg_tmpl.get('initialization')
-        media = seg_tmpl.get('media')
-        start_number = int(seg_tmpl.get('startNumber', 1))
-
-        # Build init URL
-        init_url = URLBuilder.build_url(
-            base_url, init, 
-            rep_id=rep_id, 
-            bandwidth=int(bandwidth) if bandwidth else None
-        ) if init else None
-
-        # Parse segment timeline
-        seg_timeline = seg_tmpl.find('mpd:SegmentTimeline', self.ns)
-        number_list, time_list = self.timeline_parser.parse(seg_timeline, start_number)
-        
-        # Fallback solo se non c'è SegmentTimeline
-        if not number_list and not time_list:
-            number_list = list(range(start_number, start_number + 100))
-            time_list = []
-
-        # Build media URLs
-        media_urls = self._build_media_urls(media, base_url, rep_id, bandwidth, number_list, time_list)
-
-        return init_url, media_urls
-
-    def _build_media_urls(self, media_template: str, base_url: str, rep_id: str, bandwidth: str, number_list: List[int], time_list: List[int]) -> List[str]:
-        """Build list of media segment URLs"""
-        if not media_template:
-            return []
-
-        media_urls = []
-        bandwidth_int = int(bandwidth) if bandwidth else None
-
-        if '$Time$' in media_template and time_list:
-            for t in time_list:
-                media_urls.append(URLBuilder.build_url(
-                    base_url, media_template, 
-                    rep_id=rep_id, time=t, bandwidth=bandwidth_int
-                ))
-        elif '$Number' in media_template and number_list:
-            for n in number_list:
-                media_urls.append(URLBuilder.build_url(
-                    base_url, media_template, 
-                    rep_id=rep_id, number=n, bandwidth=bandwidth_int
-                ))
-        else:
-            media_urls.append(URLBuilder.build_url(
-                base_url, media_template, 
-                rep_id=rep_id, bandwidth=bandwidth_int
-            ))
-
-        return media_urls
+        r = int(s_el.get('r', 0) or 0)
+        if r < 0:
+            r = 0
+        for _ in range(r + 1):
+            yield current_time
+            current_time += d_i
 
 
 class MPD_Parser:
-    @staticmethod
-    def _is_ad_period(period_id: str, base_url: str) -> bool:
-        """
-        Detect if a Period is an advertisement or bumper.
-        Returns True if it's an ad, False if it's main content.
-        """
-        ad_indicators = [
-            '_ad/',           # Generic ad marker in URL
-            'ad_bumper',      # Ad bumper
-            '/creative/',     # Ad creative folder
-            '_OandO/',        # Pluto TV bumpers
-        ]
-        
-        # Check BaseURL for ad indicators
-        for indicator in ad_indicators:
-            if indicator in base_url:
-                return True
-        
-        # Check Period ID for patterns
-        if period_id:
-            if '_subclip_' in period_id:
-                return False
-            # Short periods (< 60s) are usually ads/bumpers
-        
-        return False
-    
-    @staticmethod
-    def _deduplicate_videos(representations: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """
-        Remove duplicate video representations with same resolution.
-        Keep the one with best codec, then highest bandwidth.
-        """
-        resolution_map = {}
-        
-        for rep in representations:
-            key = (rep['width'], rep['height'])
-            
-            if key not in resolution_map:
-                resolution_map[key] = rep
-            else:
-                existing = resolution_map[key]
-                
-                # Compare codec quality first
-                existing_codec_rank = CodecQuality.get_video_codec_rank(existing['codec'])
-                new_codec_rank = CodecQuality.get_video_codec_rank(rep['codec'])
-                
-                if new_codec_rank > existing_codec_rank:
-                    resolution_map[key] = rep
-                elif new_codec_rank == existing_codec_rank and rep['bandwidth'] > existing['bandwidth']:
-                    resolution_map[key] = rep
-        
-        return list(resolution_map.values())
-    
-    @staticmethod
-    def _deduplicate_audios(representations: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """
-        Remove duplicate audio representations.
-        Group by (language, sampling_rate) and keep the one with best codec, then highest bandwidth.
-        """
-        audio_map = {}
-        
-        for rep in representations:
-
-            # Use both language and sampling rate as key to differentiate audio tracks
-            key = (rep['language'], rep['audio_sampling_rate'])
-            
-            if key not in audio_map:
-                audio_map[key] = rep
-            else:
-                existing = audio_map[key]
-                
-                # Compare codec quality first
-                existing_codec_rank = CodecQuality.get_audio_codec_rank(existing['codec'])
-                new_codec_rank = CodecQuality.get_audio_codec_rank(rep['codec'])
-                
-                if new_codec_rank > existing_codec_rank:
-                    audio_map[key] = rep
-                elif new_codec_rank == existing_codec_rank and rep['bandwidth'] > existing['bandwidth']:
-                    audio_map[key] = rep
-        
-        return list(audio_map.values())
-
-    @staticmethod
-    def get_worst(representations):
-        """
-        Returns the video representation with the lowest resolution/bandwidth, or audio with lowest bandwidth.
-        """
-        videos = [r for r in representations if r['type'] == 'video']
-        audios = [r for r in representations if r['type'] == 'audio']
-        if videos:
-            return min(videos, key=lambda r: (r['height'], r['width'], r['bandwidth']))
-        elif audios:
-            return min(audios, key=lambda r: r['bandwidth'])
-        return None
-
-    @staticmethod
-    def get_list(representations, type_filter=None):
-        """
-        Returns the list of representations filtered by type ('video', 'audio', etc.).
-        """
-        if type_filter:
-            return [r for r in representations if r['type'] == type_filter]
-        return representations
-
     def __init__(self, mpd_url: str):
         self.mpd_url = mpd_url
-        self.pssh = None
-        self.representations = []
-        self.ns = {}
-        self.root = None
+        self.root: Optional[ET.Element] = None
+        self.ns: Dict[str, str] = {}
 
-    def parse(self, custom_headers: Dict[str, str]) -> None:
-        """Parse the MPD file and extract all representations"""
-        self._fetch_and_parse_mpd(custom_headers)
-        self._extract_namespace()
-        self._extract_pssh()
-        self._parse_representations()
-        self._deduplicate_representations()
+        self.min_duration_seconds: float = 120.0
+        self.streams: List[_Stream] = []
 
-    def _fetch_and_parse_mpd(self, custom_headers: Dict[str, str]) -> None:
-        """Fetch MPD content and parse XML"""
-        response = requests.get(self.mpd_url, headers=custom_headers, timeout=max_timeout, impersonate="chrome124")
-        response.raise_for_status()
-        
-        logging.info(f"Successfully fetched MPD: {response.content}")
-        self.root = ET.fromstring(response.content)
+        self._selected_best_video: Optional[_Stream] = None
+        self.merge_same_id: bool = False
 
-    def _extract_namespace(self) -> None:
-        """Extract and register namespaces from the root element"""
-        if self.root.tag.startswith('{'):
-            uri = self.root.tag[1:].split('}')[0]
-            self.ns['mpd'] = uri
-            self.ns['cenc'] = 'urn:mpeg:cenc:2013'
+    def parse(self, custom_headers: Optional[Dict[str, str]] = None, *, min_duration_seconds: float = 120.0, merge_same_id: bool = False) -> None:
+        self.min_duration_seconds = float(min_duration_seconds)
+        self.merge_same_id = bool(merge_same_id)
+        self._load_mpd(custom_headers or {})
+        self._extract_namespaces()
+        self.streams = self._parse_streams()
 
-    def _extract_pssh(self) -> None:
-        """Extract Widevine PSSH from ContentProtection elements"""
-        # Try to find Widevine PSSH first (preferred)
-        for protection in self.root.findall('.//mpd:ContentProtection', self.ns):
-            scheme_id = protection.get('schemeIdUri', '')
-            
-            # Check if this is Widevine ContentProtection
-            if 'edef8ba9-79d6-4ace-a3c8-27dcd51d21ed' in scheme_id:
-                pssh_element = protection.find('cenc:pssh', self.ns)
-                if pssh_element is not None and pssh_element.text:
-                    self.pssh = pssh_element.text.strip()
-                    return
-        
-        # Fallback: try any PSSH (for compatibility with other services)
-        for protection in self.root.findall('.//mpd:ContentProtection', self.ns):
-            pssh_element = protection.find('cenc:pssh', self.ns)
-            if pssh_element is not None and pssh_element.text:
-                self.pssh = pssh_element.text.strip()
-                print(f"Found PSSH (fallback): {self.pssh}")
-                return
+    def bestVideo(self) -> Dict[str, Any]:
+        s = self._pick_best(kind='video')
+        if s is None:
+            raise RuntimeError('No video streams found')
+        self._selected_best_video = s
+        return self._stream_payload(s)
 
-    def _get_period_base_url(self, period, initial_base: str) -> str:
-        """Get base URL at Period level"""
-        base = initial_base
-        
-        period_base = period.find('mpd:BaseURL', self.ns)
-        if period_base is not None and period_base.text:
-            base_text = period_base.text.strip()
-            if base_text.startswith('http'):
-                base = base_text
-            else:
-                base = urljoin(base, base_text)
-        
-        return base
+    def bestAudio(self) -> Dict[str, Any]:
+        s = self._pick_best_audio_following_video()
+        if s is None:
+            raise RuntimeError('No audio streams found')
+        return self._stream_payload(s)
 
-    def _parse_representations(self) -> None:
-        """Parse all representations from the MPD, filtering out ads and aggregating main content"""
-        base_url = self._get_initial_base_url()
-        representation_parser = RepresentationParser(self.mpd_url, self.ns)
-        
-        # Dictionary to aggregate representations by ID
-        rep_aggregator = {}
-        periods = self.root.findall('.//mpd:Period', self.ns)
-
-        for period_idx, period in enumerate(periods):
-            period_id = period.get('id', f'period_{period_idx}')
-            period_base_url = self._get_period_base_url(period, base_url)
-            
-            # CHECK IF THIS IS AN AD PERIOD
-            is_ad = self._is_ad_period(period_id, period_base_url)
-            
-            # Skip ad periods
-            if is_ad:
-                continue
-            
-            for adapt_set in period.findall('mpd:AdaptationSet', self.ns):
-                representations = representation_parser.parse_adaptation_set(adapt_set, period_base_url)
-                
-                for rep in representations:
-                    rep_id = rep['id']
-                    
-                    if rep_id not in rep_aggregator:
-                        rep_aggregator[rep_id] = rep
-                    else:
-                        existing = rep_aggregator[rep_id]
-                        
-                        # Concatenate segment URLs
-                        if rep['segment_urls']:
-                            existing['segment_urls'].extend(rep['segment_urls'])
-                        if not existing['init_url'] and rep['init_url']:
-                            existing['init_url'] = rep['init_url']
-        
-        # Convert aggregated dict back to list
-        self.representations = list(rep_aggregator.values())
-
-    def _deduplicate_representations(self) -> None:
-        """Remove duplicate video and audio representations"""
-        videos = [r for r in self.representations if r['type'] == 'video']
-        audios = [r for r in self.representations if r['type'] == 'audio']
-        others = [r for r in self.representations if r['type'] not in ['video', 'audio']]
-        
-        deduplicated_videos = self._deduplicate_videos(videos)
-        deduplicated_audios = self._deduplicate_audios(audios)
-        self.representations = deduplicated_videos + deduplicated_audios + others
-
-    def _get_initial_base_url(self) -> str:
-        """Get the initial base URL from MPD-level BaseURL"""
-        base_url = self.mpd_url.rsplit('/', 1)[0] + '/'
-        
-        # MPD-level BaseURL
-        mpd_base = self.root.find('mpd:BaseURL', self.ns)
-        if mpd_base is not None and mpd_base.text:
-            base_text = mpd_base.text.strip()
-
-            # Handle BaseURL that might already be absolute
-            if base_text.startswith('http'):
-                base_url = base_text
-            else:
-                base_url = urljoin(base_url, base_text)
-            
-        return base_url
-    
-    def get_resolutions(self):
-        """Return list of video representations with their resolutions."""
-        return [
-            rep for rep in self.representations
-            if rep['type'] == 'video'
-        ]
-
-    def get_audios(self):
-        """Return list of audio representations."""
-        return [
-            rep for rep in self.representations
-            if rep['type'] == 'audio'
-        ]
-
-    def get_best_video(self):
-        """Return the best video representation (highest resolution, then bandwidth)."""
-        videos = self.get_resolutions()
-        if not videos:
-            return None
-        
-        # Sort by (height, width, bandwidth)
-        return max(videos, key=lambda r: (r['height'], r['width'], r['bandwidth']))
-
-    def get_best_audio(self):
-        """Return the best audio representation (highest bandwidth)."""
-        audios = self.get_audios()
+    def _pick_best_audio_following_video(self) -> Optional[_Stream]:
+        audios = [s for s in self.streams if s.kind == 'audio']
         if not audios:
             return None
-        return max(audios, key=lambda r: r['bandwidth'])
 
-    def select_video(self, force_resolution="Best"):
-        """
-        Select a video representation based on the requested resolution.
-        Returns: (selected_video, list_available_resolution, filter_custom_resolution, downloadable_video)
-        """
-        video_reps = self.get_resolutions()
-        list_available_resolution = [
-            f"{rep['width']}x{rep['height']}" for rep in video_reps
-        ]
-        force_resolution_l = (force_resolution or "Best").lower()
+        ref = self._selected_best_video
+        if ref is None:
+            return max(audios, key=lambda s: (s.seconds, s.bandwidth or 0))
 
-        if force_resolution_l == "best":
-            selected_video = self.get_best_video()
-            filter_custom_resolution = "Best"
+        same_enc = [a for a in audios if a.encrypted == ref.encrypted]
+        candidates = same_enc if same_enc else audios
 
-        elif force_resolution_l == "worst":
-            selected_video = MPD_Parser.get_worst(video_reps)
-            filter_custom_resolution = "Worst"
+        return min(
+            candidates,
+            key=lambda a: (abs(a.seconds - ref.seconds), -(a.bandwidth or 0), -a.segments),
+        )
 
-        else:
-            selected_video = self.get_best_video()
-            filter_custom_resolution = "Best"
+    def _load_mpd(self, headers: Dict[str, str]) -> None:
+        resp = requests.get(self.mpd_url, headers=headers, timeout=15, impersonate='chrome124')
+        console.log(f"[cyan]Response status from MPD URL: [red]{resp.status_code}")
+        resp.raise_for_status()
+        self.root = ET.fromstring(resp.content)
 
-        downloadable_video = f"{selected_video['width']}x{selected_video['height']}" if selected_video else "N/A"
-        return selected_video, list_available_resolution, filter_custom_resolution, downloadable_video
+    def _extract_namespaces(self) -> None:
+        if self.root is None:
+            return
+        if self.root.tag.startswith('{'):
+            self.ns['mpd'] = self.root.tag[1:].split('}')[0]
+        self.ns.setdefault('cenc', 'urn:mpeg:cenc:2013')
 
-    def select_audio(self, preferred_audio_langs=None):
-        """
-        Select an audio representation based on preferred languages.
-        Returns: (selected_audio, list_available_audio_langs, filter_custom_audio, downloadable_audio)
-        """
-        audio_reps = self.get_audios()
+    def _initial_base_url(self) -> str:
+        if os.path.exists(self.mpd_url):
+            return urljoin('file:', os.path.abspath(self.mpd_url)).rsplit('/', 1)[0] + '/'
+        return self.mpd_url.rsplit('/', 1)[0] + '/'
+
+    def _resolve_base_url(self, base: str, node: ET.Element) -> str:
+        base_el = node.find('mpd:BaseURL', self.ns)
+        if base_el is not None and base_el.text and base_el.text.strip():
+            bt = base_el.text.strip()
+            return bt if bt.startswith('http') else urljoin(base, bt)
+        return base
+
+    def _is_encrypted(self, node: Optional[ET.Element]) -> bool:
+        if node is None:
+            return False
+        for cp in node.findall('.//mpd:ContentProtection', self.ns):
+            scheme = (cp.get('schemeIdUri') or '').lower()
+            value = (cp.get('value') or '').lower()
+            if 'mp4protection' in scheme and 'cenc' in value:
+                return True
+            if 'cenc' in scheme:
+                return True
+            if 'edef8ba9-79d6-4ace-a3c8-27dcd51d21ed' in scheme:
+                return True
+            if '9a04f079-9840-4286-ab92-e65be0885f95' in scheme:
+                return True
+        return False
+
+    def _collect_pssh(self, node: Optional[ET.Element]) -> Set[str]:
+        out: Set[str] = set()
+        if node is None:
+            return out
+        for cp in node.findall('.//mpd:ContentProtection', self.ns):
+            pssh_el = cp.find('cenc:pssh', self.ns)
+            if pssh_el is not None and pssh_el.text and pssh_el.text.strip():
+                out.add(pssh_el.text.strip())
+        return out
+
+    def _role(self, adapt: ET.Element) -> str:
+        role = adapt.find('mpd:Role', self.ns)
+        v = (role.get('value') if role is not None else '') or ''
+        return 'Main' if not v or v.strip().lower() == 'main' else v
+
+    def _channels(self, adapt: ET.Element) -> Optional[int]:
+        acc = adapt.find('mpd:AudioChannelConfiguration', self.ns)
+        if acc is None:
+            return None
+        try:
+            return int(acc.get('value') or '')
+        except ValueError:
+            return None
+
+    def _segment_count_and_seconds(self, seg_tmpl: ET.Element, *, period_seconds: float, mpd_seconds: float) -> Tuple[int, float]:
+        timescale = int(seg_tmpl.get('timescale', 1) or 1)
+        if timescale <= 0:
+            timescale = 1
+        timeline_el = seg_tmpl.find('mpd:SegmentTimeline', self.ns)
+        if timeline_el is not None:
+            count, units = _timeline_count_and_units(timeline_el, self.ns)
+            seconds = (units / timescale) if units > 0 else 0.0
+            return (count, seconds if seconds > 0 else period_seconds)
+
+        dur_units = seg_tmpl.get('duration')
+        if not dur_units:
+            return (0, period_seconds)
         
-        # Include all languages (including generated ones like aud_XXX)
-        list_available_audio_langs = [rep['language'] for rep in audio_reps]
+        seg_units = int(dur_units)
+        if seg_units <= 0:
+            return (0, period_seconds)
+        
+        seg_seconds = seg_units / timescale
+        total = period_seconds if period_seconds > 0 else mpd_seconds
+        return (int(math.ceil((total if total > 0 else 0.0) / seg_seconds)), total)
 
-        selected_audio = None
-        filter_custom_audio = "First"
+    def _parse_streams(self) -> List[_Stream]:
+        if self.root is None:
+            return []
 
-        if preferred_audio_langs:
-            # Search for the first available language in order of preference
-            for lang in preferred_audio_langs:
-                for rep in audio_reps:
-                    if rep['language'] and rep['language'].lower() == lang.lower():
-                        selected_audio = rep
-                        filter_custom_audio = lang
-                        break
-                if selected_audio:
-                    break
-            if not selected_audio:
-                selected_audio = self.get_best_audio()
-        else:
-            selected_audio = self.get_best_audio()
+        base = self._initial_base_url()
+        base = self._resolve_base_url(base, self.root)
 
-        downloadable_audio = selected_audio['language'] if selected_audio else "N/A"
-        return selected_audio, list_available_audio_langs, filter_custom_audio, downloadable_audio
+        mpd_seconds = parse_iso8601_duration_seconds(self.root.get('mediaPresentationDuration'))
+        periods = self.root.findall('.//mpd:Period', self.ns)
+
+        streams_by_key: Dict[Tuple[Any, ...], _Stream] = {}
+
+        for period in periods:
+            period_seconds = parse_iso8601_duration_seconds(period.get('duration'))
+            period_base = self._resolve_base_url(base, period)
+            period_pssh = self._collect_pssh(period)
+            period_enc = self._is_encrypted(period)
+
+            for adapt in period.findall('mpd:AdaptationSet', self.ns):
+                role = self._role(adapt)
+                lang = (adapt.get('lang') or '').strip()
+                fps = _parse_frame_rate(adapt.get('frameRate'))
+                channels = self._channels(adapt)
+
+                mime = (adapt.get('mimeType') or '').strip().lower()
+                ctype = (adapt.get('contentType') or '').strip().lower()
+                if not ctype:
+                    if mime.startswith('video/'):
+                        ctype = 'video'
+                    elif mime.startswith('audio/'):
+                        ctype = 'audio'
+                    elif mime.startswith('image/'):
+                        ctype = 'image'
+                    elif mime.startswith('application/'):
+                        ctype = 'text'
+                kind = 'subtitle' if ctype == 'text' else ctype
+
+                adapt_base = self._resolve_base_url(period_base, adapt)
+                adapt_pssh = self._collect_pssh(adapt)
+                adapt_enc = self._is_encrypted(adapt)
+
+                adapt_tmpl = adapt.find('mpd:SegmentTemplate', self.ns)
+
+                for rep in adapt.findall('mpd:Representation', self.ns):
+                    rep_id = rep.get('id') or ''
+                    bw_s = rep.get('bandwidth')
+                    bandwidth = int(bw_s) if bw_s and bw_s.isdigit() else None
+                    codecs = (rep.get('codecs') or adapt.get('codecs') or '').strip()
+                    rep_mime = (rep.get('mimeType') or mime).strip().lower()
+                    rep_kind = kind
+                    if codecs.lower() in ('wvtt', 'stpp') or rep_mime.startswith('text/'):
+                        rep_kind = 'subtitle'
+
+                    w_s = rep.get('width')
+                    h_s = rep.get('height')
+                    width = int(w_s) if w_s and w_s.isdigit() else None
+                    height = int(h_s) if h_s and h_s.isdigit() else None
+
+                    rep_base = self._resolve_base_url(adapt_base, rep)
+                    rep_pssh = self._collect_pssh(rep)
+                    rep_enc = self._is_encrypted(rep)
+
+                    seg_tmpl = rep.find('mpd:SegmentTemplate', self.ns) or adapt_tmpl
+                    if seg_tmpl is None:
+                        continue
+
+                    init_tmpl = seg_tmpl.get('initialization') or ''
+                    media_tmpl = seg_tmpl.get('media') or ''
+                    start_number = int(seg_tmpl.get('startNumber', 1) or 1)
+                    timeline_el = seg_tmpl.find('mpd:SegmentTimeline', self.ns)
+
+                    segs, secs = self._segment_count_and_seconds(seg_tmpl, period_seconds=period_seconds, mpd_seconds=mpd_seconds)
+
+                    encrypted = bool(period_enc or adapt_enc or rep_enc or 'widevineplayready' in rep_base.lower())
+                    pssh_set: Set[str] = set()
+                    pssh_set.update(period_pssh)
+                    pssh_set.update(adapt_pssh)
+                    pssh_set.update(rep_pssh)
+                    fps_key = _format_fps(fps)
+
+                    if self.merge_same_id:
+                        key = (rep_kind, encrypted, width, height, rep_id, codecs, fps_key, lang,
+                            channels if rep_kind == 'audio' else None, role)
+                    else:
+                        key = (rep_kind, encrypted, width, height, bandwidth, rep_id, codecs, fps_key, lang,
+                            channels if rep_kind == 'audio' else None, role)
+
+                    s = streams_by_key.get(key)
+                    if s is None:
+                        s = _Stream(
+                            kind=rep_kind,
+                            encrypted=encrypted,
+                            width=width,
+                            height=height,
+                            bandwidth=bandwidth,
+                            rep_id=rep_id,
+                            fps=fps,
+                            codecs=codecs,
+                            lang=lang,
+                            channels=channels if rep_kind == 'audio' else None,
+                            role=role,
+                        )
+                        streams_by_key[key] = s
+                    else:
+                        if bandwidth is not None:
+                            s.bandwidth = bandwidth if s.bandwidth is None else max(s.bandwidth, bandwidth)
+
+                    s.segments += int(segs)
+                    s.seconds += float(secs)
+                    s.pssh_set.update(pssh_set)
+                    s.parts.append(
+                        _Part(
+                            base_url=rep_base,
+                            rep_id=rep_id,
+                            bandwidth=bandwidth,
+                            init_tmpl=init_tmpl,
+                            media_tmpl=media_tmpl,
+                            start_number=start_number,
+                            segments=int(segs),
+                            seg_timeline_el=timeline_el,
+                        )
+                    )
+
+        streams = list(streams_by_key.values())
+        if self.min_duration_seconds > 0:
+            streams = [s for s in streams if s.seconds >= self.min_duration_seconds]
+
+        return streams
+
+    def _pick_best(self, *, kind: str) -> Optional[_Stream]:
+        items = [s for s in self.streams if s.kind == kind]
+        if not items:
+            return None
+        if kind == 'video':
+            return max(items, key=lambda s: (s.height or 0, s.width or 0, s.bandwidth or 0))
+        return max(items, key=lambda s: (s.bandwidth or 0))
+
+    def _stream_payload(self, s: _Stream) -> Dict[str, Any]:
+        init_urls: List[str] = []
+        media_urls: List[str] = []
+
+        for part in s.parts:
+            init_u = build_url(part.base_url, part.init_tmpl, rep_id=part.rep_id, bandwidth=part.bandwidth)
+            if init_u:
+                init_urls.append(init_u)
+
+            if not part.media_tmpl:
+                continue
+
+            if '$Time$' in part.media_tmpl:
+                for t in _timeline_iter_times(part.seg_timeline_el, self.ns):
+                    u = build_url(part.base_url, part.media_tmpl, rep_id=part.rep_id, bandwidth=part.bandwidth, time=t)
+                    if u:
+                        media_urls.append(u)
+            elif '$Number' in part.media_tmpl:
+                for i in range(part.segments):
+                    n = part.start_number + i
+                    u = build_url(part.base_url, part.media_tmpl, rep_id=part.rep_id, bandwidth=part.bandwidth, number=n)
+                    if u:
+                        media_urls.append(u)
+            else:
+                u = build_url(part.base_url, part.media_tmpl, rep_id=part.rep_id, bandwidth=part.bandwidth)
+                if u:
+                    media_urls.append(u)
+
+        payload: Dict[str, Any] = {
+            'type': s.kind,
+            'id': s.rep_id,
+            'bandwidth': s.bandwidth or 0,
+            'width': s.width or 0,
+            'height': s.height or 0,
+            'fps': s.fps,
+            'codecs': s.codecs,
+            'language': s.lang,
+            'channels': s.channels,
+            'role': s.role,
+            'has_drm': s.encrypted,
+            'pssh_list': sorted(s.pssh_set),
+            'pssh': (sorted(s.pssh_set)[0] if s.pssh_set else ''),
+            'expected_segments': s.segments,
+            'init_url': (init_urls[0] if init_urls else ''),
+            'init_urls': init_urls,
+            'media_urls': media_urls,
+            'media_url_count': len(media_urls),
+            'duration_seconds': s.seconds,
+        }
+        return payload

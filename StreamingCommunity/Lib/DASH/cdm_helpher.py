@@ -1,6 +1,5 @@
 # 25.07.25
 
-import sys
 import base64
 from urllib.parse import urlencode
 
@@ -61,11 +60,8 @@ def get_widevine_keys(pssh: str, license_url: str, cdm_device_path: str, headers
             if 'Content-Type' not in req_headers:
                 req_headers['Content-Type'] = 'application/octet-stream'
 
-            # Send license request
-            if request_url is None:
-                console.print("[red]License URL is None.")
-                sys.exit(0)
             response = requests.post(request_url, headers=req_headers, impersonate="chrome124", **request_kwargs)
+            console.log(f"[cyan]Response status from License URL: [red]{response.status_code}")
 
             if response.status_code != 200:
                 console.print(f"[red]License error: {response.status_code}, {response.text}")

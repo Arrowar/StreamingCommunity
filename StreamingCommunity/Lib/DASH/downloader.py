@@ -14,7 +14,7 @@ from rich.table import Table
 # Internal utilities
 from StreamingCommunity.Util import config_manager, os_manager, internet_manager
 from StreamingCommunity.Util.os import get_wvd_path
-from StreamingCommunity.Util.http_client import create_client, get_userAgent
+from StreamingCommunity.Util.http_client import create_client_curl, get_userAgent
 
 
 # Logic class
@@ -101,88 +101,122 @@ class DASH_Downloader:
         os.makedirs(self.optimize_dir, exist_ok=True)
         os.makedirs(self.subs_dir, exist_ok=True)
 
-    def parse_manifest(self, custom_headers):
-        """
-        Parse the MPD manifest file and extract relevant information.
-        """
-        if self.file_already_exists:
+    def _fetch_mpd_with_curl(self, mpd_url: str, headers: Optional[Dict[str, str]] = None, *, return_text: bool = False):
+        """Fetch MPD via curl_cffi and return its content."""
+        req_headers = dict(headers or {})
+        req_headers.setdefault("User-Agent", get_userAgent())
+
+        try:
+            resp = create_client_curl().get(mpd_url, headers=req_headers, timeout=20)
+            resp.raise_for_status()
+            return resp.text if return_text else (resp.content or b"")
+        
+        except Exception as e:
+            logging.error(f"MPD fetch failed: {e}")
+            return None
+
+    @staticmethod
+    def _payload_to_representation(payload: Dict) -> Dict:
+        return {
+            "id": payload.get("id") or "",
+            "init_url": payload.get("init_url") or (payload.get("init_urls") or [""])[0],
+            "segment_urls": payload.get("media_urls") or payload.get("media_url") or payload.get("segment_urls") or [],
+            "language": payload.get("language") or payload.get("lang") or "Unknown",
+            "bandwidth": payload.get("bandwidth", 0),
+            "width": payload.get("width", 0),
+            "height": payload.get("height", 0),
+            "fps": payload.get("fps"),
+            "codecs": payload.get("codecs", ""),
+            "has_drm": bool(payload.get("has_drm", False)),
+            "expected_segments": payload.get("expected_segments"),
+        }
+
+    def parse_manifest(self, custom_headers: Dict[str, str] = None) -> None:
+        self.parser_custom_headers = dict(custom_headers or {})
+        self.parser = MPD_Parser(self.mpd_url)
+        self.parser.parse(self.parser_custom_headers)
+
+        best_video = self.parser.bestVideo()
+        best_audio = self.parser.bestAudio()
+
+        self.selected_video = self._payload_to_representation(best_video)
+        self.selected_audio = self._payload_to_representation(best_audio)
+
+        self.pssh = (best_video.get("pssh") or best_audio.get("pssh") or "").strip()
+        self.show_table()
+
+    def show_table(self):
+        """Show a summary table of available/set/downloadable streams"""
+        if self.parser is None:
             return
 
-        self.parser = MPD_Parser(self.mpd_url)
-        self.parser.parse(custom_headers)
+        streams = getattr(self.parser, "streams", []) or []
 
-        def calculate_column_widths():
-            """Calculate optimal column widths based on content."""
-            data_rows = []
-            
-            # Video info
-            selected_video, list_available_resolution, filter_custom_resolution, downloadable_video = self.parser.select_video(FILTER_CUSTOM_REOLUTION)
-            self.selected_video = selected_video
-            
-            available_video = ', '.join(list_available_resolution) if list_available_resolution else "Nothing"
-            set_video = str(filter_custom_resolution) if filter_custom_resolution else "Nothing"
-            downloadable_video_str = str(downloadable_video) if downloadable_video else "Nothing"
-            
-            data_rows.append(["Video", available_video, set_video, downloadable_video_str])
+        def _fmt_res(s) -> str:
+            h = getattr(s, "height", None) or 0
+            w = getattr(s, "width", None) or 0
+            return f"{w}x{h}" if (w and h) else (f"{h}p" if h else "Unknown")
 
-            # Audio info
-            selected_audio, list_available_audio_langs, filter_custom_audio, downloadable_audio = self.parser.select_audio(DOWNLOAD_SPECIFIC_AUDIO)
-            self.selected_audio = selected_audio
-            
-            if list_available_audio_langs:
-                available_audio = ', '.join(list_available_audio_langs)
-                set_audio = str(filter_custom_audio) if filter_custom_audio else "Nothing"
-                downloadable_audio_str = str(downloadable_audio) if downloadable_audio else "Nothing"
-                
-                data_rows.append(["Audio", available_audio, set_audio, downloadable_audio_str])
-            
-            # Subtitle info
-            available_sub_languages = [sub.get('language') for sub in self.mpd_sub_list]
-            
-            if available_sub_languages:
-                available_subs = ', '.join(available_sub_languages)
-                
-                # Filter subtitles based on configuration
-                if "*" in DOWNLOAD_SPECIFIC_SUBTITLE:
-                    self.selected_subs = self.mpd_sub_list
-                    downloadable_sub_languages = available_sub_languages
-                else:
-                    self.selected_subs = [
-                        sub for sub in self.mpd_sub_list 
-                        if sub.get('language') in DOWNLOAD_SPECIFIC_SUBTITLE
-                    ]
-                    downloadable_sub_languages = [sub.get('language') for sub in self.selected_subs]
-                
-                downloadable_subs = ', '.join(downloadable_sub_languages) if downloadable_sub_languages else "Nothing"
-                set_subs = ', '.join(DOWNLOAD_SPECIFIC_SUBTITLE) if DOWNLOAD_SPECIFIC_SUBTITLE else "Nothing"
-                
-                data_rows.append(["Subtitle", available_subs, set_subs, downloadable_subs])
-            
-            # Calculate max width for each column
-            headers = ["Type", "Available", "Set", "Downloadable"]
-            max_widths = [len(header) for header in headers]
-            
-            for row in data_rows:
-                for i, cell in enumerate(row):
-                    max_widths[i] = max(max_widths[i], len(str(cell)))
-            
-            # Add some padding
-            max_widths = [w + 2 for w in max_widths]
-            
-            return data_rows, max_widths
-        
-        data_rows, column_widths = calculate_column_widths()
-        
+        def _fmt_lang(s) -> str:
+            v = (getattr(s, "lang", None) or "").strip()
+            return v if v else "Unknown"
+
+        video_streams = [s for s in streams if getattr(s, "kind", None) == "video"]
+        audio_streams = [s for s in streams if getattr(s, "kind", None) == "audio"]
+
+        selected_video = getattr(self, "selected_video", None)
+        selected_audio = getattr(self, "selected_audio", None)
+
+        data_rows = []
+        available_video = ", ".join(sorted({_fmt_res(s) for s in video_streams})) if video_streams else "Nothing"
+        set_video = str(FILTER_CUSTOM_REOLUTION) if FILTER_CUSTOM_REOLUTION else "Nothing"
+        downloadable_video = "Nothing"
+
+        if selected_video:
+            h = selected_video.get("height") or 0
+            w = selected_video.get("width") or 0
+            downloadable_video = f"{w}x{h}" if (w and h) else (f"{h}p" if h else selected_video.get("id") or "Selected")
+        data_rows.append(["Video", available_video, set_video, downloadable_video])
+
+        if audio_streams:
+            available_audio = ", ".join(sorted({_fmt_lang(s) for s in audio_streams}))
+            set_audio = ", ".join(DOWNLOAD_SPECIFIC_AUDIO) if DOWNLOAD_SPECIFIC_AUDIO else "Nothing"
+            downloadable_audio = (selected_audio.get("language") if selected_audio else None) or "Nothing"
+            data_rows.append(["Audio", available_audio, set_audio, downloadable_audio])
+
+        # Subtitle row
+        available_sub_languages = [sub.get('language') for sub in (self.mpd_sub_list) if sub.get('language')]
+        if available_sub_languages:
+            available_subs = ', '.join(available_sub_languages)
+            if "*" in (DOWNLOAD_SPECIFIC_SUBTITLE):
+                self.selected_subs = self.mpd_sub_list
+                downloadable_sub_languages = available_sub_languages
+            else:
+                self.selected_subs = [sub for sub in self.mpd_sub_list if sub.get('language') in (DOWNLOAD_SPECIFIC_SUBTITLE)]
+                downloadable_sub_languages = [sub.get('language') for sub in self.selected_subs]
+
+            downloadable_subs = ', '.join(downloadable_sub_languages) if downloadable_sub_languages else "Nothing"
+            set_subs = ', '.join(DOWNLOAD_SPECIFIC_SUBTITLE) if DOWNLOAD_SPECIFIC_SUBTITLE else "Nothing"
+            data_rows.append(["Subtitle", available_subs, set_subs, downloadable_subs])
+
+        # Calculate max width for each column
+        headers = ["Type", "Available", "Set", "Downloadable"]
+        max_widths = [len(h) for h in headers]
+        for row in data_rows:
+            for i, cell in enumerate(row):
+                max_widths[i] = max(max_widths[i], len(str(cell)))
+        max_widths = [w + 2 for w in max_widths]
+
         # Create table with dynamic widths
         table = Table(show_header=True, header_style="cyan", border_style="blue")
-        table.add_column("Type", style="cyan bold", width=column_widths[0])
-        table.add_column("Available", style="green", width=column_widths[1])
-        table.add_column("Set", style="red", width=column_widths[2])
-        table.add_column("Downloadable", style="yellow", width=column_widths[3])
-        
+        table.add_column("Type", style="cyan bold", width=max_widths[0])
+        table.add_column("Available", style="green", width=max_widths[1])
+        table.add_column("Set", style="red", width=max_widths[2])
+        table.add_column("Downloadable", style="yellow", width=max_widths[3])
+
         # Add all rows to the table
         for row in data_rows:
-            table.add_row(*row)
+            table.add_row(*[str(x) for x in row])
 
         console.print(table)
         console.print("")
@@ -202,7 +236,7 @@ class DASH_Downloader:
         Download subtitle files based on configuration with retry mechanism.
         Returns True if successful or if no subtitles to download, False on critical error.
         """
-        client = create_client(headers={'User-Agent': get_userAgent()})
+        client = create_client_curl(headers={'User-Agent': get_userAgent()})
         
         for sub in self.selected_subs:
             try:
@@ -246,12 +280,12 @@ class DASH_Downloader:
         video_segments_count = 0
 
         # Fetch keys immediately after obtaining PSSH
-        if not self.parser.pssh:
+        if not getattr(self, "pssh", None):
             self.download_segments(clear=True)
             return True
 
         keys = get_widevine_keys(
-            pssh=self.parser.pssh,
+            pssh=self.pssh,
             license_url=self.license_url,
             cdm_device_path=self.cdm_device,
             headers=custom_headers,
@@ -280,7 +314,8 @@ class DASH_Downloader:
                 video_downloader = MPD_Segments(
                     tmp_folder=self.encrypted_dir,
                     representation=video_rep,
-                    pssh=self.parser.pssh
+                    pssh=getattr(self, "pssh", None),
+                    custom_headers=self.parser_custom_headers
                 )
 
                 # Set current downloader for progress tracking
@@ -337,8 +372,9 @@ class DASH_Downloader:
                 audio_downloader = MPD_Segments(
                     tmp_folder=self.encrypted_dir,
                     representation=audio_rep,
-                    pssh=self.parser.pssh,
-                    limit_segments=video_segments_count if video_segments_count > 0 else None
+                    pssh=getattr(self, "pssh", None),
+                    limit_segments=video_segments_count if video_segments_count > 0 else None,
+                    custom_headers=self.parser_custom_headers
                 )
 
                 # Set current downloader for progress tracking
@@ -408,7 +444,8 @@ class DASH_Downloader:
                 video_downloader = MPD_Segments(
                     tmp_folder=self.encrypted_dir,
                     representation=video_rep,
-                    pssh=self.parser.pssh
+                    pssh=getattr(self, "pssh", None),
+                    custom_headers=self.parser_custom_headers
                 )
                 
                 # Set current downloader for progress tracking
@@ -462,8 +499,9 @@ class DASH_Downloader:
                 audio_downloader = MPD_Segments(
                     tmp_folder=self.encrypted_dir,
                     representation=audio_rep,
-                    pssh=self.parser.pssh,
-                    limit_segments=video_segments_count if video_segments_count > 0 else None
+                    pssh=getattr(self, "pssh", None),
+                    limit_segments=video_segments_count if video_segments_count > 0 else None,
+                    custom_headers=self.parser_custom_headers
                 )
                 
                 # Set current downloader for progress tracking

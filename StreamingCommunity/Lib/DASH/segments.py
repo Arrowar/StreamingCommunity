@@ -33,7 +33,7 @@ console = Console()
 
 
 class MPD_Segments:
-    def __init__(self, tmp_folder: str, representation: dict, pssh: str = None, limit_segments: int = None):
+    def __init__(self, tmp_folder: str, representation: dict, pssh: str = None, limit_segments: int = None, custom_headers: Dict[str, str] = None):
         """
         Initialize MPD_Segments with temp folder, representation, optional pssh, and segment limit.
         
@@ -46,6 +46,7 @@ class MPD_Segments:
         self.tmp_folder = tmp_folder
         self.selected_representation = representation
         self.pssh = pssh
+        self.custom_headers = dict(custom_headers or {})
         
         # Use LIMIT_SEGMENT from config if limit_segments is not specified or is 0
         if limit_segments is None or limit_segments == 0:
@@ -80,11 +81,16 @@ class MPD_Segments:
         rep_id = self.selected_representation['id']
         return os.path.join(output_dir or self.tmp_folder, f"{rep_id}_encrypted.m4s")
         
+    def _get_segment_urls(self):
+        rep = self.selected_representation or {}
+        return rep.get("segment_urls") or rep.get("media_urls") or []
+
+    def _get_init_url(self) -> str:
+        rep = self.selected_representation or {}
+        return rep.get("init_url") or (rep.get("init_urls") or [""])[0]
+
     def get_segments_count(self) -> int:
-        """
-        Returns the total number of segments available in the representation.
-        """
-        return len(self.selected_representation.get('segment_urls', []))
+        return len(self._get_segment_urls())
 
     def download_streams(self, output_dir: str = None, description: str = "DASH"):
         """
@@ -129,8 +135,12 @@ class MPD_Segments:
         """
         rep = self.selected_representation
         rep_id = rep['id']
-        segment_urls = rep['segment_urls']
-        init_url = rep.get('init_url')
+
+        segment_urls = list(self._get_segment_urls())
+        init_url = self._get_init_url()
+
+        if self.limit_segments is not None and self.limit_segments > 0 and len(segment_urls) > self.limit_segments:
+            segment_urls = segment_urls[: self.limit_segments]
 
         os.makedirs(output_dir or self.tmp_folder, exist_ok=True)
         concat_path = os.path.join(output_dir or self.tmp_folder, f"{rep_id}_encrypted.m4s")
@@ -206,7 +216,7 @@ class MPD_Segments:
             return
         
         try:
-            headers = {'User-Agent': get_userAgent()}
+            headers = {**self.custom_headers, "User-Agent": get_userAgent()}
             response = await client.get(init_url, headers=headers, follow_redirects=True)
 
             with open(concat_path, 'wb') as outfile:
@@ -239,7 +249,7 @@ class MPD_Segments:
         """
         async def download_single(url, idx):
             async with semaphore:
-                headers = {'User-Agent': get_userAgent()}
+                headers = {**self.custom_headers, "User-Agent": get_userAgent()}
                 temp_file = os.path.join(temp_dir, f"seg_{idx:06d}.tmp")
                 
                 for attempt in range(max_retry):
@@ -317,7 +327,7 @@ class MPD_Segments:
             
             async def download_single(url, idx):
                 async with semaphore:
-                    headers = {'User-Agent': get_userAgent()}
+                    headers = {**self.custom_headers, "User-Agent": get_userAgent()}
                     temp_file = os.path.join(temp_dir, f"seg_{idx:06d}.tmp")
 
                     for attempt in range(max_retry):
@@ -326,7 +336,7 @@ class MPD_Segments:
                             
                         try:
                             timeout = min(SEGMENT_MAX_TIMEOUT, 15 + attempt * 5)
-                            resp = await client.get(url, headers=headers, timeout=timeout)
+                            resp = await client.get(url, headers=headers, follow_redirects=True, timeout=timeout)
                             
                             # Write directly to temp file
                             if resp.status_code == 200:
@@ -429,7 +439,7 @@ class MPD_Segments:
         """
         Validate final download integrity - allow partial downloads.
         """
-        total = len(self.selected_representation['segment_urls'])
+        total = len(self._get_segment_urls())
         completed = getattr(self, 'downloaded_segments', set())
 
         if self.download_interrupted:
@@ -458,12 +468,11 @@ class MPD_Segments:
         # Delete temp segment files
         if CLEANUP_TMP and temp_dir and os.path.exists(temp_dir):
             try:
-                for idx in range(len(self.selected_representation.get('segment_urls', []))):
+                for idx in range(len(self._get_segment_urls())):
                     temp_file = os.path.join(temp_dir, f"seg_{idx:06d}.tmp")
                     if os.path.exists(temp_file):
                         os.remove(temp_file)
                 os.rmdir(temp_dir)
-
             except Exception as e:
                 console.print(f"[yellow]Warning: Could not clean temp directory: {e}")
 
@@ -477,7 +486,7 @@ class MPD_Segments:
         """
         Generate final error report.
         """
-        total_segments = len(self.selected_representation.get('segment_urls', []))
+        total_segments = len(self._get_segment_urls())
         failed_indices = [i for i in range(total_segments) if i not in self.downloaded_segments]
 
         console.log(f"[cyan]Max retries: [red]{getattr(self, 'info_maxRetry', 0)} [white]| "

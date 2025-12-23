@@ -16,6 +16,70 @@ from pywidevine.pssh import PSSH
 console = Console()
 
 
+def filter_valid_keys(content_keys: list) -> list:
+    """
+    Filter out invalid keys (all zeros) and return only potentially valid keys.
+    
+    Args:
+        content_keys (list): List of key dictionaries with 'kid' and 'key' fields
+    """
+    valid_keys = []
+    
+    for key_info in content_keys:
+        key_value = key_info.get('key', '').replace('-', '').strip()
+        if key_value and not all(c == '0' for c in key_value):
+            valid_keys.append(key_info)
+    
+    return valid_keys
+
+
+def select_best_key(valid_keys: list) -> dict:
+    """
+    Select the best key from valid keys based on heuristics.
+    
+    Args:
+        valid_keys (list): List of valid key dictionaries
+    """
+    if len(valid_keys) == 1:
+        return valid_keys[0]
+    
+    # Heuristics for key selection:
+    # 1. Prefer keys that are not all the same character
+    # 2. Prefer keys with more entropy (variety in hex characters)
+    scored_keys = []
+    for key_info in valid_keys:
+        key_value = key_info.get('key', '')
+        score = 0
+        
+        # Score based on character variety
+        unique_chars = len(set(key_value))
+        score += unique_chars
+        
+        # Penalize keys with too many repeated patterns
+        if len(key_value) > 8:
+            
+            # Check for repeating patterns
+            has_pattern = False
+            for i in range(2, len(key_value) // 2):
+                pattern = key_value[:i]
+                if key_value.startswith(pattern * (len(key_value) // i)):
+                    has_pattern = True
+                    break
+            
+            if not has_pattern:
+                score += 10
+        
+        scored_keys.append((score, key_info))
+        console.log(f"[cyan]Found key [red]{key_info.get('kid', 'unknown')}[cyan] with score: [red]{score}")
+    
+    # Sort by score (descending) and return the best key
+    scored_keys.sort(key=lambda x: x[0], reverse=True)
+    best_key = scored_keys[0][1]
+    
+    console.log(f"[cyan]Selected key: [red]{best_key.get('kid', 'unknown')}[cyan] with score: [red]{scored_keys[0][0]}")
+    return best_key
+
+
 def get_widevine_keys(pssh: str, license_url: str, cdm_device_path: str, headers: dict = None, query_params: dict =None, key: str=None):
     """
     Extract Widevine CONTENT keys (KID/KEY) from a license using pywidevine.
@@ -61,7 +125,6 @@ def get_widevine_keys(pssh: str, license_url: str, cdm_device_path: str, headers
                 req_headers['Content-Type'] = 'application/octet-stream'
 
             response = requests.post(request_url, headers=req_headers, impersonate="chrome124", **request_kwargs)
-            console.log(f"[cyan]Response status from License URL: [red]{response.status_code}")
 
             if response.status_code != 200:
                 console.print(f"[red]License error: {response.status_code}, {response.text}")
@@ -111,9 +174,25 @@ def get_widevine_keys(pssh: str, license_url: str, cdm_device_path: str, headers
                 console.print("[yellow]⚠️ No CONTENT keys found in license.")
                 return None
 
-            console.log(f"[cyan]KID: [green]{content_keys[0]['kid']} [white]| [cyan]KEY: [green]{content_keys[0]['key']}")
-            return content_keys
-        
+            # Filter and select the best key
+            valid_keys = filter_valid_keys(content_keys)
+            
+            # Select the best key automatically
+            best_key = select_best_key(valid_keys)
+            
+            if best_key:
+                console.log(f"[cyan]Selected KID: [green]{best_key['kid']} [white]| [cyan]KEY: [green]{best_key['key']}")
+                
+                # Return all valid keys but with the best one first
+                result_keys = [best_key]
+                for key_info in valid_keys:
+                    if key_info['kid'] != best_key['kid']:
+                        result_keys.append(key_info)
+                
+                return result_keys
+            else:
+                console.print("[red]❌ Could not select best key")
+                return None
         else:
             content_keys = []
             raw_kid = key.split(":")[0]

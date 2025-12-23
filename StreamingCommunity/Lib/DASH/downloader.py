@@ -8,13 +8,12 @@ from typing import Optional, Dict
 
 # External libraries
 from rich.console import Console
-from rich.table import Table
 
 
 # Internal utilities
 from StreamingCommunity.Util import config_manager, os_manager, internet_manager
 from StreamingCommunity.Util.os import get_wvd_path
-from StreamingCommunity.Util.http_client import create_client_curl, get_userAgent
+from StreamingCommunity.Util.http_client import create_client, get_userAgent
 
 
 # Logic class
@@ -30,10 +29,8 @@ from StreamingCommunity.Lib.FFmpeg.merge import join_audios, join_video, join_su
 
 
 # Config
-DOWNLOAD_SPECIFIC_AUDIO = config_manager.get_list('M3U8_DOWNLOAD', 'specific_list_audio')
 DOWNLOAD_SPECIFIC_SUBTITLE = config_manager.get_list('M3U8_DOWNLOAD', 'specific_list_subtitles')
 MERGE_SUBTITLE = config_manager.get_bool('M3U8_DOWNLOAD', 'merge_subs')
-FILTER_CUSTOM_REOLUTION = str(config_manager.get('M3U8_CONVERSION', 'force_resolution')).strip().lower()
 CLEANUP_TMP = config_manager.get_bool('M3U8_DOWNLOAD', 'cleanup_tmp_folder')
 RETRY_LIMIT = config_manager.get_int('REQUESTS', 'max_retry')
 EXTENSION_OUTPUT = config_manager.get("M3U8_CONVERSION", "extension")
@@ -67,8 +64,7 @@ class DASH_Downloader:
         self.file_already_exists = os.path.exists(self.original_output_path)
         self.parser = None
 
-        # Added defaults to avoid AttributeError when no subtitles/audio/video are present
-        # Non la soluzione migliore ma evita crash in assenza di audio/video/subs
+        # Pre-selected representations (set by parse_manifest)
         self.selected_subs = []
         self.selected_video = None
         self.selected_audio = None
@@ -101,124 +97,31 @@ class DASH_Downloader:
         os.makedirs(self.optimize_dir, exist_ok=True)
         os.makedirs(self.subs_dir, exist_ok=True)
 
-    def _fetch_mpd_with_curl(self, mpd_url: str, headers: Optional[Dict[str, str]] = None, *, return_text: bool = False):
-        """Fetch MPD via curl_cffi and return its content."""
-        req_headers = dict(headers or {})
-        req_headers.setdefault("User-Agent", get_userAgent())
-
-        try:
-            resp = create_client_curl().get(mpd_url, headers=req_headers, timeout=20)
-            resp.raise_for_status()
-            return resp.text if return_text else (resp.content or b"")
-        
-        except Exception as e:
-            logging.error(f"MPD fetch failed: {e}")
-            return None
-
-    @staticmethod
-    def _payload_to_representation(payload: Dict) -> Dict:
-        return {
-            "id": payload.get("id") or "",
-            "init_url": payload.get("init_url") or (payload.get("init_urls") or [""])[0],
-            "segment_urls": payload.get("media_urls") or payload.get("media_url") or payload.get("segment_urls") or [],
-            "language": payload.get("language") or payload.get("lang") or "Unknown",
-            "bandwidth": payload.get("bandwidth", 0),
-            "width": payload.get("width", 0),
-            "height": payload.get("height", 0),
-            "fps": payload.get("fps"),
-            "codecs": payload.get("codecs", ""),
-            "has_drm": bool(payload.get("has_drm", False)),
-            "expected_segments": payload.get("expected_segments"),
-        }
-
-    def parse_manifest(self, custom_headers: Dict[str, str] = None) -> None:
-        self.parser_custom_headers = dict(custom_headers or {})
-        self.parser = MPD_Parser(self.mpd_url)
-        self.parser.parse(self.parser_custom_headers)
-
-        best_video = self.parser.bestVideo()
-        best_audio = self.parser.bestAudio()
-
-        self.selected_video = self._payload_to_representation(best_video)
-        self.selected_audio = self._payload_to_representation(best_audio)
-
-        self.pssh = (best_video.get("pssh") or best_audio.get("pssh") or "").strip()
-        self.show_table()
-
-    def show_table(self):
-        """Show a summary table of available/set/downloadable streams"""
-        if self.parser is None:
+    def parse_manifest(self, custom_headers):
+        """
+        Parse the MPD manifest file and select representations based on configuration.
+        """
+        if self.file_already_exists:
             return
 
-        streams = getattr(self.parser, "streams", []) or []
+        # Initialize parser with tmp directory for auto-save
+        self.parser = MPD_Parser(self.mpd_url, auto_save=True, save_dir=self.tmp_dir)
+        self.parser.parse(custom_headers)
 
-        def _fmt_res(s) -> str:
-            h = getattr(s, "height", None) or 0
-            w = getattr(s, "width", None) or 0
-            return f"{w}x{h}" if (w and h) else (f"{h}p" if h else "Unknown")
+        # Select representations based on configuration
+        self.selected_video, _, _, _ = self.parser.select_video()
+        self.selected_audio, _, _, _ = self.parser.select_audio()
 
-        def _fmt_lang(s) -> str:
-            v = (getattr(s, "lang", None) or "").strip()
-            return v if v else "Unknown"
+        if "*" in DOWNLOAD_SPECIFIC_SUBTITLE:
+            self.selected_subs = self.mpd_sub_list
+        else:
+            self.selected_subs = [
+                sub for sub in self.mpd_sub_list 
+                if sub.get('language') in DOWNLOAD_SPECIFIC_SUBTITLE
+            ]
 
-        video_streams = [s for s in streams if getattr(s, "kind", None) == "video"]
-        audio_streams = [s for s in streams if getattr(s, "kind", None) == "audio"]
-
-        selected_video = getattr(self, "selected_video", None)
-        selected_audio = getattr(self, "selected_audio", None)
-
-        data_rows = []
-        available_video = ", ".join(sorted({_fmt_res(s) for s in video_streams})) if video_streams else "Nothing"
-        set_video = str(FILTER_CUSTOM_REOLUTION) if FILTER_CUSTOM_REOLUTION else "Nothing"
-        downloadable_video = "Nothing"
-
-        if selected_video:
-            h = selected_video.get("height") or 0
-            w = selected_video.get("width") or 0
-            downloadable_video = f"{w}x{h}" if (w and h) else (f"{h}p" if h else selected_video.get("id") or "Selected")
-        data_rows.append(["Video", available_video, set_video, downloadable_video])
-
-        if audio_streams:
-            available_audio = ", ".join(sorted({_fmt_lang(s) for s in audio_streams}))
-            set_audio = ", ".join(DOWNLOAD_SPECIFIC_AUDIO) if DOWNLOAD_SPECIFIC_AUDIO else "Nothing"
-            downloadable_audio = (selected_audio.get("language") if selected_audio else None) or "Nothing"
-            data_rows.append(["Audio", available_audio, set_audio, downloadable_audio])
-
-        # Subtitle row
-        available_sub_languages = [sub.get('language') for sub in (self.mpd_sub_list) if sub.get('language')]
-        if available_sub_languages:
-            available_subs = ', '.join(available_sub_languages)
-            if "*" in (DOWNLOAD_SPECIFIC_SUBTITLE):
-                self.selected_subs = self.mpd_sub_list
-                downloadable_sub_languages = available_sub_languages
-            else:
-                self.selected_subs = [sub for sub in self.mpd_sub_list if sub.get('language') in (DOWNLOAD_SPECIFIC_SUBTITLE)]
-                downloadable_sub_languages = [sub.get('language') for sub in self.selected_subs]
-
-            downloadable_subs = ', '.join(downloadable_sub_languages) if downloadable_sub_languages else "Nothing"
-            set_subs = ', '.join(DOWNLOAD_SPECIFIC_SUBTITLE) if DOWNLOAD_SPECIFIC_SUBTITLE else "Nothing"
-            data_rows.append(["Subtitle", available_subs, set_subs, downloadable_subs])
-
-        # Calculate max width for each column
-        headers = ["Type", "Available", "Set", "Downloadable"]
-        max_widths = [len(h) for h in headers]
-        for row in data_rows:
-            for i, cell in enumerate(row):
-                max_widths[i] = max(max_widths[i], len(str(cell)))
-        max_widths = [w + 2 for w in max_widths]
-
-        # Create table with dynamic widths
-        table = Table(show_header=True, header_style="cyan", border_style="blue")
-        table.add_column("Type", style="cyan bold", width=max_widths[0])
-        table.add_column("Available", style="green", width=max_widths[1])
-        table.add_column("Set", style="red", width=max_widths[2])
-        table.add_column("Downloadable", style="yellow", width=max_widths[3])
-
-        # Add all rows to the table
-        for row in data_rows:
-            table.add_row(*[str(x) for x in row])
-
-        console.print(table)
+        # Print table with selections (only once here)
+        self.parser.print_tracks_table(self.selected_video, self.selected_audio)
         console.print("")
 
     def get_representation_by_type(self, typ):
@@ -236,7 +139,7 @@ class DASH_Downloader:
         Download subtitle files based on configuration with retry mechanism.
         Returns True if successful or if no subtitles to download, False on critical error.
         """
-        client = create_client_curl(headers={'User-Agent': get_userAgent()})
+        client = create_client(headers={'User-Agent': get_userAgent()})
         
         for sub in self.selected_subs:
             try:
@@ -280,12 +183,12 @@ class DASH_Downloader:
         video_segments_count = 0
 
         # Fetch keys immediately after obtaining PSSH
-        if not getattr(self, "pssh", None):
+        if not self.parser.pssh:
             self.download_segments(clear=True)
             return True
 
         keys = get_widevine_keys(
-            pssh=self.pssh,
+            pssh=self.parser.pssh,
             license_url=self.license_url,
             cdm_device_path=self.cdm_device,
             headers=custom_headers,
@@ -297,28 +200,17 @@ class DASH_Downloader:
             console.print("[red]No keys found, cannot proceed with download.")
             return False
 
-        # Extract the first key for decryption
-        KID = keys[0]['kid']
-        KEY = keys[0]['key']
-
         # Download subtitles
         self.download_subtitles()
 
         # Download the video to get segment count
         video_rep = self.get_representation_by_type("video")
         if video_rep:
-            encrypted_path = os.path.join(self.encrypted_dir, f"{video_rep['id']}_encrypted.m4s")
+            video_downloader = MPD_Segments(tmp_folder=self.encrypted_dir, representation=video_rep, pssh=self.parser.pssh, custom_headers=custom_headers)
+            encrypted_path = video_downloader.get_concat_path(self.encrypted_dir)
 
             # If m4s file doesn't exist, start downloading
             if not os.path.exists(encrypted_path):
-                video_downloader = MPD_Segments(
-                    tmp_folder=self.encrypted_dir,
-                    representation=video_rep,
-                    pssh=getattr(self, "pssh", None),
-                    custom_headers=self.parser_custom_headers
-                )
-
-                # Set current downloader for progress tracking
                 self.current_downloader = video_downloader
                 self.current_download_type = 'video'
 
@@ -346,14 +238,25 @@ class DASH_Downloader:
                     self.current_downloader = None
                     self.current_download_type = None
 
-                # Decrypt video
+                # Try decryption with multiple keys if the first one fails
                 decrypted_path = os.path.join(self.decrypted_dir, f"video.{extension_output}")
-                result_path = decrypt_with_mp4decrypt(
-                    "Video", encrypted_path, KID, KEY, output_path=decrypted_path
-                )
+                result_path = None
+                
+                for i, key_info in enumerate(keys):
+                    KID = key_info['kid']
+                    KEY = key_info['key']
+                    console.log(f"[cyan]Trying video decryption with key {i+1}/{len(keys)}: {KID}")
+                    result_path = decrypt_with_mp4decrypt("Video", encrypted_path, KID, KEY, output_path=decrypted_path)
+                    
+                    if result_path:
+                        console.log(f"[green]✓ Video decryption successful with key {i+1}")
+                        working_key = key_info      # Store the working key for audio decryption
+                        break
+                    else:
+                        console.log(f"[yellow]✗ Video decryption failed with key {i+1}")
 
                 if not result_path:
-                    self.error = "Decryption of video failed"
+                    self.error = "Video decryption failed with all available keys"
                     return False
 
         else:
@@ -363,20 +266,12 @@ class DASH_Downloader:
         # Now download audio with segment limiting
         audio_rep = self.get_representation_by_type("audio")
         if audio_rep:
-            encrypted_path = os.path.join(self.encrypted_dir, f"{audio_rep['id']}_encrypted.m4s")
+            audio_language = audio_rep.get('language', 'Unknown')
+            audio_downloader = MPD_Segments(tmp_folder=self.encrypted_dir, representation=audio_rep, pssh=self.parser.pssh, limit_segments=video_segments_count if video_segments_count > 0 else None, custom_headers=custom_headers)
+            encrypted_path = audio_downloader.get_concat_path(self.encrypted_dir)
 
             # If m4s file doesn't exist, start downloading
             if not os.path.exists(encrypted_path):
-                audio_language = audio_rep.get('language', 'Unknown')
-                
-                audio_downloader = MPD_Segments(
-                    tmp_folder=self.encrypted_dir,
-                    representation=audio_rep,
-                    pssh=getattr(self, "pssh", None),
-                    limit_segments=video_segments_count if video_segments_count > 0 else None,
-                    custom_headers=self.parser_custom_headers
-                )
-
                 # Set current downloader for progress tracking
                 self.current_downloader = audio_downloader
                 self.current_download_type = f"audio_{audio_language}"
@@ -405,12 +300,29 @@ class DASH_Downloader:
                 # Decrypt audio
                 decrypted_path = os.path.join(self.decrypted_dir, f"audio.{extension_output}")
                 result_path = decrypt_with_mp4decrypt(
-                    f"Audio {audio_language}", encrypted_path, KID, KEY, output_path=decrypted_path
+                    f"Audio {audio_language}", encrypted_path, working_key['kid'], working_key['key'], output_path=decrypted_path
                 )
 
                 if not result_path:
-                    self.error = "Decryption of audio failed"
-                    return False
+                    # If the video key doesn't work for audio, try other keys
+                    console.log("[yellow]Video key failed for audio, trying other keys...")
+                    
+                    for i, key_info in enumerate(keys):
+                        if key_info['kid'] == working_key['kid']:
+                            continue  # Skip the already tried key
+                            
+                        console.log(f"[cyan]Trying audio decryption with alternative key: {key_info['kid']}")
+                        result_path = decrypt_with_mp4decrypt(f"Audio {audio_language}", encrypted_path, key_info['kid'], key_info['key'], output_path=decrypted_path)
+                        
+                        if result_path:
+                            console.log(f"[green]✓ Audio decryption successful with alternative key")
+                            break
+                        else:
+                            console.log(f"[yellow]✗ Audio decryption failed with alternative key")
+                    
+                    if not result_path:
+                        self.error = "Audio decryption failed with all available keys"
+                        return False
 
         else:
             self.error = "No audio found"
@@ -437,17 +349,15 @@ class DASH_Downloader:
         # Download video
         video_rep = self.get_representation_by_type("video")
         if video_rep:
-            encrypted_path = os.path.join(self.encrypted_dir, f"{video_rep['id']}_encrypted.m4s")
-            
+            video_downloader = MPD_Segments(
+                tmp_folder=self.encrypted_dir,
+                representation=video_rep,
+                pssh=self.parser.pssh
+            )
+            encrypted_path = video_downloader.get_concat_path(self.encrypted_dir)
+
             # If m4s file doesn't exist, start downloading
             if not os.path.exists(encrypted_path):
-                video_downloader = MPD_Segments(
-                    tmp_folder=self.encrypted_dir,
-                    representation=video_rep,
-                    pssh=getattr(self, "pssh", None),
-                    custom_headers=self.parser_custom_headers
-                )
-                
                 # Set current downloader for progress tracking
                 self.current_downloader = video_downloader
                 self.current_download_type = 'video'
@@ -490,20 +400,12 @@ class DASH_Downloader:
         # Download audio with segment limiting
         audio_rep = self.get_representation_by_type("audio")
         if audio_rep:
-            encrypted_path = os.path.join(self.encrypted_dir, f"{audio_rep['id']}_encrypted.m4s")
-            
+            audio_language = audio_rep.get('language', 'Unknown')
+            audio_downloader = MPD_Segments(tmp_folder=self.encrypted_dir, representation=audio_rep, pssh=self.parser.pssh, limit_segments=video_segments_count if video_segments_count > 0 else None)
+            encrypted_path = audio_downloader.get_concat_path(self.encrypted_dir)
+
             # If m4s file doesn't exist, start downloading
             if not os.path.exists(encrypted_path):
-                audio_language = audio_rep.get('language', 'Unknown')
-                
-                audio_downloader = MPD_Segments(
-                    tmp_folder=self.encrypted_dir,
-                    representation=audio_rep,
-                    pssh=getattr(self, "pssh", None),
-                    limit_segments=video_segments_count if video_segments_count > 0 else None,
-                    custom_headers=self.parser_custom_headers
-                )
-                
                 # Set current downloader for progress tracking
                 self.current_downloader = audio_downloader
                 self.current_download_type = f"audio_{audio_language}"

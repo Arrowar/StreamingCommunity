@@ -88,8 +88,6 @@ class ConfigManager:
             ('M3U8_CONVERSION', 'param_video', str),
             ('M3U8_CONVERSION', 'param_audio', str),
             ('M3U8_CONVERSION', 'param_final', str),
-            ('M3U8_CONVERSION', 'extension', str),
-            ('M3U8_CONVERSION', 'force_resolution', bool),
             ('M3U8_DOWNLOAD', 'cleanup_tmp_folder', bool),
             ('M3U8_DOWNLOAD', 'default_video_workers', int),
             ('M3U8_DOWNLOAD', 'default_audio_workers', int),
@@ -98,8 +96,7 @@ class ConfigManager:
             ('M3U8_DOWNLOAD', 'merge_subs', bool),
             ('REQUESTS', 'verify', bool),
             ('REQUESTS', 'timeout', int),
-            ('REQUESTS', 'max_retry', int),
-            ('OUT_FOLDER', 'map_episode_name', str)
+            ('REQUESTS', 'max_retry', int)
         ]
         
         cached_count = 0

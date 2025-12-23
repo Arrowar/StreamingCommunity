@@ -164,10 +164,9 @@ class M3U8Manager:
             self.sub_streams = []
 
         else:
-            # Video selection logic
-            if str(FILTER_CUSTOM_RESOLUTION) == "best":
+            if str(FILTER_CUSTOM_RESOLUTION).strip().lower() == "best":
                 self.video_url, self.video_res = self.parser._video.get_best_uri()
-            elif str(FILTER_CUSTOM_RESOLUTION) == "worst":
+            elif str(FILTER_CUSTOM_RESOLUTION).strip().lower() == "worst":
                 self.video_url, self.video_res = self.parser._video.get_worst_uri()
             elif str(FILTER_CUSTOM_RESOLUTION).replace("p", "").replace("px", "").isdigit():
                 resolution_value = int(str(FILTER_CUSTOM_RESOLUTION).replace("p", "").replace("px", ""))

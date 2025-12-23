@@ -218,8 +218,7 @@ class CrunchyrollClient:
         Get available streams for media_id.
         """
         response = self._request_with_retry(
-            'GET',
-            f'{BASE_URL}/playback/v3/{media_id}/web/chrome/play',
+            'GET', f'{BASE_URL}/playback/v3/{media_id}/web/chrome/play',
             params={'locale': self.locale}
         )
 
@@ -231,7 +230,6 @@ class CrunchyrollClient:
             raise PlaybackError("TOO_MANY_ACTIVE_STREAMS. Wait a few minutes and try again.")
         
         response.raise_for_status()
-        
         data = response.json()
         
         if data.get('error') == 'Playback is Rejected':
@@ -286,35 +284,20 @@ def get_playback_session(client: CrunchyrollClient, url_id: str) -> Optional[Tup
         Tuple with (mpd_url, headers, subtitles, token, audio_locale) or None if access denied
     """
     data = client.get_streams(url_id)
-    
-    # If get_streams returns None, it means access was denied (403)
-    if data is None:
-        return None
-    
     url = data.get('url')
     audio_locale_current = data.get('audio_locale') or data.get('audio', {}).get('locale')
     
     # Collect subtitles with metadata
     subtitles = []
-    subs_obj = data.get('subtitles') or {}
-    if isinstance(subs_obj, dict):
-        for lang, info in subs_obj.items():
-            if not info:
-                continue
-            sub_url = info.get('url')
-            if not sub_url:
-                continue
-            
+    subtitles_data = data.get('subtitles', {})
+    for lang_code, sub_info in subtitles_data.items():
+        if sub_info.get('url'):
             subtitles.append({
-                'language': lang,
-                'url': sub_url,
-                'format': info.get('format'),
-                'type': info.get('type'),                           # "subtitles" | "captions"
-                'closed_caption': bool(info.get('closed_caption')),
-                'label': info.get('display') or info.get('title') or info.get('language')
+                'language': sub_info.get('language'),
+                'format': sub_info.get('format'),
+                'url': sub_info.get('url'),
             })
     
     token = _find_token_anywhere(data)
     headers = client._get_headers()
-    
     return url, headers, subtitles, token, audio_locale_current

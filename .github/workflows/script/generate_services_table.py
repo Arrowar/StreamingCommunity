@@ -156,10 +156,8 @@ def main():
         # Only include services that are not deprecated
         if not deprecate:
             services.append((service_name, stream_type, drm))
-            print(f"  ✓ {service_name}: {stream_type}, DRM={drm}")
         else:
             deprecated_count += 1
-            print(f"  ⚠ {service_name}: DEPRECATED (skipped)")
     
     print(f"\nActive services: {len(services)}")
     print(f"Deprecated services: {deprecated_count}")

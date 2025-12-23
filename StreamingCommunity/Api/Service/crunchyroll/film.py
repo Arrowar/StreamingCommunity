@@ -46,23 +46,16 @@ def download_film(select_title: MediaItem) -> str:
     mp4_name = f"{os_manager.get_sanitize_file(select_title.name, select_title.date)}.{extension_output}"
     mp4_path = os.path.join(site_constants.MOVIE_FOLDER, mp4_name.replace(f".{extension_output}", ""))
 
-    # Generate mpd and license URLs
-    url_id = select_title.get('url').split('/')[-1]
-    
     # Get playback session
-    try:
-        playback_result = get_playback_session(client, url_id)
-        
-        # Check if access was denied (403)
-        if playback_result is None:
-            console.print("[red]✗ Access denied: This content requires a premium subscription")
-            return None, False
-        
-        mpd_url, mpd_headers, mpd_list_sub, token, audio_locale = playback_result
-        
-    except Exception as e:
-        console.print(f"[red]✗ Error getting playback session: {str(e)}")
+    url_id = select_title.get('url').split('/')[-1]
+    playback_result = get_playback_session(client, url_id)
+    
+    # Check if access was denied (403)
+    if playback_result is None:
+        console.print("[red]✗ Access denied: This content requires a premium subscription")
         return None, False
+    
+    mpd_url, mpd_headers, mpd_list_sub, token, _ = playback_result
     
     # Parse playback token from mpd_url
     parsed_url = urlparse(mpd_url)

@@ -55,7 +55,7 @@ class DASH_Downloader:
         self.cdm_device = get_wvd_path()
         self.license_url = str(license_url).strip() if license_url else None
         self.mpd_url = str(mpd_url).strip()
-        self.mpd_sub_list = mpd_sub_list or []
+        self.mpd_sub_list = mpd_sub_list
         
         # Sanitize the output path to remove invalid characters
         sanitized_output_path = os_manager.get_sanitize_path(output_path)
@@ -104,24 +104,44 @@ class DASH_Downloader:
         if self.file_already_exists:
             return
 
-        # Initialize parser with tmp directory for auto-save
-        self.parser = MPD_Parser(self.mpd_url, auto_save=True, save_dir=self.tmp_dir)
+        # Initialize parser with tmp directory for auto-save and subtitle list
+        self.parser = MPD_Parser(self.mpd_url, auto_save=True, save_dir=self.tmp_dir, mpd_sub_list=self.mpd_sub_list)
         self.parser.parse(custom_headers)
 
         # Select representations based on configuration
         self.selected_video, _, _, _ = self.parser.select_video()
         self.selected_audio, _, _, _ = self.parser.select_audio()
 
+        # Auto-select subtitles based on selected audio language
+        selected_audio_language = self.selected_audio.get('language') if self.selected_audio else None
+        
         if "*" in DOWNLOAD_SPECIFIC_SUBTITLE:
             self.selected_subs = self.mpd_sub_list
+        elif selected_audio_language and selected_audio_language in DOWNLOAD_SPECIFIC_SUBTITLE:
+            # If audio language is in the specific list, prioritize it
+            self.selected_subs = [
+                sub for sub in self.mpd_sub_list 
+                if sub.get('language') == selected_audio_language
+            ]
         else:
+            # Fallback to configured languages
             self.selected_subs = [
                 sub for sub in self.mpd_sub_list 
                 if sub.get('language') in DOWNLOAD_SPECIFIC_SUBTITLE
             ]
 
+        # If no subtitles match configuration but we have audio language, auto-select matching subtitle
+        if not self.selected_subs and selected_audio_language:
+            matching_subs = [
+                sub for sub in self.mpd_sub_list 
+                if sub.get('language') == selected_audio_language
+            ]
+            if matching_subs:
+                console.print(f"[yellow]Auto-selecting subtitle for audio language: {selected_audio_language}")
+                self.selected_subs = matching_subs
+
         # Print table with selections (only once here)
-        self.parser.print_tracks_table(self.selected_video, self.selected_audio)
+        self.parser.print_tracks_table(self.selected_video, self.selected_audio, self.selected_subs)
         console.print("")
 
     def get_representation_by_type(self, typ):
@@ -136,17 +156,21 @@ class DASH_Downloader:
 
     def download_subtitles(self) -> bool:
         """
-        Download subtitle files based on configuration with retry mechanism.
+        Download subtitle files based on parser's selected subtitles with retry mechanism.
         Returns True if successful or if no subtitles to download, False on critical error.
         """
+        if not self.selected_subs:
+            return True
+            
         client = create_client(headers={'User-Agent': get_userAgent()})
         
         for sub in self.selected_subs:
             try:
-                language = sub.get('language', 'unknown')
-                fmt = sub.get('format', 'vtt')
+                language = sub.get('language')
+                fmt = sub.get('format')
 
                 # Download subtitle
+                console.log(f"[cyan]Downloading subtitle:[white] {language} ({fmt})")
                 response = client.get(sub.get('url'))
                 response.raise_for_status()
                 
@@ -245,11 +269,10 @@ class DASH_Downloader:
                 for i, key_info in enumerate(keys):
                     KID = key_info['kid']
                     KEY = key_info['key']
-                    console.log(f"[cyan]Trying video decryption with key {i+1}/{len(keys)}: {KID}")
+                    console.log(f"[cyan]Trying video decryption with key: {KID}")
                     result_path = decrypt_with_mp4decrypt("Video", encrypted_path, KID, KEY, output_path=decrypted_path)
                     
                     if result_path:
-                        console.log(f"[green]✓ Video decryption successful with key {i+1}")
                         working_key = key_info      # Store the working key for audio decryption
                         break
                     else:

@@ -638,10 +638,11 @@ class FileTypeDetector:
 class TablePrinter:
     """Prints representation tables"""
     
-    def __init__(self, mpd_duration: int):
+    def __init__(self, mpd_duration: int, mpd_sub_list: list = None):
         self.mpd_duration = mpd_duration
+        self.mpd_sub_list = mpd_sub_list or []
     
-    def print_table(self, representations: List[Dict[str, Any]], selected_video: Optional[Dict[str, Any]] = None, selected_audio: Optional[Dict[str, Any]] = None):
+    def print_table(self, representations: List[Dict[str, Any]], selected_video: Optional[Dict[str, Any]] = None, selected_audio: Optional[Dict[str, Any]] = None, selected_subs: list = None):
         """Print tracks table using Rich tables"""
         approx = DurationUtils.format_duration(self.mpd_duration)
         
@@ -649,7 +650,6 @@ class TablePrinter:
                        key=lambda r: (r['height'], r['width'], r['bandwidth']), reverse=True)
         audios = sorted([r for r in representations if r['type'] == 'audio'], 
                        key=lambda r: r['bandwidth'], reverse=True)
-        subtitles = [r for r in representations if r['type'] in ('text', 'application')]
         
         # Create single table
         table = Table(show_header=True, header_style="bold")
@@ -670,18 +670,7 @@ class TablePrinter:
             cenc = "*CENC" if vid.get('protected') else ""
             fps = f"{vid['frame_rate']:.0f}" if vid.get('frame_rate') else ""
             
-            table.add_row(
-                "Video",
-                checked,
-                f"Vid {cenc}",
-                f"{vid['width']}x{vid['height']}",
-                f"{vid['bandwidth'] // 1000} Kbps",
-                vid.get('codec', ''),
-                fps,
-                vid['id'],
-                str(vid['segment_count']),
-                approx or ""
-            )
+            table.add_row("Video", checked, f"Vid {cenc}", f"{vid['width']}x{vid['height']}", f"{vid['bandwidth'] // 1000} Kbps", vid.get('codec', ''), fps, vid['id'], str(vid['segment_count']), approx or "")
         
         # Add audio tracks
         for aud in audios:
@@ -689,33 +678,15 @@ class TablePrinter:
             cenc = "*CENC" if aud.get('protected') else ""
             ch = f"{aud['channels']}CH" if aud.get('channels') else ""
             
-            table.add_row(
-                "Audio",
-                checked,
-                f"Aud {cenc}",
-                aud['id'],
-                f"{aud['bandwidth'] // 1000} Kbps",
-                aud.get('codec', ''),
-                aud.get('language', ''),
-                ch,
-                str(aud['segment_count']),
-                approx or ""
-            )
+            table.add_row("Audio", checked, f"Aud {cenc}", aud['id'], f"{aud['bandwidth'] // 1000} Kbps", aud.get('codec', ''), aud.get('language', ''), ch, str(aud['segment_count']), approx or "")
         
-        # Add subtitle tracks
-        for sub in subtitles:
-            table.add_row(
-                "Subtitle",
-                " ",
-                "Sub",
-                sub['id'],
-                "",
-                sub.get('codec', ''),
-                sub.get('language', ''),
-                "",
-                str(sub['segment_count']),
-                approx or ""
-            )
+        # Add subtitle tracks from mpd_sub_list
+        for sub in self.mpd_sub_list:
+            checked = 'X' if selected_subs and sub in selected_subs else ' '
+            language = sub.get('language')
+            sub_type = sub.get('format')
+
+            table.add_row("Subtitle", checked, f"Sub {sub_type}", language, "", "", language, "", "", approx or "")
         
         console.print(table)
 
@@ -723,10 +694,11 @@ class TablePrinter:
 class MPD_Parser:
     """Main MPD parser class"""
     
-    def __init__(self, mpd_url: str, auto_save: bool = True, save_dir: Optional[str] = None):
+    def __init__(self, mpd_url: str, auto_save: bool = True, save_dir: Optional[str] = None, mpd_sub_list: list = None):
         self.mpd_url = mpd_url
         self.auto_save = auto_save
         self.save_dir = Path(save_dir) if save_dir else None
+        self.mpd_sub_list = mpd_sub_list or []
         
         self.root = None
         self.mpd_content = None
@@ -754,7 +726,7 @@ class MPD_Parser:
         # Extract MPD duration
         duration_str = self.root.get('mediaPresentationDuration')
         self.mpd_duration = DurationUtils.parse_duration(duration_str)
-        self.table_printer = TablePrinter(self.mpd_duration)
+        self.table_printer = TablePrinter(self.mpd_duration, self.mpd_sub_list)
         
         # Extract PSSH and representations
         self.pssh = self.protection_handler.extract_pssh(self.root)
@@ -928,10 +900,10 @@ class MPD_Parser:
         downloadable_audio = selected_audio['language'] if selected_audio else "N/A"
         return selected_audio, available_langs, filter_custom_audio, downloadable_audio
     
-    def print_tracks_table(self, selected_video: Optional[Dict[str, Any]] = None, selected_audio: Optional[Dict[str, Any]] = None) -> None:
+    def print_tracks_table(self, selected_video: Optional[Dict[str, Any]] = None, selected_audio: Optional[Dict[str, Any]] = None, selected_subs: list = None) -> None:
         """Print tracks table"""
         if self.table_printer:
-            self.table_printer.print_table(self.representations, selected_video, selected_audio)
+            self.table_printer.print_table(self.representations, selected_video, selected_audio, selected_subs)
     
     def save_mpd(self, output_path: str) -> None:
         """Save raw MPD manifest"""
@@ -1005,8 +977,6 @@ class MPD_Parser:
             if self.get_best_audio():
                 audio_path = self.save_dir / f"best_audio_{timestamp}.json"
                 self.save_best_audio_json(str(audio_path))
-            
-            console.print(f"[green]Auto-saved MPD files to: {self.save_dir}[/green]")
             
         except Exception as e:
             console.print(f"[red]Error during auto-save: {e}[/red]")

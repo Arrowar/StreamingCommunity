@@ -59,25 +59,16 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
     mp4_name = f"{map_episode_title(scrape_serie.series_name, index_season_selected, index_episode_selected, obj_episode.get('name'))}.{extension_output}"
     mp4_path = os_manager.get_sanitize_path(os.path.join(site_constants.SERIES_FOLDER, scrape_serie.series_name, f"S{index_season_selected}"))
 
-    # Generate mpd and license URLs
-    url_id = obj_episode.get('url').split('/')[-1]
-
     # Get playback session
-    try:
-        # Get playback session with token for cleanup
-        playback_result = get_playback_session(client, url_id)
-        
-        # Check if access was denied (403)
-        if playback_result is None:
-            console.print("[red]✗ Access denied: This episode requires a premium subscription")
-            return None, False
-        
-        mpd_url, mpd_headers, mpd_list_sub, token, audio_locale = playback_result
-        
-    except Exception as e:
-        console.print(f"[red]✗ Error getting playback session: {str(e)}")
+    url_id = obj_episode.get('url').split('/')[-1]
+    playback_result = get_playback_session(client, url_id)
+    
+    # Check if access was denied (403)
+    if playback_result is None:
+        console.print("[red]✗ Access denied: This episode requires a premium subscription")
         return None, False
     
+    mpd_url, mpd_headers, mpd_list_sub, token, _ = playback_result
     parsed_url = urlparse(mpd_url)
     query_params = parse_qs(parsed_url.query)
 

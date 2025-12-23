@@ -1,16 +1,18 @@
 # 16.03.25
 
 import logging
-from typing import List, Dict, Tuple
+from typing import List, Dict
 
 
 # Internal utilities
 from StreamingCommunity.Api.Template.object import SeasonManager
+from StreamingCommunity.Util.config_json import config_manager
 from .get_license import CrunchyrollClient
 
 
 # Variable
 NORMALIZE_SEASON_NUMBERS = False        # Set to True to remap seasons to 1..N range
+DOWNLOAD_SPECIFIC_AUDIO = config_manager.get_list('M3U8_DOWNLOAD', 'specific_list_audio')
 
 
 def get_series_seasons(series_id, client: CrunchyrollClient, params):
@@ -135,16 +137,25 @@ class GetSerieInfo:
         self._episodes_cache[season_number] = episode_list
         return episode_list
 
-    def _get_episode_audio_locales_and_urls(self, episode_id: str) -> Tuple[List[str], Dict[str, str]]:
-        """
-        Fetch available audio locales and their URLs for an episode.
-        1. Try 'versions' from CMS
-        2. Fallback to single audio_locale from metadata
-        3. Last resort: query playback and cleanup token
+    def _get_preferred_audio_locale(self) -> str:
+        lang_mapping = {
+            'ita': 'it-IT',
+            'eng': 'en-US', 
+            'jpn': 'ja-JP',
+            'ger': 'de-DE',
+            'fre': 'fr-FR',
+            'spa': 'es-419',
+            'por': 'pt-BR'
+        }
         
-        Returns: (audio_locales, urls_by_locale)
-        """
-        url = f'https://www.crunchyroll.com/content/v2/cms/objects/{episode_id}'
+        preferred_lang = DOWNLOAD_SPECIFIC_AUDIO[0] if DOWNLOAD_SPECIFIC_AUDIO else 'ita'
+        preferred_locale = lang_mapping.get(preferred_lang.lower(), 'it-IT')
+        return preferred_locale
+
+    def _get_episode_id_for_preferred_language(self, base_episode_id: str) -> str:
+        """Get the correct episode ID for the preferred audio language."""
+        preferred_locale = self._get_preferred_audio_locale()
+        url = f'https://www.crunchyroll.com/content/v2/cms/objects/{base_episode_id}'
         params = {
             'ratings': 'true',
             'locale': 'it-IT',
@@ -154,65 +165,48 @@ class GetSerieInfo:
             response = self.client._request_with_retry('GET', url, params=params)
             
             if response.status_code != 200:
-                logging.warning(f"Failed to fetch audio locales for episode {episode_id}")
-                return [], {}
+                logging.warning(f"Failed to fetch episode details for {base_episode_id}")
+                return base_episode_id
             
             data = response.json()
             item = (data.get("data") or [{}])[0] or {}
             meta = item.get('episode_metadata', {}) or {}
-
-            # Strategy 1: versions array
-            versions = meta.get("versions") or item.get("versions") or []
-            audio_locales = []
-            urls_by_locale = {}
-
-            if versions:
-                for v in versions:
-                    if not isinstance(v, dict):
-                        continue
-
-                    locale = v.get("audio_locale")
-                    guid = v.get("guid")
-                    if locale and guid:
-                        audio_locales.append(locale)
-                        urls_by_locale[locale] = f"https://www.crunchyroll.com/watch/{guid}"
-                
-                if audio_locales:
-                    return sorted(set(audio_locales)), urls_by_locale
-
-            # Strategy 2: single audio_locale from metadata
-            base_audio = (
-                meta.get("audio_locale")
-                or item.get("audio_locale")
-                or (meta.get("audio") or {}).get("locale")
-                or (item.get("audio") or {}).get("locale")
-            )
             
-            if base_audio:
-                return [base_audio], {base_audio: f"https://www.crunchyroll.com/watch/{episode_id}"}
+            versions = meta.get("versions") or []
             
-            # Strategy 3: query playback as last resort
-            try:
-                from .get_license import get_playback_session
-                _url, _hdrs, _subs, token, audio_loc = get_playback_session(self.client, episode_id)
-                
-                # Cleanup token immediately
-                if token:
-                    try:
-                        self.client.delete_active_stream(episode_id, token)
-                    except Exception:
-                        pass
-                
-                if audio_loc:
-                    return [audio_loc], {audio_loc: f"https://www.crunchyroll.com/watch/{episode_id}"}
-            except Exception as e:
-                logging.warning(f"Playback fallback failed for {episode_id}: {e}")
+            # Print all available audio locales
+            available_locales = []
+            for version in versions:
+                if isinstance(version, dict):
+                    locale = version.get("audio_locale")
+                    if locale:
+                        available_locales.append(locale)
+            print(f"Available audio locales: {available_locales}")
 
-            return [], {}
+            # Find matching version by audio_locale
+            for i, version in enumerate(versions):
+                if isinstance(version, dict):
+                    audio_locale = version.get("audio_locale")
+                    guid = version.get("guid")
+                    #print(f"Version {i}: audio_locale={audio_locale}, guid={guid}")
+                    
+                    if audio_locale == preferred_locale:
+                        return version.get("guid", base_episode_id)
             
+            # Fallback: try to find any available version if preferred not found
+            if versions and isinstance(versions[0], dict):
+                fallback_guid = versions[0].get("guid")
+                fallback_locale = versions[0].get("audio_locale")
+                if fallback_guid:
+                    print(f"[DEBUG] Preferred locale {preferred_locale} not found, using fallback: {fallback_locale} -> {fallback_guid}")
+                    logging.info(f"Preferred locale {preferred_locale} not found, using fallback: {fallback_locale}")
+                    return fallback_guid
+                    
         except Exception as e:
-            logging.error(f"Error parsing audio locales for episode {episode_id}: {e}")
-            return [], {}
+            logging.error(f"Error getting episode ID for preferred language: {e}")
+        
+        print(f"[DEBUG] Returning original episode ID: {base_episode_id}")
+        return base_episode_id
 
     # ------------- FOR GUI -------------
     def getNumberSeason(self) -> int:
@@ -245,20 +239,13 @@ class GetSerieInfo:
             return None
 
         episode = episodes[episode_index]
-        episode_id = episode.get("url", "").split("/")[-1] if "url" in episode else None
+        base_episode_id = episode.get("url", "").split("/")[-1] if "url" in episode else None
 
-        if not episode_id:
+        if not base_episode_id:
             return episode
 
-        # Try to get best audio URL
-        try:
-            _, urls_by_locale = self._get_episode_audio_locales_and_urls(episode_id)
-            new_url = urls_by_locale.get("it-IT") or urls_by_locale.get("en-US")
-            
-            if new_url:
-                episode["url"] = new_url
-                
-        except Exception as e:
-            logging.warning(f"Could not update episode URL: {e}")
+        preferred_episode_id = self._get_episode_id_for_preferred_language(base_episode_id)
+        episode["url"] = f"https://www.crunchyroll.com/watch/{preferred_episode_id}"
+        #print(f"Updated episode URL: {episode['url']}")
 
         return episode

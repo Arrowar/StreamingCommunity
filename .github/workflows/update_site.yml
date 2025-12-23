@@ -1,0 +1,41 @@
+name: Update Services Table
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'StreamingCommunity/Api/Service/*/__init__.py'
+  workflow_dispatch:
+
+jobs:
+  update-table:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+      
+      - name: Run table generator script
+        run: python .github/workflows/script/generate_services_table.py
+      
+      - name: Check for changes
+        id: git-check
+        run: |
+          git diff --exit-code .github/doc/site.md || echo "changed=true" >> $GITHUB_OUTPUT
+      
+      - name: Commit and push if changed
+        if: steps.git-check.outputs.changed == 'true'
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add .github/doc/site.md
+          git commit -m "docs: Update services table [skip ci]"
+          git push

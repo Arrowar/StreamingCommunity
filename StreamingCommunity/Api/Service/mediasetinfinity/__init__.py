@@ -19,6 +19,8 @@ from .film import download_film
 indice = 3
 _useFor = "Film_&_Serie"
 _deprecate = False
+_stream_type = "DASH"
+_drm = True
 
 msg = Prompt()
 console = Console()

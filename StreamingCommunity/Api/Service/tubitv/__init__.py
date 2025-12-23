@@ -20,6 +20,8 @@ from .film import download_film
 indice = 11
 _useFor = "Serie"
 _deprecate = False
+_stream_type = "HLS"
+_drm = True
 
 msg = Prompt()
 console = Console()

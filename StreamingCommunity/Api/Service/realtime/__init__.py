@@ -19,6 +19,8 @@ from .series import download_series
 indice = 8
 _useFor = "Serie"
 _deprecate = False
+_stream_type = "HLS"
+_drm = False
 
 msg = Prompt()
 console = Console()

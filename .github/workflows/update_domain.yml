@@ -35,16 +35,16 @@ jobs:
           sudo sh -c 'echo "nameserver 77.88.8.8" >> /etc/resolv.conf'
 
       - name: Execute domain update script
-        run: python .github/.domain/domain_update.py
+        run: python .github/workflows/script/domain_update.py
       
       - name: Always amend last commit
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           
-          if ! git diff --quiet .github/.domain/domains.json; then
+          if ! git diff --quiet .github/workflows/script/domains.json; then
             echo "📝 Changes detected - amending last commit"
-            git add .github/.domain/domains.json
+            git add .github/workflows/script/domains.json
             git commit --amend --no-edit
             git push --force-with-lease origin main
           else

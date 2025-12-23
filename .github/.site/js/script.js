@@ -113,7 +113,7 @@ async function checkSiteStatus(url, siteName) {
   }
 }
 
-const domainsJsonUrl = 'https://raw.githubusercontent.com/Arrowar/StreamingCommunity/refs/heads/main/.github/.domain/domains.json';
+const domainsJsonUrl = 'https://raw.githubusercontent.com/Arrowar/StreamingCommunity/refs/heads/main/.github/workflows/script/domains.json';
 
 async function loadSiteData() {
   try {

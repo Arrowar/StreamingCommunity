@@ -60,16 +60,17 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
     
     # Get playback information using video_id
     playback_info = get_playback_info(obj_episode.video_id)
-    mpd_url = playback_info['mpd_url']
-    license_token = playback_info['license_token']
+    if str(playback_info['type']).strip().lower() != 'dash' or playback_info['license_url'] is None:
+        console.print(f"[red]Unsupported streaming type. Playbackk info: {playback_info}")
+        return None, False
     
     # Generate license headers
-    license_headers = generate_license_headers(license_token)
+    license_headers = generate_license_headers(playback_info['license_token'])
     
     # Download the episode
     dash_process = DASH_Downloader(
-        license_url="https://discovery-us.conax.cloud/widevine/license",
-        mpd_url=mpd_url,
+        license_url=playback_info['license_url'],
+        mpd_url=playback_info['mpd_url'],
         output_path=os.path.join(mp4_path, mp4_name),
     )
     

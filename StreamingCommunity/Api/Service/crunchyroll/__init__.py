@@ -19,6 +19,8 @@ from .series import download_series
 indice = 7
 _useFor = "Anime"
 _deprecate = False
+_stream_type = "DASH"
+_drm = True
 
 msg = Prompt()
 console = Console()

@@ -19,6 +19,8 @@ from .serie import download_series
 indice = 1
 _useFor = "Anime"
 _deprecate = False
+_stream_type = "MP4"
+_drm = False
 
 msg = Prompt()
 console = Console()

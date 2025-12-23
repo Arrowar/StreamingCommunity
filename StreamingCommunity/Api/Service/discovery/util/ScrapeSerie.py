@@ -92,7 +92,6 @@ class GetSerieInfo:
                 if element.get('type') == 'video':
                     attributes = element.get('attributes', {})
                     if 'episodeNumber' in attributes:
-                        #print("  Add episode: ", attributes.get('name'), " number: ", attributes.get('episodeNumber'))
                         episodes.append({
                             'id': attributes.get('alternateId', ''),
                             'video_id': element.get('id', ''),
@@ -103,6 +102,7 @@ class GetSerieInfo:
             
             # Sort by episode number
             episodes.sort(key=lambda x: x['episode_number'])
+            print("Add n_episodes:", len(episodes), "for season:", season_number)
             return episodes
             
         except Exception as e:

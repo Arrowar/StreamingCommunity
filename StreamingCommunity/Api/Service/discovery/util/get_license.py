@@ -9,7 +9,7 @@ from ua_generator import generate
 
 
 # Internal utilities
-from StreamingCommunity.Util.http_client import create_client
+from StreamingCommunity.Util.http_client import create_client_curl
 
 
 # Variable
@@ -75,10 +75,7 @@ class DiscoveryAPI:
         }
         
         try:
-            response = create_client(headers=headers).get(
-                'https://us1-prod-direct.go.discovery.com/token',
-                params=params
-            )
+            response = create_client_curl(headers=headers).get('https://us1-prod-direct.go.discovery.com/token', params=params)
             response.raise_for_status()
             self.bearer_token = response.json()['data']['attributes']['token']
             
@@ -144,30 +141,29 @@ def get_playback_info(video_id):
         },
     }
     
-    try:
-        response = create_client().post(
-            'https://us1-prod-direct.go.discovery.com/playback/v3/videoPlaybackInfo',
-            cookies=cookies,
-            headers=headers,
-            json=json_data,
-        )
-        response.raise_for_status()
-        
+    response = create_client_curl().post('https://us1-prod-direct.go.discovery.com/playback/v3/videoPlaybackInfo', cookies=cookies, headers=headers, json=json_data)
+    
+    if response.status_code == 403:
         json_response = response.json()
-        
-        # Check for geo-restriction
-        if response.status_code == 403:
+        errors = json_response.get('errors', [])
+        if errors and errors[0].get('code') == 'access.denied.missingpackage':
+            raise RuntimeError("Content requires a subscription/account to view")
+        else:
             raise RuntimeError("Content is geo-restricted")
-        
-        streaming_data = json_response['data']['attributes']['streaming']
-        
-        return {
-            'mpd_url': streaming_data[0]['url'],
-            'license_token': streaming_data[0]['protection']['drmToken']
-        }
-        
-    except Exception as e:
-        raise RuntimeError(f"Failed to get playback info: {e}")
+    
+    response.raise_for_status()
+    json_response = response.json()
+    
+    streaming_data = json_response['data']['attributes']['streaming']
+    widevine_scheme = streaming_data[0]['protection']['schemes'].get('widevine')
+    
+    return {
+        'mpd_url': streaming_data[0]['url'],
+        'license_url': widevine_scheme['licenseUrl'] if widevine_scheme else None,
+        'license_token': streaming_data[0]['protection']['drmToken'] if widevine_scheme else None,
+        'type': streaming_data[0]['type']
+    }
+
 
 
 def generate_license_headers(license_token):

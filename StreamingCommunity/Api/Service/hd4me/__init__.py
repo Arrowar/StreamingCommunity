@@ -20,6 +20,8 @@ from .film import download_film
 indice = 10
 _useFor = "Film_&_Serie"
 _deprecate = False
+_stream_type = "MEGA"
+_drm = False
 
 msg = Prompt()
 console = Console()

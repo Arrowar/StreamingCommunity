@@ -188,9 +188,9 @@ class GetSerieInfo:
                 if isinstance(version, dict):
                     audio_locale = version.get("audio_locale")
                     guid = version.get("guid")
-                    #print(f"Version {i}: audio_locale={audio_locale}, guid={guid}")
                     
                     if audio_locale == preferred_locale:
+                        print(f"Found matching locale! Selected: {audio_locale} -> {guid}")
                         return version.get("guid", base_episode_id)
             
             # Fallback: try to find any available version if preferred not found
@@ -205,7 +205,7 @@ class GetSerieInfo:
         except Exception as e:
             logging.error(f"Error getting episode ID for preferred language: {e}")
         
-        print(f"[DEBUG] Returning original episode ID: {base_episode_id}")
+        print(f"[DEBUG] No suitable version found, returning original episode ID: {base_episode_id}")
         return base_episode_id
 
     # ------------- FOR GUI -------------

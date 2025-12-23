@@ -284,20 +284,26 @@ def get_playback_session(client: CrunchyrollClient, url_id: str) -> Optional[Tup
         Tuple with (mpd_url, headers, subtitles, token, audio_locale) or None if access denied
     """
     data = client.get_streams(url_id)
-    url = data.get('url')
-    audio_locale_current = data.get('audio_locale') or data.get('audio', {}).get('locale')
+
+    try:
+        url = data.get('url')
+        audio_locale_current = data.get('audio_locale') or data.get('audio', {}).get('locale')
+        
+        # Collect subtitles with metadata
+        subtitles = []
+        subtitles_data = data.get('subtitles', {})
+        for lang_code, sub_info in subtitles_data.items():
+            if sub_info.get('url'):
+                subtitles.append({
+                    'language': sub_info.get('language'),
+                    'format': sub_info.get('format'),
+                    'url': sub_info.get('url'),
+                })
+        
+        token = _find_token_anywhere(data)
+        headers = client._get_headers()
+        return url, headers, subtitles, token, audio_locale_current
     
-    # Collect subtitles with metadata
-    subtitles = []
-    subtitles_data = data.get('subtitles', {})
-    for lang_code, sub_info in subtitles_data.items():
-        if sub_info.get('url'):
-            subtitles.append({
-                'language': sub_info.get('language'),
-                'format': sub_info.get('format'),
-                'url': sub_info.get('url'),
-            })
-    
-    token = _find_token_anywhere(data)
-    headers = client._get_headers()
-    return url, headers, subtitles, token, audio_locale_current
+    except Exception as e:
+        logging.error(f"Failed to parse playback session: {e}, Premium subscription may be required.")
+        return None

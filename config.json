@@ -23,7 +23,7 @@
         "merge_subs": true,
         "specific_list_subtitles": [
             "ita",
-            "eng"
+            "it-IT"
         ],
         "limit_segment": 0,
         "cleanup_tmp_folder": true,

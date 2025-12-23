@@ -170,7 +170,7 @@ class DASH_Downloader:
                 fmt = sub.get('format')
 
                 # Download subtitle
-                console.log(f"[cyan]Downloading subtitle:[white] {language} ({fmt})")
+                console.log(f"[cyan]Downloading subtitle[white]: [red]{language} ({fmt})")
                 response = client.get(sub.get('url'))
                 response.raise_for_status()
                 
@@ -269,7 +269,7 @@ class DASH_Downloader:
                 for i, key_info in enumerate(keys):
                     KID = key_info['kid']
                     KEY = key_info['key']
-                    console.log(f"[cyan]Trying video decryption with key: {KID}")
+                    console.log(f"[cyan]Trying video decryption with key: [red]{KID}")
                     result_path = decrypt_with_mp4decrypt("Video", encrypted_path, KID, KEY, output_path=decrypted_path)
                     
                     if result_path:

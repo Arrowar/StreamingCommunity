@@ -93,6 +93,6 @@ def download_film(select_title: MediaItem) -> str:
     playback_token = token or query_params.get('playbackGuid', [None])[0]
     if playback_token:
         client.delete_active_stream(url_id, playback_token)
-        console.print("[dim]✓ Playback session closed[/dim]")
+        console.print("[dim]Playback session closed")
 
     return status['path'], status['stopped']

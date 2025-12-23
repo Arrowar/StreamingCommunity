@@ -295,6 +295,7 @@ class DASH_Downloader:
 
             # If m4s file doesn't exist, start downloading
             if not os.path.exists(encrypted_path):
+
                 # Set current downloader for progress tracking
                 self.current_downloader = audio_downloader
                 self.current_download_type = f"audio_{audio_language}"
@@ -338,10 +339,10 @@ class DASH_Downloader:
                         result_path = decrypt_with_mp4decrypt(f"Audio {audio_language}", encrypted_path, key_info['kid'], key_info['key'], output_path=decrypted_path)
                         
                         if result_path:
-                            console.log(f"[green]✓ Audio decryption successful with alternative key")
+                            console.log("[green]Audio decryption successful with alternative key")
                             break
                         else:
-                            console.log(f"[yellow]✗ Audio decryption failed with alternative key")
+                            console.log("[yellow]Audio decryption failed with alternative key")
                     
                     if not result_path:
                         self.error = "Audio decryption failed with all available keys"
@@ -381,7 +382,6 @@ class DASH_Downloader:
 
             # If m4s file doesn't exist, start downloading
             if not os.path.exists(encrypted_path):
-                # Set current downloader for progress tracking
                 self.current_downloader = video_downloader
                 self.current_download_type = 'video'
                 
@@ -429,7 +429,6 @@ class DASH_Downloader:
 
             # If m4s file doesn't exist, start downloading
             if not os.path.exists(encrypted_path):
-                # Set current downloader for progress tracking
                 self.current_downloader = audio_downloader
                 self.current_download_type = f"audio_{audio_language}"
                 

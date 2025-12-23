@@ -53,7 +53,7 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
 
     # Get episode information
     obj_episode = scrape_serie.selectEpisode(index_season_selected, index_episode_selected-1)
-    console.print(f"\n[yellow]Download: [red]{site_constants.SITE_NAME} → [cyan]{scrape_serie.series_name} \\ [magenta]{obj_episode.get('name')}[/magenta] ([cyan]S{index_season_selected}E{index_episode_selected}) \n")
+    console.print(f"\n[yellow]Download: [red]{site_constants.SITE_NAME} → [cyan]{scrape_serie.series_name} \\ [magenta]{obj_episode.get('name')} ([cyan]S{index_season_selected}E{index_episode_selected}) \n")
 
     # Define filename and path for the downloaded video
     mp4_name = f"{map_episode_title(scrape_serie.series_name, index_season_selected, index_episode_selected, obj_episode.get('name'))}.{extension_output}"
@@ -104,7 +104,7 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
     playback_token = token or query_params.get('playbackGuid', [None])[0]
     if playback_token:
         client.delete_active_stream(url_id, playback_token)
-        console.print("[dim]✓ Playback session closed[/dim]")
+        console.print("[dim]Playback session closed")
 
     return status['path'], status['stopped']
 

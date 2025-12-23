@@ -979,4 +979,4 @@ class MPD_Parser:
                 self.save_best_audio_json(str(audio_path))
             
         except Exception as e:
-            console.print(f"[red]Error during auto-save: {e}[/red]")
+            console.print(f"[red]Error during auto-save: {e}")

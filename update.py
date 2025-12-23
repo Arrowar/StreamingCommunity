@@ -171,7 +171,7 @@ def print_commit_info(commit_info: dict):
     # Add stats if available
     if 'stats' in commit_info:
         stats = commit_info['stats']
-        table.add_row("Changes", f"+{stats['additions']} -[red]{stats['deletions']}[/red] ({stats['total']} total)")
+        table.add_row("Changes", f"+{stats['additions']} -[red]{stats['deletions']} ({stats['total']} total)")
 
     # Add URL info
     table.add_row("HTML URL", commit_info['html_url'])

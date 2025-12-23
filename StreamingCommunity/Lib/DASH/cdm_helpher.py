@@ -33,53 +33,6 @@ def filter_valid_keys(content_keys: list) -> list:
     return valid_keys
 
 
-def select_best_key(valid_keys: list) -> dict:
-    """
-    Select the best key from valid keys based on heuristics.
-    
-    Args:
-        valid_keys (list): List of valid key dictionaries
-    """
-    if len(valid_keys) == 1:
-        return valid_keys[0]
-    
-    # Heuristics for key selection:
-    # 1. Prefer keys that are not all the same character
-    # 2. Prefer keys with more entropy (variety in hex characters)
-    scored_keys = []
-    for key_info in valid_keys:
-        key_value = key_info.get('key', '')
-        score = 0
-        
-        # Score based on character variety
-        unique_chars = len(set(key_value))
-        score += unique_chars
-        
-        # Penalize keys with too many repeated patterns
-        if len(key_value) > 8:
-            
-            # Check for repeating patterns
-            has_pattern = False
-            for i in range(2, len(key_value) // 2):
-                pattern = key_value[:i]
-                if key_value.startswith(pattern * (len(key_value) // i)):
-                    has_pattern = True
-                    break
-            
-            if not has_pattern:
-                score += 10
-        
-        scored_keys.append((score, key_info))
-        console.log(f"[cyan]Found key [red]{key_info.get('kid', 'unknown')}[cyan] with score: [red]{score}")
-    
-    # Sort by score (descending) and return the best key
-    scored_keys.sort(key=lambda x: x[0], reverse=True)
-    best_key = scored_keys[0][1]
-    
-    console.log(f"[cyan]Selected key: [red]{best_key.get('kid', 'unknown')}[cyan] with score: [red]{scored_keys[0][0]}")
-    return best_key
-
-
 def get_widevine_keys(pssh: str, license_url: str, cdm_device_path: str, headers: dict = None, query_params: dict =None, key: str=None):
     """
     Extract Widevine CONTENT keys (KID/KEY) from a license using pywidevine.
@@ -174,24 +127,14 @@ def get_widevine_keys(pssh: str, license_url: str, cdm_device_path: str, headers
                 console.print("[yellow]⚠️ No CONTENT keys found in license.")
                 return None
 
-            # Filter and select the best key
+            # Filter valid keys
             valid_keys = filter_valid_keys(content_keys)
             
-            # Select the best key automatically
-            best_key = select_best_key(valid_keys)
-            
-            if best_key:
-                console.log(f"[cyan]Selected KID: [green]{best_key['kid']} [white]| [cyan]KEY: [green]{best_key['key']}")
-                
-                # Return all valid keys but with the best one first
-                result_keys = [best_key]
-                for key_info in valid_keys:
-                    if key_info['kid'] != best_key['kid']:
-                        result_keys.append(key_info)
-                
-                return result_keys
+            if valid_keys:
+                console.log(f"[cyan]Found {len(valid_keys)} valid keys for testing")
+                return valid_keys
             else:
-                console.print("[red]❌ Could not select best key")
+                console.print("[red]❌ No valid keys found")
                 return None
         else:
             content_keys = []
@@ -208,6 +151,40 @@ def get_widevine_keys(pssh: str, license_url: str, cdm_device_path: str, headers
     
     finally:
         cdm.close(session_id)
+
+
+def map_keys_to_representations(keys: list, representations: list) -> dict:
+    """
+    Map decryption keys to representations based on their default_KID.
+    
+    Args:
+        keys (list): List of key dictionaries with 'kid' and 'key' fields
+        representations (list): List of representation dictionaries with 'default_kid' field
+    
+    Returns:
+        dict: Mapping of representation type to key info
+    """
+    key_mapping = {}
+    
+    for rep in representations:
+        rep_type = rep.get('type', 'unknown')
+        default_kid = rep.get('default_kid')
+        
+        if not default_kid:
+            continue
+            
+        for key_info in keys:
+            if key_info['kid'].lower() == default_kid.lower():
+                key_mapping[rep_type] = {
+                    'kid': key_info['kid'],
+                    'key': key_info['key'],
+                    'representation_id': rep.get('id'),
+                    'default_kid': default_kid
+                }
+                #console.log(f"[cyan]Mapped {rep_type} representation [yellow]{rep.get('id')} [cyan]to key: [red]{key_info['kid']}")
+                break
+    
+    return key_mapping
 
 
 def get_info_wvd(cdm_device_path):

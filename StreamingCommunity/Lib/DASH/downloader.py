@@ -20,7 +20,7 @@ from StreamingCommunity.Util.http_client import create_client, get_userAgent
 from .parser import MPD_Parser
 from .segments import MPD_Segments
 from .decrypt import decrypt_with_mp4decrypt
-from .cdm_helpher import get_widevine_keys
+from .cdm_helpher import get_widevine_keys, map_keys_to_representations
 
 
 # FFmpeg functions
@@ -32,7 +32,6 @@ from StreamingCommunity.Lib.FFmpeg.merge import join_audios, join_video, join_su
 DOWNLOAD_SPECIFIC_SUBTITLE = config_manager.get_list('M3U8_DOWNLOAD', 'specific_list_subtitles')
 MERGE_SUBTITLE = config_manager.get_bool('M3U8_DOWNLOAD', 'merge_subs')
 CLEANUP_TMP = config_manager.get_bool('M3U8_DOWNLOAD', 'cleanup_tmp_folder')
-RETRY_LIMIT = config_manager.get_int('REQUESTS', 'max_retry')
 EXTENSION_OUTPUT = config_manager.get("M3U8_CONVERSION", "extension")
 
 
@@ -160,7 +159,7 @@ class DASH_Downloader:
 
     def download_subtitles(self) -> bool:
         """
-        Download subtitle files based on parser's selected subtitles with retry mechanism.
+        Download subtitle files based on parser's selected subtitles.
         Returns True if successful or if no subtitles to download, False on critical error.
         """
         if not self.selected_subs or self.mpd_sub_list is None:
@@ -193,12 +192,11 @@ class DASH_Downloader:
 
     def download_and_decrypt(self, custom_headers=None, query_params=None, key=None) -> bool:
         """
-        Download and decrypt video/audio streams. Skips download if file already exists.
+        Download and decrypt video/audio streams using automatic key mapping based on default_KID.
 
         Args:
             - custom_headers (dict): Optional HTTP headers for the license request.
             - query_params (dict): Optional query parameters to append to the license URL.
-            - license_data (str/bytes): Optional raw license data to bypass HTTP request.
             - key (str): Optional raw license data to bypass HTTP request.
         """
         if self.file_already_exists:
@@ -228,12 +226,26 @@ class DASH_Downloader:
             console.print("[red]No keys found, cannot proceed with download.")
             return False
 
+        # Map keys to representations based on default_KID
+        key_mapping = map_keys_to_representations(keys, self.parser.representations)
+        
+        if not key_mapping:
+            console.print("[red]Could not map any keys to representations.")
+            return False
+
         # Download subtitles
         self.download_subtitles()
 
-        # Download the video to get segment count
+        # Download and decrypt video
         video_rep = self.get_representation_by_type("video")
         if video_rep:
+            video_key_info = key_mapping.get("video")
+            if not video_key_info:
+                self.error = "No key found for video representation"
+                return False
+                
+            console.log(f"[cyan]Using video key: [red]{video_key_info['kid']} [cyan]for representation [yellow]{video_key_info.get('representation_id')}")
+            
             video_downloader = MPD_Segments(tmp_folder=self.encrypted_dir, representation=video_rep, pssh=self.parser.pssh, custom_headers=custom_headers)
             encrypted_path = video_downloader.get_concat_path(self.encrypted_dir)
 
@@ -266,33 +278,28 @@ class DASH_Downloader:
                     self.current_downloader = None
                     self.current_download_type = None
 
-                # Try decryption with multiple keys if the first one fails
-                decrypted_path = os.path.join(self.decrypted_dir, f"video.{extension_output}")
-                result_path = None
-                
-                for i, key_info in enumerate(keys):
-                    KID = key_info['kid']
-                    KEY = key_info['key']
-                    console.log(f"[cyan]Trying video decryption with key: [red]{KID}")
-                    result_path = decrypt_with_mp4decrypt("Video", encrypted_path, KID, KEY, output_path=decrypted_path)
-                    
-                    if result_path:
-                        working_key = key_info      # Store the working key for audio decryption
-                        break
-                    else:
-                        console.log(f"[yellow]✗ Video decryption failed with key {i+1}")
+                # Decrypt video using the mapped key
+                decrypted_path = os.path.join(self.decrypted_dir, f"video.{EXTENSION_OUTPUT}")
+                result_path = decrypt_with_mp4decrypt("Video", encrypted_path, video_key_info['kid'], video_key_info['key'], output_path=decrypted_path)
 
                 if not result_path:
-                    self.error = "Video decryption failed with all available keys"
+                    self.error = f"Video decryption failed with key {video_key_info['kid']}"
                     return False
 
         else:
             self.error = "No video found"
             return False
             
-        # Now download audio with segment limiting
+        # Download and decrypt audio
         audio_rep = self.get_representation_by_type("audio")
         if audio_rep:
+            audio_key_info = key_mapping.get("audio")
+            if not audio_key_info:
+                self.error = "No key found for audio representation"
+                return False
+                
+            console.log(f"[cyan]Using audio key: [red]{audio_key_info['kid']} [cyan]for representation [yellow]{audio_key_info.get('representation_id')}")
+            
             audio_language = audio_rep.get('language', 'Unknown')
             audio_downloader = MPD_Segments(tmp_folder=self.encrypted_dir, representation=audio_rep, pssh=self.parser.pssh, limit_segments=video_segments_count if video_segments_count > 0 else None, custom_headers=custom_headers)
             encrypted_path = audio_downloader.get_concat_path(self.encrypted_dir)
@@ -325,32 +332,13 @@ class DASH_Downloader:
                     self.current_downloader = None
                     self.current_download_type = None
 
-                # Decrypt audio
-                decrypted_path = os.path.join(self.decrypted_dir, f"audio.{extension_output}")
-                result_path = decrypt_with_mp4decrypt(
-                    f"Audio {audio_language}", encrypted_path, working_key['kid'], working_key['key'], output_path=decrypted_path
-                )
+                # Decrypt audio using the mapped key
+                decrypted_path = os.path.join(self.decrypted_dir, f"audio.{EXTENSION_OUTPUT}")
+                result_path = decrypt_with_mp4decrypt(f"Audio {audio_language}", encrypted_path, audio_key_info['kid'], audio_key_info['key'], output_path=decrypted_path)
 
                 if not result_path:
-                    # If the video key doesn't work for audio, try other keys
-                    console.log("[yellow]Video key failed for audio, trying other keys...")
-                    
-                    for i, key_info in enumerate(keys):
-                        if key_info['kid'] == working_key['kid']:
-                            continue  # Skip the already tried key
-                            
-                        console.log(f"[cyan]Trying audio decryption with alternative key: {key_info['kid']}")
-                        result_path = decrypt_with_mp4decrypt(f"Audio {audio_language}", encrypted_path, key_info['kid'], key_info['key'], output_path=decrypted_path)
-                        
-                        if result_path:
-                            console.log("[green]Audio decryption successful with alternative key")
-                            break
-                        else:
-                            console.log("[yellow]Audio decryption failed with alternative key")
-                    
-                    if not result_path:
-                        self.error = "Audio decryption failed with all available keys"
-                        return False
+                    self.error = f"Audio decryption failed with key {audio_key_info['kid']}"
+                    return False
 
         else:
             self.error = "No audio found"
@@ -415,7 +403,7 @@ class DASH_Downloader:
                     self.current_download_type = None
             
             # NO DECRYPTION: just copy/move to decrypted folder
-            decrypted_path = os.path.join(self.decrypted_dir, f"video.{extension_output}")
+            decrypted_path = os.path.join(self.decrypted_dir, f"video.{EXTENSION_OUTPUT}")
             if os.path.exists(encrypted_path) and not os.path.exists(decrypted_path):
                 shutil.copy2(encrypted_path, decrypted_path)
 
@@ -459,7 +447,7 @@ class DASH_Downloader:
                     self.current_download_type = None
             
             # NO DECRYPTION: just copy/move to decrypted folder
-            decrypted_path = os.path.join(self.decrypted_dir, f"audio.{extension_output}")
+            decrypted_path = os.path.join(self.decrypted_dir, f"audio.{EXTENSION_OUTPUT}")
             if os.path.exists(encrypted_path) and not os.path.exists(decrypted_path):
                 shutil.copy2(encrypted_path, decrypted_path)
                 
@@ -480,8 +468,8 @@ class DASH_Downloader:
             return output_file
         
         # Definition of decrypted files
-        video_file = os.path.join(self.decrypted_dir, f"video.{extension_output}")
-        audio_file = os.path.join(self.decrypted_dir, f"audio.{extension_output}")
+        video_file = os.path.join(self.decrypted_dir, f"video.{EXTENSION_OUTPUT}")
+        audio_file = os.path.join(self.decrypted_dir, f"audio.{EXTENSION_OUTPUT}")
         output_file = self.original_output_path
         
         # Set the output file path for status tracking

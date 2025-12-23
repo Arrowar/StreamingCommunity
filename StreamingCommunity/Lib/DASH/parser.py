@@ -222,6 +222,25 @@ class ContentProtectionHandler:
         
         return False
     
+    def extract_default_kid(self, element: etree._Element) -> Optional[str]:
+        """Extract default_KID from ContentProtection element"""
+        for cp in self.ns.findall(element, 'mpd:ContentProtection'):
+            scheme_id = (cp.get('schemeIdUri') or '').lower()
+            
+            # Look for CENC protection with default_KID
+            if 'urn:mpeg:dash:mp4protection:2011' in scheme_id:
+                kid = cp.get('{urn:mpeg:cenc:2013}default_KID')
+                if not kid:
+                    kid = cp.get('cenc:default_KID')
+                if not kid:
+                    kid = cp.get('default_KID')
+                
+                if kid:
+                    # Remove dashes and return normalized KID
+                    return kid.replace('-', '').lower()
+        
+        return None
+    
     def extract_pssh(self, root: etree._Element) -> Optional[str]:
         """Extract PSSH (Protection System Specific Header)"""
         # Try Widevine first
@@ -446,12 +465,14 @@ class RepresentationParser:
         mime_type = adapt_set.get('mimeType', '')
         lang = adapt_set.get('lang', '')
         adapt_frame_rate = adapt_set.get('frameRate')
+        content_type = adapt_set.get('contentType', '')
         
         # Resolve base URL
         adapt_base = self.url_resolver.resolve_base_url(adapt_set, base_url)
         
-        # Check protection
+        # Check protection and extract default_KID
         adapt_protected = self.protection_handler.is_protected(adapt_set)
+        adapt_default_kid = self.protection_handler.extract_default_kid(adapt_set)
         
         # Get segment template
         adapt_seg_template = self.ns.find(adapt_set, 'mpd:SegmentTemplate')
@@ -469,6 +490,11 @@ class RepresentationParser:
                 rep['channels'] = self.metadata_extractor.get_audio_channels(rep_elem, adapt_set)
                 rep_protected = adapt_protected or self.protection_handler.is_protected(rep_elem)
                 rep['protected'] = bool(rep_protected)
+                rep_default_kid = self.protection_handler.extract_default_kid(rep_elem) or adapt_default_kid
+                rep['default_kid'] = rep_default_kid
+                if content_type:
+                    rep['type'] = content_type
+                
                 representations.append(rep)
         
         return representations

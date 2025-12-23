@@ -3,6 +3,7 @@ bs4
 rich
 tqdm
 m3u8
+isodate
 psutil
 unidecode
 curl_cffi

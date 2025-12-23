@@ -115,30 +115,34 @@ class DASH_Downloader:
         # Auto-select subtitles based on selected audio language
         selected_audio_language = self.selected_audio.get('language') if self.selected_audio else None
         
-        if "*" in DOWNLOAD_SPECIFIC_SUBTITLE:
-            self.selected_subs = self.mpd_sub_list
-        elif selected_audio_language and selected_audio_language in DOWNLOAD_SPECIFIC_SUBTITLE:
-            # If audio language is in the specific list, prioritize it
-            self.selected_subs = [
-                sub for sub in self.mpd_sub_list 
-                if sub.get('language') == selected_audio_language
-            ]
-        else:
-            # Fallback to configured languages
-            self.selected_subs = [
-                sub for sub in self.mpd_sub_list 
-                if sub.get('language') in DOWNLOAD_SPECIFIC_SUBTITLE
-            ]
+        # Only process subtitles if mpd_sub_list is not None
+        if self.mpd_sub_list is not None:
+            if "*" in DOWNLOAD_SPECIFIC_SUBTITLE:
+                self.selected_subs = self.mpd_sub_list
+            elif selected_audio_language and selected_audio_language in DOWNLOAD_SPECIFIC_SUBTITLE:
+                # If audio language is in the specific list, prioritize it
+                self.selected_subs = [
+                    sub for sub in self.mpd_sub_list 
+                    if sub.get('language') == selected_audio_language
+                ]
+            else:
+                # Fallback to configured languages
+                self.selected_subs = [
+                    sub for sub in self.mpd_sub_list 
+                    if sub.get('language') in DOWNLOAD_SPECIFIC_SUBTITLE
+                ]
 
-        # If no subtitles match configuration but we have audio language, auto-select matching subtitle
-        if not self.selected_subs and selected_audio_language:
-            matching_subs = [
-                sub for sub in self.mpd_sub_list 
-                if sub.get('language') == selected_audio_language
-            ]
-            if matching_subs:
-                console.print(f"[yellow]Auto-selecting subtitle for audio language: {selected_audio_language}")
-                self.selected_subs = matching_subs
+            # If no subtitles match configuration but we have audio language, auto-select matching subtitle
+            if not self.selected_subs and selected_audio_language:
+                matching_subs = [
+                    sub for sub in self.mpd_sub_list 
+                    if sub.get('language') == selected_audio_language
+                ]
+                if matching_subs:
+                    console.print(f"[yellow]Auto-selecting subtitle for audio language: {selected_audio_language}")
+                    self.selected_subs = matching_subs
+        else:
+            self.selected_subs = []
 
         # Print table with selections (only once here)
         self.parser.print_tracks_table(self.selected_video, self.selected_audio, self.selected_subs)
@@ -159,7 +163,7 @@ class DASH_Downloader:
         Download subtitle files based on parser's selected subtitles with retry mechanism.
         Returns True if successful or if no subtitles to download, False on critical error.
         """
-        if not self.selected_subs:
+        if not self.selected_subs or self.mpd_sub_list is None:
             return True
             
         client = create_client(headers={'User-Agent': get_userAgent()})
@@ -505,7 +509,7 @@ class DASH_Downloader:
             return None
         
         # Merge subtitles if available
-        if MERGE_SUBTITLE and self.selected_subs:
+        if MERGE_SUBTITLE and self.selected_subs and self.mpd_sub_list is not None:
 
             # Check which subtitle files actually exist
             existing_sub_tracks = []

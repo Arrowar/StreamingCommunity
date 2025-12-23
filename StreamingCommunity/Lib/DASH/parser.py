@@ -681,12 +681,13 @@ class TablePrinter:
             table.add_row("Audio", checked, f"Aud {cenc}", aud['id'], f"{aud['bandwidth'] // 1000} Kbps", aud.get('codec', ''), aud.get('language', ''), ch, str(aud['segment_count']), approx or "")
         
         # Add subtitle tracks from mpd_sub_list
-        for sub in self.mpd_sub_list:
-            checked = 'X' if selected_subs and sub in selected_subs else ' '
-            language = sub.get('language')
-            sub_type = sub.get('format')
+        if self.mpd_sub_list:
+            for sub in self.mpd_sub_list:
+                checked = 'X' if selected_subs and sub in selected_subs else ' '
+                language = sub.get('language')
+                sub_type = sub.get('format')
 
-            table.add_row("Subtitle", checked, f"Sub {sub_type}", language, "", "", language, "", "", approx or "")
+                table.add_row("Subtitle", checked, f"Sub {sub_type}", language, "", "", language, "", "", approx or "")
         
         console.print(table)
 

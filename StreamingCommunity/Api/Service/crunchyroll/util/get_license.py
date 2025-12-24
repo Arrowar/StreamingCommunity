@@ -277,16 +277,15 @@ def _find_token_anywhere(obj) -> Optional[str]:
 def get_playback_session(client: CrunchyrollClient, url_id: str) -> Optional[Tuple[str, Dict, List[Dict], Optional[str], Optional[str]]]:
     """
     Return the playback session details.
-    
+
     Returns:
         Tuple with (mpd_url, headers, subtitles, token, audio_locale) or None if access denied
     """
     data = client.get_streams(url_id)
-
     try:
         url = data.get('url')
         audio_locale_current = data.get('audio_locale') or data.get('audio', {}).get('locale')
-        
+
         # Collect subtitles with metadata
         subtitles = []
         subtitles_data = data.get('subtitles', {})
@@ -297,11 +296,11 @@ def get_playback_session(client: CrunchyrollClient, url_id: str) -> Optional[Tup
                     'format': sub_info.get('format'),
                     'url': sub_info.get('url'),
                 })
-        
+
         token = _find_token_anywhere(data)
         headers = client._get_headers()
         return url, headers, subtitles, token, audio_locale_current
-    
+
     except Exception as e:
         logging.error(f"Failed to parse playback session: {e}, Premium subscription may be required.")
         return None

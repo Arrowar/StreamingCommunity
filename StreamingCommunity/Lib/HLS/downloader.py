@@ -398,6 +398,8 @@ class DownloadManager:
         try:
             raw_content = self.client.request(sub['uri'])
             if raw_content:
+
+                console.log(f"[cyan]Downloading subtitle[white]: [red]{sub['language']} (vtt)")
                 sub_path = os.path.join(self.temp_dir, 'subs', f"{sub['language']}.vtt")
 
                 subtitle_parser = M3U8_Parser()

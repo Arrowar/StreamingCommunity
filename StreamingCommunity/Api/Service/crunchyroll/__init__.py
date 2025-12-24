@@ -20,7 +20,9 @@ indice = 7
 _useFor = "Anime"
 _deprecate = False
 _stream_type = "DASH"
+_maxResolution = "1080p"
 _drm = True
+
 
 msg = Prompt()
 console = Console()

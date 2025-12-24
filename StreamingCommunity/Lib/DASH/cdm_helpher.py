@@ -16,22 +16,6 @@ from pywidevine.pssh import PSSH
 console = Console()
 
 
-def filter_valid_keys(content_keys: list) -> list:
-    """
-    Filter out invalid keys (all zeros) and return only potentially valid keys.
-    
-    Args:
-        content_keys (list): List of key dictionaries with 'kid' and 'key' fields
-    """
-    valid_keys = []
-    
-    for key_info in content_keys:
-        key_value = key_info.get('key', '').replace('-', '').strip()
-        if key_value and not all(c == '0' for c in key_value):
-            valid_keys.append(key_info)
-    
-    return valid_keys
-
 
 def get_widevine_keys(pssh: str, license_url: str, cdm_device_path: str, headers: dict = None, query_params: dict =None, key: str=None):
     """
@@ -123,29 +107,19 @@ def get_widevine_keys(pssh: str, license_url: str, cdm_device_path: str, headers
                         'key': key_val.replace('-', '').strip()
                     })
 
-            if not content_keys:
-                console.print("[yellow]⚠️ No CONTENT keys found in license.")
-                return None
+            # Return keys
+            return content_keys
 
-            # Filter valid keys
-            valid_keys = filter_valid_keys(content_keys)
-            
-            if valid_keys:
-                console.log(f"[cyan]Found {len(valid_keys)} valid keys for testing")
-                return valid_keys
-            else:
-                console.print("[red]❌ No valid keys found")
-                return None
         else:
             content_keys = []
             raw_kid = key.split(":")[0]
             raw_key = key.split(":")[1]
+
             content_keys.append({
                 'kid': raw_kid.replace('-', '').strip(),
                 'key': raw_key.replace('-', '').strip()
             })
 
-            # Return keys
             console.log(f"[cyan]KID: [green]{content_keys[0]['kid']} [white]| [cyan]KEY: [green]{content_keys[0]['key']}")
             return content_keys
     

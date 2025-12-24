@@ -21,7 +21,9 @@ indice = 10
 _useFor = "Film_&_Serie"
 _deprecate = False
 _stream_type = "MEGA"
+_maxResolution = "720p"
 _drm = False
+
 
 msg = Prompt()
 console = Console()

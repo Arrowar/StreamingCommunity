@@ -20,7 +20,9 @@ indice = 2
 _useFor = "Film_&_Serie"
 _deprecate = False
 _stream_type = "HLS"
+_maxResolution = "1080p"
 _drm = False
+
 
 msg = Prompt()
 console = Console()

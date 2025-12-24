@@ -20,12 +20,10 @@ DEFAULT_SLOWDOWN_AFTER = 50     # Number of requests before introducing slowdown
 
 
 class PlaybackError(Exception):
-    """Custom exception for playback-related errors that shouldn't crash the program"""
     pass
 
 
 class RateLimiter:
-    """Simple token-bucket rate limiter to avoid server-side throttling."""
     def __init__(self, qps: float):
         self.qps = max(0.1, float(qps))
         self._last = 0.0
@@ -51,7 +49,7 @@ class CrunchyrollClient:
         self.access_token: Optional[str] = None
         self.refresh_token: Optional[str] = None
         self.account_id: Optional[str] = None
-        self.expires_at: float = 0.0                # epoch timestamp
+        self.expires_at: float = 0.0
         
         # Rate limiting configuration
         self.rate_limiter = RateLimiter(qps=DEFAULT_QPS)

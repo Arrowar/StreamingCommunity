@@ -6,20 +6,21 @@ from typing import List, Tuple
 from datetime import datetime
 
 
-def extract_service_info(init_file: Path) -> Tuple[str, str, bool, bool]:
+def extract_service_info(init_file: Path) -> Tuple[str, str, bool, bool, str]:
     """
-    Extract _stream_type, _drm and _deprecate from a service __init__.py file
+    Extract _stream_type, _drm, _deprecate, and _maxResolution from a service __init__.py file
     
     Args:
         init_file: Path to the __init__.py file
         
     Returns:
-        Tuple of (service_name, stream_type, drm, deprecate)
+        Tuple of (service_name, stream_type, drm, deprecate, max_resolution)
     """
     service_name = init_file.parent.name
     stream_type = "N/A"
     drm = False
     deprecate = False
+    max_resolution = "N/A"
     
     try:
         with open(init_file, 'r', encoding='utf-8') as f:
@@ -39,11 +40,16 @@ def extract_service_info(init_file: Path) -> Tuple[str, str, bool, bool]:
             deprecate_match = re.search(r'_deprecate\s*=\s*(True|False)', content)
             if deprecate_match:
                 deprecate = deprecate_match.group(1) == 'True'
+            
+            # Extract _maxResolution
+            resolution_match = re.search(r'_maxResolution\s*=\s*["\']([\w\s]+)["\']', content)
+            if resolution_match:
+                max_resolution = resolution_match.group(1)
     
     except Exception as e:
         print(f"Error reading {init_file}: {e}")
     
-    return service_name, stream_type, drm, deprecate
+    return service_name, stream_type, drm, deprecate, max_resolution
 
 
 def find_service_files(base_path: Path) -> List[Path]:
@@ -73,13 +79,13 @@ def find_service_files(base_path: Path) -> List[Path]:
     return sorted(init_files)
 
 
-def generate_markdown_table(services: List[Tuple[str, str, bool]]) -> str:
+def generate_markdown_table(services: List[Tuple[str, str, bool, str]]) -> str:
     """
     Generate markdown table from services data with dynamic column widths
     Only includes services where _deprecate = False
     
     Args:
-        services: List of (service_name, stream_type, drm) tuples
+        services: List of (service_name, stream_type, drm, max_resolution) tuples
         
     Returns:
         Markdown formatted table
@@ -88,41 +94,44 @@ def generate_markdown_table(services: List[Tuple[str, str, bool]]) -> str:
     
     # Prepare data with display names
     table_data = []
-    for service_name, stream_type, drm in services:
+    for service_name, stream_type, drm, max_resolution in services:
         display_name = service_name.replace('_', ' ').title()
         drm_icon = "✅" if drm else "❌"
-        table_data.append((display_name, stream_type, drm_icon))
+        table_data.append((display_name, stream_type, drm_icon, max_resolution))
     
     # Calculate maximum width for each column
     col1_header = "Site Name"
     col2_header = "Stream Type"
     col3_header = "DRM"
+    col4_header = "Max Resolution"
     
     # Start with header widths
     max_col1 = len(col1_header)
     max_col2 = len(col2_header)
     max_col3 = len(col3_header)
+    max_col4 = len(col4_header)
     
     # Check all data rows
-    for display_name, stream_type, drm_icon in table_data:
+    for display_name, stream_type, drm_icon, max_resolution in table_data:
         max_col1 = max(max_col1, len(display_name))
         max_col2 = max(max_col2, len(stream_type))
         max_col3 = max(max_col3, len(drm_icon))
+        max_col4 = max(max_col4, len(max_resolution))
     
     # Build table with dynamic widths
     lines = ["# Services Overview", ""]
     
     # Header row
-    header = f"| {col1_header.ljust(max_col1)} | {col2_header.ljust(max_col2)} | {col3_header.ljust(max_col3)} |"
+    header = f"| {col1_header.ljust(max_col1)} | {col2_header.ljust(max_col2)} | {col3_header.ljust(max_col3)} | {col4_header.ljust(max_col4)} |"
     lines.append(header)
     
     # Separator row
-    separator = f"|{'-' * (max_col1 + 2)}|{'-' * (max_col2 + 2)}|{'-' * (max_col3 + 2)}|"
+    separator = f"|{'-' * (max_col1 + 2)}|{'-' * (max_col2 + 2)}|{'-' * (max_col3 + 2)}|{'-' * (max_col4 + 2)}|"
     lines.append(separator)
     
     # Data rows
-    for display_name, stream_type, drm_icon in table_data:
-        row = f"| {display_name.ljust(max_col1)} | {stream_type.ljust(max_col2)} | {drm_icon.ljust(max_col3)} |"
+    for display_name, stream_type, drm_icon, max_resolution in table_data:
+        row = f"| {display_name.ljust(max_col1)} | {stream_type.ljust(max_col2)} | {drm_icon.ljust(max_col3)} | {max_resolution.ljust(max_col4)} |"
         lines.append(row)
     
     lines.append("")
@@ -151,15 +160,14 @@ def main():
     services = []
     deprecated_count = 0
     for init_file in init_files:
-        service_name, stream_type, drm, deprecate = extract_service_info(init_file)
+        service_name, stream_type, drm, deprecate, max_resolution = extract_service_info(init_file)
         
         # Only include services that are not deprecated
         if not deprecate:
-            services.append((service_name, stream_type, drm))
+            services.append((service_name, stream_type, drm, max_resolution))
         else:
             deprecated_count += 1
     
-    print(f"\nActive services: {len(services)}")
     print(f"Deprecated services: {deprecated_count}")
     
     # Generate markdown table

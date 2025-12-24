@@ -20,7 +20,9 @@ indice = 1
 _useFor = "Anime"
 _deprecate = False
 _stream_type = "MP4"
+_maxResolution = "1080p"
 _drm = False
+
 
 msg = Prompt()
 console = Console()

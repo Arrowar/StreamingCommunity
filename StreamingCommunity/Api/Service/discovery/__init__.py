@@ -19,7 +19,9 @@ indice = 13
 _useFor = "Film_&_Serie"
 _deprecate = False
 _stream_type = "DASH"
+_maxResolution = "720p"
 _drm = True
+
 
 msg = Prompt()
 console = Console()

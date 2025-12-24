@@ -4,7 +4,6 @@ import os
 import shutil
 import logging
 import platform
-import inspect
 
 
 # External library
@@ -251,29 +250,6 @@ os_manager = OsManager()
 internet_manager = InternetManager()
 os_summary = OsSummary()
 
-
-def get_call_stack():
-    """Retrieves the current call stack with details about each call."""
-    stack = inspect.stack()
-    call_stack = []
-
-    for frame_info in stack:
-        function_name = frame_info.function
-        filename = frame_info.filename
-        lineno = frame_info.lineno
-        folder_name = os.path.dirname(filename)
-        folder_base = os.path.basename(folder_name)
-        script_name = os.path.basename(filename)
-
-        call_stack.append({
-            "function": function_name,
-            "folder": folder_name,
-            "folder_base": folder_base,
-            "script": script_name,
-            "line": lineno
-        })
-        
-    return call_stack
 
 def get_ffmpeg_path():
     """Returns the path of FFmpeg."""

@@ -284,42 +284,6 @@ class ConfigManager:
         console.print("[red]No local domains.json file available for fallback")
         self.configSite = {}
     
-    def clear_cache(self) -> None:
-        """Clear the entire configuration cache."""
-        self.cache.clear()
-        console.print("[green]Configuration cache cleared")
-    
-    def invalidate_cache_key(self, section: str, key: str, from_site: bool = False) -> None:
-        """
-        Invalidate a specific cache entry.
-        
-        Args:
-            section (str): Section in the configuration
-            key (str): Key to invalidate
-            from_site (bool, optional): Whether to invalidate from site config. Default: False
-        """
-        cache_key = f"{'site' if from_site else 'config'}.{section}.{key}"
-        if cache_key in self.cache:
-            del self.cache[cache_key]
-            logging.info(f"Cache invalidated for key: {cache_key}")
-    
-    def get_cache_stats(self) -> Dict[str, int]:
-        """
-        Get cache statistics.
-        
-        Returns:
-            Dict with cache size and memory usage estimate
-        """
-        import sys
-        cache_size = len(self.cache)
-        memory_bytes = sum(sys.getsizeof(k) + sys.getsizeof(v) for k, v in self.cache.items())
-        
-        return {
-            'entries': cache_size,
-            'memory_bytes': memory_bytes,
-            'memory_kb': round(memory_bytes / 1024, 2)
-        }
-    
     def get(self, section: str, key: str, data_type: type = str, from_site: bool = False, default: Any = None) -> Any:
         """
         Read a value from the configuration with caching.

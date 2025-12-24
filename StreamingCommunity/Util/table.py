@@ -1,10 +1,7 @@
 # 03.03.24
 
-import os
 import sys
 import logging
-import importlib
-from pathlib import Path
 from typing import Dict, List, Any
 
 
@@ -16,9 +13,7 @@ from rich import box
 
 
 # Internal utilities
-from .os import get_call_stack
 from .message import start_message
-from StreamingCommunity.Api.Template.loader import folder_name as lazy_loader_folder
 
 
 
@@ -105,43 +100,6 @@ class TVShowManager:
                 table.add_row(*row_data, style=style)
 
         self.console.print(table)
-    
-    @staticmethod
-    def run_back_command(research_func: dict) -> None:
-        """
-        Executes a back-end search command by dynamically importing a module and invoking its search function.
-
-        Args:
-            research_func (dict): A dictionary containing:
-                - 'folder' (str): The absolute path to the directory containing the module to be executed.
-        """
-        try:
-            # Get site name from folder
-            site_name = Path(research_func['folder']).name
-
-            # Find the project root directory
-            current_path = research_func['folder']
-            while not os.path.exists(os.path.join(current_path, 'StreamingCommunity')):
-                current_path = os.path.dirname(current_path)
-            
-            project_root = current_path
-            if project_root not in sys.path:
-                sys.path.insert(0, project_root)
-            
-            # Import using full absolute import
-            module_path = f'StreamingCommunity.Api.{lazy_loader_folder}.{site_name}'
-            module = importlib.import_module(module_path)
-            
-            # Get and call the search function
-            search_func = getattr(module, 'search')
-            search_func(None)
-            
-        except Exception:
-            logging.error("Error during search execution")
-            
-        finally:
-            if project_root in sys.path:
-                sys.path.remove(project_root)
 
     def run(self, force_int_input: bool = False, max_int_input: int = 0) -> str:
         """
@@ -179,15 +137,9 @@ class TVShowManager:
             if result_func == 404:
                 sys.exit(1)
 
-            # Get research function from call stack
-            research_func = next((
-                f for f in get_call_stack()
-                if f['function'] == 'search' and f['script'] == '__init__.py'
-            ), None)
-
             # Handle pagination and user input
             if self.slice_end < total_items:
-                self.console.print("\n[green]Press [red]Enter [green]for next page, [red]'q' [green]to quit, or [red]'back' [green]to search.")
+                self.console.print("\n[green]Press [red]Enter [green]for next page, [red]'q' [green]to quit.")
 
                 if not force_int_input:
                     prompt_msg = ("\n[cyan]Insert media index [yellow](e.g., 1), [red]* [cyan]to download all media, [yellow](e.g., 1-2) [cyan]for a range of media, or [yellow](e.g., 3-*) [cyan]to download from a specific index to the end")
@@ -195,7 +147,7 @@ class TVShowManager:
 
                 else:
                     # Include empty string in choices to allow pagination with Enter key
-                    choices = [""] + [str(i) for i in range(max_int_input + 1)] + ["q", "quit", "b", "back"]
+                    choices = [""] + [str(i) for i in range(max_int_input + 1)] + ["q", "quit"]
                     prompt_msg = "[cyan]Insert media [red]index"
                     key = Prompt.ask(prompt_msg, choices=choices, show_choices=False)
 
@@ -203,28 +155,24 @@ class TVShowManager:
 
                 if key.lower() in ["q", "quit"]:
                     break
-
                 elif key == "":
                     self.slice_start += self.step
                     self.slice_end += self.step
                     if self.slice_end > total_items:
                         self.slice_end = total_items
-
-                elif (key.lower() in ["b", "back"]) and research_func:
-                    TVShowManager.run_back_command(research_func)
                 else:
                     break
 
             else:
                 # Last page handling
-                self.console.print("\n[green]You've reached the end. [red]Enter [green]for first page, [red]'q' [green]to quit, or [red]'back' [green]to search.")
+                self.console.print("\n[green]You've reached the end. [red]Enter [green]for first page, [red]'q' [green]to quit.")
                 
                 if not force_int_input:
                     prompt_msg = ("\n[cyan]Insert media index [yellow](e.g., 1), [red]* [cyan]to download all media, [yellow](e.g., 1-2) [cyan]for a range of media, or [yellow](e.g., 3-*) [cyan]to download from a specific index to the end")
                     key = Prompt.ask(prompt_msg)
                 else:
                     # Include empty string in choices to allow pagination with Enter key
-                    choices = [""] + [str(i) for i in range(max_int_input + 1)] + ["q", "quit", "b", "back"]
+                    choices = [""] + [str(i) for i in range(max_int_input + 1)] + ["q", "quit"]
                     prompt_msg = "[cyan]Insert media [red]index"
                     key = Prompt.ask(prompt_msg, choices=choices, show_choices=False)
 
@@ -236,9 +184,6 @@ class TVShowManager:
                 elif key == "":
                     self.slice_start = 0
                     self.slice_end = self.step
-                    
-                elif (key.lower() in ["b", "back"]) and research_func:
-                    TVShowManager.run_back_command(research_func)
                 else:
                     break
 

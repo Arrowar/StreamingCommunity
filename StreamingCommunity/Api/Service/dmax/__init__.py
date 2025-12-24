@@ -19,7 +19,9 @@ indice = 9
 _useFor = "Serie"
 _deprecate = False
 _stream_type = "HLS"
+_maxResolution = "1080p"
 _drm = False
+
 
 msg = Prompt()
 console = Console()
@@ -59,7 +61,6 @@ def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_
 
     Parameters:
         string_to_search (str, optional): String to search for. Can be passed from run.py.
-                                          If 'back', special handling might occur in get_user_input.
         get_onlyDatabase (bool, optional): If True, return only the database search manager object.
         direct_item (dict, optional): Direct item to process (bypasses search).
         selections (dict, optional): Dictionary containing selection inputs that bypass manual input

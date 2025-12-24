@@ -1,9 +1,9 @@
 {
   "cb01new": {
-    "domain": "shop",
-    "full_url": "https://cb01net.shop/",
-    "old_domain": "homes",
-    "time_change": "2025-12-15 19:20:30"
+    "domain": "lat",
+    "full_url": "https://cb01net.lat/",
+    "old_domain": "shop",
+    "time_change": "2025-12-22 17:20:02"
   },
   "animeunity": {
     "domain": "so",
@@ -24,15 +24,15 @@
     "time_change": "2025-12-11 19:21:07"
   },
   "altadefinizione": {
-    "domain": "bond",
-    "full_url": "https://altadefinizionegratis.bond/",
-    "old_domain": "cfd",
-    "time_change": "2025-12-17 07:23:58"
+    "domain": "buzz",
+    "full_url": "https://altadefinizionegratis.buzz/",
+    "old_domain": "bond",
+    "time_change": "2025-12-22 20:25:02"
   },
   "streamingcommunity": {
-    "domain": "fun",
-    "full_url": "https://streamingcommunityz.fun/",
-    "old_domain": "cam",
-    "time_change": "2025-12-18 15:25:18"
+    "domain": "email",
+    "full_url": "https://streamingcommunityz.email/",
+    "old_domain": "fun",
+    "time_change": "2025-12-22 14:23:06"
   }
 }

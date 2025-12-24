@@ -222,16 +222,22 @@ class DASH_Downloader:
             key=key
         )
 
-        if not keys:
-            console.print("[red]No keys found, cannot proceed with download.")
-            return False
-
         # Map keys to representations based on default_KID
         key_mapping = map_keys_to_representations(keys, self.parser.representations)
-        
+
+        # Fallback: if only one key is available, use it even if mapping fails/partial
+        single_key = keys[0] if keys and len(keys) == 1 else None
+
         if not key_mapping:
-            console.print("[red]Could not map any keys to representations.")
-            return False
+            if single_key:
+                console.print("[yellow]Warning: key mapping failed, but only 1 CONTENT key is available. Falling back to the single key for video/audio.")
+                key_mapping = {
+                    "video": {"kid": single_key["kid"], "key": single_key["key"], "representation_id": None, "default_kid": None},
+                    "audio": {"kid": single_key["kid"], "key": single_key["key"], "representation_id": None, "default_kid": None},
+                }
+            else:
+                console.print("[red]Could not map any keys to representations.")
+                return False
 
         # Download subtitles
         self.download_subtitles()
@@ -240,10 +246,13 @@ class DASH_Downloader:
         video_rep = self.get_representation_by_type("video")
         if video_rep:
             video_key_info = key_mapping.get("video")
+            if not video_key_info and single_key:
+                console.print("[yellow]Warning: no mapped key found for video; using the single available key.")
+                video_key_info = {"kid": single_key["kid"], "key": single_key["key"], "representation_id": None, "default_kid": None}
             if not video_key_info:
                 self.error = "No key found for video representation"
                 return False
-                
+
             console.log(f"[cyan]Using video key: [red]{video_key_info['kid']} [cyan]for representation [yellow]{video_key_info.get('representation_id')}")
             
             video_downloader = MPD_Segments(tmp_folder=self.encrypted_dir, representation=video_rep, pssh=self.parser.pssh, custom_headers=custom_headers)
@@ -294,10 +303,13 @@ class DASH_Downloader:
         audio_rep = self.get_representation_by_type("audio")
         if audio_rep:
             audio_key_info = key_mapping.get("audio")
+            if not audio_key_info and single_key:
+                console.print("[yellow]Warning: no mapped key found for audio; using the single available key.")
+                audio_key_info = {"kid": single_key["kid"], "key": single_key["key"], "representation_id": None, "default_kid": None}
             if not audio_key_info:
                 self.error = "No key found for audio representation"
                 return False
-                
+
             console.log(f"[cyan]Using audio key: [red]{audio_key_info['kid']} [cyan]for representation [yellow]{audio_key_info.get('representation_id')}")
             
             audio_language = audio_rep.get('language', 'Unknown')

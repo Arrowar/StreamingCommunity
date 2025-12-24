@@ -20,6 +20,7 @@ from .series import download_series
 # Variable
 indice = 4
 _useFor = "Serie"
+_region = "IT"
 _deprecate = False
 _stream_type = "HLS"
 _maxResolution = "1080p"

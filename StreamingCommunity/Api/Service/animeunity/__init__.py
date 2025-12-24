@@ -18,6 +18,7 @@ from .serie import download_series
 # Variable
 indice = 1
 _useFor = "Anime"
+_region = "IT"
 _deprecate = False
 _stream_type = "MP4"
 _maxResolution = "1080p"

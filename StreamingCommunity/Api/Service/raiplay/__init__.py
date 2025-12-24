@@ -18,6 +18,7 @@ from .film import download_film
 # Variable
 indice = 5
 _useFor = "Film_&_Serie"
+_region = "IT"
 _deprecate = False
 _stream_type = "DASH"
 _maxResolution = "1080p"

@@ -108,6 +108,7 @@ def get_widevine_keys(pssh: str, license_url: str, cdm_device_path: str, headers
                     })
 
             # Return keys
+            console.log(f"[cyan]Extracted {len(content_keys)} CONTENT keys from license.")
             return content_keys
 
         else:
@@ -144,7 +145,8 @@ def map_keys_to_representations(keys: list, representations: list) -> dict:
         rep_type = rep.get('type', 'unknown')
         default_kid = rep.get('default_kid')
         
-        if not default_kid:
+        if default_kid is None:
+            console.log(f"[yellow]Representation [yellow]{rep.get('id')} [yellow]has no default_kid, maybe problem with parser.")
             continue
             
         for key_info in keys:
@@ -155,7 +157,6 @@ def map_keys_to_representations(keys: list, representations: list) -> dict:
                     'representation_id': rep.get('id'),
                     'default_kid': default_kid
                 }
-                #console.log(f"[cyan]Mapped {rep_type} representation [yellow]{rep.get('id')} [cyan]to key: [red]{key_info['kid']}")
                 break
     
     return key_mapping

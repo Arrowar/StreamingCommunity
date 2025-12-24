@@ -26,7 +26,6 @@
 - 📥 [Downloaders](#downloaders)
 - 🛠️ [Configuration](#configuration)
 - 🔐 [Login](.github/doc/login.md)
-- 🌐 [Domain](https://arrowar.github.io/StreamingCommunity)
 - 💡 [Usage Examples](#usage-examples)
 - 🔍 [Global Search](#global-search)
 - 🧩 [Advanced Features](#advanced-options)

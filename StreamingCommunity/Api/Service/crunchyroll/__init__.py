@@ -18,6 +18,7 @@ from .series import download_series
 # Variable
 indice = 7
 _useFor = "Anime"
+_region = "IT"
 _deprecate = False
 _stream_type = "DASH"
 _maxResolution = "1080p"

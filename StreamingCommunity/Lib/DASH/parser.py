@@ -204,7 +204,6 @@ class BaseURLResolver:
 
 class ContentProtectionHandler:
     """Handles DRM and content protection"""
-    
     def __init__(self, ns_manager: NamespaceManager):
         self.ns = ns_manager
     
@@ -223,22 +222,46 @@ class ContentProtectionHandler:
         return False
     
     def extract_default_kid(self, element: etree._Element) -> Optional[str]:
-        """Extract default_KID from ContentProtection element"""
-        for cp in self.ns.findall(element, 'mpd:ContentProtection'):
+        """Extract default_KID from ContentProtection elements (Widevine/PlayReady/CENC).
+        """
+        def _extract_kid_from_cp(cp: etree._Element) -> Optional[str]:
+            kid = (cp.get('{urn:mpeg:cenc:2013}default_KID') or cp.get('default_KID') or cp.get('cenc:default_KID'))
+
+            # Fallback: any attribute key that ends with 'default_KID' (case-insensitive)
+            if not kid:
+                for k, v in (cp.attrib or {}).items():
+                    if isinstance(k, str) and k.lower().endswith('default_kid') and v:
+                        kid = v
+                        break
+
+            if not kid:
+                return None
+
+            # Normalize UUID -> hex (no dashes), lowercase
+            return kid.strip().replace('-', '').lower()
+
+        cps = self.ns.findall(element, 'mpd:ContentProtection')
+        if not cps:
+            return None
+
+        # Prefer Widevine KID, then mp4protection, then any other CP that has it.
+        preferred = []
+        fallback = []
+
+        for cp in cps:
             scheme_id = (cp.get('schemeIdUri') or '').lower()
-            
-            # Look for CENC protection with default_KID
-            if 'urn:mpeg:dash:mp4protection:2011' in scheme_id:
-                kid = cp.get('{urn:mpeg:cenc:2013}default_KID')
-                if not kid:
-                    kid = cp.get('cenc:default_KID')
-                if not kid:
-                    kid = cp.get('default_KID')
-                
-                if kid:
-                    # Remove dashes and return normalized KID
-                    return kid.replace('-', '').lower()
-        
+            if 'edef8ba9-79d6-4ace-a3c8-27dcd51d21ed' in scheme_id:  # Widevine
+                preferred.append(cp)
+            elif 'urn:mpeg:dash:mp4protection:2011' in scheme_id:
+                preferred.append(cp)
+            else:
+                fallback.append(cp)
+
+        for cp in preferred + fallback:
+            kid = _extract_kid_from_cp(cp)
+            if kid:
+                return kid
+
         return None
     
     def extract_pssh(self, root: etree._Element) -> Optional[str]:

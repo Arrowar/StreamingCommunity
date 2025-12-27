@@ -41,11 +41,10 @@ def check_megatools() -> Optional[str]:
         return megatools_local
     
     # STEP 3: Download from GitHub repository
-    console.print("megatools not found. Downloading from GitHub repository...", style="cyan")
+    console.print("[red]megatools not found. Downloading ...")
     megatools_downloaded = binary_paths.download_binary("megatools", megatools_name)
     
     if megatools_downloaded:
-        console.print(f"Downloaded megatools to: {megatools_downloaded}", style="green")
         return megatools_downloaded
     
     console.print("Failed to download megatools", style="red")

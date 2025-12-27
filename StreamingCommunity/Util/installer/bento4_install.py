@@ -41,11 +41,10 @@ def check_mp4decrypt() -> Optional[str]:
         return mp4decrypt_local
     
     # STEP 3: Download from GitHub repository
-    console.print("mp4decrypt not found. Downloading from GitHub repository...", style="cyan")
+    console.print("[red]mp4decrypt not found. Downloading ...")
     mp4decrypt_downloaded = binary_paths.download_binary("bento4", mp4decrypt_name)
     
     if mp4decrypt_downloaded:
-        console.print(f"Downloaded mp4decrypt to: {mp4decrypt_downloaded}", style="green")
         return mp4decrypt_downloaded
     
     console.print("Failed to download mp4decrypt", style="red")

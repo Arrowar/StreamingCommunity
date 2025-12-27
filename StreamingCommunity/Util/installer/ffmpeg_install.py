@@ -44,12 +44,11 @@ def check_ffmpeg() -> Tuple[Optional[str], Optional[str]]:
         return ffmpeg_local, ffprobe_local
     
     # STEP 3: Download from GitHub repository
-    console.print("FFmpeg not found. Downloading from GitHub repository...", style="cyan")
+    console.print("[red]FFmpeg not found. Downloading ...")
     ffmpeg_downloaded = binary_paths.download_binary("ffmpeg", ffmpeg_name)
     ffprobe_downloaded = binary_paths.download_binary("ffmpeg", ffprobe_name)
     
     if ffmpeg_downloaded and ffprobe_downloaded:
-        console.print(f"Downloaded FFmpeg to: {ffmpeg_downloaded}", style="green")
         return ffmpeg_downloaded, ffprobe_downloaded
     
     console.print("Failed to download FFmpeg", style="red")

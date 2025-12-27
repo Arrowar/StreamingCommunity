@@ -78,23 +78,17 @@ class BinaryPaths:
         Returns:
             Full local path to the binary or None if not found
         """
-        paths_json = self._load_paths_json()
-        key = f"{self.system}_{self.arch}_{tool}"
-        
-        if key not in paths_json:
-            return None
-        
         binary_dir = self.get_binary_directory()
+        local_path = os.path.join(binary_dir, binary_name)
         
-        for rel_path in paths_json[key]:
-            if rel_path.endswith(binary_name):
-                return os.path.join(binary_dir, rel_path)
+        if os.path.isfile(local_path):
+            return local_path
         
         return None
     
     def download_binary(self, tool: str, binary_name: str) -> Optional[str]:
         """
-        Download a specific binary from GitHub repository.
+        Download a specific binary from GitHub repository directly to binary directory.
         
         Args:
             tool: Tool name (ffmpeg, bento4, megatools)
@@ -112,10 +106,7 @@ class BinaryPaths:
         for rel_path in paths_json[key]:
             if rel_path.endswith(binary_name):
                 url = f"{self.github_repo}/binaries/{rel_path}"
-                local_path = os.path.join(self.get_binary_directory(), rel_path)
-                
-                # Create directory if needed
-                os.makedirs(os.path.dirname(local_path), exist_ok=True)
+                local_path = os.path.join(self.get_binary_directory(), binary_name)
                 
                 try:
                     response = requests.get(url, stream=True, timeout=60)

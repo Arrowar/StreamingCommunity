@@ -13,3 +13,4 @@ pathvalidate
 pycryptodomex
 ua-generator
 pywidevine
+pyplayready

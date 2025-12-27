@@ -95,12 +95,10 @@ class DASH_Downloader:
         self.tmp_dir = os.path.join(self.out_path, "tmp")
         self.encrypted_dir = os.path.join(self.tmp_dir, "encrypted")
         self.decrypted_dir = os.path.join(self.tmp_dir, "decrypted")
-        self.optimize_dir = os.path.join(self.tmp_dir, "optimize")
         self.subs_dir = os.path.join(self.tmp_dir, "subs")
         
         os.makedirs(self.encrypted_dir, exist_ok=True)
         os.makedirs(self.decrypted_dir, exist_ok=True)
-        os.makedirs(self.optimize_dir, exist_ok=True)
         os.makedirs(self.subs_dir, exist_ok=True)
 
     def parse_manifest(self, custom_headers):

@@ -97,7 +97,7 @@ def get_playready_keys(pssh: str, license_url: str, cdm_device_path: str, header
                 })
 
             # Return keys
-            console.log(f"[cyan]Extracted {len(content_keys)} CONTENT keys from license.")
+            console.log(f"[cyan]Extracted [red]{len(content_keys)} CONTENT [cyan]keys from license.")
             return content_keys
 
         else:

@@ -21,7 +21,6 @@ SHOW = config_manager.get_bool('DEFAULT', 'show_message')
 def start_message(clean: bool=True):
     """Display a stylized start message in the console."""
     msg = r'''
-[red]+[cyan]=======================================================================================[red]+[purple]
      ___                                         ______                     _           
     / _ | ___________ _    _____ _____[yellow]  __ __[purple]   / __/ /________ ___ ___ _  (_)__  ___ _ 
    / __ |/ __/ __/ _ \ |/|/ / _ `/ __/[yellow]  \ \ /[purple]  _\ \/ __/ __/ -_) _ `/  ' \/ / _ \/ _ `/ 

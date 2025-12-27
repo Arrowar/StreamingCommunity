@@ -53,11 +53,11 @@ class M3U8_Decryption:
 
         message = None
         if self.method is not None:
-            message = f"Method: [green]{self.method}"
+            message = f"[green]Method: [red]{self.method}"
         if self.key is not None:
-            message += f" | Key: [green]{self.key.hex()}"
+            message += f" [white]| [green]Key: [red]{self.key.hex()}"
         if self.iv is not None:
-            message += f" | IV: [green]{self.iv.hex()}"
+            message += f" [white]| [green]IV: [red]{self.iv.hex()}"
         console.log(f"[cyan]Decryption {message}")
 
     def decrypt(self, ciphertext: bytes) -> bytes:

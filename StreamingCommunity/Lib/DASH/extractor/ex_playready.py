@@ -37,6 +37,7 @@ def get_playready_keys(pssh: str, license_url: str, cdm_device_path: str, header
     device = Device.load(cdm_device_path)
     cdm = Cdm.from_device(device)
     session_id = cdm.open()
+    console.log(f"[cyan]Session ID: [green]{session_id}")
 
     try:
         console.log(f"[cyan]PSSH (PR): [green]{pssh}")

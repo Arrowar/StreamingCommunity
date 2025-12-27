@@ -12,6 +12,7 @@ from rich.prompt import Prompt
 # Internal utilities
 from StreamingCommunity.Util import config_manager, start_message
 from StreamingCommunity.Api.Template import site_constants, MediaItem
+from StreamingCommunity.Lib.TMDB.tmdb import tmdb
 from StreamingCommunity.Api.Template.episode_manager import (
     manage_selection, 
     map_episode_title, 
@@ -32,6 +33,7 @@ from StreamingCommunity.Api.Player.vixcloud import VideoSource
 msg = Prompt()
 console = Console()
 extension_output = config_manager.get("M3U8_CONVERSION", "extension")
+use_other_api = config_manager.get("SITE_LOGIN", "tmdb_api_key") != ""
 
 
 def download_video(index_season_selected: int, index_episode_selected: int, scrape_serie: GetSerieInfo, video_source: VideoSource) -> Tuple[str,bool]:
@@ -58,8 +60,24 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
     mp4_name = f"{map_episode_title(scrape_serie.series_name, index_season_selected, index_episode_selected, obj_episode.name)}.{extension_output}"
     mp4_path = os.path.join(site_constants.SERIES_FOLDER, scrape_serie.series_name, f"S{index_season_selected}")
 
-    # Retrieve scws and if available master playlist
-    video_source.get_iframe(obj_episode.id)
+    if use_other_api:
+        series_slug = scrape_serie.series_name.lower().replace(' ', '-').replace("'", '')
+        result = tmdb.get_type_and_id_by_slug_year(str(series_slug), int(scrape_serie.years))
+        
+        if result and result.get('id') and result.get('type') == 'tv':
+            tmdb_id = result.get('id')
+            video_source.tmdb_id = tmdb_id
+            video_source.season_number = index_season_selected
+            video_source.episode_number = index_episode_selected
+            
+        else:
+            console.print("[yellow]TMDB ID not found or not a TV show, falling back to original method")
+            video_source.get_iframe(obj_episode.id)
+
+    else:
+        # Retrieve iframe using original method
+        video_source.get_iframe(obj_episode.id)
+
     video_source.get_content()
     master_playlist = video_source.get_playlist()
 
@@ -140,7 +158,7 @@ def download_series(select_season: MediaItem, season_selection: str = None, epis
 
     # Init class
     video_source = VideoSource(f"{site_constants.FULL_URL}/it", True, select_season.id)
-    scrape_serie = GetSerieInfo(f"{site_constants.FULL_URL}/it", select_season.id, select_season.slug)
+    scrape_serie = GetSerieInfo(f"{site_constants.FULL_URL}/it", select_season.id, select_season.slug, select_season.date.split("-")[0])
 
     # Collect information about season
     scrape_serie.getNumberSeason()

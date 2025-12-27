@@ -31,7 +31,7 @@ from .url_fixer import M3U8_UrlFix
 
 # External
 from ..MP4 import MP4_Downloader
-from ..DASH.cdm_helpher import get_widevine_keys
+from ..DASH.extractor import get_widevine_keys
 from ..DASH.decrypt import decrypt_with_mp4decrypt
 
 
@@ -42,7 +42,6 @@ DEFAULT_VIDEO_WORKERS = config_manager.get_int('M3U8_DOWNLOAD', 'default_video_w
 DEFAULT_AUDIO_WORKERS = config_manager.get_int('M3U8_DOWNLOAD', 'default_audio_workers')
 MAX_TIMEOUT = config_manager.get_int("REQUESTS", "timeout")
 SEGMENT_MAX_TIMEOUT = config_manager.get_int("M3U8_DOWNLOAD", "segment_timeout")
-LIMIT_SEGMENT = config_manager.get_int('M3U8_DOWNLOAD', 'limit_segment')
 ENABLE_RETRY = config_manager.get_bool('M3U8_DOWNLOAD', 'enable_retry')
 
 
@@ -51,7 +50,7 @@ console = Console()
 
 
 class M3U8_Segments:
-    def __init__(self, url: str, tmp_folder: str, license_url: Optional[str] = None, is_index_url: bool = True, limit_segments: int = None, custom_headers: Optional[Dict[str, str]] = None):
+    def __init__(self, url: str, tmp_folder: str, license_url: Optional[str] = None, is_index_url: bool = True, custom_headers: Optional[Dict[str, str]] = None):
         """
         Initializes the M3U8_Segments object.
 
@@ -59,7 +58,6 @@ class M3U8_Segments:
             - url (str): The URL of the M3U8 playlist.
             - tmp_folder (str): The temporary folder to store downloaded segments.
             - is_index_url (bool): Flag indicating if url is a URL (default True).
-            - limit_segments (int): Optional limit for number of segments (overrides LIMIT_SEGMENT if provided).
             - custom_headers (Dict[str, str]): Optional custom headers to use for all requests.
         """
         self.url = url
@@ -70,13 +68,6 @@ class M3U8_Segments:
         self.final_output_path = os.path.join(self.tmp_folder, "0.ts")
         self.drm_method = None
         os.makedirs(self.tmp_folder, exist_ok=True)
-
-        # Use LIMIT_SEGMENT from config if limit_segments not specified or is 0
-        if limit_segments is None or limit_segments == 0:
-            self.limit_segments = LIMIT_SEGMENT if LIMIT_SEGMENT > 0 else None
-        else:
-            self.limit_segments = limit_segments
-            
         self.enable_retry = ENABLE_RETRY
 
         # Util class
@@ -136,12 +127,6 @@ class M3U8_Segments:
             self.class_url_fixer.generate_full_url(seg) if "http" not in seg else seg
             for seg in m3u8_parser.segments
         ]
-        
-        # Apply segment limit
-        if self.limit_segments and len(segments) > self.limit_segments:
-            logging.info(f"Limiting segments from {len(segments)} to {self.limit_segments}")
-            segments = segments[:self.limit_segments]
-            
         self.segments = segments
         self.stream_type = self.get_type_stream(self.segments)
         self.class_ts_estimator.total_segments = len(self.segments)

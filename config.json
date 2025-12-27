@@ -18,7 +18,8 @@
         "segment_timeout": 6,
         "enable_retry": true,
         "specific_list_audio": [
-            "ita"
+            "ita",
+            "it-IT"
         ],
         "merge_subs": true,
         "specific_list_subtitles": [
@@ -33,7 +34,6 @@
         "use_gpu": false,
         "param_video": ["-c:v", "libx265", "-crf", "28", "-preset", "medium"],
         "param_audio": ["-c:a", "libopus", "-b:a", "128k"],
-        "param_subtitles": ["-c:s", "copy"],
         "param_final": ["-c", "copy"],
         "force_resolution": "Best",
         "extension": "mkv"
@@ -48,6 +48,7 @@
         "post_run": []
     },
     "SITE_LOGIN": {
+        "tmdb_api_key": "",
         "crunchyroll": {
             "device_id": "",
             "etp_rt": ""

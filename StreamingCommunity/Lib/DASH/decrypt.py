@@ -3,7 +3,6 @@
 import os
 import time
 import subprocess
-import logging
 import threading
 
 
@@ -13,6 +12,7 @@ from tqdm import tqdm
 
 
 # Internal utilities
+from StreamingCommunity.Util.os import get_mp4decrypt_path
 from StreamingCommunity.Util import config_manager, Colors
 
 
@@ -38,19 +38,8 @@ def decrypt_with_mp4decrypt(type, encrypted_path, kid, key, output_path=None):
     Returns:
         str: Path to decrypted file, or None if error.
     """
-    from StreamingCommunity.Util.os import get_mp4decrypt_path
-
-    # Check if input file exists
     if not os.path.isfile(encrypted_path):
         console.print(f"[red] Encrypted file not found: {encrypted_path}")
-        return None
-
-    # Check if kid and key are valid hex
-    try:
-        bytes.fromhex(kid)
-        bytes.fromhex(key)
-    except Exception:
-        console.print("[red] Invalid KID or KEY (not hex).")
         return None
 
     if not output_path:
@@ -58,15 +47,13 @@ def decrypt_with_mp4decrypt(type, encrypted_path, kid, key, output_path=None):
 
     # Get file size for progress tracking
     file_size = os.path.getsize(encrypted_path)
-    
     key_format = f"{kid.lower()}:{key.lower()}"
     cmd = [get_mp4decrypt_path(), "--key", key_format, encrypted_path, output_path]
-    logging.info(f"Running mp4decrypt command: {' '.join(cmd)}")
 
-    progress_bar = None
-    monitor_thread = None
-    
+    # Setup progress bar if enabled
     if SHOW_DECRYPT_PROGRESS:
+        progress_bar = None
+        monitor_thread = None
         bar_format = (
             f"{Colors.YELLOW}DECRYPT{Colors.CYAN} {type}{Colors.WHITE}: "
             f"{Colors.MAGENTA}{{bar:40}} "
@@ -107,15 +94,8 @@ def decrypt_with_mp4decrypt(type, encrypted_path, kid, key, output_path=None):
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
     except Exception as e:
-        if progress_bar:
-            progress_bar.close()
         console.print(f"[red] mp4decrypt execution failed: {e}")
         return None
-    
-    if progress_bar:
-        progress_bar.n = 100
-        progress_bar.refresh()
-        progress_bar.close()
 
     if result.returncode == 0 and os.path.exists(output_path):
 

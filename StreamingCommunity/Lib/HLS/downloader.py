@@ -356,7 +356,6 @@ class DownloadManager:
                 url=audio_full_url, 
                 tmp_folder=audio_tmp_dir,
                 license_url=self.license_url,
-                limit_segments=self.video_segments_count if self.video_segments_count > 0 else None,
                 custom_headers=self.custom_headers
             )
 

@@ -35,7 +35,6 @@ def title_search(query: str) -> int:
 
     config = config_manager.get_dict("SITE_LOGIN", "crunchyroll")
     if not config.get('device_id') or not config.get('etp_rt'):
-        console.print("[red] device_id or etp_rt is missing or empty in config.json.")
         raise Exception("device_id or etp_rt is missing or empty in config.json.")
 
     client = CrunchyrollClient()

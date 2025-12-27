@@ -29,7 +29,6 @@ REQUEST_MAX_RETRY = config_manager.get_int('REQUESTS', 'max_retry')
 DEFAULT_VIDEO_WORKERS = config_manager.get_int('M3U8_DOWNLOAD', 'default_video_workers')
 DEFAULT_AUDIO_WORKERS = config_manager.get_int('M3U8_DOWNLOAD', 'default_audio_workers')
 SEGMENT_MAX_TIMEOUT = config_manager.get_int("M3U8_DOWNLOAD", "segment_timeout")
-LIMIT_SEGMENT = config_manager.get_int('M3U8_DOWNLOAD', 'limit_segment')
 ENABLE_RETRY = config_manager.get_bool('M3U8_DOWNLOAD', 'enable_retry')
 CLEANUP_TMP = config_manager.get_bool('M3U8_DOWNLOAD', 'cleanup_tmp_folder')
 
@@ -39,7 +38,7 @@ console = Console()
 
 
 class MPD_Segments:
-    def __init__(self, tmp_folder: str, representation: dict, pssh: str = None, limit_segments: int = None, custom_headers: Optional[Dict[str, str]] = None):
+    def __init__(self, tmp_folder: str, representation: dict, pssh: str = None, custom_headers: Optional[Dict[str, str]] = None):
         """
         Initialize MPD_Segments with temp folder, representation, optional pssh, and segment limit.
         
@@ -47,19 +46,12 @@ class MPD_Segments:
             - tmp_folder (str): Temporary folder to store downloaded segments
             - representation (dict): Selected representation with segment URLs
             - pssh (str, optional): PSSH string for decryption
-            - limit_segments (int, optional): Optional limit for number of segments to download
         """
         self.tmp_folder = tmp_folder
         self.selected_representation = representation
         self.pssh = pssh
         self.custom_headers = custom_headers or {}
 
-        # Use LIMIT_SEGMENT from config if limit_segments is not specified or is 0
-        if limit_segments is None or limit_segments == 0:
-            self.limit_segments = LIMIT_SEGMENT if LIMIT_SEGMENT > 0 else None
-        else:
-            self.limit_segments = limit_segments
-        
         self.enable_retry = ENABLE_RETRY
         self.download_interrupted = False
         self.info_nFailed = 0
@@ -172,12 +164,6 @@ class MPD_Segments:
                     "representation_id": rep.get("id"),
                     "pssh": self.pssh,
                 }
-
-        # Apply segment limit if specified
-        if self.limit_segments is not None:
-            orig_count = len(self.selected_representation.get('segment_urls', []))
-            if orig_count > self.limit_segments:
-                self.selected_representation['segment_urls'] = self.selected_representation['segment_urls'][:self.limit_segments]
 
         # Run async download in sync mode
         try:

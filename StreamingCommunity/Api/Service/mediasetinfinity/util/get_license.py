@@ -16,7 +16,6 @@ from StreamingCommunity.Util.http_client import create_client, get_headers, get_
 
 # Variable
 console = Console()
-network_data = []
 class_mediaset_api = None
 
 

@@ -206,9 +206,6 @@ class ConfigManager:
             if not os.path.exists(target_path):
                 with open(target_path, 'w', encoding='utf-8') as f:
                     json.dump(self.configSite, f, indent=4, ensure_ascii=False)
-            else:
-                console.print(f"[yellow]Local domains.json already exists, not overwriting: {target_path}")
-                console.print("[yellow]Tip: Delete the file if you want to recreate it from GitHub")
                 
         except Exception as save_error:
             console.print(f"[yellow]Warning: Could not save domains to file: {str(save_error)}")
@@ -239,7 +236,7 @@ class ConfigManager:
                 console.print(f"[green]Domains loaded from root file: {site_count} streaming services")
 
             else:
-                console.print(f"[cyan]Domain path: [red]Disabled")
+                console.print("[cyan]Domain path: [red]Disabled")
                 self.configSite = {}
         
         except Exception as e:

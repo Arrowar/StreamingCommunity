@@ -1,6 +1,7 @@
 # 25.07.25
 
 import os
+import sys
 import shutil
 import logging
 from typing import Optional, Dict
@@ -12,15 +13,15 @@ from rich.console import Console
 
 # Internal utilities
 from StreamingCommunity.Util import config_manager, os_manager, internet_manager
-from StreamingCommunity.Util.os import get_wvd_path
+from StreamingCommunity.Util.os import get_wvd_path, get_prd_path
 from StreamingCommunity.Util.http_client import create_client, get_userAgent
 
 
 # Logic class
-from .parser import MPD_Parser
+from .parser import MPD_Parser, DRMSystem
 from .segments import MPD_Segments
 from .decrypt import decrypt_with_mp4decrypt
-from .cdm_helpher import get_widevine_keys, map_keys_to_representations
+from .extractor import get_widevine_keys, get_playready_keys, map_keys_to_representations
 
 
 # FFmpeg functions
@@ -41,7 +42,7 @@ extension_output = config_manager.get("M3U8_CONVERSION", "extension")
 
 
 class DASH_Downloader:
-    def __init__(self, license_url, mpd_url, mpd_sub_list: list = None, output_path: str = None):
+    def __init__(self, license_url, mpd_url, mpd_sub_list: list = None, output_path: str = None, drm_preference: str = 'widevine'):
         """
         Initialize the DASH Downloader with necessary parameters.
 
@@ -52,9 +53,15 @@ class DASH_Downloader:
             - output_path (str): Path to save the final output file.
         """
         self.cdm_device = get_wvd_path()
+        self.prd_device = get_prd_path()
         self.license_url = str(license_url).strip() if license_url else None
         self.mpd_url = str(mpd_url).strip()
         self.mpd_sub_list = mpd_sub_list
+
+        if drm_preference.lower() in [DRMSystem.WIDEVINE, DRMSystem.PLAYREADY]:
+            self.PREFERRED_DRM = drm_preference.lower()
+        else:
+            sys.exit(f"Invalid DRM preference: {drm_preference}. Use 'widevine', 'playready'.")
         
         # Sanitize the output path to remove invalid characters
         sanitized_output_path = os_manager.get_sanitize_path(output_path)
@@ -206,21 +213,20 @@ class DASH_Downloader:
         
         self.error = None
         self.stopped = False
-        video_segments_count = 0
 
-        # Fetch keys immediately after obtaining PSSH
-        if not self.parser.pssh:
+        # Determine which DRM to use
+        drm_type = self._determine_drm_type()
+        
+        if not drm_type:
             self.download_segments(clear=True)
             return True
 
-        keys = get_widevine_keys(
-            pssh=self.parser.pssh,
-            license_url=self.license_url,
-            cdm_device_path=self.cdm_device,
-            headers=custom_headers,
-            query_params=query_params,
-            key=key
-        )
+        # Fetch keys based on DRM type
+        keys = self._fetch_drm_keys(drm_type, custom_headers, query_params, key)
+        
+        if not keys:
+            console.print(f"[red]Failed to obtain keys for {drm_type}")
+            return False
 
         # Map keys to representations based on default_KID
         key_mapping = map_keys_to_representations(keys, self.parser.representations)
@@ -237,6 +243,8 @@ class DASH_Downloader:
                 }
             else:
                 console.print("[red]Could not map any keys to representations.")
+                console.print(f"[red]Available keys: {[k['kid'] for k in keys]}")
+                console.print(f"[red]Representation KIDs: {[r.get('default_kid') for r in self.parser.representations if r.get('default_kid')]}")
                 return False
 
         # Download subtitles
@@ -253,9 +261,8 @@ class DASH_Downloader:
                 self.error = "No key found for video representation"
                 return False
 
-            console.log(f"[cyan]Using video key: [red]{video_key_info['kid']} [cyan]for representation [yellow]{video_key_info.get('representation_id')}")
-            
-            video_downloader = MPD_Segments(tmp_folder=self.encrypted_dir, representation=video_rep, pssh=self.parser.pssh, custom_headers=custom_headers)
+            console.log(f"[cyan]Using video key: [red]{video_key_info['kid']} [cyan]for representation [yellow]{video_key_info.get('representation_id', 'N/A')}")  
+            video_downloader = MPD_Segments(tmp_folder=self.encrypted_dir, representation=video_rep, pssh=self._get_pssh_for_drm(drm_type), custom_headers=custom_headers)
             encrypted_path = video_downloader.get_concat_path(self.encrypted_dir)
 
             # If m4s file doesn't exist, start downloading
@@ -265,10 +272,7 @@ class DASH_Downloader:
 
                 try:
                     result = video_downloader.download_streams(description="Video")
-                    
-                    # Store the video segment count for limiting audio
-                    video_segments_count = video_downloader.get_segments_count()
-
+                
                     # Check for interruption or failure
                     if result.get("stopped"):
                         self.stopped = True
@@ -310,10 +314,9 @@ class DASH_Downloader:
                 self.error = "No key found for audio representation"
                 return False
 
-            console.log(f"[cyan]Using audio key: [red]{audio_key_info['kid']} [cyan]for representation [yellow]{audio_key_info.get('representation_id')}")
-            
+            console.log(f"[cyan]Using audio key: [red]{audio_key_info['kid']} [cyan]for representation [yellow]{audio_key_info.get('representation_id', 'N/A')}")
             audio_language = audio_rep.get('language', 'Unknown')
-            audio_downloader = MPD_Segments(tmp_folder=self.encrypted_dir, representation=audio_rep, pssh=self.parser.pssh, limit_segments=video_segments_count if video_segments_count > 0 else None, custom_headers=custom_headers)
+            audio_downloader = MPD_Segments(tmp_folder=self.encrypted_dir, representation=audio_rep, pssh=self._get_pssh_for_drm(drm_type), custom_headers=custom_headers)
             encrypted_path = audio_downloader.get_concat_path(self.encrypted_dir)
 
             # If m4s file doesn't exist, start downloading
@@ -357,7 +360,52 @@ class DASH_Downloader:
             return False
 
         return True
-
+    
+    def _determine_drm_type(self) -> Optional[str]:
+        """
+        Determine which DRM type to use based on available PSSH and preference.
+        Returns: 'widevine', 'playready', or None
+        """
+        has_widevine = bool(self.parser.pssh_widevine)
+        has_playready = bool(self.parser.pssh_playready)
+        
+        if not has_widevine and not has_playready:
+            return None
+        
+        if self.PREFERRED_DRM == DRMSystem.WIDEVINE and has_widevine:
+            console.log("[cyan]Using Widevine DRM")
+            return DRMSystem.WIDEVINE
+        elif self.PREFERRED_DRM == DRMSystem.PLAYREADY and has_playready:
+            console.log("[cyan]Using PlayReady DRM")
+            return DRMSystem.PLAYREADY
+        else:
+            console.print(f"[red]Drm not supported or not found for preferred type: {self.PREFERRED_DRM}")
+            sys.exit(0)
+        
+        return None
+    
+    def _get_pssh_for_drm(self, drm_type: str) -> Optional[str]:
+        """Get PSSH for specific DRM type"""
+        if drm_type == DRMSystem.WIDEVINE:
+            return self.parser.pssh_widevine
+        elif drm_type == DRMSystem.PLAYREADY:
+            return self.parser.pssh_playready
+        return None
+    
+    def _fetch_drm_keys(self, drm_type: str, custom_headers: dict, query_params: dict, key: str) -> Optional[list]:
+        """Fetch decryption keys for specific DRM type"""
+        pssh = self._get_pssh_for_drm(drm_type)
+        
+        if not pssh:
+            console.print(f"[red]No PSSH found for {drm_type}")
+            return None
+        
+        if drm_type == DRMSystem.WIDEVINE:
+            return get_widevine_keys(pssh=pssh, license_url=self.license_url, cdm_device_path=self.cdm_device, headers=custom_headers, query_params=query_params, key=key)
+        elif drm_type == DRMSystem.PLAYREADY:
+            return get_playready_keys(pssh=pssh, license_url=self.license_url, cdm_device_path=self.prd_device, headers=custom_headers, query_params=query_params, key=key)
+        return None
+    
     def download_segments(self, clear=False):
         """
         Download video/audio segments without decryption (for clear content).
@@ -368,8 +416,6 @@ class DASH_Downloader:
         if not clear:
             console.print("[yellow]Warning: download_segments called with clear=False")
             return False
-        
-        video_segments_count = 0
         
         # Download subtitles
         self.download_subtitles()
@@ -391,9 +437,6 @@ class DASH_Downloader:
                 
                 try:
                     result = video_downloader.download_streams(description="Video")
-                    
-                    # Store the video segment count for limiting audio
-                    video_segments_count = video_downloader.get_segments_count()
                     
                     # Check for interruption or failure
                     if result.get("stopped"):
@@ -428,7 +471,7 @@ class DASH_Downloader:
         audio_rep = self.get_representation_by_type("audio")
         if audio_rep:
             audio_language = audio_rep.get('language', 'Unknown')
-            audio_downloader = MPD_Segments(tmp_folder=self.encrypted_dir, representation=audio_rep, pssh=self.parser.pssh, limit_segments=video_segments_count if video_segments_count > 0 else None)
+            audio_downloader = MPD_Segments(tmp_folder=self.encrypted_dir, representation=audio_rep, pssh=self.parser.pssh)
             encrypted_path = audio_downloader.get_concat_path(self.encrypted_dir)
 
             # If m4s file doesn't exist, start downloading

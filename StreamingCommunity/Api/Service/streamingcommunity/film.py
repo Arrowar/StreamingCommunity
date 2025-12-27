@@ -10,6 +10,7 @@ from rich.console import Console
 # Internal utilities
 from StreamingCommunity.Util import os_manager, config_manager, start_message
 from StreamingCommunity.Api.Template import site_constants, MediaItem
+from StreamingCommunity.Lib.TMDB.tmdb import tmdb
 from StreamingCommunity.Lib.HLS import HLS_Downloader
 
 
@@ -20,6 +21,7 @@ from StreamingCommunity.Api.Player.vixcloud import VideoSource
 # Variable
 console = Console()
 extension_output = config_manager.get("M3U8_CONVERSION", "extension")
+use_other_api = config_manager.get("SITE_LOGIN", "tmdb_api_key") != ""
 
 
 def download_film(select_title: MediaItem) -> str:
@@ -27,8 +29,7 @@ def download_film(select_title: MediaItem) -> str:
     Downloads a film using the provided film ID, title name, and domain.
 
     Parameters:
-        - domain (str): The domain of the site
-        - version (str): Version of site.
+        - select_title (MediaItem): Media item with title information
 
     Return:
         - str: output path
@@ -36,11 +37,22 @@ def download_film(select_title: MediaItem) -> str:
     start_message()
     console.print(f"\n[yellow]Download: [red]{site_constants.SITE_NAME} → [cyan]{select_title.name} \n")
 
-    # Init class
-    video_source = VideoSource(f"{site_constants.FULL_URL}/it", False, select_title.id)
+    # Prepare TMDB data 
+    tmdb_data = None
+    if use_other_api:
+        year = int(select_title.date[:4])
+        result = tmdb.get_type_and_id_by_slug_year(select_title.slug, year)
+        
+        if result and result.get('id') and result.get('type') == 'movie':
+            tmdb_data = {'id': result.get('id')}
 
-    # Retrieve scws and if available master playlist
-    video_source.get_iframe(select_title.id)
+    # Init class
+    video_source = VideoSource(f"{site_constants.FULL_URL}/it", False, select_title.id, tmdb_data=tmdb_data)
+
+    # Retrieve iframe only if not using TMDB API
+    if tmdb_data is None:
+        video_source.get_iframe(select_title.id)
+    
     video_source.get_content()
     master_playlist = video_source.get_playlist()
 

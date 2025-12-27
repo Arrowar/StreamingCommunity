@@ -27,6 +27,52 @@ FILTER_CUSTOM_RESOLUTION = str(config_manager.get('M3U8_CONVERSION', 'force_reso
 DOWNLOAD_SPECIFIC_AUDIO = config_manager.get_list('M3U8_DOWNLOAD', 'specific_list_audio')
 
 
+class DRMSystem:
+    """DRM system constants and utilities"""
+    WIDEVINE = 'widevine'
+    PLAYREADY = 'playready'
+    FAIRPLAY = 'fairplay'
+    
+    # UUID mappings
+    UUIDS = {
+        WIDEVINE: 'edef8ba9-79d6-4ace-a3c8-27dcd51d21ed',
+        PLAYREADY: '9a04f079-9840-4286-ab92-e65be0885f95',
+        FAIRPLAY: '94ce86fb-07ff-4f43-adb8-93d2fa968ca2'
+    }
+    
+    # Display abbreviations
+    ABBREV = {
+        WIDEVINE: 'WV',
+        PLAYREADY: 'PR',
+        FAIRPLAY: 'FP'
+    }
+    
+    # Fallback priority order
+    PRIORITY = [WIDEVINE, PLAYREADY, FAIRPLAY]
+    
+    # CENC protection scheme
+    CENC_SCHEME = 'urn:mpeg:dash:mp4protection:2011'
+    
+    @classmethod
+    def get_uuid(cls, drm_type: str) -> Optional[str]:
+        """Get UUID for DRM type"""
+        return cls.UUIDS.get(drm_type.lower())
+    
+    @classmethod
+    def get_abbrev(cls, drm_type: str) -> str:
+        """Get abbreviation for DRM type"""
+        return cls.ABBREV.get(drm_type.lower(), drm_type.upper()[:2])
+    
+    @classmethod
+    def from_uuid(cls, uuid: str) -> Optional[str]:
+        """Get DRM type from UUID"""
+        uuid_lower = uuid.lower()
+        for drm_type, drm_uuid in cls.UUIDS.items():
+            if drm_uuid in uuid_lower:
+                return drm_type
+        return None
+
+
 class CodecQuality:
     VIDEO_CODEC_RANK = {
         'av01': 5, 'vp9': 4, 'vp09': 4, 'hev1': 3, 
@@ -213,19 +259,68 @@ class ContentProtectionHandler:
             scheme_id = (cp.get('schemeIdUri') or '').lower()
             value = (cp.get('value') or '').lower()
             
-            # Check for CENC or Widevine
-            if 'urn:mpeg:dash:mp4protection:2011' in scheme_id and ('cenc' in value or value):
+            # Check for CENC
+            if DRMSystem.CENC_SCHEME in scheme_id and ('cenc' in value or value):
                 return True
-            if 'edef8ba9-79d6-4ace-a3c8-27dcd51d21ed' in scheme_id:  # Widevine UUID
+            
+            # Check for any DRM UUID
+            if DRMSystem.from_uuid(scheme_id):
                 return True
         
         return False
     
-    def extract_default_kid(self, element: etree._Element) -> Optional[str]:
-        """Extract default_KID from ContentProtection elements (Widevine/PlayReady/CENC).
+    def get_drm_types(self, element: etree._Element) -> List[str]:
         """
+        Determine all DRM types from ContentProtection elements.
+        Returns: List of DRM types found ['widevine', 'playready', 'fairplay']
+        """
+        drm_types = []
+        
+        for cp in self.ns.findall(element, 'mpd:ContentProtection'):
+            scheme_id = (cp.get('schemeIdUri') or '').lower()
+            drm_type = DRMSystem.from_uuid(scheme_id)
+            
+            if drm_type and drm_type not in drm_types:
+                drm_types.append(drm_type)
+        
+        return drm_types
+    
+    def get_primary_drm_type(self, element: etree._Element, preferred_drm: str = DRMSystem.WIDEVINE) -> Optional[str]:
+        """
+        Get primary DRM type based on preference.
+        
+        Args:
+            element: XML element to check
+            preferred_drm: Preferred DRM system ('widevine', 'playready', 'auto')
+        
+        Returns: Primary DRM type to use
+        """
+        drm_types = self.get_drm_types(element)
+        
+        if not drm_types:
+            return None
+        
+        # If only one DRM, return it
+        if len(drm_types) == 1:
+            return drm_types[0]
+        
+        # Multiple DRM systems, apply preference
+        if preferred_drm in drm_types:
+            return preferred_drm
+        
+        # Fallback to priority order
+        for fallback in DRMSystem.PRIORITY:
+            if fallback in drm_types:
+                return fallback
+        
+        return drm_types[0]
+    
+    def extract_default_kid(self, element: etree._Element) -> Optional[str]:
+        """Extract default_KID from ContentProtection elements (Widevine/PlayReady/CENC)."""
         def _extract_kid_from_cp(cp: etree._Element) -> Optional[str]:
-            kid = (cp.get('{urn:mpeg:cenc:2013}default_KID') or cp.get('default_KID') or cp.get('cenc:default_KID'))
+            kid = (cp.get('{urn:mpeg:cenc:2013}default_KID') or 
+                   cp.get('default_KID') or 
+                   cp.get('cenc:default_KID'))
 
             # Fallback: any attribute key that ends with 'default_KID' (case-insensitive)
             if not kid:
@@ -244,15 +339,15 @@ class ContentProtectionHandler:
         if not cps:
             return None
 
-        # Prefer Widevine KID, then mp4protection, then any other CP that has it.
+        # Prefer Widevine KID, then CENC protection, then any other CP
         preferred = []
         fallback = []
 
         for cp in cps:
             scheme_id = (cp.get('schemeIdUri') or '').lower()
-            if 'edef8ba9-79d6-4ace-a3c8-27dcd51d21ed' in scheme_id:  # Widevine
+            if DRMSystem.UUIDS[DRMSystem.WIDEVINE] in scheme_id:
                 preferred.append(cp)
-            elif 'urn:mpeg:dash:mp4protection:2011' in scheme_id:
+            elif DRMSystem.CENC_SCHEME in scheme_id:
                 preferred.append(cp)
             else:
                 fallback.append(cp)
@@ -264,22 +359,28 @@ class ContentProtectionHandler:
 
         return None
     
-    def extract_pssh(self, root: etree._Element) -> Optional[str]:
-        """Extract PSSH (Protection System Specific Header)"""
-        # Try Widevine first
-        for cp in self.ns.findall(root, './/mpd:ContentProtection'):
-            scheme_id = cp.get('schemeIdUri', '')
-            if 'edef8ba9-79d6-4ace-a3c8-27dcd51d21ed' in scheme_id:
+    def extract_pssh(self, root: etree._Element, drm_type: str = DRMSystem.WIDEVINE) -> Optional[str]:
+        """
+        Extract PSSH (Protection System Specific Header) for specific DRM type.
+        
+        Args:
+            root: XML root element
+            drm_type: DRM type ('widevine', 'playready', 'fairplay')
+        """
+        target_uuid = DRMSystem.get_uuid(drm_type)
+        if not target_uuid:
+            return None
+        
+        # Search in all ContentProtection elements in the entire MPD
+        all_cps = self.ns.findall(root, './/mpd:ContentProtection')
+        
+        # Try specific DRM type first
+        for cp in all_cps:
+            scheme_id = (cp.get('schemeIdUri') or '').lower()
+            if target_uuid in scheme_id:
                 pssh = self.ns.find(cp, 'cenc:pssh')
                 if pssh is not None and pssh.text:
                     return pssh.text.strip()
-        
-        # Fallback to any PSSH
-        for cp in self.ns.findall(root, './/mpd:ContentProtection'):
-            pssh = self.ns.find(cp, 'cenc:pssh')
-            if pssh is not None and pssh.text:
-                console.print("Found PSSH (fallback)")
-                return pssh.text.strip()
         
         return None
 
@@ -496,6 +597,8 @@ class RepresentationParser:
         # Check protection and extract default_KID
         adapt_protected = self.protection_handler.is_protected(adapt_set)
         adapt_default_kid = self.protection_handler.extract_default_kid(adapt_set)
+        adapt_drm_types = self.protection_handler.get_drm_types(adapt_set)
+        adapt_drm_type = self.protection_handler.get_primary_drm_type(adapt_set)
         
         # Get segment template
         adapt_seg_template = self.ns.find(adapt_set, 'mpd:SegmentTemplate')
@@ -515,6 +618,13 @@ class RepresentationParser:
                 rep['protected'] = bool(rep_protected)
                 rep_default_kid = self.protection_handler.extract_default_kid(rep_elem) or adapt_default_kid
                 rep['default_kid'] = rep_default_kid
+                
+                # Get all DRM types and primary DRM type
+                rep_drm_types = self.protection_handler.get_drm_types(rep_elem) or adapt_drm_types
+                rep_drm_type = self.protection_handler.get_primary_drm_type(rep_elem) or adapt_drm_type
+                rep['drm_types'] = rep_drm_types
+                rep['drm_type'] = rep_drm_type
+                
                 if content_type:
                     rep['type'] = content_type
                 
@@ -691,7 +801,7 @@ class TablePrinter:
         self.mpd_duration = mpd_duration
         self.mpd_sub_list = mpd_sub_list or []
     
-    def print_table(self, representations: List[Dict[str, Any]], selected_video: Optional[Dict[str, Any]] = None, selected_audio: Optional[Dict[str, Any]] = None, selected_subs: list = None):
+    def print_table(self, representations: List[Dict[str, Any]], selected_video: Optional[Dict[str, Any]] = None, selected_audio: Optional[Dict[str, Any]] = None, selected_subs: list = None, available_drm_types: list = None):
         """Print tracks table using Rich tables"""
         approx = DurationUtils.format_duration(self.mpd_duration)
         
@@ -700,7 +810,7 @@ class TablePrinter:
         audios = sorted([r for r in representations if r['type'] == 'audio'], 
                        key=lambda r: r['bandwidth'], reverse=True)
         
-        # Create single table
+        # Create main tracks table with DRM column
         table = Table(show_header=True, header_style="bold")
         table.add_column("Type", style="cyan")
         table.add_column("Sel", width=3, style="green bold")
@@ -712,22 +822,25 @@ class TablePrinter:
         table.add_column("Channels", style="magenta")
         table.add_column("Segments", style="white")
         table.add_column("Duration", style="white")
+        table.add_column("DRM", style="red")
         
         # Add video tracks
         for vid in videos:
             checked = 'X' if selected_video and vid['id'] == selected_video['id'] else ' '
-            cenc = "*CENC" if vid.get('protected') else ""
+            drm_info = self._get_drm_display(vid)
+            drm_systems = self._get_drm_systems_display(vid)
             fps = f"{vid['frame_rate']:.0f}" if vid.get('frame_rate') else ""
             
-            table.add_row("Video", checked, f"Vid {cenc}", f"{vid['width']}x{vid['height']}", f"{vid['bandwidth'] // 1000} Kbps", vid.get('codec', ''), fps, vid['id'], str(vid['segment_count']), approx or "")
+            table.add_row("Video", checked, drm_info, f"{vid['width']}x{vid['height']}", f"{vid['bandwidth'] // 1000} Kbps", vid.get('codec', ''), fps, vid['id'], str(vid['segment_count']), approx or "", drm_systems)
         
         # Add audio tracks
         for aud in audios:
             checked = 'X' if selected_audio and aud['id'] == selected_audio['id'] else ' '
-            cenc = "*CENC" if aud.get('protected') else ""
+            drm_info = self._get_drm_display(aud)
+            drm_systems = self._get_drm_systems_display(aud)
             ch = f"{aud['channels']}CH" if aud.get('channels') else ""
             
-            table.add_row("Audio", checked, f"Aud {cenc}", aud['id'], f"{aud['bandwidth'] // 1000} Kbps", aud.get('codec', ''), aud.get('language', ''), ch, str(aud['segment_count']), approx or "")
+            table.add_row("Audio", checked, drm_info, aud['id'], f"{aud['bandwidth'] // 1000} Kbps", aud.get('codec', ''), aud.get('language', ''), ch, str(aud['segment_count']), approx or "", drm_systems)
         
         # Add subtitle tracks from mpd_sub_list
         if self.mpd_sub_list:
@@ -736,9 +849,39 @@ class TablePrinter:
                 language = sub.get('language')
                 sub_type = sub.get('format')
 
-                table.add_row("Subtitle", checked, f"Sub {sub_type}", language, "", "", language, "", "", approx or "")
+                table.add_row("Subtitle", checked, f"Sub {sub_type}", language, "", "", language, "", "", approx or "", "")
         
         console.print(table)
+    
+    def _get_drm_display(self, rep: Dict[str, Any]) -> str:
+        """Generate DRM display string for table (only shows CENC)"""
+        content_type = "Vid" if rep['type'] == 'video' else "Aud"
+        
+        if not rep.get('protected'):
+            return content_type
+        
+        return f"{content_type} *CENC"
+    
+    def _get_drm_systems_display(self, rep: Dict[str, Any]) -> str:
+        """Generate DRM systems display for the DRM column"""
+        if not rep.get('protected'):
+            return ""
+        
+        # Get all DRM types available for this stream
+        drm_types = rep.get('drm_types', [])
+        if not drm_types:
+            drm_type = rep.get('drm_type', '').lower()
+            if drm_type:
+                drm_types = [drm_type]
+        
+        if not drm_types:
+            return "DRM"
+        
+        # Create abbreviations using DRMSystem utility
+        drm_abbrevs = [DRMSystem.get_abbrev(drm) for drm in drm_types]
+        
+        # Join multiple DRM systems with +
+        return '+'.join(drm_abbrevs)
 
 
 class MPD_Parser:
@@ -778,8 +921,23 @@ class MPD_Parser:
         self.mpd_duration = DurationUtils.parse_duration(duration_str)
         self.table_printer = TablePrinter(self.mpd_duration, self.mpd_sub_list)
         
-        # Extract PSSH and representations
-        self.pssh = self.protection_handler.extract_pssh(self.root)
+        # Extract PSSH for all DRM types using DRMSystem constants
+        self.pssh_widevine = self.protection_handler.extract_pssh(self.root, DRMSystem.WIDEVINE)
+        self.pssh_playready = self.protection_handler.extract_pssh(self.root, DRMSystem.PLAYREADY)
+        self.pssh_fairplay = self.protection_handler.extract_pssh(self.root, DRMSystem.FAIRPLAY)
+        
+        # Get all available DRM types
+        self.available_drm_types = []
+        if self.pssh_widevine:
+            self.available_drm_types.append(DRMSystem.WIDEVINE)
+        if self.pssh_playready:
+            self.available_drm_types.append(DRMSystem.PLAYREADY)
+        if self.pssh_fairplay:
+            self.available_drm_types.append(DRMSystem.FAIRPLAY)
+        
+        # Legacy support: set pssh to widevine by default
+        self.pssh = self.pssh_widevine or self.pssh_playready or self.pssh_fairplay
+        
         self._parse_representations()
         self._deduplicate_representations()
         
@@ -953,7 +1111,7 @@ class MPD_Parser:
     def print_tracks_table(self, selected_video: Optional[Dict[str, Any]] = None, selected_audio: Optional[Dict[str, Any]] = None, selected_subs: list = None) -> None:
         """Print tracks table"""
         if self.table_printer:
-            self.table_printer.print_table(self.representations, selected_video, selected_audio, selected_subs)
+            self.table_printer.print_table(self.representations, selected_video, selected_audio, selected_subs, self.available_drm_types)
     
     def save_mpd(self, output_path: str) -> None:
         """Save raw MPD manifest"""

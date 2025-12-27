@@ -1,4 +1,4 @@
-# 25.07.25
+# 29.12.25
 
 import base64
 from urllib.parse import urlencode
@@ -16,7 +16,6 @@ from pywidevine.pssh import PSSH
 console = Console()
 
 
-
 def get_widevine_keys(pssh: str, license_url: str, cdm_device_path: str, headers: dict = None, query_params: dict =None, key: str=None):
     """
     Extract Widevine CONTENT keys (KID/KEY) from a license using pywidevine.
@@ -32,8 +31,8 @@ def get_widevine_keys(pssh: str, license_url: str, cdm_device_path: str, headers
     Returns:
         list: List of dicts {'kid': ..., 'key': ...} (only CONTENT keys) or None if error.
     """
-    if not cdm_device_path:
-        console.print("[red]Invalid CDM device path.")
+    if cdm_device_path is None:
+        console.print("[red]Device cdm path is None.")
         return None
 
     device = Device.load(cdm_device_path)
@@ -41,7 +40,7 @@ def get_widevine_keys(pssh: str, license_url: str, cdm_device_path: str, headers
     session_id = cdm.open()
 
     try:
-        console.log(f"[cyan]PSSH: [green]{pssh}")
+        console.log(f"[cyan]PSSH (WV): [green]{pssh}")
         challenge = cdm.get_license_challenge(session_id, PSSH(pssh))
         
         # With request license
@@ -99,8 +98,8 @@ def get_widevine_keys(pssh: str, license_url: str, cdm_device_path: str, headers
             content_keys = []
             for key in cdm.get_keys(session_id):
                 if key.type == "CONTENT":
-                    kid = key.kid.hex() if isinstance(key.kid, bytes) else str(key.kid)
-                    key_val = key.key.hex() if isinstance(key.key, bytes) else str(key.key)
+                    kid = key.kid.hex
+                    key_val = key.key.hex()
 
                     content_keys.append({
                         'kid': kid.replace('-', '').strip(),
@@ -113,12 +112,9 @@ def get_widevine_keys(pssh: str, license_url: str, cdm_device_path: str, headers
 
         else:
             content_keys = []
-            raw_kid = key.split(":")[0]
-            raw_key = key.split(":")[1]
-
             content_keys.append({
-                'kid': raw_kid.replace('-', '').strip(),
-                'key': raw_key.replace('-', '').strip()
+                'kid': key.split(":")[0].replace('-', '').strip(),
+                'key': key.split(":")[1].replace('-', '').strip()
             })
 
             console.log(f"[cyan]KID: [green]{content_keys[0]['kid']} [white]| [cyan]KEY: [green]{content_keys[0]['key']}")
@@ -126,40 +122,6 @@ def get_widevine_keys(pssh: str, license_url: str, cdm_device_path: str, headers
     
     finally:
         cdm.close(session_id)
-
-
-def map_keys_to_representations(keys: list, representations: list) -> dict:
-    """
-    Map decryption keys to representations based on their default_KID.
-    
-    Args:
-        keys (list): List of key dictionaries with 'kid' and 'key' fields
-        representations (list): List of representation dictionaries with 'default_kid' field
-    
-    Returns:
-        dict: Mapping of representation type to key info
-    """
-    key_mapping = {}
-    
-    for rep in representations:
-        rep_type = rep.get('type', 'unknown')
-        default_kid = rep.get('default_kid')
-        
-        if default_kid is None:
-            console.log(f"[yellow]Representation [yellow]{rep.get('id')} [yellow]has no default_kid, maybe problem with parser.")
-            continue
-            
-        for key_info in keys:
-            if key_info['kid'].lower() == default_kid.lower():
-                key_mapping[rep_type] = {
-                    'kid': key_info['kid'],
-                    'key': key_info['key'],
-                    'representation_id': rep.get('id'),
-                    'default_kid': default_kid
-                }
-                break
-    
-    return key_mapping
 
 
 def get_info_wvd(cdm_device_path):
@@ -173,15 +135,9 @@ def get_info_wvd(cdm_device_path):
 
     # Extract client info
     info = {ci.name: ci.value for ci in device.client_id.client_info}
-    caps = device.client_id.client_capabilities
-
-    company = info.get("company_name", "N/A")
     model = info.get("model_name", "N/A")
-
     device_name = info.get("device_name", "").lower()
     build_info = info.get("build_info", "").lower()
-
-    # Extract device type
     is_emulator = any(x in device_name for x in [
         "generic", "sdk", "emulator", "x86"
     ]) or "test-keys" in build_info or "userdebug" in build_info
@@ -196,6 +152,5 @@ def get_info_wvd(cdm_device_path):
     console.print(
         f"[cyan]Load WVD: "
         f"[red]L{device.security_level} [cyan]| [red]{dev_type} [cyan]| "
-        f"[red]{company} {model} [cyan]| API [red]{caps.oem_crypto_api_version} [cyan]| "
         f"[cyan]SysID: [red]{device.system_id}"
     )

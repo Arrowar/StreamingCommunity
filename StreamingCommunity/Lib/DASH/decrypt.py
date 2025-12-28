@@ -20,7 +20,6 @@ from StreamingCommunity.Util import config_manager, Colors
 console = Console()
 extension_output = config_manager.get("M3U8_CONVERSION", "extension")
 CLEANUP_TMP = config_manager.get_bool('M3U8_DOWNLOAD', 'cleanup_tmp_folder')
-SHOW_DECRYPT_PROGRESS = True
 
 
 def decrypt_with_mp4decrypt(type, encrypted_path, kid, key, output_path=None):
@@ -39,7 +38,7 @@ def decrypt_with_mp4decrypt(type, encrypted_path, kid, key, output_path=None):
         str: Path to decrypted file, or None if error.
     """
     if not os.path.isfile(encrypted_path):
-        console.print(f"[red] Encrypted file not found: {encrypted_path}")
+        console.print(f"[bold red] Encrypted file not found: {encrypted_path}")
         return None
 
     if not output_path:
@@ -48,58 +47,63 @@ def decrypt_with_mp4decrypt(type, encrypted_path, kid, key, output_path=None):
     # Get file size for progress tracking
     file_size = os.path.getsize(encrypted_path)
     key_format = f"{kid.lower()}:{key.lower()}"
+
+    # Generate mp4decrypt command
     cmd = [get_mp4decrypt_path(), "--key", key_format, encrypted_path, output_path]
 
-    # Setup progress bar if enabled
-    if SHOW_DECRYPT_PROGRESS:
-        progress_bar = None
-        monitor_thread = None
-        bar_format = (
-            f"{Colors.YELLOW}DECRYPT{Colors.CYAN} {type}{Colors.WHITE}: "
-            f"{Colors.MAGENTA}{{bar:40}} "
-            f"{Colors.LIGHT_GREEN}{{n_fmt}}{Colors.WHITE}/{Colors.CYAN}{{total_fmt}} "
-            f"{Colors.DARK_GRAY}[{Colors.YELLOW}{{elapsed}}{Colors.WHITE} < {Colors.CYAN}{{remaining}}{Colors.DARK_GRAY}] "
-            f"{Colors.WHITE}{{postfix}}"
-        )
-        
-        progress_bar = tqdm(
-            total=100,
-            bar_format=bar_format,
-            unit="",
-            ncols=150
-        )
-        
-        def monitor_output_file():
-            """Monitor output file growth and update progress bar."""
-            last_size = 0
-            while True:
-                if os.path.exists(output_path):
-                    current_size = os.path.getsize(output_path)
-                    if current_size > 0:
-                        progress_percent = min(int((current_size / file_size) * 100), 100)
-                        progress_bar.n = progress_percent
-                        progress_bar.refresh()
-                        
-                        if current_size == last_size and current_size > 0:
-                            break
-                        
-                        last_size = current_size
-                
-                time.sleep(0.1)
-        
-        # Start monitoring thread
-        monitor_thread = threading.Thread(target=monitor_output_file, daemon=True)
-        monitor_thread.start()
+    # Create progress bar with custom format
+    bar_format = (
+        f"{Colors.YELLOW}DECRYPT{Colors.CYAN} {type}{Colors.WHITE}: "
+        f"{Colors.MAGENTA}{{bar:40}} "
+        f"{Colors.LIGHT_GREEN}{{n_fmt}}{Colors.WHITE}/{Colors.CYAN}{{total_fmt}} "
+        f"{Colors.DARK_GRAY}[{Colors.YELLOW}{{elapsed}}{Colors.WHITE} < {Colors.CYAN}{{remaining}}{Colors.DARK_GRAY}] "
+        f"{Colors.WHITE}{{postfix}}"
+    )
+    
+    progress_bar = tqdm(
+        total=100,
+        bar_format=bar_format,
+        unit="",
+        ncols=150
+    )
+    
+    def monitor_output_file():
+        """Monitor output file growth and update progress bar."""
+        last_size = 0
+        while True:
+            if os.path.exists(output_path):
+                current_size = os.path.getsize(output_path)
+                if current_size > 0:
+                    progress_percent = min(int((current_size / file_size) * 100), 100)
+                    progress_bar.n = progress_percent
+                    progress_bar.refresh()
+                    
+                    if current_size == last_size and current_size > 0:
+                        break
+                    
+                    last_size = current_size
+            
+            time.sleep(0.1)
+    
+    # Start monitoring thread
+    monitor_thread = threading.Thread(target=monitor_output_file, daemon=True)
+    monitor_thread.start()
 
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
     except Exception as e:
-        console.print(f"[red] mp4decrypt execution failed: {e}")
+        progress_bar.close()
+        console.print(f"[bold red] mp4decrypt execution failed: {e}[/bold red]")
         return None
+    
+    # Ensure progress bar reaches 100%
+    progress_bar.n = 100
+    progress_bar.refresh()
+    progress_bar.close()
 
     if result.returncode == 0 and os.path.exists(output_path):
 
-        # Cleanup temporary files
+        # Cleanup temporary files if requested
         if CLEANUP_TMP:
             if os.path.exists(encrypted_path):
                 os.remove(encrypted_path)
@@ -110,13 +114,8 @@ def decrypt_with_mp4decrypt(type, encrypted_path, kid, key, output_path=None):
             if temp_dec != output_path and os.path.exists(temp_dec):
                 os.remove(temp_dec)
 
-        # Check if output file is not empty
-        if os.path.getsize(output_path) == 0:
-            console.print(f"[red] Decrypted file is empty: {output_path}")
-            return None
-
         return output_path
 
     else:
-        console.print(f"[red] mp4decrypt failed: {result.stderr}")
+        console.print(f"[bold red] mp4decrypt failed: {result.stderr}")
         return None

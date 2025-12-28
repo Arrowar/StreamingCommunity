@@ -1,6 +1,7 @@
 # 16.03.25
 
 import os
+import time
 from urllib.parse import urlparse, parse_qs
 from typing import Tuple
 
@@ -59,18 +60,17 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
     mp4_name = f"{map_episode_title(scrape_serie.series_name, index_season_selected, index_episode_selected, obj_episode.get('name'))}.{extension_output}"
     mp4_path = os_manager.get_sanitize_path(os.path.join(site_constants.SERIES_FOLDER, scrape_serie.series_name, f"S{index_season_selected}"))
 
-    # Get playback session
+    # Get media ID and main_guid for complete subtitles
     url_id = obj_episode.get('url').split('/')[-1]
-    playback_result = get_playback_session(client, url_id)
+    main_guid = obj_episode.get('main_guid')
     
-    # Check if access was denied (403)
-    if playback_result is None:
-        console.print("[red]✗ Access denied: This episode requires a premium subscription")
-        return None, False
+    # Get playback session
+    mpd_url, mpd_headers, mpd_list_sub, token, audio_locale = get_playback_session(client, url_id, main_guid)
     
-    mpd_url, mpd_headers, mpd_list_sub, token, _ = playback_result
+    # Parse playback token from URL
     parsed_url = urlparse(mpd_url)
     query_params = parse_qs(parsed_url.query)
+    playback_guid = query_params.get('playbackGuid', [token])[0] if query_params.get('playbackGuid') else token
 
     # Download the episode
     dash_process = DASH_Downloader(
@@ -85,7 +85,7 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
     license_headers = mpd_headers.copy()
     license_headers.update({
         "x-cr-content-id": url_id,
-        "x-cr-video-token": query_params['playbackGuid'][0],
+        "x-cr-video-token": playback_guid,
     })
 
     if dash_process.download_and_decrypt(custom_headers=license_headers):
@@ -100,13 +100,10 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
         except Exception: 
             pass
 
-    # Delete episode stream to avoid TOO_MANY_ACTIVE_STREAMS
-    playback_token = token or query_params.get('playbackGuid', [None])[0]
-    if playback_token:
-        client.delete_active_stream(url_id, playback_token)
-        console.print("[dim]Playback session closed")
-
+    # Small delay between episodes to avoid rate limiting
+    time.sleep(1)
     return status['path'], status['stopped']
+
 
 def download_episode(index_season_selected: int, scrape_serie: GetSerieInfo, download_all: bool = False, episode_selection: str = None) -> None:
     """
@@ -116,7 +113,7 @@ def download_episode(index_season_selected: int, scrape_serie: GetSerieInfo, dow
         - index_season_selected (int): Season number
         - scrape_serie (GetSerieInfo): Scraper object with series information
         - download_all (bool): Whether to download all episodes
-        - episode_selection (str, optional): Pre-defined episode selection that bypasses manual input
+        - episode_selection (str, optional): Pre-defined episode selection
     """
     # Get episodes for the selected season
     episodes = scrape_serie.getEpisodeSeasons(index_season_selected)
@@ -154,19 +151,20 @@ def download_episode(index_season_selected: int, scrape_serie: GetSerieInfo, dow
             if stopped:
                 break
 
+
 def download_series(select_season: MediaItem, season_selection: str = None, episode_selection: str = None) -> None:
     """
     Handle downloading a complete series.
 
     Parameters:
         - select_season (MediaItem): Series metadata from search
-        - season_selection (str, optional): Pre-defined season selection that bypasses manual input
-        - episode_selection (str, optional): Pre-defined episode selection that bypasses manual input
+        - season_selection (str, optional): Pre-defined season selection
+        - episode_selection (str, optional): Pre-defined episode selection
     """
     scrape_serie = GetSerieInfo(select_season.url.split("/")[-1])
     seasons_count = scrape_serie.getNumberSeason()
     
-    # If season_selection is provided, use it instead of asking for input
+    # If season_selection is provided, use it
     if season_selection is None:
         index_season_selected = display_seasons_list(scrape_serie.seasons_manager)
     else:

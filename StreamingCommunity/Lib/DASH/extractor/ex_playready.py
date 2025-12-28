@@ -129,6 +129,6 @@ def get_info_prd(cdm_device_path):
     
     console.print(
         f"[cyan]Load PRD: "
-        f"[red]L{device.security_level} [cyan]| "
+        f"[red]SL{device.security_level} [cyan]| "
         f"[yellow]{device.get_name()} "
     )

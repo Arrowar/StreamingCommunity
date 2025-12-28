@@ -14,7 +14,7 @@ from StreamingCommunity.Api.Template import site_constants, MediaItem
 from StreamingCommunity.Lib.DASH.downloader import DASH_Downloader
 
 
-# Logi
+# Logic
 from .util.get_license import get_playback_session, CrunchyrollClient
 
 
@@ -25,7 +25,7 @@ extension_output = config_manager.get("M3U8_CONVERSION", "extension")
 
 def download_film(select_title: MediaItem) -> str:
     """
-    Downloads a film using the provided film ID, title name, and domain.
+    Downloads a film.
 
     Parameters:
         - select_title (MediaItem): The selected media item.
@@ -38,28 +38,21 @@ def download_film(select_title: MediaItem) -> str:
 
     # Initialize Crunchyroll client
     client = CrunchyrollClient()
-    if not client.start():
-        console.print("[red]Failed to authenticate with Crunchyroll.")
-        return None, True
 
-    # Define filename and path for the downloaded video
+    # Define filename and path
     mp4_name = f"{os_manager.get_sanitize_file(select_title.name, select_title.date)}.{extension_output}"
     mp4_path = os.path.join(site_constants.MOVIE_FOLDER, mp4_name.replace(f".{extension_output}", ""))
 
-    # Get playback session
+    # Extract media ID
     url_id = select_title.get('url').split('/')[-1]
-    playback_result = get_playback_session(client, url_id)
     
-    # Check if access was denied (403)
-    if playback_result is None:
-        console.print("[red]✗ Access denied: This content requires a premium subscription")
-        return None, False
+    # Get playback session
+    mpd_url, mpd_headers, mpd_list_sub, token, audio_locale = get_playback_session(client, url_id, None)
     
-    mpd_url, mpd_headers, mpd_list_sub, token, _ = playback_result
-    
-    # Parse playback token from mpd_url
+    # Parse playback token from URL
     parsed_url = urlparse(mpd_url)
     query_params = parse_qs(parsed_url.query)
+    playback_guid = query_params.get('playbackGuid', [token])[0] if query_params.get('playbackGuid') else token
 
     # Download the film
     dash_process = DASH_Downloader(
@@ -74,7 +67,7 @@ def download_film(select_title: MediaItem) -> str:
     license_headers = mpd_headers.copy()
     license_headers.update({
         "x-cr-content-id": url_id,
-        "x-cr-video-token": query_params['playbackGuid'][0],
+        "x-cr-video-token": playback_guid,
     })
 
     if dash_process.download_and_decrypt(custom_headers=license_headers):
@@ -88,11 +81,5 @@ def download_film(select_title: MediaItem) -> str:
             os.remove(status['path'])
         except Exception: 
             pass
-
-    # Delete stream after download to avoid TOO_MANY_ACTIVE_STREAMS
-    playback_token = token or query_params.get('playbackGuid', [None])[0]
-    if playback_token:
-        client.delete_active_stream(url_id, playback_token)
-        console.print("[dim]Playback session closed")
-
+        
     return status['path'], status['stopped']

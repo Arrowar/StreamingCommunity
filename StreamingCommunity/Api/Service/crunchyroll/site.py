@@ -56,7 +56,7 @@ def title_search(query: str) -> int:
     console.print(f"[cyan]Search url: [yellow]{api_url}")
 
     try:
-        response = client._request_with_retry('GET', api_url, params=params)
+        response = client.request('GET', api_url, params=params)
         response.raise_for_status()
 
     except Exception as e:

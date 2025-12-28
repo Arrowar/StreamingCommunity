@@ -20,6 +20,28 @@ media_search_manager = MediaManager()
 table_show_manager = TVShowManager()
 
 
+def determine_type(attributes: dict)-> str:
+    """
+    Determines the item type
+    
+    Parameters:
+        attributes (dict): Dictionary with item info
+
+    Returns:
+        str: Type of the item
+    """
+    episode_count = attributes.get('episodeCount', 0)
+    video_count = attributes.get('videoCount', 0)
+    if episode_count == 0 and  video_count > 1000:
+        return 'channel'
+    elif episode_count > 0:
+        return 'show'
+    elif video_count == 1 and episode_count == 0:
+        return 'movie'
+    else:
+        return "unknown"
+
+
 def title_search(query: str) -> int:
     """
     Search for titles on Discovery+
@@ -58,11 +80,13 @@ def title_search(query: str) -> int:
     data = response.json()
     for element in data.get('included', []):
         element_type = element.get('type')
-        
+        attributes = element.get('attributes', {})
+        type_element = determine_type(attributes)
+     
+        if element_type != type_element:
+            continue
         # Handle both shows and movies
         if element_type in ['show', 'movie']:
-            attributes = element.get('attributes', {})
-            
             if 'name' in attributes:
                 if element_type == 'show':
                     date = attributes.get('newestEpisodeDate', '').split("T")[0]
@@ -77,5 +101,5 @@ def title_search(query: str) -> int:
                     'image': None,
                     'date': date
                 })
-    
+                
     return media_search_manager.get_length()

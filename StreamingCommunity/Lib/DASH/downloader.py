@@ -18,7 +18,7 @@ from StreamingCommunity.Util.http_client import create_client, get_userAgent
 
 
 # Logic class
-from .parser import MPD_Parser, DRMSystem
+from ..MPD import MPD_Parser, DRMSystem
 from .segments import MPD_Segments
 from .decrypt import decrypt_with_mp4decrypt
 from .extractor import get_widevine_keys, get_playready_keys, map_keys_to_representations

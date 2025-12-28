@@ -61,6 +61,10 @@ def get_widevine_keys(pssh: str, license_url: str, cdm_device_path: str, headers
             if 'Content-Type' not in req_headers:
                 req_headers['Content-Type'] = 'application/octet-stream'
 
+            if license_url is None:
+                console.print("[red]License URL is None.")
+                return None
+
             response = requests.post(request_url, headers=req_headers, impersonate="chrome124", **request_kwargs)
 
             if response.status_code != 200:

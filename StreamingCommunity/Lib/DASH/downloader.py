@@ -175,19 +175,40 @@ class DASH_Downloader:
         for sub in self.selected_subs:
             try:
                 language = sub.get('language')
-                fmt = sub.get('format')
-
-                # Download subtitle
-                console.log(f"[cyan]Downloading subtitle[white]: [red]{language} ({fmt})")
-                response = client.get(sub.get('url'))
-                response.raise_for_status()
+                fmt = sub.get('format', 'vtt')
                 
-                # Save subtitle file and make request
+                console.log(f"[cyan]Downloading subtitle[white]: [red]{language} ({fmt})")
+                
+                # Get segment URLs (can be single or multiple)
+                segment_urls = sub.get('segment_urls')
+                single_url = sub.get('url')
+                
+                # Build list of URLs to download
+                urls_to_download = []
+                if segment_urls:
+                    urls_to_download = segment_urls
+                elif single_url:
+                    urls_to_download = [single_url]
+                else:
+                    console.print(f"[yellow]Warning: No URL found for subtitle {language}")
+                    continue
+                
+                # Download all segments
+                all_content = []
+                for seg_url in urls_to_download:
+                    response = client.get(seg_url)
+                    response.raise_for_status()
+                    all_content.append(response.content)
+                
+                # Concatenate all segments
+                final_content = b''.join(all_content)
+                
+                # Save to file
                 sub_filename = f"{language}.{fmt}"
                 sub_path = os.path.join(self.subs_dir, sub_filename)
                 
                 with open(sub_path, 'wb') as f:
-                    f.write(response.content)
+                    f.write(final_content)
                     
             except Exception as e:
                 console.print(f"[red]Error downloading subtitle {language}: {e}")
@@ -212,12 +233,20 @@ class DASH_Downloader:
         self.error = None
         self.stopped = False
 
+        # Check if any representation is protected
+        has_protected_content = any(rep.get('protected', False) for rep in self.parser.representations)
+        
+        # If no protection found, download without decryption
+        if not has_protected_content:
+            console.log("[cyan]Content is not protected, downloading without decryption")
+            return self.download_segments(clear=True)
+        
         # Determine which DRM to use
         drm_type = self._determine_drm_type()
         
         if not drm_type:
-            self.download_segments(clear=True)
-            return True
+            console.print("[red]Content is protected but no DRM system found")
+            return False
 
         # Fetch keys based on DRM type
         keys = self._fetch_drm_keys(drm_type, custom_headers, query_params, key)
@@ -251,15 +280,6 @@ class DASH_Downloader:
         # Download and decrypt video
         video_rep = self.get_representation_by_type("video")
         if video_rep:
-            video_key_info = key_mapping.get("video")
-            if not video_key_info and single_key:
-                console.print("[yellow]Warning: no mapped key found for video; using the single available key.")
-                video_key_info = {"kid": single_key["kid"], "key": single_key["key"], "representation_id": None, "default_kid": None}
-            if not video_key_info:
-                self.error = "No key found for video representation"
-                return False
-
-            console.log(f"[cyan]Using video key: [red]{video_key_info['kid']} [cyan]for representation [yellow]{video_key_info.get('representation_id', 'N/A')}")  
             video_downloader = MPD_Segments(tmp_folder=self.encrypted_dir, representation=video_rep, pssh=self._get_pssh_for_drm(drm_type), custom_headers=custom_headers)
             encrypted_path = video_downloader.get_concat_path(self.encrypted_dir)
 
@@ -289,13 +309,28 @@ class DASH_Downloader:
                     self.current_downloader = None
                     self.current_download_type = None
 
-                # Decrypt video using the mapped key
+                # Decrypt video ONLY if it's protected
                 decrypted_path = os.path.join(self.decrypted_dir, f"video.{EXTENSION_OUTPUT}")
-                result_path = decrypt_with_mp4decrypt("Video", encrypted_path, video_key_info['kid'], video_key_info['key'], output_path=decrypted_path)
+                
+                if video_rep.get('protected', False):
+                    video_key_info = key_mapping.get("video")
+                    if not video_key_info and single_key:
+                        console.print("[yellow]Warning: no mapped key found for video; using the single available key.")
+                        video_key_info = {"kid": single_key["kid"], "key": single_key["key"], "representation_id": None, "default_kid": None}
+                    
+                    if not video_key_info:
+                        self.error = "No key found for video representation"
+                        return False
 
-                if not result_path:
-                    self.error = f"Video decryption failed with key {video_key_info['kid']}"
-                    return False
+                    console.log(f"[cyan]Using video key: [red]{video_key_info['kid']} [cyan]for representation [yellow]{video_key_info.get('representation_id', 'N/A')}")
+                    result_path = decrypt_with_mp4decrypt("Video", encrypted_path, video_key_info['kid'], video_key_info['key'], output_path=decrypted_path)
+
+                    if not result_path:
+                        self.error = f"Video decryption failed with key {video_key_info['kid']}"
+                        return False
+                else:
+                    console.log("[cyan]Video is not protected, copying without decryption")
+                    shutil.copy2(encrypted_path, decrypted_path)
 
         else:
             self.error = "No video found"

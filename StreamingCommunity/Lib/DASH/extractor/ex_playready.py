@@ -66,6 +66,10 @@ def get_playready_keys(pssh: str, license_url: str, cdm_device_path: str, header
             if 'Content-Type' not in req_headers:
                 req_headers['Content-Type'] = 'text/xml; charset=utf-8'
 
+            if license_url is None:
+                console.print("[red]License URL is None.")
+                return None
+
             response = requests.post(request_url, headers=req_headers, impersonate="chrome124", **request_kwargs)
 
             if response.status_code != 200:

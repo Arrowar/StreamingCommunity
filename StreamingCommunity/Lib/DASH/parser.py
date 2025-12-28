@@ -709,44 +709,50 @@ class RepresentationFilter:
     """Filters and deduplicates representations"""
     
     @staticmethod
+    def deduplicate_by_quality(reps: List[Dict[str, Any]], content_type: str) -> List[Dict[str, Any]]:
+        """Keep BEST quality representation per resolution/language"""
+        quality_map = {}
+        
+        # Define grouping key based on content type
+        def get_grouping_key(rep):
+            if content_type == 'video':
+                return (rep['width'], rep['height'])
+            else:  # audio
+                return (rep['language'], rep['audio_sampling_rate'])
+        
+        # Define quality comparison
+        def get_quality_rank(rep):
+            if content_type == 'video':
+                return CodecQuality.get_video_codec_rank(rep['codec'])
+            else:
+                return CodecQuality.get_audio_codec_rank(rep['codec'])
+        
+        # Group and select best quality
+        for rep in reps:
+            key = get_grouping_key(rep)
+            
+            if key not in quality_map:
+                quality_map[key] = rep
+            else:
+                existing = quality_map[key]
+                existing_rank = get_quality_rank(existing)
+                new_rank = get_quality_rank(rep)
+                
+                # Select BEST quality (higher codec rank or higher bandwidth)
+                if new_rank > existing_rank or (new_rank == existing_rank and rep['bandwidth'] > existing['bandwidth']):
+                    quality_map[key] = rep
+        
+        return list(quality_map.values())
+    
+    @staticmethod
     def deduplicate_videos(reps: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Keep best video per resolution"""
-        resolution_map = {}
-        
-        for rep in reps:
-            key = (rep['width'], rep['height'])
-            
-            if key not in resolution_map:
-                resolution_map[key] = rep
-            else:
-                existing = resolution_map[key]
-                existing_rank = CodecQuality.get_video_codec_rank(existing['codec'])
-                new_rank = CodecQuality.get_video_codec_rank(rep['codec'])
-                
-                if new_rank > existing_rank or (new_rank == existing_rank and rep['bandwidth'] > existing['bandwidth']):
-                    resolution_map[key] = rep
-        
-        return list(resolution_map.values())
+        return RepresentationFilter.deduplicate_by_quality(reps, 'video')
     
     @staticmethod
     def deduplicate_audios(reps: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Keep best audio per language"""
-        audio_map = {}
-        
-        for rep in reps:
-            key = (rep['language'], rep['audio_sampling_rate'])
-            
-            if key not in audio_map:
-                audio_map[key] = rep
-            else:
-                existing = audio_map[key]
-                existing_rank = CodecQuality.get_audio_codec_rank(existing['codec'])
-                new_rank = CodecQuality.get_audio_codec_rank(rep['codec'])
-                
-                if new_rank > existing_rank or (new_rank == existing_rank and rep['bandwidth'] > existing['bandwidth']):
-                    audio_map[key] = rep
-        
-        return list(audio_map.values())
+        return RepresentationFilter.deduplicate_by_quality(reps, 'audio')
 
 
 class AdPeriodDetector:
@@ -918,7 +924,6 @@ class MPD_Parser:
         # Extract MPD duration
         duration_str = self.root.get('mediaPresentationDuration')
         self.mpd_duration = DurationUtils.parse_duration(duration_str)
-        self.table_printer = TablePrinter(self.mpd_duration, self.mpd_sub_list)
         
         # Extract PSSH for all DRM types using DRMSystem constants
         self.pssh_widevine = self.protection_handler.extract_pssh(self.root, DRMSystem.WIDEVINE)
@@ -939,6 +944,8 @@ class MPD_Parser:
         
         self._parse_representations()
         self._deduplicate_representations()
+        self._extract_and_merge_subtitles()
+        self.table_printer = TablePrinter(self.mpd_duration, self.mpd_sub_list)
         
         # Auto-save if enabled
         if self.auto_save:
@@ -964,13 +971,12 @@ class MPD_Parser:
             period_id = period.get('id', f'period_{period_idx}')
             period_base_url = self.url_resolver.resolve_base_url(period, base_url)
             
-            # Skip ad periods
-            if AdPeriodDetector.is_ad_period(period_id, period_base_url):
-                continue
-            
-            # Get period duration
+            # Get period duration and protection info
             period_duration_str = period.get('duration')
             period_duration = DurationUtils.parse_duration(period_duration_str) or self.mpd_duration
+            period_protected = self.protection_handler.is_protected(period)
+            period_drm_types = self.protection_handler.get_drm_types(period)
+            period_drm_type = self.protection_handler.get_primary_drm_type(period)
             
             # Parse adaptation sets
             for adapt_set in self.ns_manager.findall(period, 'mpd:AdaptationSet'):
@@ -978,29 +984,44 @@ class MPD_Parser:
                     adapt_set, period_base_url, period_duration
                 )
                 
-                # Aggregate representations by ID
+                # Apply Period-level protection if needed
                 for rep in representations:
-                    rep_id = rep['id']
-                    if rep_id not in rep_aggregator:
-                        rep_aggregator[rep_id] = rep
-                    else:
-                        # Concatenate segment URLs for multi-period content
-                        existing = rep_aggregator[rep_id]
-                        if rep['segment_urls']:
-                            existing['segment_urls'].extend(rep['segment_urls'])
-                        if not existing['init_url'] and rep['init_url']:
-                            existing['init_url'] = rep['init_url']
+                    if not rep.get('protected') and period_protected:
+                        rep['protected'] = True
+                        if not rep.get('drm_types'):
+                            rep['drm_types'] = period_drm_types
+                        if not rep.get('drm_type'):
+                            rep['drm_type'] = period_drm_type
+                
+                # Aggregate representations with unique keys
+                self._aggregate_representations(rep_aggregator, representations)
         
         self.representations = list(rep_aggregator.values())
     
+    def _aggregate_representations(self, aggregator: dict, representations: List[Dict]) -> None:
+        """Aggregate representations with unique keys (helper method)"""
+        for rep in representations:
+            rep_id = rep['id']
+            unique_key = f"{rep_id}_{rep.get('protected', False)}_{rep.get('width', 0)}x{rep.get('height', 0)}"
+            
+            if unique_key not in aggregator:
+                aggregator[unique_key] = rep
+            else:
+                # Concatenate segment URLs for multi-period content
+                existing = aggregator[unique_key]
+                if rep['segment_urls']:
+                    existing['segment_urls'].extend(rep['segment_urls'])
+                if not existing['init_url'] and rep['init_url']:
+                    existing['init_url'] = rep['init_url']
+    
     def _deduplicate_representations(self) -> None:
-        """Remove duplicate representations"""
+        """Remove duplicate representations - KEEP BEST QUALITY regardless of DRM"""
         videos = [r for r in self.representations if r['type'] == 'video']
         audios = [r for r in self.representations if r['type'] == 'audio']
         others = [r for r in self.representations if r['type'] not in ['video', 'audio']]
         
-        deduplicated_videos = RepresentationFilter.deduplicate_videos(videos)
-        deduplicated_audios = RepresentationFilter.deduplicate_audios(audios)
+        deduplicated_videos = RepresentationFilter.deduplicate_by_quality(videos, 'video')
+        deduplicated_audios = RepresentationFilter.deduplicate_by_quality(audios, 'audio')
         
         self.representations = deduplicated_videos + deduplicated_audios + others
     
@@ -1049,10 +1070,9 @@ class MPD_Parser:
         """Select video representation based on resolution preference"""
         video_reps = self.get_resolutions()
         available_resolutions = [f"{rep['width']}x{rep['height']}" for rep in video_reps]
-        
-        # Use parameter or global config
         resolution = (force_resolution or FILTER_CUSTOM_RESOLUTION or "best").lower()
         
+        # Select based on preference
         if resolution == "best":
             selected_video = self.get_best_video()
             filter_custom_resolution = "Best"
@@ -1060,34 +1080,32 @@ class MPD_Parser:
             selected_video = self.get_worst(video_reps)
             filter_custom_resolution = "Worst"
         else:
-            # Try to find specific resolution (e.g., "1080p" -> "1920x1080")
-            selected_video = None
-            for rep in video_reps:
-                rep_res = f"{rep['width']}x{rep['height']}"
-                if (resolution in rep_res.lower() or 
-                    resolution.replace('p', '') in str(rep['height']) or
-                    rep_res.lower() == resolution):
-                    selected_video = rep
-                    break
-            
+            # Try to find specific resolution
+            selected_video = self._find_specific_resolution(video_reps, resolution)
+            filter_custom_resolution = resolution if selected_video else f"{resolution} (fallback to Best)"
             if not selected_video:
-                # Fallback to best if specific resolution not found
                 selected_video = self.get_best_video()
-                filter_custom_resolution = f"{resolution} (fallback to Best)"
-            else:
-                filter_custom_resolution = resolution
         
         downloadable_video = f"{selected_video['width']}x{selected_video['height']}" if selected_video else "N/A"
         return selected_video, available_resolutions, filter_custom_resolution, downloadable_video
+    
+    def _find_specific_resolution(self, video_reps: List[Dict], resolution: str) -> Optional[Dict]:
+        """Find video representation matching specific resolution"""
+        for rep in video_reps:
+            rep_res = f"{rep['width']}x{rep['height']}"
+            if (resolution in rep_res.lower() or 
+                resolution.replace('p', '') in str(rep['height']) or
+                rep_res.lower() == resolution):
+                return rep
+        return None
     
     def select_audio(self, preferred_audio_langs: Optional[List[str]] = None) -> Tuple[Optional[Dict[str, Any]], List[str], str, str]:
         """Select audio representation based on language preference"""
         audio_reps = self.get_audios()
         available_langs = [rep['language'] for rep in audio_reps if rep['language']]
-        
-        # Use parameter or global config
         preferred_langs = preferred_audio_langs or DOWNLOAD_SPECIFIC_AUDIO
         
+        # Try to find preferred language
         selected_audio = None
         filter_custom_audio = "First"
         
@@ -1187,3 +1205,132 @@ class MPD_Parser:
             
         except Exception as e:
             console.print(f"[red]Error during auto-save: {e}")
+    
+    def _extract_and_merge_subtitles(self) -> None:
+        """Extract subtitles from MPD manifest and merge with external mpd_sub_list"""
+        base_url = self.url_resolver.get_initial_base_url(self.root)
+        extracted_subs = []
+        seen_subs = set()
+        
+        periods = self.ns_manager.findall(self.root, './/mpd:Period')
+        
+        for period in periods:
+            period_base_url = self.url_resolver.resolve_base_url(period, base_url)
+            
+            for adapt_set in self.ns_manager.findall(period, 'mpd:AdaptationSet'):
+                if adapt_set.get('contentType', '') != 'text':
+                    continue
+                
+                self._extract_subtitle_from_adaptation_set(
+                    adapt_set, period_base_url, extracted_subs, seen_subs
+                )
+        
+        # Merge with external subtitles
+        self._merge_external_subtitles(extracted_subs)
+    
+    def _extract_subtitle_from_adaptation_set(self, adapt_set, period_base_url, extracted_subs, seen_subs):
+        """Extract subtitle from a single adaptation set (helper method)"""
+        language = adapt_set.get('lang', 'unknown')
+        label_elem = self.ns_manager.find(adapt_set, 'mpd:Label')
+        label = label_elem.text.strip() if label_elem is not None and label_elem.text else None
+        
+        for rep_elem in self.ns_manager.findall(adapt_set, 'mpd:Representation'):
+            mime_type = rep_elem.get('mimeType', '')
+            rep_id = rep_elem.get('id', '')
+            
+            # Determine format
+            sub_format = self._determine_subtitle_format(mime_type)
+            
+            # Try SegmentTemplate first, then BaseURL
+            seg_template = self.ns_manager.find(rep_elem, 'mpd:SegmentTemplate') or self.ns_manager.find(adapt_set, 'mpd:SegmentTemplate')
+            
+            if seg_template is not None:
+                self._process_subtitle_template(seg_template, rep_elem, rep_id, period_base_url, language, label, sub_format, extracted_subs, seen_subs)
+            else:
+                self._process_subtitle_baseurl(rep_elem, period_base_url, language, label, sub_format, rep_id, extracted_subs, seen_subs)
+    
+    def _determine_subtitle_format(self, mime_type: str) -> str:
+        """Determine subtitle format from mimeType"""
+        mime_lower = mime_type.lower()
+        if 'vtt' in mime_lower:
+            return 'vtt'
+        elif 'ttml' in mime_lower or 'xml' in mime_lower:
+            return 'ttml'
+        elif 'srt' in mime_lower:
+            return 'srt'
+        return 'vtt'
+    
+    def _process_subtitle_template(self, seg_template, rep_elem, rep_id, period_base_url, language, label, sub_format, extracted_subs, seen_subs):
+        """Process subtitle with SegmentTemplate"""
+        media_template = seg_template.get('media')
+        if not media_template:
+            return
+        
+        number_list, time_list = SegmentTimelineParser(self.ns_manager).parse(seg_template, 1)
+        rep_base = self.url_resolver.resolve_base_url(rep_elem, period_base_url)
+        
+        # Build segment URLs
+        segment_urls = []
+        if '$Time$' in media_template and time_list:
+            segment_urls = [URLBuilder.build_url(rep_base, media_template, rep_id=rep_id, time=t) for t in time_list]
+        elif '$Number' in media_template and number_list:
+            segment_urls = [URLBuilder.build_url(rep_base, media_template, rep_id=rep_id, number=n) for n in number_list]
+        else:
+            segment_urls = [URLBuilder.build_url(rep_base, media_template, rep_id=rep_id)]
+        
+        if not segment_urls:
+            return
+        
+        # Create subtitle entry
+        first_url = segment_urls[0]
+        unique_key = f"{language}_{label}_{first_url}"
+        
+        if unique_key not in seen_subs:
+            seen_subs.add(unique_key)
+            extracted_subs.append({
+                'language': language,
+                'label': label or language,
+                'format': sub_format,
+                'url': segment_urls[0] if len(segment_urls) == 1 else None,
+                'segment_urls': segment_urls if len(segment_urls) > 1 else None,
+                'id': rep_id
+            })
+    
+    def _process_subtitle_baseurl(self, rep_elem, period_base_url, language, label, sub_format, rep_id, extracted_subs, seen_subs):
+        """Process subtitle with BaseURL"""
+        base_url_elem = self.ns_manager.find(rep_elem, 'mpd:BaseURL')
+        if base_url_elem is None or not base_url_elem.text:
+            return
+        
+        url = urljoin(period_base_url, base_url_elem.text.strip())
+        unique_key = f"{language}_{label}_{url}"
+        
+        if unique_key not in seen_subs:
+            seen_subs.add(unique_key)
+            extracted_subs.append({
+                'language': language,
+                'label': label or language,
+                'format': sub_format,
+                'url': url,
+                'id': rep_id
+            })
+    
+    def _merge_external_subtitles(self, extracted_subs):
+        """Merge extracted subtitles with external list"""
+        existing_keys = set()
+        
+        # Track existing subtitles
+        for sub in self.mpd_sub_list:
+            if sub.get('language'):
+                first_url = sub.get('segment_urls', [None])[0] if sub.get('segment_urls') else sub.get('url', '')
+                sub_key = f"{sub['language']}_{sub.get('label')}_{first_url}"
+                existing_keys.add(sub_key)
+        
+        # Add new subtitles
+        for sub in extracted_subs:
+            first_url = sub.get('segment_urls', [None])[0] if sub.get('segment_urls') else sub.get('url', '')
+            sub_key = f"{sub['language']}_{sub.get('label')}_{first_url}"
+            
+            if sub_key not in existing_keys:
+                self.mpd_sub_list.append(sub)
+                existing_keys.add(sub_key)

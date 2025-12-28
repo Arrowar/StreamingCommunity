@@ -116,8 +116,8 @@ class GetSerieInfo:
         # Sort by number then title
         season_rows.sort(key=lambda r: (r["raw_number"], r["title"] or ""))
         
-        # Add to manager
-        for row in season_rows:
+        # Add to manager with sequential indexing
+        for idx, row in enumerate(season_rows):
             self.seasons_manager.add_season({
                 'number': row["raw_number"],
                 'name': row["title"],
@@ -127,7 +127,7 @@ class GetSerieInfo:
 
     def _fetch_episodes_for_season(self, season_index: int) -> List[Dict]:
         """Fetch and cache episodes for a season - SINGLE API CALL per season."""
-        season = self.seasons_manager.get_season_by_number(season_index)
+        season = self.seasons_manager.seasons[season_index]
         response = _fetch_api_episodes(season.id, self.client, self.params)
         
         # Get response json
@@ -236,7 +236,7 @@ class GetSerieInfo:
         if not episode_id:
             return episode
         
-       # Update URL to preferred language if available
+        # Update URL to preferred language if available
         audio_locales, urls_by_locale, main_guid = self._get_episode_audio_locales(episode_id)
         
         # Store main_guid for complete subtitles access

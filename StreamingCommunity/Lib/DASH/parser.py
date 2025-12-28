@@ -968,7 +968,7 @@ class MPD_Parser:
         periods = self.ns_manager.findall(self.root, './/mpd:Period')
         
         for period_idx, period in enumerate(periods):
-            period_id = period.get('id', f'period_{period_idx}')
+            #period_id = period.get('id', f'period_{period_idx}')
             period_base_url = self.url_resolver.resolve_base_url(period, base_url)
             
             # Get period duration and protection info

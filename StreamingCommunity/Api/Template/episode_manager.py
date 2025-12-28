@@ -290,41 +290,61 @@ def display_episodes_list(episodes_manager) -> str:
     # Set up table for displaying episodes
     table_show_manager = TVShowManager()
 
-    # Check if any episode has a non-empty category
+    # Check if any episode has non-empty fields
     has_category = False
+    has_number = False
+    has_duration = False
+    
     for media in episodes_manager:
         category = media.get('category') if isinstance(media, dict) else getattr(media, 'category', None)
+        number = media.get('number') if isinstance(media, dict) else getattr(media, 'number', None)
+        duration = media.get('duration') if isinstance(media, dict) else getattr(media, 'duration', None)
+        
         if category is not None and str(category).strip() != '':
             has_category = True
-            break
+        if number is not None and str(number).strip() != '':
+            has_number = True
+        if duration is not None and str(duration).strip() != '':
+            has_duration = True
 
     # Add columns to the table
     column_info = {
         "Index": {'color': 'red'},
-        "Name": {'color': 'magenta'},
     }
+    
+    if has_number:
+        column_info["Number"] = {'color': 'cyan'}
+    
+    column_info["Name"] = {'color': 'magenta'}
     
     if has_category:
         column_info["Category"] = {'color': 'green'}
     
-    column_info["Duration"] = {'color': 'blue'}
+    if has_duration:
+        column_info["Duration"] = {'color': 'blue'}
     
     table_show_manager.add_column(column_info)
 
     # Populate the table with episodes information
     for i, media in enumerate(episodes_manager):
         name = media.get('name') if isinstance(media, dict) else getattr(media, 'name', None)
+        number = media.get('number') if isinstance(media, dict) else getattr(media, 'number', None)
         duration = media.get('duration') if isinstance(media, dict) else getattr(media, 'duration', None)
         category = media.get('category') if isinstance(media, dict) else getattr(media, 'category', None)
 
         episode_info = {
             'Index': str(i + 1),
             'Name': name,
-            'Duration': duration,
         }
+        
+        if has_number:
+            episode_info['Number'] = number
         
         if has_category:
             episode_info['Category'] = category
+        
+        if has_duration:
+            episode_info['Duration'] = duration
 
         table_show_manager.add_tv_show(episode_info)
 

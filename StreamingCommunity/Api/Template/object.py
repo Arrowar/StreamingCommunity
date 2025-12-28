@@ -69,7 +69,7 @@ class Season:
         self.episodes: EpisodeManager = EpisodeManager()
 
     def __str__(self):
-        return f"Season(id={self.id}, number={self.number}, name='{self.name}', episodes={self.episodes.length()})"
+        return f"Season(id={self.id}, number={self.number}, name='{self.name}', episodes={self.episodes.__len__()})"
 
 class SeasonManager:
     def __init__(self):

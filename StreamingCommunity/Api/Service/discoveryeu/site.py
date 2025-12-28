@@ -63,7 +63,7 @@ def title_search(query: str) -> int:
         if element_type in ['show', 'movie']:
             attributes = element.get('attributes', {})
             
-            if 'name' in attributes and 'Free' in str(element.get('relationships',{}).get('contentPackages',{}).get('data',[])):
+            if 'name' in attributes:
                 if element_type == 'show':
                     date = attributes.get('newestEpisodeDate', '').split("T")[0]
                 else:

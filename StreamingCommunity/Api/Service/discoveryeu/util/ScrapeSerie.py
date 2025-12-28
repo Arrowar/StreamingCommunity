@@ -90,7 +90,7 @@ class GetSerieInfo:
             episodes = []
             
             for element in data.get('included', []):
-                if element.get('type') == 'video' and 'Free' in str(element.get('relationships',{}).get('contentPackages',{}).get('data',[])):
+                if element.get('type') == 'video':
                     attributes = element.get('attributes', {})
                     if 'episodeNumber' in attributes:
                         episodes.append({

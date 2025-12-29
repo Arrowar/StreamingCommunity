@@ -30,15 +30,11 @@ from StreamingCommunity.Lib.FFmpeg.merge import join_audios, join_video, join_su
 
 
 # Config
-DOWNLOAD_SPECIFIC_SUBTITLE = config_manager.get_list('M3U8_DOWNLOAD', 'specific_list_subtitles')
-MERGE_SUBTITLE = config_manager.get_bool('M3U8_DOWNLOAD', 'merge_subs')
-CLEANUP_TMP = config_manager.get_bool('M3U8_DOWNLOAD', 'cleanup_tmp_folder')
-EXTENSION_OUTPUT = config_manager.get("M3U8_CONVERSION", "extension")
-
-
-# Variable
 console = Console()
-extension_output = config_manager.get("M3U8_CONVERSION", "extension")
+DOWNLOAD_SPECIFIC_SUBTITLE = config_manager.config.get_list('M3U8_DOWNLOAD', 'specific_list_subtitles')
+MERGE_SUBTITLE = config_manager.config.get_bool('M3U8_DOWNLOAD', 'merge_subs')
+CLEANUP_TMP = config_manager.config.get_bool('M3U8_DOWNLOAD', 'cleanup_tmp_folder')
+EXTENSION_OUTPUT = config_manager.config.get("M3U8_CONVERSION", "extension")
 
 
 class DASH_Downloader:
@@ -399,23 +395,21 @@ class DASH_Downloader:
         Determine which DRM type to use based on available PSSH and preference.
         Returns: 'widevine', 'playready', or None
         """
-        has_widevine = bool(self.parser.pssh_widevine)
-        has_playready = bool(self.parser.pssh_playready)
+        # Check if DRM types are available from parsed representations
+        available_drm_types = self.parser.available_drm_types or []
         
-        if not has_widevine and not has_playready:
+        if not available_drm_types:
             return None
         
-        if self.PREFERRED_DRM == DRMSystem.WIDEVINE and has_widevine:
-            console.log("[cyan]Using Widevine DRM")
-            return DRMSystem.WIDEVINE
-        elif self.PREFERRED_DRM == DRMSystem.PLAYREADY and has_playready:
-            console.log("[cyan]Using PlayReady DRM")
-            return DRMSystem.PLAYREADY
-        else:
-            console.print(f"[red]Drm not supported or not found for preferred type: {self.PREFERRED_DRM}")
-            sys.exit(0)
+        # Check if preferred DRM is available
+        if self.PREFERRED_DRM in available_drm_types:
+            console.log(f"[cyan]Using {self.PREFERRED_DRM.upper()} DRM")
+            return self.PREFERRED_DRM
         
-        return None
+        # Fallback to first available DRM type
+        fallback_drm = available_drm_types[0]
+        console.log(f"[yellow]Preferred DRM {self.PREFERRED_DRM.upper()} not available, using {fallback_drm.upper()}")
+        return fallback_drm
     
     def _get_pssh_for_drm(self, drm_type: str) -> Optional[str]:
         """Get PSSH for specific DRM type"""
@@ -603,7 +597,7 @@ class DASH_Downloader:
             if existing_sub_tracks:
 
                 # Create temporary file for subtitle merge
-                temp_output = output_file.replace(f'.{extension_output}', f'_temp.{extension_output}')
+                temp_output = output_file.replace(f'.{EXTENSION_OUTPUT}', f'_temp.{EXTENSION_OUTPUT}')
                 
                 try:
                     final_file = join_subtitle(

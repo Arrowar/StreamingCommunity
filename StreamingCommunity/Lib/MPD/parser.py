@@ -26,9 +26,9 @@ from .handlers import (ContentProtectionHandler, RepresentationParser, Represent
 
 # Variables
 console = Console()
-max_timeout = config_manager.get_int('REQUESTS', 'timeout')
-FILTER_CUSTOM_RESOLUTION = str(config_manager.get('M3U8_CONVERSION', 'force_resolution')).strip().lower()
-DOWNLOAD_SPECIFIC_AUDIO = config_manager.get_list('M3U8_DOWNLOAD', 'specific_list_audio')
+max_timeout = config_manager.config.get_int('REQUESTS', 'timeout')
+FILTER_CUSTOM_RESOLUTION = str(config_manager.config.get('M3U8_CONVERSION', 'force_resolution')).strip().lower()
+DOWNLOAD_SPECIFIC_AUDIO = config_manager.config.get_list('M3U8_DOWNLOAD', 'specific_list_audio')
 
 
 class MPD_Parser:
@@ -65,7 +65,7 @@ class MPD_Parser:
         duration_str = self.root.get('mediaPresentationDuration')
         self.mpd_duration = DurationUtils.parse_duration(duration_str)
         
-        # Extract PSSH for all DRM types using DRMSystem constants
+        # Extract PSSH for all DRM types
         self.pssh_widevine = self.protection_handler.extract_pssh(self.root, DRMSystem.WIDEVINE)
         self.pssh_playready = self.protection_handler.extract_pssh(self.root, DRMSystem.PLAYREADY)
         self.pssh_fairplay = self.protection_handler.extract_pssh(self.root, DRMSystem.FAIRPLAY)
@@ -79,7 +79,6 @@ class MPD_Parser:
         if self.pssh_fairplay:
             self.available_drm_types.append(DRMSystem.FAIRPLAY)
         
-        # Legacy support: set pssh to widevine by default
         self.pssh = self.pssh_widevine or self.pssh_playready or self.pssh_fairplay
         
         self._parse_representations()

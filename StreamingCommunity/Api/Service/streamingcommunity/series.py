@@ -32,8 +32,8 @@ from StreamingCommunity.Api.Player.vixcloud import VideoSource
 # Variable
 msg = Prompt()
 console = Console()
-extension_output = config_manager.get("M3U8_CONVERSION", "extension")
-use_other_api = config_manager.get("SITE_LOGIN", "tmdb_api_key") != ""
+extension_output = config_manager.config.get("M3U8_CONVERSION", "extension")
+use_other_api = config_manager.login.get("TMDB", "api_key") != ""
 
 
 def download_video(index_season_selected: int, index_episode_selected: int, scrape_serie: GetSerieInfo, video_source: VideoSource) -> Tuple[str,bool]:

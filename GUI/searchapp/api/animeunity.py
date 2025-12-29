@@ -25,7 +25,7 @@ class AnimeUnityAPI(BaseStreamingAPI):
     
     def _load_config(self):
         """Load site configuration."""
-        self.base_url = (config_manager.get_site("animeunity", "full_url") or "").rstrip("/")
+        self.base_url = config_manager.domain.get("animeunity", "full_url").rstrip("/")
     
     def _get_search_fn(self):
         """Lazy load the search function."""

@@ -23,7 +23,7 @@ from StreamingCommunity.Util.os import get_wvd_path
 
 
 # Logic class
-from .decrypt import M3U8_Decryption
+from ..DASH.extractor import ClearKey
 from .estimator import M3U8_Ts_Estimator
 from .parser import M3U8_Parser
 from .url_fixer import M3U8_UrlFix
@@ -36,17 +36,14 @@ from ..DASH.decrypt import decrypt_with_mp4decrypt
 
 
 # Config
-REQUEST_MAX_RETRY = config_manager.get_int('REQUESTS', 'max_retry')
-REQUEST_VERIFY = config_manager.get_bool('REQUESTS', 'verify')
-DEFAULT_VIDEO_WORKERS = config_manager.get_int('M3U8_DOWNLOAD', 'default_video_workers')
-DEFAULT_AUDIO_WORKERS = config_manager.get_int('M3U8_DOWNLOAD', 'default_audio_workers')
-MAX_TIMEOUT = config_manager.get_int("REQUESTS", "timeout")
-SEGMENT_MAX_TIMEOUT = config_manager.get_int("M3U8_DOWNLOAD", "segment_timeout")
-ENABLE_RETRY = config_manager.get_bool('M3U8_DOWNLOAD', 'enable_retry')
-
-
-# Variable
 console = Console()
+REQUEST_MAX_RETRY = config_manager.config.get_int('REQUESTS', 'max_retry')
+REQUEST_VERIFY = config_manager.config.get_bool('REQUESTS', 'verify')
+DEFAULT_VIDEO_WORKERS = config_manager.config.get_int('M3U8_DOWNLOAD', 'default_video_workers')
+DEFAULT_AUDIO_WORKERS = config_manager.config.get_int('M3U8_DOWNLOAD', 'default_audio_workers')
+MAX_TIMEOUT = config_manager.config.get_int("REQUESTS", "timeout")
+SEGMENT_MAX_TIMEOUT = config_manager.config.get_int("M3U8_DOWNLOAD", "segment_timeout")
+ENABLE_RETRY = config_manager.config.get_bool('M3U8_DOWNLOAD', 'enable_retry')
 
 
 class M3U8_Segments:
@@ -71,7 +68,7 @@ class M3U8_Segments:
         self.enable_retry = ENABLE_RETRY
 
         # Util class
-        self.decryption: M3U8_Decryption = None 
+        self.decryption: ClearKey = None 
         self.class_ts_estimator = M3U8_Ts_Estimator(0, self) 
         self.class_url_fixer = M3U8_UrlFix(url)
 
@@ -121,7 +118,7 @@ class M3U8_Segments:
 
         if m3u8_parser.keys:
             key = self.__get_key__(m3u8_parser)
-            self.decryption = M3U8_Decryption(key, m3u8_parser.keys.get('iv'), m3u8_parser.keys.get('method'), m3u8_parser.keys.get('pssh'))
+            self.decryption = ClearKey(key, m3u8_parser.keys.get('iv'), m3u8_parser.keys.get('method'), m3u8_parser.keys.get('pssh'))
 
         segments = [
             self.class_url_fixer.generate_full_url(seg) if "http" not in seg else seg

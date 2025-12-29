@@ -26,7 +26,7 @@ logging.info("[cyan]Decryption use: Cryptodomex")
 
 
 
-class M3U8_Decryption:
+class ClearKey:
     def __init__(self, key: bytes, iv: bytes, method: str, pssh: bytes = None) -> None:
         """
         Initialize the M3U8_Decryption object.

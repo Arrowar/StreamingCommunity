@@ -38,10 +38,10 @@ def get_widevine_keys(pssh: str, license_url: str, cdm_device_path: str, headers
     device = Device.load(cdm_device_path)
     cdm = Cdm.from_device(device)
     session_id = cdm.open()
-    console.log(f"[cyan]Session ID: [green]{session_id.hex()}")
+    console.log(f"[cyan]Session ID: [green]{session_id}")
 
     try:
-        console.log(f"[cyan]PSSH (WV): [green]{pssh}")
+        console.log(f"[cyan]PSSH (WV): [green]{pssh[:30]}..." if len(pssh) > 30 else f"[cyan]PSSH (WV): [green]{pssh}")
         challenge = cdm.get_license_challenge(session_id, PSSH(pssh))
         
         # With request license

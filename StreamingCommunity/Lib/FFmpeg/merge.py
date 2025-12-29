@@ -22,16 +22,14 @@ from ..HLS.parser import M3U8_Codec
 
 
 # Config
-DEBUG_MODE = config_manager.get_bool("DEFAULT", "debug")
-DEBUG_FFMPEG = "debug" if DEBUG_MODE else "error"
-USE_GPU = config_manager.get_bool("M3U8_CONVERSION", "use_gpu")
-PARAM_VIDEO = config_manager.get_list("M3U8_CONVERSION", "param_video")
-PARAM_AUDIO = config_manager.get_list("M3U8_CONVERSION", "param_audio")
-PARAM_FINAL = config_manager.get_list("M3U8_CONVERSION", "param_final")
-
-
-# Variable
 console = Console()
+DEBUG_MODE = config_manager.config.get_bool("DEFAULT", "debug")
+DEBUG_FFMPEG = "debug" if DEBUG_MODE else "error"
+USE_GPU = config_manager.config.get_bool("M3U8_CONVERSION", "use_gpu")
+PARAM_VIDEO = config_manager.config.get_list("M3U8_CONVERSION", "param_video")
+PARAM_AUDIO = config_manager.config.get_list("M3U8_CONVERSION", "param_audio")
+PARAM_FINAL = config_manager.config.get_list("M3U8_CONVERSION", "param_final")
+SUBTITLE_DISPOSITION = config_manager.config.get_bool("M3U8_CONVERSION", "subtitle_disposition")
 
 
 def add_encoding_params(ffmpeg_cmd: List[str]):
@@ -186,34 +184,35 @@ def join_subtitle(video_path: str, subtitles_list: List[Dict[str, str]], out_pat
         subtitle_codec = 'copy'
     else:
         subtitle_codec = 'copy'
-
+    
     # Add subtitle input files first
     for subtitle in subtitles_list:
         ffmpeg_cmd += ["-i", subtitle['path']]
-
+    
     # Add maps for video and audio streams
     ffmpeg_cmd += ["-map", "0:v", "-map", "0:a"]
-
+    
     # Add subtitle maps and metadata
     for idx, subtitle in enumerate(subtitles_list):
         ffmpeg_cmd += ["-map", f"{idx + 1}:s"]
         ffmpeg_cmd += ["-metadata:s:s:{}".format(idx), "title={}".format(subtitle['language'])]
-
-    # For subtitles, we always use copy for video/audio
-    ffmpeg_cmd.extend(['-c:v', 'copy', '-c:a', 'copy'])
     
-    # Add subtitle codec based on output format
-    ffmpeg_cmd.extend(['-c:s', subtitle_codec])
-
+    # For subtitles, we always use copy for video/audio
+    ffmpeg_cmd.extend(['-c:v', 'copy', '-c:a', 'copy', '-c:s', subtitle_codec])
+    
+    # Set disposition for first subtitle if enabled
+    if SUBTITLE_DISPOSITION and len(subtitles_list) > 0:
+        ffmpeg_cmd.extend(['-disposition:s:0', 'default+forced'])
+    
     # Overwrite
     ffmpeg_cmd += [out_path, "-y"]
     logging.info(f"FFMPEG Command: {' '.join(ffmpeg_cmd)} \n")
-
+    
     # Run join
     if DEBUG_MODE:
         subprocess.run(ffmpeg_cmd, check=True)
     else:
         capture_ffmpeg_real_time(ffmpeg_cmd, "[yellow]FFMPEG [cyan]Join subtitle")
-        print()
-
+    
+    print()
     return out_path

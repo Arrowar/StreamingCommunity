@@ -263,7 +263,7 @@ def get_wvd_path():
 
 def get_prd_path():
     """Returns the path of prd."""
-    return os_summary.wvd_path
+    return os_summary.prd_path
 
 def get_megatools_path():
     """Returns the path of megatools."""

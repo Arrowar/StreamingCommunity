@@ -15,9 +15,8 @@ from StreamingCommunity.Util.config_json import config_manager
 
 # Variable
 console = Console()
-api_key = config_manager.get("SITE_LOGIN", "tmdb_api_key")
-MAX_TIMEOUT = config_manager.get_int("REQUESTS", "timeout")
-
+api_key = config_manager.login.get("TMDB", "api_key")
+MAX_TIMEOUT = config_manager.config.get_int("REQUESTS", "timeout")
 
 
 class TheMovieDB:

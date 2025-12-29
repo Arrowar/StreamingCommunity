@@ -18,8 +18,8 @@ from StreamingCommunity.Util import config_manager, Colors
 
 # Variable
 console = Console()
-extension_output = config_manager.get("M3U8_CONVERSION", "extension")
-CLEANUP_TMP = config_manager.get_bool('M3U8_DOWNLOAD', 'cleanup_tmp_folder')
+extension_output = config_manager.config.get("M3U8_CONVERSION", "extension")
+CLEANUP_TMP = config_manager.config.get_bool('M3U8_DOWNLOAD', 'cleanup_tmp_folder')
 
 
 def decrypt_with_mp4decrypt(type, encrypted_path, kid, key, output_path=None):

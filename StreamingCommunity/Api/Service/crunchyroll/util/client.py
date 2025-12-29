@@ -22,17 +22,16 @@ PLAY_SERVICE_URL = "https://cr-play-service.prd.crunchyrollsvc.com"
 
 class CrunchyrollClient:
     def __init__(self, locale: str = "it-IT", **kwargs) -> None:
-        config = config_manager.get_dict("SITE_LOGIN", "crunchyroll")
-        self.device_id = config.get('device_id')
-        self.etp_rt = config.get('etp_rt')
+        self.device_id = config_manager.login.get('crunchyroll', 'device_id')
+        self.etp_rt = config_manager.login.get('crunchyroll', 'etp_rt')
         self.locale = locale
 
         self.web_base_url = BASE_URL
-        self.api_base_url = self._resolve_api_base_url(config)
+        self.api_base_url = self._resolve_api_base_url()
         self.play_service_url = PLAY_SERVICE_URL
-        self.token_cache_path = self._resolve_token_cache_path(config)
-        self.token_cache_enabled = bool(config.get("token_cache", True)) and bool(self.token_cache_path)
-        self.user_agent = config.get("user_agent") or None
+        self.token_cache_path = self._resolve_token_cache_path()
+        self.token_cache_enabled = True
+        self.user_agent = None
         
         self.access_token: Optional[str] = None
         self.refresh_token: Optional[str] = None
@@ -48,38 +47,15 @@ class CrunchyrollClient:
         self.session = create_client_curl(headers=self._get_headers(), cookies=self._get_cookies())
 
     @staticmethod
-    def _resolve_api_base_url(config: Dict) -> str:
-        """Determine the correct API base URL from configuration."""
-        api_base = config.get("api_base") or config.get("api_base_url")
-        if isinstance(api_base, str):
-            value = api_base.strip()
-            if value:
-                lowered = value.lower()
-                if lowered in ("www", "web", "default", "auto"):
-                    return BASE_URL
-                if lowered in ("beta", "beta-api", "beta_api", "betaapi"):
-                    return API_BETA_BASE_URL
-                if lowered.startswith("http://") or lowered.startswith("https://"):
-                    return value.rstrip("/")
-        
-        if config.get("use_beta_api"):
-            return API_BETA_BASE_URL
-        
-        return BASE_URL
+    def _resolve_api_base_url() -> str:
+        """Determine the correct API base URL - defaults to beta API."""
+        return API_BETA_BASE_URL
 
     @staticmethod
-    def _resolve_token_cache_path(config: Dict) -> Optional[str]:
-        """Resolve absolute path for token cache file from configuration."""
-        if config.get("token_cache") is False:
-            return None
-        
-        raw = config.get("token_cache_path")
-        path = raw.strip() if isinstance(raw, str) and raw.strip() else os.path.join(".cache", "crunchyroll_token.json")
-        
-        if not os.path.isabs(path):
-            base_dir = os.path.dirname(getattr(config_manager, "file_path", os.getcwd()))
-            path = os.path.join(base_dir, path)
-        
+    def _resolve_token_cache_path() -> str:
+        """Resolve absolute path for token cache file - always enabled."""
+        base_dir = os.getcwd()
+        path = os.path.join(base_dir, ".cache", "crunchyroll_token.json")
         return path
 
     @staticmethod
@@ -159,11 +135,14 @@ class CrunchyrollClient:
 
     def _save_token_cache(self) -> None:
         """Save current authentication tokens to cache file."""
-        if not self.token_cache_enabled or not self.token_cache_path:
+        if not self.token_cache_path:
             return
         
         try:
-            os.makedirs(os.path.dirname(self.token_cache_path), exist_ok=True)
+            cache_dir = os.path.dirname(self.token_cache_path)
+            if cache_dir:
+                os.makedirs(cache_dir, exist_ok=True)
+            
             payload = {
                 "device_id": self.device_id,
                 "account_id": self.account_id,
@@ -269,7 +248,7 @@ class CrunchyrollClient:
         self.refresh_token = result.get('refresh_token') or self.refresh_token
         
         expires_in = int(result.get('expires_in', 3600) or 3600)
-        self._set_expires_at(expires_in=expires_in)
+        self._set_expires_at(expiresIn=expires_in)
         self._save_token_cache()
 
     def _ensure_token(self) -> None:
@@ -295,7 +274,7 @@ class CrunchyrollClient:
         merged_headers = {**self._get_headers(), **headers}
         kwargs['headers'] = merged_headers
         kwargs.setdefault('cookies', self._get_cookies())
-        kwargs.setdefault('timeout', config_manager.get_int('REQUESTS', 'timeout', default=30))
+        kwargs.setdefault('timeout', config_manager.config.get_int('REQUESTS', 'timeout', default=30))
         
         response = self.session.request(method, url, **kwargs)
         

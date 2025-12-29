@@ -134,6 +134,7 @@ class NamespaceManager:
             # Use 'mpd' as default prefix for the main namespace
             nsmap['mpd'] = root.nsmap.get(None) or 'urn:mpeg:dash:schema:mpd:2011'
             nsmap['cenc'] = 'urn:mpeg:cenc:2013'
+            nsmap['mspr'] = 'urn:microsoft:playready'
 
             # Add other namespaces if present
             for prefix, uri in root.nsmap.items():
@@ -144,6 +145,7 @@ class NamespaceManager:
             # Fallback to default DASH namespace
             nsmap['mpd'] = 'urn:mpeg:dash:schema:mpd:2011'
             nsmap['cenc'] = 'urn:mpeg:cenc:2013'
+            nsmap['mspr'] = 'urn:microsoft:playready'
         return nsmap
     
     def find(self, element: etree._Element, path: str) -> Optional[etree._Element]:

@@ -15,7 +15,6 @@ from .util.ScrapeSerie import ScrapeSerieAnime
 from StreamingCommunity.Api.Player.vixcloud import VideoSourceAnime
 
 
-
 # Variable
 console = Console()
 

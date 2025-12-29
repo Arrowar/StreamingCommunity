@@ -35,7 +35,7 @@ class ContentProtectionHandler:
         return False
     
     def get_drm_types(self, element: etree._Element) -> List[str]:
-        """Determine all DRM types from ContentProtection elements."""
+        """Determine all DRM types from ContentProtection elements that actually have PSSH data."""
         drm_types = []
         
         for cp in self.ns.findall(element, 'mpd:ContentProtection'):
@@ -43,9 +43,23 @@ class ContentProtectionHandler:
             drm_type = DRMSystem.from_uuid(scheme_id)
             
             if drm_type and drm_type not in drm_types:
-                drm_types.append(drm_type)
+                if self._has_pssh_data(cp, drm_type):
+                    drm_types.append(drm_type)
         
         return drm_types
+    
+    def _has_pssh_data(self, cp_element: etree._Element, drm_type: str) -> bool:
+        """Check if ContentProtection element has actual PSSH data for the DRM type."""
+        pssh = self.ns.find(cp_element, 'cenc:pssh')
+        if pssh is not None and pssh.text and pssh.text.strip():
+            return True
+        
+        # For PlayReady, check mspr:pro
+        if drm_type == DRMSystem.PLAYREADY:
+            pro = self.ns.find(cp_element, 'mspr:pro')
+            if pro is not None and pro.text and pro.text.strip():
+                return True
+        return False
     
     def get_primary_drm_type(self, element: etree._Element, preferred_drm: str = DRMSystem.WIDEVINE) -> Optional[str]:
         """
@@ -141,8 +155,13 @@ class ContentProtectionHandler:
             scheme_id = (cp.get('schemeIdUri') or '').lower()
             if target_uuid in scheme_id:
                 pssh = self.ns.find(cp, 'cenc:pssh')
-                if pssh is not None and pssh.text:
+                if pssh is not None and pssh.text and pssh.text.strip():
                     return pssh.text.strip()
+                
+                if drm_type == DRMSystem.PLAYREADY:
+                    pro = self.ns.find(cp, 'mspr:pro')
+                    if pro is not None and pro.text and pro.text.strip():
+                        return pro.text.strip()
         
         return None
 

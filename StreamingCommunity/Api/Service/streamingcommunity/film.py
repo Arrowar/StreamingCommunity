@@ -20,8 +20,8 @@ from StreamingCommunity.Api.Player.vixcloud import VideoSource
 
 # Variable
 console = Console()
-extension_output = config_manager.get("M3U8_CONVERSION", "extension")
-use_other_api = config_manager.get("SITE_LOGIN", "tmdb_api_key") != ""
+extension_output = config_manager.config.get("M3U8_CONVERSION", "extension")
+use_other_api = config_manager.login.get("TMDB", "api_key") != ""
 
 
 def download_film(select_title: MediaItem) -> str:

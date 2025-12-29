@@ -25,16 +25,13 @@ from ..MP4 import MP4_Downloader
 
 
 # Config
-REQUEST_MAX_RETRY = config_manager.get_int('REQUESTS', 'max_retry')
-DEFAULT_VIDEO_WORKERS = config_manager.get_int('M3U8_DOWNLOAD', 'default_video_workers')
-DEFAULT_AUDIO_WORKERS = config_manager.get_int('M3U8_DOWNLOAD', 'default_audio_workers')
-SEGMENT_MAX_TIMEOUT = config_manager.get_int("M3U8_DOWNLOAD", "segment_timeout")
-ENABLE_RETRY = config_manager.get_bool('M3U8_DOWNLOAD', 'enable_retry')
-CLEANUP_TMP = config_manager.get_bool('M3U8_DOWNLOAD', 'cleanup_tmp_folder')
-
-
-# Variable
 console = Console()
+REQUEST_MAX_RETRY = config_manager.config.get_int('REQUESTS', 'max_retry')
+DEFAULT_VIDEO_WORKERS = config_manager.config.get_int('M3U8_DOWNLOAD', 'default_video_workers')
+DEFAULT_AUDIO_WORKERS = config_manager.config.get_int('M3U8_DOWNLOAD', 'default_audio_workers')
+SEGMENT_MAX_TIMEOUT = config_manager.config.get_int("M3U8_DOWNLOAD", "segment_timeout")
+ENABLE_RETRY = config_manager.config.get_bool('M3U8_DOWNLOAD', 'enable_retry')
+CLEANUP_TMP = config_manager.config.get_bool('M3U8_DOWNLOAD', 'cleanup_tmp_folder')
 
 
 class MPD_Segments:

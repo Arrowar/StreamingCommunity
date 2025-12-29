@@ -25,14 +25,10 @@ from ..FFmpeg.util import print_duration_table
 
 
 # Config
-REQUEST_VERIFY = config_manager.get_bool('REQUESTS', 'verify')
-REQUEST_TIMEOUT = config_manager.get_float('REQUESTS', 'timeout')
-
-
-# Variable
 msg = Prompt()
 console = Console()
-extension_output = config_manager.get("M3U8_CONVERSION", "extension")
+REQUEST_VERIFY = config_manager.config.get_bool('REQUESTS', 'verify')
+REQUEST_TIMEOUT = config_manager.config.get_float('REQUESTS', 'timeout')
 
 
 class InterruptHandler:

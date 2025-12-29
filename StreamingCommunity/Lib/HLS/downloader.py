@@ -27,13 +27,13 @@ from .segments import M3U8_Segments
 
 # Config
 console = Console()
-DOWNLOAD_SPECIFIC_AUDIO = config_manager.get_list('M3U8_DOWNLOAD', 'specific_list_audio')
-DOWNLOAD_SPECIFIC_SUBTITLE = config_manager.get_list('M3U8_DOWNLOAD', 'specific_list_subtitles')
-MERGE_SUBTITLE = config_manager.get_bool('M3U8_DOWNLOAD', 'merge_subs')
-CLEANUP_TMP = config_manager.get_bool('M3U8_DOWNLOAD', 'cleanup_tmp_folder')
-GET_ONLY_LINK = config_manager.get_int('M3U8_DOWNLOAD', 'get_only_link')
-FILTER_CUSTOM_RESOLUTION = str(config_manager.get('M3U8_CONVERSION', 'force_resolution')).strip().lower()
-EXTENSION_OUTPUT = config_manager.get("M3U8_CONVERSION", "extension")
+DOWNLOAD_SPECIFIC_AUDIO = config_manager.config.get_list('M3U8_DOWNLOAD', 'specific_list_audio')
+DOWNLOAD_SPECIFIC_SUBTITLE = config_manager.config.get_list('M3U8_DOWNLOAD', 'specific_list_subtitles')
+MERGE_SUBTITLE = config_manager.config.get_bool('M3U8_DOWNLOAD', 'merge_subs')
+CLEANUP_TMP = config_manager.config.get_bool('M3U8_DOWNLOAD', 'cleanup_tmp_folder')
+GET_ONLY_LINK = config_manager.config.get_int('M3U8_DOWNLOAD', 'get_only_link')
+FILTER_CUSTOM_RESOLUTION = str(config_manager.config.get('M3U8_CONVERSION', 'force_resolution')).strip().lower()
+EXTENSION_OUTPUT = config_manager.config.get("M3U8_CONVERSION", "extension")
 
 
 class HLSClient:

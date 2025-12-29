@@ -1,6 +1,7 @@
 # 29.12.25
 
 from urllib.parse import urlencode
+import os
 
 
 # External libraries
@@ -20,7 +21,7 @@ def get_playready_keys(pssh: str, license_url: str, cdm_device_path: str, header
     Extract PlayReady CONTENT keys (KID/KEY) from a license using pyplayready.
 
     Args:
-        - pssh (str): PSSH base64.
+        - pssh (str): PSSH base64 or PlayReady PRO header.
         - license_url (str): PlayReady license URL.
         - cdm_device_path (str): Path to CDM file (device.prd).
         - headers (dict): Optional HTTP headers for the license request.
@@ -33,15 +34,20 @@ def get_playready_keys(pssh: str, license_url: str, cdm_device_path: str, header
     if cdm_device_path is None:
         console.print("[red]Device prd path is None.")
         return None
-
+    
     device = Device.load(cdm_device_path)
     cdm = Cdm.from_device(device)
     session_id = cdm.open()
     console.log(f"[cyan]Session ID: [green]{session_id}")
 
     try:
-        console.log(f"[cyan]PSSH (PR): [green]{pssh}")
-        pssh_obj = PSSH(pssh)
+        console.log(f"[cyan]PSSH (PR): [green]{pssh[:30]}..." if len(pssh) > 30 else f"[cyan]PSSH (PR): [green]{pssh}")
+        
+        try:
+            pssh_obj = PSSH(pssh)
+        except Exception as e:
+            console.print(f"[red]Invalid PlayReady PSSH/PRO header: {e}")
+            return None
         
         if not pssh_obj.wrm_headers:
             console.print("[red]No WRM headers found in PSSH")

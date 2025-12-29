@@ -14,8 +14,8 @@ from StreamingCommunity.Util.config_json import config_manager
 
 # Variable
 console = Console()
-CLEAN = config_manager.get_bool('DEFAULT', 'show_message')
-SHOW = config_manager.get_bool('DEFAULT', 'show_message')
+CLEAN = config_manager.config.get_bool('DEFAULT', 'show_message')
+SHOW = config_manager.config.get_bool('DEFAULT', 'show_message')
 
 
 def start_message(clean: bool=True):

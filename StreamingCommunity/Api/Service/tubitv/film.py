@@ -21,7 +21,7 @@ from .util.get_license import get_bearer_token, get_playback_url
 
 # Variable
 console = Console()
-extension_output = config_manager.get("M3U8_CONVERSION", "extension")
+extension_output = config_manager.config.get("M3U8_CONVERSION", "extension")
 
 
 def extract_content_id(url: str) -> str:

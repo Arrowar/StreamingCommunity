@@ -31,7 +31,7 @@ from StreamingCommunity.Api.Player.supervideo import VideoSource
 # Variable
 msg = Prompt()
 console = Console()
-extension_output = config_manager.get("M3U8_CONVERSION", "extension")
+extension_output = config_manager.config.get("M3U8_CONVERSION", "extension")
 
 
 def download_video(index_season_selected: int, index_episode_selected: int, scrape_serie: GetSerieInfo) -> Tuple[str,bool]:

@@ -71,10 +71,9 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
         console.print(f"[red]Unsupported streaming type. Playbackk info: {playback_info}")
         return None, False
     
-    #Check the type of stream
+    # Check the type of stream
+    status = None
     if  playback_info['type'] == 'dash':
-
-        # Generate license headers
         license_headers = generate_license_headers(playback_info['license_token'])
     
         # Download the episode
@@ -91,16 +90,18 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
     
         # Get final status
         status = dash_process.get_status()
+        
     elif playback_info['type'] == 'hls':
+        
         api = DiscoveryEUAPI()
         headers = api.get_request_headers()
+        
         # Download the episode
         status =  HLS_Downloader(
             m3u8_url=playback_info['mpd_url'], #mpd_url is just a typo: it is a hls
             headers=headers,
             output_path=os.path.join(mp4_path, mp4_name),
         ).start()
-
 
     if status['error'] is not None and status['path']:
         try:

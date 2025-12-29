@@ -76,6 +76,6 @@ class ClearKey:
         elif self.method == "AES-128-CTR":
             decrypted_content = self.cipher.decrypt(ciphertext)
         else:
-            raise ValueError("Invalid or unsupported method")
+            raise ValueError("Invalid or unsupported method: {}".format(self.method))
 
         return decrypted_content

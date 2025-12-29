@@ -85,6 +85,7 @@ def title_search(query: str) -> int:
      
         if element_type != type_element:
             continue
+            
         # Handle both shows and movies
         if element_type in ['show', 'movie']:
             if 'name' in attributes:

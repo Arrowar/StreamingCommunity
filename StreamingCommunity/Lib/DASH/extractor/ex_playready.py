@@ -1,7 +1,6 @@
 # 29.12.25
 
 from urllib.parse import urlencode
-import os
 
 
 # External libraries

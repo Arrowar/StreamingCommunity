@@ -8,6 +8,6 @@ from .util import map_keys_to_representations
 __all__ = [
     'get_widevine_keys', 
     'get_playready_keys',
-    'ClearKey'
+    'ClearKey',
     'map_keys_to_representations'
 ]

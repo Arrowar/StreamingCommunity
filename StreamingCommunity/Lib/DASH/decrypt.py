@@ -22,9 +22,9 @@ extension_output = config_manager.config.get("M3U8_CONVERSION", "extension")
 CLEANUP_TMP = config_manager.config.get_bool('M3U8_DOWNLOAD', 'cleanup_tmp_folder')
 
 
-def decrypt_with_mp4decrypt(type, encrypted_path, kid, key, output_path=None):
+def decrypt_with_mp4decrypt(type, encrypted_path, kid, key, output_path=None, encryption_method=None):
     """
-    Decrypt an mp4/m4s file using mp4decrypt.
+    Decrypt an mp4/m4s file using mp4decrypt with automatic method detection.
 
     Args:
         type (str): Type of file ('video' or 'audio').
@@ -32,7 +32,7 @@ def decrypt_with_mp4decrypt(type, encrypted_path, kid, key, output_path=None):
         kid (str): Hexadecimal KID.
         key (str): Hexadecimal key.
         output_path (str): Output decrypted file path (optional).
-        cleanup (bool): If True, remove temporary files after decryption.
+        encryption_method (str): Encryption method ('ctr', 'cbc', 'cenc', 'cbcs', etc.)
 
     Returns:
         str: Path to decrypted file, or None if error.
@@ -46,10 +46,27 @@ def decrypt_with_mp4decrypt(type, encrypted_path, kid, key, output_path=None):
 
     # Get file size for progress tracking
     file_size = os.path.getsize(encrypted_path)
-    key_format = f"{kid.lower()}:{key.lower()}"
-
-    # Generate mp4decrypt command
-    cmd = [get_mp4decrypt_path(), "--key", key_format, encrypted_path, output_path]
+    
+    # Determine decryption command based on encryption method
+    method_display = "UNKNOWN"
+    cmd = None
+    
+    if encryption_method in ['ctr', 'cenc', 'cens']:
+        method_display = "AES CTR"
+        key_format = f"1:{key.lower()}"
+        cmd = [get_mp4decrypt_path(), "--key", key_format, encrypted_path, output_path]
+        
+    elif encryption_method in ['cbc', 'cbcs', 'cbc1']:
+        method_display = "AES CBC"
+        key_format = f"{kid.lower()}:{key.lower()}"
+        cmd = [get_mp4decrypt_path(), "--key", key_format, encrypted_path, output_path]
+        
+    else:
+        console.print(f"[yellow]Warning: Unknown encryption method '{encryption_method}', trying KID:KEY format")
+        key_format = f"{kid.lower()}:{key.lower()}"
+        cmd = [get_mp4decrypt_path(), "--key", key_format, encrypted_path, output_path]
+    
+    console.print(f"[cyan]Decryption method: [yellow]{method_display}")
 
     # Create progress bar with custom format
     bar_format = (

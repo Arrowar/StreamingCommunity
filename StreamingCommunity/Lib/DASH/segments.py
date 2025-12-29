@@ -1,8 +1,9 @@
 # 25.07.25
 
 import os
-import asyncio
 import time
+import struct
+import asyncio
 from typing import Dict, Optional
 from urllib.parse import urlparse
 from pathlib import Path
@@ -76,14 +77,46 @@ class MPD_Segments:
         ext = Path(path).suffix
         return ext.lstrip(".").lower() if ext else None
 
+    @staticmethod
+    def _has_varying_segment_urls(segment_urls: list) -> bool:
+        """
+        Check if segment URLs represent different files (not just different query params).
+        """
+        if not segment_urls or len(segment_urls) <= 1:
+            return False
+        
+        # Extract base paths (without query/fragment)
+        base_paths = []
+        for url in segment_urls:
+            parsed = urlparse(url)
+            base_path = parsed.path
+            base_paths.append(base_path)
+        
+        # If all paths are identical, URLs only differ in query params
+        unique_paths = set(base_paths)
+        return len(unique_paths) > 1
+
     def _get_segment_url_type(self) -> Optional[str]:
         """Prefer representation field, otherwise infer from first segment URL."""
         rep = self.selected_representation or {}
         t = (rep.get("segment_url_type") or "").strip().lower()
         if t:
             return t
-        urls = rep.get("segment_urls") or []
-        return self._infer_url_ext(urls[0]) if urls else None
+
+        segment_urls = rep.get("segment_urls") or []
+        init_url = rep.get("init_url")
+
+        # NEW: Se c'è un solo segmento e init_url == segment_url, trattalo come mp4 unico
+        if len(segment_urls) == 1 and init_url and segment_urls[0] == init_url:
+            return "mp4"
+
+        # Check if segment URLs vary (different files vs same file with different params)
+        if self._has_varying_segment_urls(segment_urls):
+            # Different files = treat as segments (m4s-like)
+            return "m4s"
+
+        # Fallback to extension inference
+        return self._infer_url_ext(segment_urls[0]) if segment_urls else None
 
     def _merged_headers(self) -> Dict[str, str]:
         """Ensure UA exists while keeping caller-provided headers."""
@@ -96,7 +129,14 @@ class MPD_Segments:
         Get the path for the concatenated output file.
         """
         rep_id = self.selected_representation['id']
-        ext = "mp4" if (self._get_segment_url_type() == "mp4") else "m4s"
+        seg_type = self._get_segment_url_type()
+        
+        # Use mp4 extension for both single MP4 and MP4 segments
+        if seg_type in ("mp4", "m4s"):
+            ext = "mp4"
+        else:
+            ext = "m4s"
+            
         return os.path.join(output_dir or self.tmp_folder, f"{rep_id}_encrypted.{ext}")
         
     def get_segments_count(self) -> int:
@@ -260,7 +300,18 @@ class MPD_Segments:
     async def _download_init_segment(self, client, init_url, concat_path, progress_bar):
         """
         Download the init segment and update progress/estimator.
+        For MP4 segments, skip init segment as each segment is a complete MP4.
         """
+        seg_type = self._get_segment_url_type()
+        
+        # Skip init segment for MP4 segment files
+        if seg_type == "mp4" and self._has_varying_segment_urls(self.selected_representation.get('segment_urls', [])):
+            with open(concat_path, 'wb') as outfile:
+                pass
+
+            progress_bar.update(1)
+            return
+            
         if not init_url:
             with open(concat_path, 'wb') as outfile:
                 pass
@@ -435,24 +486,71 @@ class MPD_Segments:
             self.info_nFailed = nFailed_this_round
             global_retry_count += 1
 
+    def _extract_moof_mdat_atoms(self, file_path):
+        """
+        Extracts only 'moof' and 'mdat' atoms from a fragmented MP4 file.
+        Returns a generator of bytes chunks.
+        """
+        with open(file_path, 'rb') as f:
+            while True:
+                header = f.read(8)
+                if len(header) < 8:
+                    break
+
+                size, atom_type = struct.unpack(">I4s", header)
+                atom_type = atom_type.decode("ascii", errors="replace")
+                if size < 8:
+                    break  # Invalid atom
+
+                data = header + f.read(size - 8)
+                if atom_type in ("moof", "mdat"):
+                    yield data
+
     async def _concatenate_segments_in_order(self, temp_dir, concat_path, total_segments):
         """
         Concatenate all segment files IN ORDER to the final output file.
+        For MP4 segments, write full init, then only moof/mdat from others.
+        For m4s segments, use init + segments approach.
         """
-        with open(concat_path, 'ab') as outfile:
-            for idx in range(total_segments):
-                temp_file = os.path.join(temp_dir, f"seg_{idx:06d}.tmp")
-                
-                # Only concatenate successfully downloaded segments
-                if idx in self.downloaded_segments and os.path.exists(temp_file):
-                    with open(temp_file, 'rb') as infile:
-                        
-                        # Read and write in chunks to avoid memory issues
-                        while True:
-                            chunk = infile.read(8192)  # 8KB chunks
-                            if not chunk:
-                                break
-                            outfile.write(chunk)
+        seg_type = self._get_segment_url_type()
+        console.print(f"\n[cyan]Detected stream type: [green]{seg_type}")
+        is_mp4_segments = seg_type == "mp4" and self._has_varying_segment_urls(self.selected_representation.get('segment_urls', []))
+        
+        if is_mp4_segments:
+            console.print("[cyan]Concatenating MP4 segments with moof/mdat extraction...")
+            
+            # Write VIDEO0.mp4 fully, then only moof/mdat from VIDEO1+.mp4
+            with open(concat_path, 'wb') as outfile:
+                for idx in range(total_segments):
+                    temp_file = os.path.join(temp_dir, f"seg_{idx:06d}.tmp")
+                    if idx in self.downloaded_segments and os.path.exists(temp_file):
+                        if idx == 0:
+
+                            # Write full init segment
+                            with open(temp_file, 'rb') as infile:
+                                while True:
+                                    chunk = infile.read(8192)
+                                    if not chunk:
+                                        break
+                                    outfile.write(chunk)
+                        else:
+                            # Write only moof/mdat atoms
+                            for atom in self._extract_moof_mdat_atoms(temp_file):
+                                outfile.write(atom)
+        
+        else:
+            console.print("[cyan]Concatenating m4s segments...")
+            with open(concat_path, 'ab') as outfile:
+                for idx in range(total_segments):
+                    temp_file = os.path.join(temp_dir, f"seg_{idx:06d}.tmp")
+                    
+                    if idx in self.downloaded_segments and os.path.exists(temp_file):
+                        with open(temp_file, 'rb') as infile:
+                            while True:
+                                chunk = infile.read(8192)
+                                if not chunk:
+                                    break
+                                outfile.write(chunk)
 
     def _get_bar_format(self, description: str) -> str:
         """

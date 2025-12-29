@@ -43,6 +43,7 @@ class MPD_Parser:
         self.pssh = None
         self.representations = []
         self.mpd_duration = 0
+        self.encryption_method = None
         
         # Initialize utility classes (will be set after parsing)
         self.ns_manager = None
@@ -69,6 +70,7 @@ class MPD_Parser:
         self.pssh_widevine = self.protection_handler.extract_pssh(self.root, DRMSystem.WIDEVINE)
         self.pssh_playready = self.protection_handler.extract_pssh(self.root, DRMSystem.PLAYREADY)
         self.pssh_fairplay = self.protection_handler.extract_pssh(self.root, DRMSystem.FAIRPLAY)
+        self.encryption_method = self.protection_handler.get_encryption_method(self.root)
         
         # Get all available DRM types
         self.available_drm_types = []
@@ -115,6 +117,7 @@ class MPD_Parser:
             period_protected = self.protection_handler.is_protected(period)
             period_drm_types = self.protection_handler.get_drm_types(period)
             period_drm_type = self.protection_handler.get_primary_drm_type(period)
+            period_encryption_method = self.protection_handler.get_encryption_method(period)
             
             # Parse adaptation sets
             for adapt_set in self.ns_manager.findall(period, 'mpd:AdaptationSet'):
@@ -130,6 +133,8 @@ class MPD_Parser:
                             rep['drm_types'] = period_drm_types
                         if not rep.get('drm_type'):
                             rep['drm_type'] = period_drm_type
+                    if not rep.get('encryption_method') and period_encryption_method:
+                        rep['encryption_method'] = period_encryption_method
                 
                 # Aggregate representations with unique keys
                 self._aggregate_representations(rep_aggregator, representations)

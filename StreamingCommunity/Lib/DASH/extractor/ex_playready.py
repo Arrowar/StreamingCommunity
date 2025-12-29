@@ -82,16 +82,9 @@ def get_playready_keys(pssh: str, license_url: str, cdm_device_path: str, header
                 console.print(f"[red]License error: {response.status_code}, {response.text}")
                 return None
 
-            # Parse license response
-            license_data = response.text if response.headers.get("Content-Type", "").startswith("text/xml") else response.content
-
-            if not license_data:
-                console.print("[red]License data is empty.")
-                return None
-
             # Parse license
             try:
-                cdm.parse_license(session_id, license_data)
+                cdm.parse_license(session_id, response.text)
             except Exception as e:
                 console.print(f"[red]Error parsing license: {e}")
                 return None

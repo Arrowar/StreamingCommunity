@@ -6,11 +6,16 @@ from urllib.parse import urljoin
 
 # External library
 from lxml import etree
+from rich.console import Console
 
 
 # Logic
 from .constants import DRMSystem, CodecQuality
 from .utils import URLBuilder, NamespaceManager, MetadataExtractor
+
+
+# Variable
+console = Console()
 
 
 class ContentProtectionHandler:
@@ -33,6 +38,25 @@ class ContentProtectionHandler:
                 return True
         
         return False
+    
+    def get_encryption_method(self, element: etree._Element) -> Optional[str]:
+        """
+        Extract encryption method from ContentProtection elements.
+        Returns: 'ctr', 'cbc', 'cenc', 'cbcs', 'cbc1', 'cens' or None
+        """
+        for cp in self.ns.findall(element, 'mpd:ContentProtection'):
+            scheme_id = (cp.get('schemeIdUri') or '').lower()
+            value = (cp.get('value') or '').lower()
+            
+            # Check CENC scheme with value attribute
+            if DRMSystem.CENC_SCHEME in scheme_id and value:
+                if value in ['cenc', 'cens']:
+                    return 'ctr'  # AES CTR mode
+                elif value in ['cbc1', 'cbcs']:
+                    return 'cbc'  # AES CBC mode
+                return value
+        
+        return None
     
     def get_drm_types(self, element: etree._Element) -> List[str]:
         """Determine all DRM types from ContentProtection elements that actually have PSSH data."""
@@ -297,13 +321,16 @@ class RepresentationParser:
         lang = adapt_set.get('lang', '')
         adapt_frame_rate = adapt_set.get('frameRate')
         content_type = adapt_set.get('contentType', '')
+        adapt_width = int(adapt_set.get('width', 0))
+        adapt_height = int(adapt_set.get('height', 0))
         
         # Resolve base URL
         adapt_base = self.url_resolver.resolve_base_url(adapt_set, base_url)
         
-        # Check protection and extract default_KID
+        # Check protection and extract default_KID and encryption method
         adapt_protected = self.protection_handler.is_protected(adapt_set)
         adapt_default_kid = self.protection_handler.extract_default_kid(adapt_set)
+        adapt_encryption_method = self.protection_handler.get_encryption_method(adapt_set)
         adapt_drm_types = self.protection_handler.get_drm_types(adapt_set)
         adapt_drm_type = self.protection_handler.get_primary_drm_type(adapt_set)
         
@@ -312,9 +339,14 @@ class RepresentationParser:
         
         # Parse each representation
         for rep_elem in self.ns.findall(adapt_set, 'mpd:Representation'):
+            rep_mime_type = rep_elem.get('mimeType', mime_type)
+            if rep_mime_type and 'webm' in rep_mime_type.lower():
+                continue
+            
             rep = self._parse_representation(
                 rep_elem, adapt_set, adapt_seg_template,
-                adapt_base, mime_type, lang, period_duration
+                adapt_base, mime_type, lang, period_duration,
+                adapt_width, adapt_height
             )
             
             if rep:
@@ -325,6 +357,8 @@ class RepresentationParser:
                 rep['protected'] = bool(rep_protected)
                 rep_default_kid = self.protection_handler.extract_default_kid(rep_elem) or adapt_default_kid
                 rep['default_kid'] = rep_default_kid
+                rep_encryption_method = self.protection_handler.get_encryption_method(rep_elem) or adapt_encryption_method
+                rep['encryption_method'] = rep_encryption_method
                 
                 # Get all DRM types and primary DRM type
                 rep_drm_types = self.protection_handler.get_drm_types(rep_elem) or adapt_drm_types
@@ -339,13 +373,17 @@ class RepresentationParser:
         
         return representations
     
-    def _parse_representation(self, rep_elem: etree._Element, adapt_set: etree._Element, adapt_seg_template: Optional[etree._Element], base_url: str, mime_type: str, lang: str, period_duration: int) -> Optional[Dict[str, Any]]:
+    def _parse_representation(self, rep_elem: etree._Element, adapt_set: etree._Element, 
+                             adapt_seg_template: Optional[etree._Element], base_url: str, 
+                             mime_type: str, lang: str, period_duration: int,
+                             adapt_width: int = 0, adapt_height: int = 0) -> Optional[Dict[str, Any]]:
         """Parse single representation"""
         rep_id = rep_elem.get('id')
         bandwidth = int(rep_elem.get('bandwidth', 0))
         codecs = rep_elem.get('codecs')
-        width = int(rep_elem.get('width', 0))
-        height = int(rep_elem.get('height', 0))
+  
+        width = int(rep_elem.get('width') or adapt_width or 0)
+        height = int(rep_elem.get('height') or adapt_height or 0)
         audio_sampling_rate = int(rep_elem.get('audioSamplingRate', 0))
         
         # Find segment template
@@ -385,7 +423,9 @@ class RepresentationParser:
         
         return rep_data
     
-    def _parse_segment_base(self, rep_elem: etree._Element, base_url: str, rep_id: str, bandwidth: int, codecs: str, width: int, height: int, audio_sampling_rate: int, mime_type: str, lang: str) -> Optional[Dict[str, Any]]:
+    def _parse_segment_base(self, rep_elem: etree._Element, base_url: str, rep_id: str, 
+                           bandwidth: int, codecs: str, width: int, height: int, 
+                           audio_sampling_rate: int, mime_type: str, lang: str) -> Optional[Dict[str, Any]]:
         """Parse representation with SegmentBase (single file)"""
         seg_base = self.ns.find(rep_elem, 'mpd:SegmentBase')
         rep_base = self.ns.find(rep_elem, 'mpd:BaseURL')
@@ -410,7 +450,6 @@ class RepresentationParser:
             'segment_urls': [media_url],
             'segment_count': 1,
         }
-
 
 class RepresentationFilter:
     @staticmethod

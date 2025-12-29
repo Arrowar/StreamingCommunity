@@ -41,6 +41,7 @@ class GetSerieInfo:
             )
             response.raise_for_status()
             data = response.json()
+            
             # Get series name from first show element
             for element in data.get('included', []):
                 if element.get('type') == 'show':
@@ -52,14 +53,12 @@ class GetSerieInfo:
             for element in data.get('included', []):
                 if element.get('type') == 'collection':
                     self.collection_id = element.get('id')
+                    
                     # Get number of seasons
                     if 'filters' in element.get('attributes',{}).get('component',{}):
-                        
                         filters = element.get('attributes', {}).get('component', {}).get('filters', [])
                         if filters[0]:
                             self.n_seasons = int(filters[0].get('options',[])[-1].get('value',{}))
-                    #print(f"Collection ID: {self.collection_id}")
-                    #break
             return True
             
         except Exception as e:
@@ -147,6 +146,7 @@ class GetSerieInfo:
             if i == index_season:
                 return season.__str__().split("id=season_")[1].split(',')[0]
         return None
+
     def getEpisodeSeasons(self, season_number: int) -> list:
         """Get all episodes for a specific season"""
         if not self.seasons_manager.seasons:

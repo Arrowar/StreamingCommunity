@@ -10,7 +10,7 @@ from datetime import datetime
 
 # External Libraries
 from lxml import etree
-from curl_cffi import requests
+from curl_cffi_smart import requests
 from rich.console import Console
 
 
@@ -94,7 +94,7 @@ class MPD_Parser:
     
     def _fetch_and_parse_mpd(self, custom_headers: Dict[str, str]) -> None:
         """Fetch MPD content and parse XML"""
-        response = requests.get(self.mpd_url, headers=custom_headers, timeout=max_timeout, impersonate="chrome124")
+        response = requests.get(self.mpd_url, headers=custom_headers, timeout=max_timeout, impersonate="chrome99")
         response.raise_for_status()
         
         logging.info(f"Successfully fetched MPD: {len(response.content)} bytes")

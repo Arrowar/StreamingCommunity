@@ -40,6 +40,7 @@ Make sure you have Python installed on your system:
 - **Windows**: Download from [python.org](https://python.org) or install via Microsoft Store
 - **Linux**: `sudo apt install python3 python3-pip` (Ubuntu/Debian) or equivalent for your distro
 - **MacOS**: `brew install python3` or download from [python.org](https://python.org)
+- **Android Termux**: run `termux-initial-setup.sh` with the administrative permission and follow the instructions
 
 ### Dependencies
 ```bash
@@ -48,6 +49,9 @@ pip install -r requirements.txt
 
 # Linux/MacOS  
 pip3 install -r requirements.txt
+
+# Android Termux
+pip install -r requirements-termux.txt
 ```
 
 ### Update

@@ -9,7 +9,7 @@ from typing import Any, Dict, Optional, Union
 # External library
 import httpx
 import ua_generator
-from curl_cffi import requests
+from curl_cffi_smart import requests
 
 
 # Internal utilities
@@ -148,10 +148,10 @@ def create_client_curl(
     timeout: Optional[Union[int, float]] = None,
     verify: Optional[bool] = None,
     proxies: Optional[Dict[str, str]] = None,
-    impersonate: str = "chrome136",
+    impersonate: str = "chrome99",
     allow_redirects: bool = True,
 ):
-    """Factory for a configured curl_cffi session."""
+    """Factory for a configured curl_cffi_smart session."""
     session = requests.Session()
     session.headers.update(_default_headers(headers))
     if cookies:

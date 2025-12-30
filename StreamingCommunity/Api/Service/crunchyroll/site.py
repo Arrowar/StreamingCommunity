@@ -33,9 +33,7 @@ def title_search(query: str) -> int:
     media_search_manager.clear()
     table_show_manager.clear()
 
-    config = config_manager.get_dict("SITE_LOGIN", "crunchyroll")
-    if not config.get('device_id') or not config.get('etp_rt'):
-        console.print("[red] device_id or etp_rt is missing or empty in config.json.")
+    if not config_manager.login.get('crunchyroll','device_id') or not config_manager.login.get('crunchyroll','etp_rt'):
         raise Exception("device_id or etp_rt is missing or empty in config.json.")
 
     client = CrunchyrollClient()
@@ -57,7 +55,7 @@ def title_search(query: str) -> int:
     console.print(f"[cyan]Search url: [yellow]{api_url}")
 
     try:
-        response = client._request_with_retry('GET', api_url, params=params)
+        response = client.request('GET', api_url, params=params)
         response.raise_for_status()
 
     except Exception as e:

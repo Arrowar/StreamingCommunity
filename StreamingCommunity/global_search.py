@@ -21,7 +21,6 @@ console = Console()
 msg = Prompt()
 
 
-
 def global_search(search_terms: str = None, selected_sites: list = None):
     """
     Perform a search across multiple sites based on selection.

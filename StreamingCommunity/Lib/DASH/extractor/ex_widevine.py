@@ -1,6 +1,5 @@
-# 25.07.25
+# 29.12.25
 
-import sys
 import base64
 from urllib.parse import urlencode
 
@@ -32,16 +31,17 @@ def get_widevine_keys(pssh: str, license_url: str, cdm_device_path: str, headers
     Returns:
         list: List of dicts {'kid': ..., 'key': ...} (only CONTENT keys) or None if error.
     """
-    if not cdm_device_path:
-        console.print("[red]Invalid CDM device path.")
+    if cdm_device_path is None:
+        console.print("[red]Device cdm path is None.")
         return None
 
     device = Device.load(cdm_device_path)
     cdm = Cdm.from_device(device)
     session_id = cdm.open()
+    console.log(f"[cyan]Session ID: [green]{session_id}")
 
     try:
-        console.log(f"[cyan]PSSH: [green]{pssh}")
+        console.log(f"[cyan]PSSH (WV): [green]{pssh[:30]}..." if len(pssh) > 30 else f"[cyan]PSSH (WV): [green]{pssh}")
         challenge = cdm.get_license_challenge(session_id, PSSH(pssh))
         
         # With request license
@@ -61,10 +61,10 @@ def get_widevine_keys(pssh: str, license_url: str, cdm_device_path: str, headers
             if 'Content-Type' not in req_headers:
                 req_headers['Content-Type'] = 'application/octet-stream'
 
-            # Send license request
-            if request_url is None:
+            if license_url is None:
                 console.print("[red]License URL is None.")
-                sys.exit(0)
+                return None
+
             response = requests.post(request_url, headers=req_headers, impersonate="chrome124", **request_kwargs)
 
             if response.status_code != 200:
@@ -103,31 +103,25 @@ def get_widevine_keys(pssh: str, license_url: str, cdm_device_path: str, headers
             content_keys = []
             for key in cdm.get_keys(session_id):
                 if key.type == "CONTENT":
-                    kid = key.kid.hex() if isinstance(key.kid, bytes) else str(key.kid)
-                    key_val = key.key.hex() if isinstance(key.key, bytes) else str(key.key)
+                    kid = key.kid.hex
+                    key_val = key.key.hex()
 
                     content_keys.append({
                         'kid': kid.replace('-', '').strip(),
                         'key': key_val.replace('-', '').strip()
                     })
 
-            if not content_keys:
-                console.print("[yellow]⚠️ No CONTENT keys found in license.")
-                return None
-
-            console.log(f"[cyan]KID: [green]{content_keys[0]['kid']} [white]| [cyan]KEY: [green]{content_keys[0]['key']}")
+            # Return keys
+            console.log(f"[cyan]Extracted [red]{len(content_keys)} CONTENT [cyan]keys from license.")
             return content_keys
-        
+
         else:
             content_keys = []
-            raw_kid = key.split(":")[0]
-            raw_key = key.split(":")[1]
             content_keys.append({
-                'kid': raw_kid.replace('-', '').strip(),
-                'key': raw_key.replace('-', '').strip()
+                'kid': key.split(":")[0].replace('-', '').strip(),
+                'key': key.split(":")[1].replace('-', '').strip()
             })
 
-            # Return keys
             console.log(f"[cyan]KID: [green]{content_keys[0]['kid']} [white]| [cyan]KEY: [green]{content_keys[0]['key']}")
             return content_keys
     
@@ -146,15 +140,9 @@ def get_info_wvd(cdm_device_path):
 
     # Extract client info
     info = {ci.name: ci.value for ci in device.client_id.client_info}
-    caps = device.client_id.client_capabilities
-
-    company = info.get("company_name", "N/A")
     model = info.get("model_name", "N/A")
-
     device_name = info.get("device_name", "").lower()
     build_info = info.get("build_info", "").lower()
-
-    # Extract device type
     is_emulator = any(x in device_name for x in [
         "generic", "sdk", "emulator", "x86"
     ]) or "test-keys" in build_info or "userdebug" in build_info
@@ -169,6 +157,5 @@ def get_info_wvd(cdm_device_path):
     console.print(
         f"[cyan]Load WVD: "
         f"[red]L{device.security_level} [cyan]| [red]{dev_type} [cyan]| "
-        f"[red]{company} {model} [cyan]| API [red]{caps.oem_crypto_api_version} [cyan]| "
         f"[cyan]SysID: [red]{device.system_id}"
     )

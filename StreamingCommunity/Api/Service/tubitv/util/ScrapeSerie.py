@@ -5,7 +5,7 @@ import logging
 
 
 # Internal utilities
-from StreamingCommunity.Util.http_client import create_client
+from StreamingCommunity.Util.http_client import create_client, get_headers
 from StreamingCommunity.Api.Template.object import SeasonManager
 
 
@@ -35,13 +35,7 @@ class GetSerieInfo:
         self.all_episodes_by_season = {}
         
         # Setup headers
-        self.headers = {
-            'accept': '*/*',
-            'accept-language': 'en-US',
-            'content-type': 'application/json',
-            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36',
-        }
-        
+        self.headers = get_headers()
         if self.bearer_token:
             self.headers['authorization'] = f"Bearer {self.bearer_token}"
 

@@ -32,7 +32,7 @@ from StreamingCommunity.Api.Player.supervideo import VideoSource
 # Variable
 msg = Prompt()
 console = Console()
-extension_output = config_manager.get("M3U8_CONVERSION", "extension")
+extension_output = config_manager.config.get("M3U8_CONVERSION", "extension")
 
 
 def download_video(index_season_selected: int, index_episode_selected: int, scrape_serie: GetSerieInfo) -> Tuple[str,bool]:
@@ -53,7 +53,7 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
     # Get episode information
     obj_episode = scrape_serie.selectEpisode(index_season_selected, index_episode_selected-1)
     index_season_selected_formatted = dynamic_format_number(str(index_season_selected))
-    console.print(f"\n[yellow]Download: [red]{site_constants.SITE_NAME} → [cyan]{scrape_serie.tv_name} \\ [magenta]{obj_episode.get('name')}[/magenta] ([cyan]S{index_season_selected_formatted}E{index_episode_selected}) \n")
+    console.print(f"\n[yellow]Download: [red]{site_constants.SITE_NAME} → [cyan]{scrape_serie.tv_name} \\ [magenta]{obj_episode.get('name')} ([cyan]S{index_season_selected_formatted}E{index_episode_selected}) \n")
 
     # Define filename and path for the downloaded video
     mp4_name = f"{map_episode_title(scrape_serie.tv_name, index_season_selected_formatted, index_episode_selected, obj_episode.get('name'))}.{extension_output}"

@@ -4,7 +4,6 @@ import os
 import shutil
 import logging
 import platform
-import inspect
 
 
 # External library
@@ -15,8 +14,9 @@ from pathvalidate import sanitize_filename, sanitize_filepath
 
 
 # Internal utilities
-from .installer import check_ffmpeg, check_mp4decrypt, check_device_wvd_path, check_megatools
-from StreamingCommunity.Lib.DASH.cdm_helpher import get_info_wvd
+from .installer import check_ffmpeg, check_mp4decrypt, check_device_wvd_path, check_device_prd_path, check_megatools
+from StreamingCommunity.Lib.DASH.extractor.ex_widevine import get_info_wvd
+from StreamingCommunity.Lib.DASH.extractor.ex_playready import get_info_prd
 
 
 # Variable
@@ -210,20 +210,10 @@ class InternetManager():
 
 class OsSummary:
     def __init__(self):
-        self.ffmpeg_path = None
-        self.ffprobe_path = None
-        self.ffplay_path = None
-        self.mp4decrypt_path = None
-        self.wvd_path = None
-        self.megatools_path = None
-        self.init()
-
-    def init(self):
-
-        # Check for binaries
-        self.ffmpeg_path, self.ffprobe_path, _ = check_ffmpeg()
+        self.ffmpeg_path, self.ffprobe_path = check_ffmpeg()
         self.mp4decrypt_path = check_mp4decrypt()
         self.wvd_path = check_device_wvd_path()
+        self.prd_path = check_device_prd_path()
         self.megatools_path = check_megatools()
         self._display_binary_paths()
 
@@ -243,7 +233,10 @@ class OsSummary:
             path_strings.append(f"[red]{name} [yellow]{path_str}")
         
         console.print(f"[cyan]Utilities: {', [white]'.join(path_strings)}")
-        get_info_wvd(self.wvd_path)
+        if self.wvd_path:
+            get_info_wvd(self.wvd_path)
+        if self.prd_path:
+            get_info_prd(self.prd_path)
 
 
 # Initialize the os_summary, internet_manager, and os_manager when the module is imported
@@ -251,29 +244,6 @@ os_manager = OsManager()
 internet_manager = InternetManager()
 os_summary = OsSummary()
 
-
-def get_call_stack():
-    """Retrieves the current call stack with details about each call."""
-    stack = inspect.stack()
-    call_stack = []
-
-    for frame_info in stack:
-        function_name = frame_info.function
-        filename = frame_info.filename
-        lineno = frame_info.lineno
-        folder_name = os.path.dirname(filename)
-        folder_base = os.path.basename(folder_name)
-        script_name = os.path.basename(filename)
-
-        call_stack.append({
-            "function": function_name,
-            "folder": folder_name,
-            "folder_base": folder_base,
-            "script": script_name,
-            "line": lineno
-        })
-        
-    return call_stack
 
 def get_ffmpeg_path():
     """Returns the path of FFmpeg."""
@@ -290,6 +260,10 @@ def get_mp4decrypt_path():
 def get_wvd_path():
     """Returns the path of wvd."""
     return os_summary.wvd_path
+
+def get_prd_path():
+    """Returns the path of prd."""
+    return os_summary.prd_path
 
 def get_megatools_path():
     """Returns the path of megatools."""

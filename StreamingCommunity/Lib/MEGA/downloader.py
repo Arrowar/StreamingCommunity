@@ -118,7 +118,7 @@ class MEGA_Downloader:
                     if ep_title:
                         ep_display += f" - {ep_title}"
                     
-                    console.print(f"\n[cyan]Download: [yellow]{show} [magenta]{ep_display}[/magenta]\n")
+                    console.print(f"\n[cyan]Download: [yellow]{show} [magenta]{ep_display}\n")
         
         process.wait()
         if process.returncode != 0:

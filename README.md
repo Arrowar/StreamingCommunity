@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://i.postimg.cc/Y9t2XgB1/z562m3.png" alt="StreamingCommunity Logo" width="110" style="background: transparent;">
+<img src="https://i.postimg.cc/Y9t2XgB1/z562m3.png" alt="StreamingCommunity Logo" width="110" style="background: transparent;"><br><br>
 
 [![PyPI Version](https://img.shields.io/pypi/v/streamingcommunity?logo=pypi&logoColor=white&labelColor=2d3748&color=3182ce&style=for-the-badge)](https://pypi.org/project/streamingcommunity/)
 [![Last Commit](https://img.shields.io/github/last-commit/Arrowar/StreamingCommunity?logo=git&logoColor=white&labelColor=2d3748&color=805ad5&style=for-the-badge)](https://github.com/Arrowar/StreamingCommunity/commits)
@@ -15,6 +15,7 @@
 
 *⚡ **Quick Start:** `pip install StreamingCommunity && StreamingCommunity`*
 
+📺 **[Services](.github/doc/site.md)** - See all supported streaming platforms
 </div>
 
 ---
@@ -24,8 +25,7 @@
 - 🚀 [Quick Start](#quick-start)
 - 📥 [Downloaders](#downloaders)
 - 🛠️ [Configuration](#configuration)
-- 🔐 [Login](.github/.site/login.md)
-- 🌐 [Domain](https://arrowar.github.io/StreamingCommunity)
+- 🔐 [Login](.github/doc/login.md)
 - 💡 [Usage Examples](#usage-examples)
 - 🔍 [Global Search](#global-search)
 - 🧩 [Advanced Features](#advanced-options)
@@ -268,40 +268,6 @@ You can change some behaviors by tweaking the configuration file. The configurat
     - 720p (1280x720)
     - 480p (640x480)
     - 360p (640x360)
-
-
-#### Output fomat Options
-- `extension`: Choose video format:
-  * `"mp4"`: Output as MP4 file
-  * `"mkv"`: Output as MKV file
-
-Final video will be saved with the selected extension. For each format, specific subtitles parameters need to be set in the M3U8_CONVERSION section.
-
-MP4 example:
-```json
-{
-    "M3U8_CONVERSION": {
-        "param_subtitles": [
-            "-c:s",
-            "mov_text"
-        ],
-        "extension": "mp4"
-    }
-}
-```
-
-MKV example:
-```json
-{
-    "M3U8_CONVERSION": {
-        "param_subtitles": [
-            "-c:s",
-            "webvtt"
-        ],
-        "extension": "mkv"
-    }
-}
-```
 
 #### Link options
 - `get_only_link`: Return M3U8 playlist/index URL instead of downloading
@@ -556,14 +522,6 @@ make LOCAL_DIR=/path/to/download run-container
 
 The `run-container` command mounts also the `config.json` file, so any change to the configuration file is reflected immediately without having to rebuild the image.
 
-
-# Tutorials
-
-- [Windows](https://www.youtube.com/watch?v=mZGqK4wdN-k)
-- [Linux](https://www.youtube.com/watch?v=0qUNXPE_mTg)
-- [Pypy](https://www.youtube.com/watch?v=C6m9ZKOK0p4)
-
-
 # Useful Project
 
 ## 🎯 [Unit3Dup](https://github.com/31December99/Unit3Dup)
@@ -571,10 +529,6 @@ Bot in Python per la generazione e l'upload automatico di torrent su tracker bas
 
 ## 🇮🇹 [MammaMia](https://github.com/UrloMythus/MammaMia)
 Addon per Stremio che consente lo streaming HTTPS di film, serie, anime e TV in diretta in lingua italiana.
-
-## 🧩 [streamingcommunity-unofficialapi](https://github.com/Blu-Tiger/streamingcommunity-unofficialapi)
-API non ufficiale per accedere ai contenuti del sito italiano StreamingCommunity.
-
 
 # Disclaimer
 > **Note:** This software is provided "as is", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose, and noninfringement. In no event shall the authors or copyright holders be liable for any claim, damages, or other liability, whether in an action of contract, tort, or otherwise, arising from, out of, or in connection with the software or the use or other dealings in the software.

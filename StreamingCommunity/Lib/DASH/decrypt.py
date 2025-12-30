@@ -3,7 +3,6 @@
 import os
 import time
 import subprocess
-import logging
 import threading
 
 
@@ -13,19 +12,19 @@ from tqdm import tqdm
 
 
 # Internal utilities
+from StreamingCommunity.Util.os import get_mp4decrypt_path
 from StreamingCommunity.Util import config_manager, Colors
 
 
 # Variable
 console = Console()
-extension_output = config_manager.get("M3U8_CONVERSION", "extension")
-CLEANUP_TMP = config_manager.get_bool('M3U8_DOWNLOAD', 'cleanup_tmp_folder')
-SHOW_DECRYPT_PROGRESS = True
+extension_output = config_manager.config.get("M3U8_CONVERSION", "extension")
+CLEANUP_TMP = config_manager.config.get_bool('M3U8_DOWNLOAD', 'cleanup_tmp_folder')
 
 
-def decrypt_with_mp4decrypt(type, encrypted_path, kid, key, output_path=None):
+def decrypt_with_mp4decrypt(type, encrypted_path, kid, key, output_path=None, encryption_method=None):
     """
-    Decrypt an mp4/m4s file using mp4decrypt.
+    Decrypt an mp4/m4s file using mp4decrypt with automatic method detection.
 
     Args:
         type (str): Type of file ('video' or 'audio').
@@ -33,24 +32,13 @@ def decrypt_with_mp4decrypt(type, encrypted_path, kid, key, output_path=None):
         kid (str): Hexadecimal KID.
         key (str): Hexadecimal key.
         output_path (str): Output decrypted file path (optional).
-        cleanup (bool): If True, remove temporary files after decryption.
+        encryption_method (str): Encryption method ('ctr', 'cbc', 'cenc', 'cbcs', etc.)
 
     Returns:
         str: Path to decrypted file, or None if error.
     """
-    from StreamingCommunity.Util.os import get_mp4decrypt_path
-
-    # Check if input file exists
     if not os.path.isfile(encrypted_path):
-        console.print(f"[red] Encrypted file not found: {encrypted_path}")
-        return None
-
-    # Check if kid and key are valid hex
-    try:
-        bytes.fromhex(kid)
-        bytes.fromhex(key)
-    except Exception:
-        console.print("[red] Invalid KID or KEY (not hex).")
+        console.print(f"[bold red] Encrypted file not found: {encrypted_path}")
         return None
 
     if not output_path:
@@ -59,67 +47,80 @@ def decrypt_with_mp4decrypt(type, encrypted_path, kid, key, output_path=None):
     # Get file size for progress tracking
     file_size = os.path.getsize(encrypted_path)
     
-    key_format = f"{kid.lower()}:{key.lower()}"
-    cmd = [get_mp4decrypt_path(), "--key", key_format, encrypted_path, output_path]
-    logging.info(f"Running mp4decrypt command: {' '.join(cmd)}")
-
-    progress_bar = None
-    monitor_thread = None
+    # Determine decryption command based on encryption method
+    method_display = "UNKNOWN"
+    cmd = None
     
-    if SHOW_DECRYPT_PROGRESS:
-        bar_format = (
-            f"{Colors.YELLOW}DECRYPT{Colors.CYAN} {type}{Colors.WHITE}: "
-            f"{Colors.MAGENTA}{{bar:40}} "
-            f"{Colors.LIGHT_GREEN}{{n_fmt}}{Colors.WHITE}/{Colors.CYAN}{{total_fmt}} "
-            f"{Colors.DARK_GRAY}[{Colors.YELLOW}{{elapsed}}{Colors.WHITE} < {Colors.CYAN}{{remaining}}{Colors.DARK_GRAY}] "
-            f"{Colors.WHITE}{{postfix}}"
-        )
+    if encryption_method in ['ctr', 'cenc', 'cens']:
+        method_display = "AES CTR"
+        key_format = f"1:{key.lower()}"
+        cmd = [get_mp4decrypt_path(), "--key", key_format, encrypted_path, output_path]
         
-        progress_bar = tqdm(
-            total=100,
-            bar_format=bar_format,
-            unit="",
-            ncols=150
-        )
+    elif encryption_method in ['cbc', 'cbcs', 'cbc1']:
+        method_display = "AES CBC"
+        key_format = f"{kid.lower()}:{key.lower()}"
+        cmd = [get_mp4decrypt_path(), "--key", key_format, encrypted_path, output_path]
         
-        def monitor_output_file():
-            """Monitor output file growth and update progress bar."""
-            last_size = 0
-            while True:
-                if os.path.exists(output_path):
-                    current_size = os.path.getsize(output_path)
-                    if current_size > 0:
-                        progress_percent = min(int((current_size / file_size) * 100), 100)
-                        progress_bar.n = progress_percent
-                        progress_bar.refresh()
-                        
-                        if current_size == last_size and current_size > 0:
-                            break
-                        
-                        last_size = current_size
-                
-                time.sleep(0.1)
-        
-        # Start monitoring thread
-        monitor_thread = threading.Thread(target=monitor_output_file, daemon=True)
-        monitor_thread.start()
+    else:
+        console.print(f"[yellow]Warning: Unknown encryption method '{encryption_method}', trying KID:KEY format")
+        key_format = f"{kid.lower()}:{key.lower()}"
+        cmd = [get_mp4decrypt_path(), "--key", key_format, encrypted_path, output_path]
+    
+    console.print(f"[cyan]Decryption method: [yellow]{method_display}")
+
+    # Create progress bar with custom format
+    bar_format = (
+        f"{Colors.YELLOW}DECRYPT{Colors.CYAN} {type}{Colors.WHITE}: "
+        f"{Colors.MAGENTA}{{bar:40}} "
+        f"{Colors.LIGHT_GREEN}{{n_fmt}}{Colors.WHITE}/{Colors.CYAN}{{total_fmt}} "
+        f"{Colors.DARK_GRAY}[{Colors.YELLOW}{{elapsed}}{Colors.WHITE} < {Colors.CYAN}{{remaining}}{Colors.DARK_GRAY}] "
+        f"{Colors.WHITE}{{postfix}}"
+    )
+    
+    progress_bar = tqdm(
+        total=100,
+        bar_format=bar_format,
+        unit="",
+        ncols=150
+    )
+    
+    def monitor_output_file():
+        """Monitor output file growth and update progress bar."""
+        last_size = 0
+        while True:
+            if os.path.exists(output_path):
+                current_size = os.path.getsize(output_path)
+                if current_size > 0:
+                    progress_percent = min(int((current_size / file_size) * 100), 100)
+                    progress_bar.n = progress_percent
+                    progress_bar.refresh()
+                    
+                    if current_size == last_size and current_size > 0:
+                        break
+                    
+                    last_size = current_size
+            
+            time.sleep(0.1)
+    
+    # Start monitoring thread
+    monitor_thread = threading.Thread(target=monitor_output_file, daemon=True)
+    monitor_thread.start()
 
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
     except Exception as e:
-        if progress_bar:
-            progress_bar.close()
-        console.print(f"[red] mp4decrypt execution failed: {e}")
+        progress_bar.close()
+        console.print(f"[bold red] mp4decrypt execution failed: {e}[/bold red]")
         return None
     
-    if progress_bar:
-        progress_bar.n = 100
-        progress_bar.refresh()
-        progress_bar.close()
+    # Ensure progress bar reaches 100%
+    progress_bar.n = 100
+    progress_bar.refresh()
+    progress_bar.close()
 
     if result.returncode == 0 and os.path.exists(output_path):
 
-        # Cleanup temporary files
+        # Cleanup temporary files if requested
         if CLEANUP_TMP:
             if os.path.exists(encrypted_path):
                 os.remove(encrypted_path)
@@ -130,13 +131,8 @@ def decrypt_with_mp4decrypt(type, encrypted_path, kid, key, output_path=None):
             if temp_dec != output_path and os.path.exists(temp_dec):
                 os.remove(temp_dec)
 
-        # Check if output file is not empty
-        if os.path.getsize(output_path) == 0:
-            console.print(f"[red] Decrypted file is empty: {output_path}")
-            return None
-
         return output_path
 
     else:
-        console.print(f"[red] mp4decrypt failed: {result.stderr}")
+        console.print(f"[bold red] mp4decrypt failed: {result.stderr}")
         return None

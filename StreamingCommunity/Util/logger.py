@@ -24,7 +24,7 @@ class Logger:
             return
         
         # Configure root logger
-        self.debug_mode = config_manager.get_bool('DEFAULT', "debug")
+        self.debug_mode = config_manager.config.get_bool('DEFAULT', "debug")
         self.logger = logging.getLogger('')
         
         # Remove any existing handlers to avoid duplication

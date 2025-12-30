@@ -13,6 +13,7 @@ Please make sure to check the following:
 - [ ] You have the latest commit installed.
 - [ ] The issue relates to a website or a specific functionality.
 - [ ] If the issue is related to a website, you have verified that the URL works correctly in your browser.
+- [ ] If the issue is related to audio or subtitles, you have tested the downloaded file with VLC media player first.
 - [ ] You have searched through closed issues for similar problems or potential solutions. Issues that can be resolved by already closed topics may be automatically closed.
 
 ## Describe the issue

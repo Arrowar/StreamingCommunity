@@ -22,7 +22,7 @@ from StreamingCommunity.Api.Player.supervideo import VideoSource
 
 # Variable
 console = Console()
-extension_output = config_manager.get("M3U8_CONVERSION", "extension")
+extension_output = config_manager.config.get("M3U8_CONVERSION", "extension")
 
 
 def download_film(select_title: MediaItem) -> str:

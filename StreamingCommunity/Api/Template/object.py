@@ -8,6 +8,7 @@ class Episode:
         self.data = data
 
         self.id: int = data.get('id', 0)
+        self.video_id : str = data.get('video_id', '')
         self.number: int = data.get('number', 1)
         self.name: str = data.get('name', '')
         self.duration: int = data.get('duration', 0)
@@ -68,7 +69,7 @@ class Season:
         self.episodes: EpisodeManager = EpisodeManager()
 
     def __str__(self):
-        return f"Season(id={self.id}, number={self.number}, name='{self.name}', episodes={self.episodes.length()})"
+        return f"Season(id={self.id}, number={self.number}, name='{self.name}', episodes={self.episodes.__len__()})"
 
 class SeasonManager:
     def __init__(self):

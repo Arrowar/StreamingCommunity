@@ -1,4 +1,0 @@
-recursive-include StreamingCommunity *
-recursive-include StreamingCommunity/Api *
-recursive-include StreamingCommunity/Lib *
-include requirements.txt

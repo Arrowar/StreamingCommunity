@@ -24,7 +24,7 @@ class AltaDefinizioneAPI(BaseStreamingAPI):
     
     def _load_config(self):
         """Load site configuration."""
-        self.base_url = (config_manager.get_site("altadefinizione", "full_url") or "").rstrip("/")
+        self.base_url = (config_manager.domain.get("altadefinizione", "full_url") or "").rstrip("/")
     
     def _get_search_fn(self):
         """Lazy load the search function."""

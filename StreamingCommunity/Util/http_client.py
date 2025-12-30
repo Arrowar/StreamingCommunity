@@ -23,21 +23,21 @@ ua =  ua_generator.generate(device='desktop', browser=('chrome', 'edge'))
 # Defaults from config
 def _get_timeout() -> int:
     try:
-        return int(config_manager.get_int("REQUESTS", "timeout"))
+        return int(config_manager.config.get_int("REQUESTS", "timeout"))
     except Exception:
         return 20
 
 
 def _get_max_retry() -> int:
     try:
-        return int(config_manager.get_int("REQUESTS", "max_retry"))
+        return int(config_manager.config.get_int("REQUESTS", "max_retry"))
     except Exception:
         return 3
 
 
 def _get_verify() -> bool:
     try:
-        return bool(config_manager.get_bool("REQUESTS", "verify"))
+        return bool(config_manager.config.get_bool("REQUESTS", "verify"))
     except Exception:
         return True
 
@@ -45,7 +45,7 @@ def _get_verify() -> bool:
 def _get_proxies() -> Optional[Dict[str, str]]:
     """Return proxies dict if present in config and non-empty, else None."""
     try:
-        proxies = config_manager.get_dict("REQUESTS", "proxy")
+        proxies = config_manager.config.get_dict("REQUESTS", "proxy")
         if not isinstance(proxies, dict):
             return None
         # Normalize empty strings to None (httpx ignores None)

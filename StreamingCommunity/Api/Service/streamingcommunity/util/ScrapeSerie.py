@@ -14,7 +14,7 @@ from StreamingCommunity.Api.Template.object import SeasonManager
 
 
 class GetSerieInfo:
-    def __init__(self, url, media_id: int = None, series_name: str = None):
+    def __init__(self, url, media_id: int = None, series_name: str = None, years: int = None):
         """
         Initialize the GetSerieInfo class for scraping TV series information.
         
@@ -27,6 +27,7 @@ class GetSerieInfo:
         self.headers = get_headers()
         self.url = url
         self.media_id = media_id
+        self.years = years
         self.seasons_manager = SeasonManager()
 
         if series_name is not None:

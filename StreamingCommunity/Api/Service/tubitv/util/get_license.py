@@ -10,7 +10,8 @@ from StreamingCommunity.Util.http_client import create_client, get_userAgent, ge
 
 
 # Variable
-config = config_manager.get_dict("SITE_LOGIN", "tubi")
+tubi_email = config_manager.login.get('tubi', 'email')
+tubi_password = config_manager.login.get('tubi', 'password')
 
 
 def generate_device_id():
@@ -25,7 +26,7 @@ def get_bearer_token():
     Returns:
         str: Bearer token
     """
-    if not config.get('email') or not config.get('password'):
+    if not tubi_email or not tubi_password:
         raise Exception("Email or Password not set in configuration.")
 
     json_data = {
@@ -33,8 +34,8 @@ def get_bearer_token():
         'platform': 'web',
         'device_id': generate_device_id(),
         'credentials': {
-            'email': str(config.get('email')).strip(),
-            'password': str(config.get('password')).strip()
+            'email': str(tubi_email).strip(),
+            'password': str(tubi_password).strip()
         },
     }
 

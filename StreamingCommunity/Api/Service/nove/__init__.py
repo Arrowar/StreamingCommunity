@@ -1,43 +1,32 @@
 # 26.11.2025
 
-
 # External library
 from rich.console import Console
 from rich.prompt import Prompt
 
 
 # Internal utilities
-from StreamingCommunity.Api.Template import get_select_title
-from StreamingCommunity.Api.Template.config_loader import site_constant
-from StreamingCommunity.Api.Template.Class.SearchType import MediaItem
+from StreamingCommunity.Api.Template import site_constants, MediaItem, get_select_title
 
 
-# Logic class
+# Logic
 from .site import title_search, table_show_manager, media_search_manager
 from .series import download_series
 
 
 # Variable
-indice = 11
+indice = 14
 _useFor = "Serie"
-_priority = 0
-_engineDownload = "dash"
-_deprecate = True
+_region = "IT"
+_deprecate = False
+_stream_type = "HLS"
+_maxResolution = "1080p"
+_drm = False
+
 
 msg = Prompt()
 console = Console()
 
-
-def get_user_input(string_to_search: str = None):
-    """
-    Asks the user to input a search term.
-    Handles both Telegram bot input and direct input.
-    If string_to_search is provided, it's returned directly (after stripping).
-    """
-    if string_to_search is not None:
-        return string_to_search.strip()
-    else:
-        return msg.ask(f"\n[purple]Insert a word to search in [green]{site_constant.SITE_NAME}").strip()
 
 def process_search_result(select_title, selections=None):
     """
@@ -73,7 +62,6 @@ def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_
 
     Parameters:
         string_to_search (str, optional): String to search for. Can be passed from run.py.
-                                          If 'back', special handling might occur in get_user_input.
         get_onlyDatabase (bool, optional): If True, return only the database search manager object.
         direct_item (dict, optional): Direct item to process (bypasses search).
         selections (dict, optional): Dictionary containing selection inputs that bypass manual input
@@ -85,7 +73,11 @@ def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_
         return result
     
     # Get the user input for the search term
-    actual_search_query = get_user_input(string_to_search)
+    actual_search_query = None
+    if string_to_search is not None:
+        actual_search_query = string_to_search.strip()
+    else:
+        actual_search_query = msg.ask(f"\n[purple]Insert a word to search in [green]{site_constants.SITE_NAME}").strip()
 
     # Handle empty input
     if not actual_search_query:

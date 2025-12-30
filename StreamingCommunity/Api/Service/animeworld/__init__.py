@@ -18,7 +18,12 @@ from .film import download_film
 # Variable
 indice = 6
 _useFor = "Anime"
+_region = "IT"
 _deprecate = False
+_stream_type = "MP4"
+_maxResolution = "1080p"
+_drm = False
+
 
 msg = Prompt()
 console = Console()

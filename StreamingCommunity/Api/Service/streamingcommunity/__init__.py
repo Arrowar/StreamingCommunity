@@ -11,14 +11,18 @@ from StreamingCommunity.Api.Template import site_constants, MediaItem, get_selec
 
 # Logic
 from .site import title_search, table_show_manager, media_search_manager
-from .film import download_film
 from .series import download_series
 
 
 # Variable
 indice = 0
 _useFor = "Film_&_Serie"
+_region = "IT"
 _deprecate = False
+_stream_type = "HLS"
+_maxResolution = "1080p"
+_drm = False
+
 
 msg = Prompt()
 console = Console()
@@ -51,11 +55,6 @@ def process_search_result(select_title, selections=None):
         media_search_manager.clear()
         table_show_manager.clear()
         return True
-        
-    else:
-        download_film(select_title)
-        table_show_manager.clear()
-        return True
 
 
 def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_item: dict = None, selections: dict = None):
@@ -64,7 +63,6 @@ def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_
 
     Parameters:
         string_to_search (str, optional): String to search for. Can be passed from run.py.
-                                          If 'back', special handling might occur in get_user_input.
         get_onlyDatabase (bool, optional): If True, return only the database search manager object.
         direct_item (dict, optional): Direct item to process (bypasses search).
         selections (dict, optional): Dictionary containing selection inputs that bypass manual input

@@ -2,12 +2,20 @@ import os
 import re
 from setuptools import setup, find_packages
 
+# Variable
+base_path = os.path.abspath(os.path.dirname(__file__))
+
 def read_readme():
-    with open("README.md", "r", encoding="utf-8") as fh:
-        return fh.read()
-    
-with open(os.path.join(os.path.dirname(__file__), "requirements.txt"), "r", encoding="utf-8-sig") as f:
-    required_packages = f.read().splitlines()
+    readme_path = os.path.join(base_path, "README.md")
+    if os.path.exists(readme_path):
+        with open(readme_path, "r", encoding="utf-8") as fh:
+            return fh.read()
+
+def read_requirements():
+    req_path = os.path.join(base_path, "requirements.txt")
+    if os.path.exists(req_path):
+        with open(req_path, "r", encoding="utf-8-sig") as f:
+            return [line.strip() for line in f if line.strip() and not line.startswith("#")]
 
 def get_version():
     try:
@@ -25,20 +33,38 @@ def get_version():
 setup(
     name="StreamingCommunity",
     version=get_version(),
+    description="Download content from streaming platforms",
     long_description=read_readme(),
     long_description_content_type="text/markdown",
     author="Arrowar",
     url="https://github.com/Arrowar/StreamingCommunity",
-    packages=find_packages(include=["StreamingCommunity", "StreamingCommunity.*"]),
-    install_requires=required_packages,
+    packages=find_packages(
+        exclude=["tests", "tests.*", "docs", "docs.*", "GUI", "GUI.*", "Test", "Test.*"]
+    ),
+    install_requires=read_requirements(),
     python_requires='>=3.8',
     entry_points={
         "console_scripts": [
             "streamingcommunity=StreamingCommunity.run:main",
         ],
     },
-    include_package_data=True,
+    include_package_data=False,
+    package_data={
+        '': ['*.txt', '*.md', '*.json', '*.yaml', '*.yml', '*.cfg'],
+        'StreamingCommunity': ['**/*.txt', '**/*.json', '**/*.yaml'],
+    },
     keywords="streaming community",
+    classifiers=[
+        "Development Status :: 4 - Beta",
+        "Intended Audience :: End Users/Desktop",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+        "Operating System :: OS Independent",
+    ],
     project_urls={
         "Bug Reports": "https://github.com/Arrowar/StreamingCommunity/issues",
         "Source": "https://github.com/Arrowar/StreamingCommunity",

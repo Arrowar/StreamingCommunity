@@ -18,7 +18,12 @@ from .series import download_series
 # Variable
 indice = 2
 _useFor = "Film_&_Serie"
+_region = "IT"
 _deprecate = False
+_stream_type = "HLS"
+_maxResolution = "1080p"
+_drm = False
+
 
 msg = Prompt()
 console = Console()

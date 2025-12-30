@@ -27,13 +27,13 @@ from .segments import M3U8_Segments
 
 # Config
 console = Console()
-DOWNLOAD_SPECIFIC_AUDIO = config_manager.get_list('M3U8_DOWNLOAD', 'specific_list_audio')
-DOWNLOAD_SPECIFIC_SUBTITLE = config_manager.get_list('M3U8_DOWNLOAD', 'specific_list_subtitles')
-MERGE_SUBTITLE = config_manager.get_bool('M3U8_DOWNLOAD', 'merge_subs')
-CLEANUP_TMP = config_manager.get_bool('M3U8_DOWNLOAD', 'cleanup_tmp_folder')
-GET_ONLY_LINK = config_manager.get_int('M3U8_DOWNLOAD', 'get_only_link')
-FILTER_CUSTOM_RESOLUTION = str(config_manager.get('M3U8_CONVERSION', 'force_resolution')).strip().lower()
-EXTENSION_OUTPUT = config_manager.get("M3U8_CONVERSION", "extension")
+DOWNLOAD_SPECIFIC_AUDIO = config_manager.config.get_list('M3U8_DOWNLOAD', 'specific_list_audio')
+DOWNLOAD_SPECIFIC_SUBTITLE = config_manager.config.get_list('M3U8_DOWNLOAD', 'specific_list_subtitles')
+MERGE_SUBTITLE = config_manager.config.get_bool('M3U8_DOWNLOAD', 'merge_subs')
+CLEANUP_TMP = config_manager.config.get_bool('M3U8_DOWNLOAD', 'cleanup_tmp_folder')
+GET_ONLY_LINK = config_manager.config.get_int('M3U8_DOWNLOAD', 'get_only_link')
+FILTER_CUSTOM_RESOLUTION = str(config_manager.config.get('M3U8_CONVERSION', 'force_resolution')).strip().lower()
+EXTENSION_OUTPUT = config_manager.config.get("M3U8_CONVERSION", "extension")
 
 
 class HLSClient:
@@ -164,10 +164,9 @@ class M3U8Manager:
             self.sub_streams = []
 
         else:
-            # Video selection logic
-            if str(FILTER_CUSTOM_RESOLUTION) == "best":
+            if str(FILTER_CUSTOM_RESOLUTION).strip().lower() == "best":
                 self.video_url, self.video_res = self.parser._video.get_best_uri()
-            elif str(FILTER_CUSTOM_RESOLUTION) == "worst":
+            elif str(FILTER_CUSTOM_RESOLUTION).strip().lower() == "worst":
                 self.video_url, self.video_res = self.parser._video.get_worst_uri()
             elif str(FILTER_CUSTOM_RESOLUTION).replace("p", "").replace("px", "").isdigit():
                 resolution_value = int(str(FILTER_CUSTOM_RESOLUTION).replace("p", "").replace("px", ""))
@@ -357,7 +356,6 @@ class DownloadManager:
                 url=audio_full_url, 
                 tmp_folder=audio_tmp_dir,
                 license_url=self.license_url,
-                limit_segments=self.video_segments_count if self.video_segments_count > 0 else None,
                 custom_headers=self.custom_headers
             )
 
@@ -399,6 +397,8 @@ class DownloadManager:
         try:
             raw_content = self.client.request(sub['uri'])
             if raw_content:
+
+                console.log(f"[cyan]Downloading subtitle[white]: [red]{sub['language']} (vtt)")
                 sub_path = os.path.join(self.temp_dir, 'subs', f"{sub['language']}.vtt")
 
                 subtitle_parser = M3U8_Parser()

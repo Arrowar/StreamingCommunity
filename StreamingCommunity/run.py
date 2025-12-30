@@ -26,17 +26,14 @@ from StreamingCommunity.Upload.update import update as git_update
 
 
 # Config
+console = Console()
+msg = Prompt()
 COLOR_MAP = {
     "anime": "red",
     "film_&_serie": "yellow", 
     "serie": "blue"
 }
 CATEGORY_MAP = {1: "anime", 2: "film_&_serie", 3: "serie"}
-
-
-# Variable
-console = Console()
-msg = Prompt()
 
 
 def run_function(func: Callable[..., None], close_console: bool = False, search_terms: str = None) -> None:
@@ -145,7 +142,7 @@ def _build_command_for_hook(hook: dict) -> Tuple[list, dict]:
 def _iter_hooks(stage: str):
     """Yield hook dicts for a given stage ('pre_run' | 'post_run')."""
     try:
-        hooks_section = config_manager.config.get('HOOKS', {})
+        hooks_section = config_manager.config.get('HOOKS')
         hooks_list = hooks_section.get(stage, []) or []
         if not isinstance(hooks_list, list):
             return
@@ -331,7 +328,7 @@ def apply_config_updates(args):
     # Apply updates
     for key, value in config_updates.items():
         section, option = key.split('.')
-        config_manager.set_key(section, option, value)
+        config_manager.config.set_key(section, option, value)
     
     if config_updates:
         config_manager.save_config()

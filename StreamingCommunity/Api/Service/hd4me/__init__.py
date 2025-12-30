@@ -19,7 +19,12 @@ from .film import download_film
 # Variable
 indice = 10
 _useFor = "Film_&_Serie"
+_region = "IT"
 _deprecate = False
+_stream_type = "MEGA"
+_maxResolution = "720p"
+_drm = False
+
 
 msg = Prompt()
 console = Console()

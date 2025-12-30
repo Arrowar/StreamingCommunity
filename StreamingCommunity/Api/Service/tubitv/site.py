@@ -23,7 +23,6 @@ media_search_manager = MediaManager()
 table_show_manager = TVShowManager()
 
 
-
 def title_to_slug(title):
     """Convert a title to a URL-friendly slug"""
     slug = title.lower()

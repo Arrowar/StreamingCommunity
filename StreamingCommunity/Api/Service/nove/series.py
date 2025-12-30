@@ -10,13 +10,9 @@ from rich.prompt import Prompt
 
 
 # Internal utilities
-from StreamingCommunity.Util.message import start_message
-from StreamingCommunity.Util.config_json import config_manager
-
-
-# Logic class
-from ..realtime.util.ScrapeSerie import GetSerieInfo
-from StreamingCommunity.Api.Template.Util import (
+from StreamingCommunity.Util import config_manager, start_message
+from StreamingCommunity.Api.Template import site_constants, MediaItem
+from StreamingCommunity.Api.Template.episode_manager import (
     manage_selection, 
     map_episode_title, 
     validate_selection, 
@@ -24,19 +20,18 @@ from StreamingCommunity.Api.Template.Util import (
     display_episodes_list,
     display_seasons_list
 )
-from StreamingCommunity.Api.Template.config_loader import site_constant
-from StreamingCommunity.Api.Template.Class.SearchType import MediaItem
+from StreamingCommunity.Lib.HLS import HLS_Downloader
 
 
-# Player
-from StreamingCommunity import HLS_Downloader
+# Logic
+from ..realtime.util.ScrapeSerie import GetSerieInfo
 from ..realtime.util.get_license import get_bearer_token, get_playback_url
 
 
 # Variable
 msg = Prompt()
 console = Console()
-extension_output = config_manager.get("M3U8_CONVERSION", "extension")
+extension_output = config_manager.config.get("M3U8_CONVERSION", "extension")
 
 
 def download_video(index_season_selected: int, index_episode_selected: int, scrape_serie: GetSerieInfo) -> Tuple[str,bool]:
@@ -56,11 +51,11 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
 
     # Get episode information
     obj_episode = scrape_serie.selectEpisode(index_season_selected, index_episode_selected-1)
-    console.print(f"\n[bold yellow]Download:[/bold yellow] [red]{site_constant.SITE_NAME}[/red] → [cyan]{scrape_serie.series_name}[/cyan] \\ [bold magenta]{obj_episode.name}[/bold magenta] ([cyan]S{index_season_selected}E{index_episode_selected}[/cyan]) \n")
+    console.print(f"\n[yellow]Download: [red]{site_constants.SITE_NAME} → [cyan]{scrape_serie.series_name} \\ [magenta]{obj_episode.name} ([cyan]S{index_season_selected}E{index_episode_selected}) \n")
 
     # Define filename and path for the downloaded video
     mp4_name = f"{map_episode_title(scrape_serie.series_name, index_season_selected, index_episode_selected, obj_episode.name)}.{extension_output}"
-    mp4_path = os.path.join(site_constant.SERIES_FOLDER, scrape_serie.series_name, f"S{index_season_selected}")
+    mp4_path = os.path.join(site_constants.SERIES_FOLDER, scrape_serie.series_name, f"S{index_season_selected}")
 
     # Get m3u8 playlist
     bearer_token = get_bearer_token()

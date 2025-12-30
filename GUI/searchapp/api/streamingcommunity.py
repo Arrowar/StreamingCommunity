@@ -24,7 +24,7 @@ class StreamingCommunityAPI(BaseStreamingAPI):
     
     def _load_config(self):
         """Load site configuration."""
-        self.base_url = config_manager.get_site("streamingcommunity", "full_url").rstrip("/") + "/it"
+        self.base_url = config_manager.domain.get("streamingcommunity", "full_url").rstrip("/") + "/it"
     
     def _get_search_fn(self):
         """Lazy load the search function."""

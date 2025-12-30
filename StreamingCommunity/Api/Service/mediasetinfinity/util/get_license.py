@@ -16,7 +16,6 @@ from StreamingCommunity.Util.http_client import create_client, get_headers, get_
 
 # Variable
 console = Console()
-network_data = []
 class_mediaset_api = None
 
 
@@ -184,11 +183,17 @@ def parse_smil_for_media_info(smil_xml):
             lang = textstream.attrib.get('lang', 'unknown')
             sub_type = textstream.attrib.get('type', 'unknown')
             
+            # Map MIME type to format
+            if sub_type == 'text/vtt':
+                sub_format = 'vtt'
+            elif sub_type == 'text/srt':
+                sub_format = 'srt'
+            
             if sub_url:
                 subtitle_info = {
                     'url': sub_url,
                     'language': lang,
-                    'type': sub_type
+                    'format': sub_format
                 }
                 subtitles_raw.append(subtitle_info)
     
@@ -202,12 +207,12 @@ def parse_smil_for_media_info(smil_xml):
     
     subtitles = []
     for lang, subs in subtitles_by_lang.items():
-        vtt_subs = [s for s in subs if s['type'] == 'text/vtt']
+        vtt_subs = [s for s in subs if s['format'] == 'vtt']
         if vtt_subs:
             subtitles.append(vtt_subs[0])  # Take first VTT
             
         else:
-            srt_subs = [s for s in subs if s['type'] == 'text/srt']
+            srt_subs = [s for s in subs if s['format'] == 'srt']
             if srt_subs:
                 subtitles.append(srt_subs[0])  # Take first SRT
     

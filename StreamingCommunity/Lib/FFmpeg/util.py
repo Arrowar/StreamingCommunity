@@ -165,7 +165,7 @@ def is_png_format_or_codec(file_info):
     # Handle None values in format_name gracefully
     format_name = file_info.get('format_name')
     codec_names = file_info.get('codec_names', [])
-    
+    console.log(f"[cyan]FFMPEG detect format: [green]{format_name}[cyan], codec: [green]{codec_names}")
     return format_name == 'png_pipe' or 'png' in codec_names
 
 
@@ -176,10 +176,7 @@ def need_to_force_to_ts(file_path):
     Parameters:
         - file_path (str): Path to the input media file.
     """
-    file_info = get_ffprobe_info(file_path)
-
-    if is_png_format_or_codec(file_info):
-       logging.info(f"File {file_path} is in PNG format or contains a PNG codec. Need to convert to TS format.")
+    if is_png_format_or_codec(get_ffprobe_info(file_path)):
        return True
     
     return False

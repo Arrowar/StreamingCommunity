@@ -295,9 +295,10 @@ class DownloadManager:
         self.video_output_path = None
         self.audio_output_paths = {}
 
-        # For progress tracking
+        # For progress tracking with thread safety
         self.current_downloader: Optional[M3U8_Segments] = None
         self.current_download_type: Optional[str] = None
+        self.progress_lock = threading.Lock()
 
     def download_video(self, video_url: str) -> bool:
         """
@@ -318,8 +319,9 @@ class DownloadManager:
         )
 
         # Set current downloader for progress tracking
-        self.current_downloader = downloader
-        self.current_download_type = 'video'
+        with self.progress_lock:
+            self.current_downloader = downloader
+            self.current_download_type = 'video'
         
         # Download video and get segment count
         result = downloader.download_streams("Video", "video")
@@ -331,8 +333,9 @@ class DownloadManager:
             self.video_output_path = result['output_path']
 
         # Reset current downloader after completion
-        self.current_downloader = None
-        self.current_download_type = None
+        with self.progress_lock:
+            self.current_downloader = None
+            self.current_download_type = None
 
         if result.get('stopped', False):
             self.stopped = True
@@ -361,8 +364,9 @@ class DownloadManager:
             )
 
             # Set current downloader for progress tracking
-            self.current_downloader = downloader
-            self.current_download_type = f"audio_{audio['language']}"
+            with self.progress_lock:
+                self.current_downloader = downloader
+                self.current_download_type = f"audio_{audio['language']}"
 
             # Download audio
             result = downloader.download_streams(f"Audio {audio['language']}", "audio")
@@ -373,8 +377,9 @@ class DownloadManager:
                 self.audio_output_paths[audio['language']] = result['output_path']
 
             # Reset current downloader after completion
-            self.current_downloader = None
-            self.current_download_type = None
+            with self.progress_lock:
+                self.current_downloader = None
+                self.current_download_type = None
 
             if result.get('stopped', False):
                 self.stopped = True
@@ -384,8 +389,9 @@ class DownloadManager:
         
         except Exception as e:
             logging.error(f"Error downloading audio {audio.get('language', 'unknown')}: {str(e)}")
-            self.current_downloader = None
-            self.current_download_type = None
+            with self.progress_lock:
+                self.current_downloader = None
+                self.current_download_type = None
             return False
 
     def download_subtitle(self, sub: Dict) -> bool:
@@ -781,16 +787,20 @@ class HLS_Downloader:
             f"      [cyan]and duration[white]: [red]{duration}")
 
     def get_progress_data(self) -> Optional[Dict]:
-        """Get current download progress data."""
-        if not self.download_manager.current_downloader:
+        """Get current download progress data with thread safety."""
+        if not self.download_manager:
             return None
-
-        try:
-            progress = self.download_manager.current_downloader.get_progress_data()
-            if progress:
-                progress['download_type'] = self.download_manager.current_download_type
-            return progress
             
-        except Exception as e:
-            logging.error(f"Error getting progress data: {e}")
-            return None
+        with self.download_manager.progress_lock:
+            if not self.download_manager.current_downloader:
+                return None
+
+            try:
+                progress = self.download_manager.current_downloader.get_progress_data()
+                if progress:
+                    progress['download_type'] = self.download_manager.current_download_type
+                return progress
+                
+            except Exception as e:
+                logging.error(f"Error getting progress data: {e}")
+                return None

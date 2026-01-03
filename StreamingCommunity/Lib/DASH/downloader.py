@@ -75,9 +75,10 @@ class DASH_Downloader:
         self.output_file = None
         self.last_merge_result = None
         
-        # For progress tracking
+        # For progress tracking with thread safety
         self.current_downloader: Optional[MPD_Segments] = None
         self.current_download_type: Optional[str] = None
+        self.progress_lock = threading.Lock()
 
     def _setup_temp_dirs(self):
         """
@@ -374,8 +375,9 @@ class DASH_Downloader:
                 if not os.path.exists(encrypted_path):
 
                     # Set current downloader for progress tracking
-                    self.current_downloader = audio_downloader
-                    self.current_download_type = f"audio_{audio_language}"
+                    with self.progress_lock:
+                        self.current_downloader = audio_downloader
+                        self.current_download_type = f"audio_{audio_language}"
 
                     try:
                         result = audio_downloader.download_streams(description=f"Audio {audio_language}")
@@ -398,8 +400,9 @@ class DASH_Downloader:
                         return
                     
                     finally:
-                        self.current_downloader = None
-                        self.current_download_type = None
+                        with self.progress_lock:
+                            self.current_downloader = None
+                            self.current_download_type = None
 
                 # Decrypt audio using the mapped key and encryption method
                 decrypted_path = os.path.join(self.decrypted_dir, f"audio.{EXTENSION_OUTPUT}")
@@ -519,8 +522,9 @@ class DASH_Downloader:
 
                 # If m4s file doesn't exist, start downloading
                 if not os.path.exists(encrypted_path):
-                    self.current_downloader = video_downloader
-                    self.current_download_type = 'video'
+                    with self.progress_lock:
+                        self.current_downloader = video_downloader
+                        self.current_download_type = 'video'
                     
                     try:
                         result = video_downloader.download_streams(description="Video")
@@ -544,8 +548,9 @@ class DASH_Downloader:
                         return
                     
                     finally:
-                        self.current_downloader = None
-                        self.current_download_type = None
+                        with self.progress_lock:
+                            self.current_downloader = None
+                            self.current_download_type = None
                 
                 # NO DECRYPTION: just copy/move to decrypted folder
                 decrypted_path = os.path.join(self.decrypted_dir, f"video.{EXTENSION_OUTPUT}")
@@ -571,8 +576,9 @@ class DASH_Downloader:
 
                 # If m4s file doesn't exist, start downloading
                 if not os.path.exists(encrypted_path):
-                    self.current_downloader = audio_downloader
-                    self.current_download_type = f"audio_{audio_language}"
+                    with self.progress_lock:
+                        self.current_downloader = audio_downloader
+                        self.current_download_type = f"audio_{audio_language}"
                     
                     try:
                         result = audio_downloader.download_streams(description=f"Audio {audio_language}")
@@ -596,8 +602,9 @@ class DASH_Downloader:
                         return
                     
                     finally:
-                        self.current_downloader = None
-                        self.current_download_type = None
+                        with self.progress_lock:
+                            self.current_downloader = None
+                            self.current_download_type = None
                 
                 # NO DECRYPTION: just copy/move to decrypted folder
                 decrypted_path = os.path.join(self.decrypted_dir, f"audio.{EXTENSION_OUTPUT}")
@@ -765,16 +772,17 @@ class DASH_Downloader:
         }
     
     def get_progress_data(self) -> Optional[Dict]:
-        """Get current download progress data."""
-        if not self.current_downloader:
-            return None
+        """Get current download progress data with thread safety."""
+        with self.progress_lock:
+            if not self.current_downloader:
+                return None
 
-        try:
-            progress = self.current_downloader.get_progress_data()
-            if progress:
-                progress['download_type'] = self.current_download_type
-            return progress
-            
-        except Exception as e:
-            logging.error(f"Error getting progress data: {e}")
-            return None
+            try:
+                progress = self.current_downloader.get_progress_data()
+                if progress:
+                    progress['download_type'] = self.current_download_type
+                return progress
+                
+            except Exception as e:
+                logging.error(f"Error getting progress data: {e}")
+                return None

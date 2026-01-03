@@ -4,6 +4,7 @@ import os
 import sys
 import shutil
 import logging
+import threading
 from typing import Optional, Dict
 
 
@@ -74,9 +75,10 @@ class DASH_Downloader:
         self.output_file = None
         self.last_merge_result = None
         
-        # For progress tracking
+        # For progress tracking with thread safety
         self.current_downloader: Optional[MPD_Segments] = None
         self.current_download_type: Optional[str] = None
+        self.progress_lock = threading.Lock()
 
     def _setup_temp_dirs(self):
         """
@@ -212,6 +214,7 @@ class DASH_Downloader:
     def download_and_decrypt(self, custom_headers=None, query_params=None, key=None) -> bool:
         """
         Download and decrypt video/audio streams using automatic key mapping based on default_KID.
+        Video and audio are downloaded in parallel using threads for better performance.
 
         Args:
             - custom_headers (dict): Optional HTTP headers for the license request.
@@ -270,37 +273,53 @@ class DASH_Downloader:
         # Download subtitles
         self.download_subtitles()
 
-        # Download and decrypt video
-        video_rep = self.get_representation_by_type("video")
-        if video_rep:
-            video_downloader = MPD_Segments(tmp_folder=self.encrypted_dir, representation=video_rep, pssh=self._get_pssh_for_drm(drm_type), custom_headers=custom_headers)
-            encrypted_path = video_downloader.get_concat_path(self.encrypted_dir)
-
-            # If m4s file doesn't exist, start downloading
-            if not os.path.exists(encrypted_path):
-                self.current_downloader = video_downloader
-                self.current_download_type = 'video'
-
-                try:
-                    result = video_downloader.download_streams(description="Video")
-                
-                    # Check for interruption or failure
-                    if result.get("stopped"):
-                        self.stopped = True
-                        self.error = "Download interrupted"
-                        return False
+        # Prepare for parallel downloads
+        video_result = {'success': True, 'error': None}
+        audio_result = {'success': True, 'error': None}
+        threads = []
+        
+        # Define video download and decrypt function
+        def download_and_decrypt_video():
+            try:
+                video_rep = self.get_representation_by_type("video")
+                if not video_rep:
+                    video_result['success'] = False
+                    video_result['error'] = "No video found"
+                    return
                     
-                    if result.get("nFailed", 0) > 0:
-                        self.error = f"Failed segments: {result['nFailed']}"
-                        return False
+                video_downloader = MPD_Segments(tmp_folder=self.encrypted_dir, representation=video_rep, pssh=self._get_pssh_for_drm(drm_type), custom_headers=custom_headers)
+                encrypted_path = video_downloader.get_concat_path(self.encrypted_dir)
+
+                # If m4s file doesn't exist, start downloading
+                if not os.path.exists(encrypted_path):
+                    with self.progress_lock:
+                        self.current_downloader = video_downloader
+                        self.current_download_type = 'video'
+
+                    try:
+                        result = video_downloader.download_streams(description="Video")
                     
-                except Exception as ex:
-                    self.error = str(ex)
-                    return False
-                
-                finally:
-                    self.current_downloader = None
-                    self.current_download_type = None
+                        # Check for interruption or failure
+                        if result.get("stopped"):
+                            self.stopped = True
+                            video_result['success'] = False
+                            video_result['error'] = "Download interrupted"
+                            return
+                        
+                        if result.get("nFailed", 0) > 0:
+                            video_result['success'] = False
+                            video_result['error'] = f"Failed segments: {result['nFailed']}"
+                            return
+                        
+                    except Exception as ex:
+                        video_result['success'] = False
+                        video_result['error'] = str(ex)
+                        return
+                    
+                    finally:
+                        with self.progress_lock:
+                            self.current_downloader = None
+                            self.current_download_type = None
 
                 # Decrypt video ONLY if it's protected
                 decrypted_path = os.path.join(self.decrypted_dir, f"video.{EXTENSION_OUTPUT}")
@@ -312,77 +331,114 @@ class DASH_Downloader:
                         video_key_info = {"kid": single_key["kid"], "key": single_key["key"], "representation_id": None, "default_kid": None}
                     
                     if not video_key_info:
-                        self.error = "No key found for video representation"
-                        return False
+                        video_result['success'] = False
+                        video_result['error'] = "No key found for video representation"
+                        return
 
                     console.log(f"[cyan]Using video key: [red]{video_key_info['kid']}[white]: [red]{video_key_info['key']} [cyan]for representation [yellow]{video_key_info.get('representation_id', 'N/A')}")
                     result_path = decrypt_with_mp4decrypt("Video", encrypted_path, video_key_info['kid'], video_key_info['key'],  output_path=decrypted_path)
 
                     if not result_path:
-                        self.error = f"Video decryption failed with key {video_key_info['kid']}"
-                        return False
+                        video_result['success'] = False
+                        video_result['error'] = f"Video decryption failed with key {video_key_info['kid']}"
+                        return
                 else:
                     console.log("[cyan]Video is not protected, copying without decryption")
                     shutil.copy2(encrypted_path, decrypted_path)
-
-        else:
-            self.error = "No video found"
-            return False
-            
-        # Download and decrypt audio
-        audio_rep = self.get_representation_by_type("audio")
-        if audio_rep:
-            audio_key_info = key_mapping.get("audio")
-            if not audio_key_info and single_key:
-                console.print("[yellow]Warning: no mapped key found for audio; using the single available key.")
-                audio_key_info = {"kid": single_key["kid"], "key": single_key["key"], "representation_id": None, "default_kid": None}
-            if not audio_key_info:
-                self.error = "No key found for audio representation"
-                return False
-
-            console.log(f"[cyan]Using audio key: [red]{audio_key_info['kid']}[white]: [red]{audio_key_info['key']} [cyan]for representation [yellow]{audio_key_info.get('representation_id', 'N/A')}")
-            audio_language = audio_rep.get('language', 'Unknown')
-            audio_downloader = MPD_Segments(tmp_folder=self.encrypted_dir, representation=audio_rep, pssh=self._get_pssh_for_drm(drm_type), custom_headers=custom_headers)
-            encrypted_path = audio_downloader.get_concat_path(self.encrypted_dir)
-
-            # If m4s file doesn't exist, start downloading
-            if not os.path.exists(encrypted_path):
-
-                # Set current downloader for progress tracking
-                self.current_downloader = audio_downloader
-                self.current_download_type = f"audio_{audio_language}"
-
-                try:
-                    result = audio_downloader.download_streams(description=f"Audio {audio_language}")
-
-                    # Check for interruption or failure
-                    if result.get("stopped"):
-                        self.stopped = True
-                        self.error = "Download interrupted"
-                        return False
                     
-                    if result.get("nFailed", 0) > 0:
-                        self.error = f"Failed segments: {result['nFailed']}"
-                        return False
-                    
-                except Exception as ex:
-                    self.error = str(ex)
-                    return False
+            except Exception as ex:
+                video_result['success'] = False
+                video_result['error'] = str(ex)
+        
+        # Define audio download and decrypt function
+        def download_and_decrypt_audio():
+            try:
+                audio_rep = self.get_representation_by_type("audio")
+                if not audio_rep:
+                    audio_result['success'] = False
+                    audio_result['error'] = "No audio found"
+                    return
                 
-                finally:
-                    self.current_downloader = None
-                    self.current_download_type = None
+                audio_key_info = key_mapping.get("audio")
+                if not audio_key_info and single_key:
+                    console.print("[yellow]Warning: no mapped key found for audio; using the single available key.")
+                    audio_key_info = {"kid": single_key["kid"], "key": single_key["key"], "representation_id": None, "default_kid": None}
+                if not audio_key_info:
+                    audio_result['success'] = False
+                    audio_result['error'] = "No key found for audio representation"
+                    return
+
+                console.log(f"[cyan]Using audio key: [red]{audio_key_info['kid']}[white]: [red]{audio_key_info['key']} [cyan]for representation [yellow]{audio_key_info.get('representation_id', 'N/A')}")
+                audio_language = audio_rep.get('language', 'Unknown')
+                audio_downloader = MPD_Segments(tmp_folder=self.encrypted_dir, representation=audio_rep, pssh=self._get_pssh_for_drm(drm_type), custom_headers=custom_headers)
+                encrypted_path = audio_downloader.get_concat_path(self.encrypted_dir)
+
+                # If m4s file doesn't exist, start downloading
+                if not os.path.exists(encrypted_path):
+
+                    # Set current downloader for progress tracking
+                    with self.progress_lock:
+                        self.current_downloader = audio_downloader
+                        self.current_download_type = f"audio_{audio_language}"
+
+                    try:
+                        result = audio_downloader.download_streams(description=f"Audio {audio_language}")
+
+                        # Check for interruption or failure
+                        if result.get("stopped"):
+                            self.stopped = True
+                            audio_result['success'] = False
+                            audio_result['error'] = "Download interrupted"
+                            return
+                        
+                        if result.get("nFailed", 0) > 0:
+                            audio_result['success'] = False
+                            audio_result['error'] = f"Failed segments: {result['nFailed']}"
+                            return
+                        
+                    except Exception as ex:
+                        audio_result['success'] = False
+                        audio_result['error'] = str(ex)
+                        return
+                    
+                    finally:
+                        with self.progress_lock:
+                            self.current_downloader = None
+                            self.current_download_type = None
 
                 # Decrypt audio using the mapped key and encryption method
                 decrypted_path = os.path.join(self.decrypted_dir, f"audio.{EXTENSION_OUTPUT}")
                 result_path = decrypt_with_mp4decrypt(f"Audio {audio_language}", encrypted_path, audio_key_info['kid'], audio_key_info['key'], output_path=decrypted_path)
 
                 if not result_path:
-                    self.error = f"Audio decryption failed with key {audio_key_info['kid']}"
-                    return False
-
-        else:
-            self.error = "No audio found"
+                    audio_result['success'] = False
+                    audio_result['error'] = f"Audio decryption failed with key {audio_key_info['kid']}"
+                    return
+                    
+            except Exception as ex:
+                audio_result['success'] = False
+                audio_result['error'] = str(ex)
+        
+        # Start video and audio downloads in parallel
+        video_thread = threading.Thread(target=download_and_decrypt_video, name="video-download-decrypt")
+        audio_thread = threading.Thread(target=download_and_decrypt_audio, name="audio-download-decrypt")
+        
+        video_thread.start()
+        audio_thread.start()
+        threads.append(video_thread)
+        threads.append(audio_thread)
+        
+        # Wait for both downloads to complete
+        for thread in threads:
+            thread.join()
+        
+        # Check results
+        if not video_result['success']:
+            self.error = video_result['error']
+            return False
+        
+        if not audio_result['success']:
+            self.error = audio_result['error']
             return False
 
         return True
@@ -433,6 +489,7 @@ class DASH_Downloader:
     def download_segments(self, clear=False):
         """
         Download video/audio segments without decryption (for clear content).
+        Video and audio are downloaded in parallel using threads.
         
         Parameters:
             clear (bool): If True, content is not encrypted and doesn't need decryption
@@ -444,94 +501,143 @@ class DASH_Downloader:
         # Download subtitles
         self.download_subtitles()
         
-        # Download video
-        video_rep = self.get_representation_by_type("video")
-        if video_rep:
-            video_downloader = MPD_Segments(
-                tmp_folder=self.encrypted_dir,
-                representation=video_rep,
-                pssh=self.parser.pssh
-            )
-            encrypted_path = video_downloader.get_concat_path(self.encrypted_dir)
-
-            # If m4s file doesn't exist, start downloading
-            if not os.path.exists(encrypted_path):
-                self.current_downloader = video_downloader
-                self.current_download_type = 'video'
+        # Prepare for parallel downloads
+        video_result = {'success': True, 'error': None}
+        audio_result = {'success': True, 'error': None}
+        threads = []
+        
+        # Define video download function
+        def download_video():
+            try:
+                video_rep = self.get_representation_by_type("video")
+                if not video_rep:
+                    video_result['success'] = False
+                    video_result['error'] = "No video found"
+                    return
                 
-                try:
-                    result = video_downloader.download_streams(description="Video")
-                    
-                    # Check for interruption or failure
-                    if result.get("stopped"):
-                        self.stopped = True
-                        self.error = "Download interrupted"
-                        return False
-                    
-                    if result.get("nFailed", 0) > 0:
-                        self.error = f"Failed segments: {result['nFailed']}"
-                        return False
-                    
-                except Exception as ex:
-                    self.error = str(ex)
-                    console.print(f"[red]Error downloading video: {ex}")
-                    return False
-                
-                finally:
-                    self.current_downloader = None
-                    self.current_download_type = None
-            
-            # NO DECRYPTION: just copy/move to decrypted folder
-            decrypted_path = os.path.join(self.decrypted_dir, f"video.{EXTENSION_OUTPUT}")
-            if os.path.exists(encrypted_path) and not os.path.exists(decrypted_path):
-                shutil.copy2(encrypted_path, decrypted_path)
+                video_downloader = MPD_Segments(
+                    tmp_folder=self.encrypted_dir,
+                    representation=video_rep,
+                    pssh=self.parser.pssh
+                )
+                encrypted_path = video_downloader.get_concat_path(self.encrypted_dir)
 
-        else:
-            self.error = "No video found"
+                # If m4s file doesn't exist, start downloading
+                if not os.path.exists(encrypted_path):
+                    with self.progress_lock:
+                        self.current_downloader = video_downloader
+                        self.current_download_type = 'video'
+                    
+                    try:
+                        result = video_downloader.download_streams(description="Video")
+                        
+                        # Check for interruption or failure
+                        if result.get("stopped"):
+                            self.stopped = True
+                            video_result['success'] = False
+                            video_result['error'] = "Download interrupted"
+                            return
+                        
+                        if result.get("nFailed", 0) > 0:
+                            video_result['success'] = False
+                            video_result['error'] = f"Failed segments: {result['nFailed']}"
+                            return
+                        
+                    except Exception as ex:
+                        video_result['success'] = False
+                        video_result['error'] = str(ex)
+                        console.print(f"[red]Error downloading video: {ex}")
+                        return
+                    
+                    finally:
+                        with self.progress_lock:
+                            self.current_downloader = None
+                            self.current_download_type = None
+                
+                # NO DECRYPTION: just copy/move to decrypted folder
+                decrypted_path = os.path.join(self.decrypted_dir, f"video.{EXTENSION_OUTPUT}")
+                if os.path.exists(encrypted_path) and not os.path.exists(decrypted_path):
+                    shutil.copy2(encrypted_path, decrypted_path)
+                    
+            except Exception as ex:
+                video_result['success'] = False
+                video_result['error'] = str(ex)
+        
+        # Define audio download function
+        def download_audio():
+            try:
+                audio_rep = self.get_representation_by_type("audio")
+                if not audio_rep:
+                    audio_result['success'] = False
+                    audio_result['error'] = "No audio found"
+                    return
+                
+                audio_language = audio_rep.get('language', 'Unknown')
+                audio_downloader = MPD_Segments(tmp_folder=self.encrypted_dir, representation=audio_rep, pssh=self.parser.pssh)
+                encrypted_path = audio_downloader.get_concat_path(self.encrypted_dir)
+
+                # If m4s file doesn't exist, start downloading
+                if not os.path.exists(encrypted_path):
+                    with self.progress_lock:
+                        self.current_downloader = audio_downloader
+                        self.current_download_type = f"audio_{audio_language}"
+                    
+                    try:
+                        result = audio_downloader.download_streams(description=f"Audio {audio_language}")
+                        
+                        # Check for interruption or failure
+                        if result.get("stopped"):
+                            self.stopped = True
+                            audio_result['success'] = False
+                            audio_result['error'] = "Download interrupted"
+                            return
+                        
+                        if result.get("nFailed", 0) > 0:
+                            audio_result['success'] = False
+                            audio_result['error'] = f"Failed segments: {result['nFailed']}"
+                            return
+                        
+                    except Exception as ex:
+                        audio_result['success'] = False
+                        audio_result['error'] = str(ex)
+                        console.print(f"[red]Error downloading audio: {ex}")
+                        return
+                    
+                    finally:
+                        with self.progress_lock:
+                            self.current_downloader = None
+                            self.current_download_type = None
+                
+                # NO DECRYPTION: just copy/move to decrypted folder
+                decrypted_path = os.path.join(self.decrypted_dir, f"audio.{EXTENSION_OUTPUT}")
+                if os.path.exists(encrypted_path) and not os.path.exists(decrypted_path):
+                    shutil.copy2(encrypted_path, decrypted_path)
+                    
+            except Exception as ex:
+                audio_result['success'] = False
+                audio_result['error'] = str(ex)
+        
+        # Start video and audio downloads in parallel
+        video_thread = threading.Thread(target=download_video, name="video-download")
+        audio_thread = threading.Thread(target=download_audio, name="audio-download")
+        
+        video_thread.start()
+        audio_thread.start()
+        threads.append(video_thread)
+        threads.append(audio_thread)
+        
+        # Wait for both downloads to complete
+        for thread in threads:
+            thread.join()
+        
+        # Check results
+        if not video_result['success']:
+            self.error = video_result['error']
             console.print(f"[red]{self.error}")
             return False
         
-        # Download audio with segment limiting
-        audio_rep = self.get_representation_by_type("audio")
-        if audio_rep:
-            audio_language = audio_rep.get('language', 'Unknown')
-            audio_downloader = MPD_Segments(tmp_folder=self.encrypted_dir, representation=audio_rep, pssh=self.parser.pssh)
-            encrypted_path = audio_downloader.get_concat_path(self.encrypted_dir)
-
-            # If m4s file doesn't exist, start downloading
-            if not os.path.exists(encrypted_path):
-                self.current_downloader = audio_downloader
-                self.current_download_type = f"audio_{audio_language}"
-                
-                try:
-                    result = audio_downloader.download_streams(description=f"Audio {audio_language}")
-                    
-                    # Check for interruption or failure
-                    if result.get("stopped"):
-                        self.stopped = True
-                        self.error = "Download interrupted"
-                        return False
-                    
-                    if result.get("nFailed", 0) > 0:
-                        self.error = f"Failed segments: {result['nFailed']}"
-                        return False
-                    
-                except Exception as ex:
-                    self.error = str(ex)
-                    console.print(f"[red]Error downloading audio: {ex}")
-                    return False
-                
-                finally:
-                    self.current_downloader = None
-                    self.current_download_type = None
-            
-            # NO DECRYPTION: just copy/move to decrypted folder
-            decrypted_path = os.path.join(self.decrypted_dir, f"audio.{EXTENSION_OUTPUT}")
-            if os.path.exists(encrypted_path) and not os.path.exists(decrypted_path):
-                shutil.copy2(encrypted_path, decrypted_path)
-                
-        else:
-            self.error = "No audio found"
+        if not audio_result['success']:
+            self.error = audio_result['error']
             console.print(f"[red]{self.error}")
             return False
         
@@ -668,16 +774,17 @@ class DASH_Downloader:
         }
     
     def get_progress_data(self) -> Optional[Dict]:
-        """Get current download progress data."""
-        if not self.current_downloader:
-            return None
+        """Get current download progress data with thread safety."""
+        with self.progress_lock:
+            if not self.current_downloader:
+                return None
 
-        try:
-            progress = self.current_downloader.get_progress_data()
-            if progress:
-                progress['download_type'] = self.current_download_type
-            return progress
-            
-        except Exception as e:
-            logging.error(f"Error getting progress data: {e}")
-            return None
+            try:
+                progress = self.current_downloader.get_progress_data()
+                if progress:
+                    progress['download_type'] = self.current_download_type
+                return progress
+                
+            except Exception as e:
+                logging.error(f"Error getting progress data: {e}")
+                return None

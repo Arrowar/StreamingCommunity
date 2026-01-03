@@ -292,8 +292,9 @@ class DASH_Downloader:
 
                 # If m4s file doesn't exist, start downloading
                 if not os.path.exists(encrypted_path):
-                    self.current_downloader = video_downloader
-                    self.current_download_type = 'video'
+                    with self.progress_lock:
+                        self.current_downloader = video_downloader
+                        self.current_download_type = 'video'
 
                     try:
                         result = video_downloader.download_streams(description="Video")
@@ -316,8 +317,9 @@ class DASH_Downloader:
                         return
                     
                     finally:
-                        self.current_downloader = None
-                        self.current_download_type = None
+                        with self.progress_lock:
+                            self.current_downloader = None
+                            self.current_download_type = None
 
                 # Decrypt video ONLY if it's protected
                 decrypted_path = os.path.join(self.decrypted_dir, f"video.{EXTENSION_OUTPUT}")

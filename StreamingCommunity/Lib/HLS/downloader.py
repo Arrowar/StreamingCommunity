@@ -4,6 +4,7 @@ import os
 import sys
 import logging
 import shutil
+import threading
 from typing import Any, Dict, List, Optional, Union
 
 
@@ -419,29 +420,58 @@ class DownloadManager:
 
     def download_all(self, video_url: str, audio_streams: List[Dict], sub_streams: List[Dict]) -> bool:
         """
-        Downloads all selected streams (video, audio, subtitles).
+        Downloads all selected streams (video, audio, subtitles) in parallel.
+        Video and audio downloads run simultaneously using threads.
         For multiple downloads, continues even if individual downloads fail.
         
         Returns:
             bool: True if any critical download failed and should stop processing
         """
         critical_failure = False
-
-        # Download video (this is critical)
-        if not self.download_video(video_url):
-            logging.error("Critical failure: Video download failed")
-            critical_failure = True
-
-        # Download audio streams (continue even if some fail)
+        threads = []
+        video_result = {'success': False}
+        audio_results = {}
+        
+        # Define video download function for threading
+        def download_video_thread():
+            video_result['success'] = self.download_video(video_url)
+            if not video_result['success']:
+                logging.error("Critical failure: Video download failed")
+        
+        # Define audio download function for threading
+        def download_audio_thread(audio, language):
+            success = self.download_audio(audio)
+            audio_results[language] = success
+            if not success:
+                logging.warning(f"Audio download failed for language {language}, continuing...")
+        
+        # Start video download thread
+        video_thread = threading.Thread(target=download_video_thread, name="video-download")
+        video_thread.start()
+        threads.append(video_thread)
+        
+        # Start audio download threads
         for audio in audio_streams:
             if self.stopped:
                 break
+            language = audio.get('language', 'unknown')
+            audio_thread = threading.Thread(
+                target=download_audio_thread, 
+                args=(audio, language),
+                name=f"audio-download-{language}"
+            )
+            audio_thread.start()
+            threads.append(audio_thread)
+        
+        # Wait for all downloads to complete
+        for thread in threads:
+            thread.join()
+        
+        # Check if video download failed (critical)
+        if not video_result['success']:
+            critical_failure = True
 
-            success = self.download_audio(audio)
-            if not success:
-                logging.warning(f"Audio download failed for language {audio.get('language', 'unknown')}, continuing...")
-
-        # Download subtitle streams (continue even if some fail)
+        # Download subtitle streams sequentially (not CPU/IO intensive)
         for sub in sub_streams:
             if self.stopped:
                 break

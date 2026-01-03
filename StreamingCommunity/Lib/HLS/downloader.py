@@ -4,6 +4,7 @@ import os
 import sys
 import logging
 import shutil
+import threading
 from typing import Any, Dict, List, Optional, Union
 
 
@@ -294,9 +295,10 @@ class DownloadManager:
         self.video_output_path = None
         self.audio_output_paths = {}
 
-        # For progress tracking
+        # For progress tracking with thread safety
         self.current_downloader: Optional[M3U8_Segments] = None
         self.current_download_type: Optional[str] = None
+        self.progress_lock = threading.Lock()
 
     def download_video(self, video_url: str) -> bool:
         """
@@ -317,8 +319,9 @@ class DownloadManager:
         )
 
         # Set current downloader for progress tracking
-        self.current_downloader = downloader
-        self.current_download_type = 'video'
+        with self.progress_lock:
+            self.current_downloader = downloader
+            self.current_download_type = 'video'
         
         # Download video and get segment count
         result = downloader.download_streams("Video", "video")
@@ -330,8 +333,9 @@ class DownloadManager:
             self.video_output_path = result['output_path']
 
         # Reset current downloader after completion
-        self.current_downloader = None
-        self.current_download_type = None
+        with self.progress_lock:
+            self.current_downloader = None
+            self.current_download_type = None
 
         if result.get('stopped', False):
             self.stopped = True
@@ -360,8 +364,9 @@ class DownloadManager:
             )
 
             # Set current downloader for progress tracking
-            self.current_downloader = downloader
-            self.current_download_type = f"audio_{audio['language']}"
+            with self.progress_lock:
+                self.current_downloader = downloader
+                self.current_download_type = f"audio_{audio['language']}"
 
             # Download audio
             result = downloader.download_streams(f"Audio {audio['language']}", "audio")
@@ -372,8 +377,9 @@ class DownloadManager:
                 self.audio_output_paths[audio['language']] = result['output_path']
 
             # Reset current downloader after completion
-            self.current_downloader = None
-            self.current_download_type = None
+            with self.progress_lock:
+                self.current_downloader = None
+                self.current_download_type = None
 
             if result.get('stopped', False):
                 self.stopped = True
@@ -383,8 +389,9 @@ class DownloadManager:
         
         except Exception as e:
             logging.error(f"Error downloading audio {audio.get('language', 'unknown')}: {str(e)}")
-            self.current_downloader = None
-            self.current_download_type = None
+            with self.progress_lock:
+                self.current_downloader = None
+                self.current_download_type = None
             return False
 
     def download_subtitle(self, sub: Dict) -> bool:
@@ -419,29 +426,58 @@ class DownloadManager:
 
     def download_all(self, video_url: str, audio_streams: List[Dict], sub_streams: List[Dict]) -> bool:
         """
-        Downloads all selected streams (video, audio, subtitles).
+        Downloads all selected streams (video, audio, subtitles) in parallel.
+        Video and audio downloads run simultaneously using threads.
         For multiple downloads, continues even if individual downloads fail.
         
         Returns:
             bool: True if any critical download failed and should stop processing
         """
         critical_failure = False
-
-        # Download video (this is critical)
-        if not self.download_video(video_url):
-            logging.error("Critical failure: Video download failed")
-            critical_failure = True
-
-        # Download audio streams (continue even if some fail)
+        threads = []
+        video_result = {'success': False}
+        audio_results = {}
+        
+        # Define video download function for threading
+        def download_video_thread():
+            video_result['success'] = self.download_video(video_url)
+            if not video_result['success']:
+                logging.error("Critical failure: Video download failed")
+        
+        # Define audio download function for threading
+        def download_audio_thread(audio, language):
+            success = self.download_audio(audio)
+            audio_results[language] = success
+            if not success:
+                logging.warning(f"Audio download failed for language {language}, continuing...")
+        
+        # Start video download thread
+        video_thread = threading.Thread(target=download_video_thread, name="video-download")
+        video_thread.start()
+        threads.append(video_thread)
+        
+        # Start audio download threads
         for audio in audio_streams:
             if self.stopped:
                 break
+            language = audio.get('language', 'unknown')
+            audio_thread = threading.Thread(
+                target=download_audio_thread, 
+                args=(audio, language),
+                name=f"audio-download-{language}"
+            )
+            audio_thread.start()
+            threads.append(audio_thread)
+        
+        # Wait for all downloads to complete
+        for thread in threads:
+            thread.join()
+        
+        # Check if video download failed (critical)
+        if not video_result['success']:
+            critical_failure = True
 
-            success = self.download_audio(audio)
-            if not success:
-                logging.warning(f"Audio download failed for language {audio.get('language', 'unknown')}, continuing...")
-
-        # Download subtitle streams (continue even if some fail)
+        # Download subtitle streams sequentially (not CPU/IO intensive)
         for sub in sub_streams:
             if self.stopped:
                 break
@@ -751,16 +787,20 @@ class HLS_Downloader:
             f"      [cyan]and duration[white]: [red]{duration}")
 
     def get_progress_data(self) -> Optional[Dict]:
-        """Get current download progress data."""
-        if not self.download_manager.current_downloader:
+        """Get current download progress data with thread safety."""
+        if not self.download_manager:
             return None
-
-        try:
-            progress = self.download_manager.current_downloader.get_progress_data()
-            if progress:
-                progress['download_type'] = self.download_manager.current_download_type
-            return progress
             
-        except Exception as e:
-            logging.error(f"Error getting progress data: {e}")
-            return None
+        with self.download_manager.progress_lock:
+            if not self.download_manager.current_downloader:
+                return None
+
+            try:
+                progress = self.download_manager.current_downloader.get_progress_data()
+                if progress:
+                    progress['download_type'] = self.download_manager.current_download_type
+                return progress
+                
+            except Exception as e:
+                logging.error(f"Error getting progress data: {e}")
+                return None

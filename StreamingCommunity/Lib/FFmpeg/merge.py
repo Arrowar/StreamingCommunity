@@ -2,6 +2,8 @@
 
 import os
 import logging
+import platform
+import subprocess
 from typing import List, Dict
 
 
@@ -42,6 +44,49 @@ def add_encoding_params(ffmpeg_cmd: List[str]):
         ffmpeg_cmd.extend(PARAM_VIDEO)
         ffmpeg_cmd.extend(PARAM_AUDIO)
 
+def detect_gpu_device_type() -> str:
+    """
+    Detects the GPU device type available on the system.
+    
+    Returns:
+        str: The type of GPU device detected ('cuda', 'vaapi', 'qsv', or 'none').
+    """
+    os_type = platform.system().lower()
+    
+    try:
+        if os_type == 'linux':
+            result = subprocess.run(['lspci'], capture_output=True, text=True, check=True)
+            output = result.stdout.lower()
+        elif os_type == 'windows':
+            try:
+                result = subprocess.run(['wmic', 'path', 'win32_videocontroller', 'get', 'name'], 
+                                      capture_output=True, text=True, check=True)
+                output = result.stdout.lower()
+            except (subprocess.CalledProcessError, FileNotFoundError):
+                # Fallback to PowerShell if wmic is not available
+                try:
+                    result = subprocess.run(['powershell', '-Command', 'Get-WmiObject win32_videocontroller | Select-Object -ExpandProperty Name'], 
+                                          capture_output=True, text=True, check=True)
+                    output = result.stdout.lower()
+                except (subprocess.CalledProcessError, FileNotFoundError):
+                    return 'none'
+        elif os_type == 'darwin':  # macOS
+            result = subprocess.run(['system_profiler', 'SPDisplaysDataType'], 
+                                  capture_output=True, text=True, check=True)
+            output = result.stdout.lower()
+        else:
+            return 'none'
+        
+        if 'nvidia' in output:
+            return 'cuda'
+        elif 'intel' in output:
+            return 'vaapi'
+        elif 'amd' in output or 'ati' in output:
+            return 'vaapi'
+        else:
+            return 'none'
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return 'none'
 
 def join_video(video_path: str, out_path: str):
     """
@@ -55,7 +100,9 @@ def join_video(video_path: str, out_path: str):
 
     # Enabled the use of gpu
     if USE_GPU:
-        ffmpeg_cmd.extend(['-hwaccel', 'cuda'])
+        gpu_type_hwaccel = detect_gpu_device_type()
+        logging.info(f"Detected GPU type for video join: {gpu_type_hwaccel}")
+        ffmpeg_cmd.extend(['-hwaccel', gpu_type_hwaccel])
 
     # Add mpegts to force to detect input file as ts file
     if need_to_force_to_ts(video_path):
@@ -119,7 +166,7 @@ def join_audios(video_path: str, audio_tracks: List[Dict[str, str]], out_path: s
 
     # Enabled the use of gpu
     if USE_GPU:
-        ffmpeg_cmd.extend(['-hwaccel', 'cuda'])
+        ffmpeg_cmd.extend(['-hwaccel', detect_gpu_device_type()])
 
     # Insert input video path
     ffmpeg_cmd.extend(['-i', video_path])

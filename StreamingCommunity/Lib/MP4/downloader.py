@@ -1,7 +1,6 @@
 # 09.06.24
 
 import os
-import sys
 import time
 import signal
 import logging
@@ -10,14 +9,15 @@ import threading
 
 
 # External libraries
-from tqdm import tqdm
 from rich.console import Console
 from rich.prompt import Prompt
+from rich.progress import Progress, TextColumn
 
 
 # Internal utilities
 from StreamingCommunity.Util.http_client import create_client, get_userAgent
-from StreamingCommunity.Util import config_manager, os_manager, internet_manager, Colors
+from StreamingCommunity.Util import config_manager, os_manager, internet_manager
+from ..HDI.download.utils import CustomBarColumn, FormatUtils
 
 
 # Config
@@ -105,34 +105,45 @@ def MP4_Downloader(url: str, path: str, referer: str = None, headers_: dict = No
     # Ensure the output directory exists
     os.makedirs(os.path.dirname(path), exist_ok=True)
 
-    try:
-        with create_client() as client:
-            with client.stream("GET", url, headers=headers) as response:
-                response.raise_for_status()
-                total = int(response.headers.get('content-length', 0))
-                
-                if total == 0:
-                    console.print("[red]No video stream found.")
-                    return None, False
+    with create_client() as client:
+        with client.stream("GET", url, headers=headers) as response:
+            response.raise_for_status()
+            total = int(response.headers.get('content-length', 0))
+            
+            if total == 0:
+                console.print("[red]No video stream found.")
+                return None, False
 
-                # Create progress bar with percentage instead of n_fmt/total_fmt
-                progress_bar = tqdm(
+            # Create progress bar with Rich
+            progress_bars = Progress(
+                TextColumn("[bold yellow]MP4[/bold yellow] [bold cyan]Downloading[/bold cyan]: "),
+                CustomBarColumn(bar_width=40),
+                TextColumn("[bright_green]{task.fields[downloaded]}[/bright_green] [bright_magenta]{task.fields[downloaded_unit]}[/bright_magenta][dim]/[/dim][bright_cyan]{task.fields[total_size]}[/bright_cyan] [bright_magenta]{task.fields[total_unit]}[/bright_magenta]"),
+                TextColumn("[dim]\\[[/dim][bright_yellow]{task.fields[elapsed]}[/bright_yellow][dim] < [/dim][bright_cyan]{task.fields[eta]}[/bright_cyan][dim]][/dim]"),
+                TextColumn("[bright_magenta]@[/bright_magenta]"),
+                TextColumn("[bright_cyan]{task.fields[speed]}[/bright_cyan]"),
+                console=console
+            )
+            
+            start_time = time.time()
+            downloaded = 0
+            
+            with progress_bars:
+                total_size_value, total_size_unit = internet_manager.format_file_size(total).split(" ")
+                
+                task_id = progress_bars.add_task(
+                    "download",
                     total=total,
-                    ascii='░▒█',
-                    bar_format=f"{Colors.YELLOW}MP4{Colors.CYAN} Downloading{Colors.WHITE}: "
-                               f"{Colors.MAGENTA}{{bar:40}} "
-                               f"{Colors.LIGHT_GREEN}{{n_fmt}}{Colors.WHITE}/{Colors.CYAN}{{total_fmt}}"
-                               f" {Colors.DARK_GRAY}[{Colors.YELLOW}{{elapsed}}{Colors.WHITE} < {Colors.CYAN}{{remaining}}{Colors.DARK_GRAY}]"
-                               f"{Colors.WHITE}{{postfix}} ",
-                    unit='B',
-                    unit_scale=True,
-                    mininterval=0.1,
-                    file=sys.stdout
+                    downloaded="0.00",
+                    downloaded_unit="B",
+                    total_size=total_size_value,
+                    total_unit=total_size_unit,
+                    elapsed="0s",
+                    eta="--",
+                    speed="-- B/s"
                 )
                 
-                start_time = time.time()
-                downloaded = 0
-                with open(temp_path, 'wb') as file, progress_bar as bar:
+                with open(temp_path, 'wb') as file:
                     try:
                         for chunk in response.iter_bytes(chunk_size=65536):
                             if interrupt_handler.force_quit:
@@ -142,44 +153,53 @@ def MP4_Downloader(url: str, path: str, referer: str = None, headers_: dict = No
                             if chunk:
                                 size = file.write(chunk)
                                 downloaded += size
-                                bar.update(size)
                                 
-                                # Update postfix with speed and final size
+                                # Calculate stats
                                 elapsed = time.time() - start_time
+                                elapsed_str = FormatUtils.format_time(elapsed)
+                                
+                                # Calculate speed and ETA
                                 if elapsed > 0:
                                     speed = downloaded / elapsed
                                     speed_str = internet_manager.format_transfer_speed(speed)
-                                    postfix_str = f"{Colors.LIGHT_MAGENTA}@ {Colors.LIGHT_CYAN}{speed_str}"
-                                    bar.set_postfix_str(postfix_str)
+                                    
+                                    remaining_bytes = total - downloaded
+                                    eta_seconds = remaining_bytes / speed if speed > 0 else 0
+                                    eta_str = FormatUtils.format_time(eta_seconds)
+                                else:
+                                    speed_str = "-- B/s"
+                                    eta_str = "--"
+                                
+                                # Format downloaded size
+                                downloaded_value, downloaded_unit = internet_manager.format_file_size(downloaded).split(" ")
+                                
+                                # Update progress
+                                progress_bars.update(
+                                    task_id,
+                                    completed=downloaded,
+                                    downloaded=downloaded_value,
+                                    downloaded_unit=downloaded_unit,
+                                    elapsed=elapsed_str,
+                                    eta=eta_str,
+                                    speed=speed_str
+                                )
 
                     except KeyboardInterrupt:
                         if not interrupt_handler.force_quit:
                             interrupt_handler.kill_download = True
-                    
-        if os.path.exists(temp_path):
-            os.rename(temp_path, path)
+                
+    if os.path.exists(temp_path):
+        os.rename(temp_path, path)
 
-        if os.path.exists(path):
-            if show_final_info:
-                file_size = internet_manager.format_file_size(os.path.getsize(path))
-                console.print(f"[yellow]Output[white]: [red]{os.path.abspath(path)} \n"
-                f"  [cyan]with size[white]: [red]{file_size}")
+    if os.path.exists(path):
+        if show_final_info:
+            file_size = internet_manager.format_file_size(os.path.getsize(path))
+            console.print("\n[green]Output:")
+            console.print(f"  [cyan]Path: [red]{os.path.abspath(path)}")
+            console.print(f"  [cyan]Size: [red]{file_size}")
 
-            return path, interrupt_handler.kill_download
-        
-        else:
-            console.print("[red]Download failed or file is empty.")
-            return None, interrupt_handler.kill_download
-
-    except Exception as e:
-        console.print(f"[red]Unexpected Error: {e}")
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
-        return None, interrupt_handler.kill_download
+        return path, interrupt_handler.kill_download
     
-    finally:
-        if original_handler is not None:
-            try:
-                signal.signal(signal.SIGINT, original_handler)
-            except Exception:
-                pass
+    else:
+        console.print("[red]Download failed or file is empty.")
+        return None, interrupt_handler.kill_download

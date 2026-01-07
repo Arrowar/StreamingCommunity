@@ -108,9 +108,9 @@ jobs:
       - name: Build executable with PyInstaller
         shell: bash
         run: |
-          pyinstaller --onefile --hidden-import=pycryptodomex --hidden-import=ua_generator \
-            --hidden-import=bs4 --hidden-import=httpx --hidden-import=rich --hidden-import=tqdm \
-            --hidden-import=m3u8 --hidden-import=unidecode \
+          pyinstaller --onefile --hidden-import=ua_generator \
+            --hidden-import=bs4 --hidden-import=httpx --hidden-import=rich \
+            --hidden-import=unidecode \
             --hidden-import=jsbeautifier --hidden-import=jsbeautifier.core \
             --hidden-import=jsbeautifier.javascript --hidden-import=jsbeautifier.javascript.beautifier \
             --hidden-import=jsbeautifier.unpackers --hidden-import=jsbeautifier.unpackers.packer \
@@ -123,12 +123,8 @@ jobs:
             --hidden-import=xml.etree.ElementTree \
             --hidden-import=pywidevine \
             --hidden-import=pyplayready \
-            --hidden-import=Cryptodome.Cipher --hidden-import=Cryptodome.Cipher.AES \
-            --hidden-import=Cryptodome.Util --hidden-import=Cryptodome.Util.Padding \
-            --hidden-import=Cryptodome.Random \
             --hidden-import=curl_cffi --hidden-import=_cffi_backend \
             --hidden-import=lxml --hidden-import=lxml.etree \
-            --hidden-import=isodate \
             --collect-all curl_cffi \
             --additional-hooks-dir=pyinstaller/hooks \
             --add-data "StreamingCommunity${{ matrix.separator }}StreamingCommunity" \

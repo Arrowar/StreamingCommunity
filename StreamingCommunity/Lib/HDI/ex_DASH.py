@@ -35,7 +35,7 @@ EXTENSION_OUTPUT = config_manager.config.get("M3U8_CONVERSION", "extension")
 
 
 class DASH_Downloader:
-    def __init__(self, license_url: str, mpd_url: str, mpd_sub_list: list = None, output_path: str = None, drm_preference: str = 'widevine', custom_headers: Dict[str, str] = None, query_params: Dict[str, str] = None, key: str = None, license_headers: Dict[str, str] = None):
+    def __init__(self, license_url: str, mpd_url: str, mpd_sub_list: list = None, output_path: str = None, drm_preference: str = 'widevine', custom_headers: Dict[str, str] = None, query_params: Dict[str, str] = None, key: str = None, license_headers: Dict[str, str] = None, use_raw_forDownload: bool = False):
         """
         Initialize DASH Downloader.
         
@@ -48,6 +48,7 @@ class DASH_Downloader:
             custom_headers: Custom headers for requests
             query_params: Query parameters for license requests
             key: Encryption key for license requests
+            use_raw_forDownload: Whether to use raw m3u8 for downloading process
         """
         self.license_url = str(license_url).strip() if license_url else None
         self.mpd_url = str(mpd_url).strip()
@@ -58,6 +59,7 @@ class DASH_Downloader:
         self.license_headers = license_headers or {}
         self.mpd_sub_list = mpd_sub_list or []
         self.raw_mpd_path = None
+        self.use_raw_forDownload = use_raw_forDownload
         
         # Sanitize and validate output path
         self.output_path = os_manager.get_sanitize_path(output_path)
@@ -191,7 +193,8 @@ class DASH_Downloader:
         self.media_downloader.configure(
             select_audio_lang=DOWNLOAD_SPECIFIC_AUDIO,
             select_subtitle_lang=DOWNLOAD_SPECIFIC_SUBTITLE,
-            enable_logging=True
+            enable_logging=True,
+            use_raw_forDownload=self.use_raw_forDownload
         )
         
         # Get available streams - this generates raw.mpd in temp_analysis folder

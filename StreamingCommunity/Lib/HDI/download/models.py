@@ -100,6 +100,7 @@ class DownloadConfig:
     n_m3u8dl_path: str = get_n_m3u8dl_re_path()
     max_speed: str = MAX_SPEED
     enable_logging: bool = True
+    use_raw_forDownload: bool = False  # If True: use raw file + base-url, if False: use original URL directly
 
 
 @dataclass

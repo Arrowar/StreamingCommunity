@@ -362,16 +362,17 @@ class N_m3u8DLWrapper:
 
         manifest_type = stream_info.manifest_type if stream_info else "UNKNOWN"
         
-        # Try to use local manifest file with base URL to avoid re-downloading the manifest
-        raw_manifest = self._find_raw_manifest()
+        # Check if we should use raw file or go directly to original URL
+        use_raw_file = self.config.use_raw_forDownload
+        raw_manifest = self._find_raw_manifest() if use_raw_file else None
         
-        # First attempt with raw.{ext} if available
-        if raw_manifest:
+        # Build command based on configuration
+        if use_raw_file and raw_manifest:
             input_source = raw_manifest
             
             # Extract base URL preserving all parameters
             base_url = self._extract_base_url(url)
-            self._log(f"Base URL: {base_url}", "INFO")
+            self._log(f"Using raw file with base URL: {base_url}", "INFO")
 
             # Build command with base-url
             command = self._build_command(input_source, filename, headers, decryption_keys, manifest_type=manifest_type)
@@ -388,14 +389,14 @@ class N_m3u8DLWrapper:
         process = None
         
         try:
-            # First attempt with raw manifest if available
+            # First attempt
             for update in self._attempt_download_with_progress(command, filename, headers, decryption_keys):
                 yield update
                 if update.get("status") == "completed":
                     return
                 
                 elif update.get("status") == "failed":
-                    if update.get("has_404", False) and raw_manifest:
+                    if update.get("has_404", False) and use_raw_file and raw_manifest:
                         self._log("404 error detected, switching to original URL immediately", "INFO")
                         yield {"status": "retrying"}
                         
@@ -413,8 +414,10 @@ class N_m3u8DLWrapper:
                         yield {"status": "failed", "error": "Both raw manifest and original URL failed"}
                         return
                     else:
+                        # No retry needed or possible
                         return
             
+            # If we reach here without explicit completion/failure, something went wrong
             yield {"status": "failed", "error": "Download completed without status"}
 
         except KeyboardInterrupt:

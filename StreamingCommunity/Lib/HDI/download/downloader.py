@@ -63,12 +63,12 @@ class MediaDownloader:
             - select_audio_lang: List[str] - audio languages to download
             - select_subtitle_lang: List[str] - subtitle languages to download
             - select_forced_subtitles: bool - download forced subtitles
-            - set_resolution: str - "best", "worst", or number (e.g., "1080")
             - auto_merge_tracks: bool - merge tracks into a single file
             - concurrent_download: bool - simultaneous video+audio download
             - thread_count: int - number of threads
             - retry_count: int - retry attempts on error
             - enable_logging: bool - enable logging to file
+            - use_raw_forDownload: bool - if True use raw file + base-url, if False use original URL directly (default: False)
         """
         for key, value in kwargs.items():
             if hasattr(self.config, key):

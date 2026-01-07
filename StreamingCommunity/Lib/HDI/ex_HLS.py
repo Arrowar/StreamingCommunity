@@ -31,7 +31,7 @@ EXTENSION_OUTPUT = config_manager.config.get("M3U8_CONVERSION", "extension")
 
 
 class HLS_Downloader:
-    def __init__(self, m3u8_url: str, license_url: Optional[str] = None, output_path: Optional[str] = None, headers: Optional[Dict[str, str]] = None):
+    def __init__(self, m3u8_url: str, license_url: Optional[str] = None, output_path: Optional[str] = None, headers: Optional[Dict[str, str]] = None, use_raw_forDownload: bool = False):
         """
         Initialize HLS Downloader.
         
@@ -39,6 +39,7 @@ class HLS_Downloader:
             m3u8_url: Source M3U8 playlist URL
             license_url: License URL for DRM content (unused with MediaDownloader)
             output_path: Full path including filename and extension (e.g., /path/to/video.mp4)
+            use_raw_forDownload: Whether to use raw m3u8 for downloading process
             headers: Custom headers for requests
         """
         self.m3u8_url = str(m3u8_url).strip()
@@ -74,7 +75,8 @@ class HLS_Downloader:
         self.media_downloader.configure(
             select_audio_lang=DOWNLOAD_SPECIFIC_AUDIO,
             select_subtitle_lang=DOWNLOAD_SPECIFIC_SUBTITLE,
-            enable_logging=True
+            enable_logging=True,
+            use_raw_forDownload=use_raw_forDownload
         )
 
     def start(self) -> Dict[str, Any]:

@@ -68,7 +68,8 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
     # Download the film using the m3u8 playlist, and output filename
     hls_process = HLS_Downloader(
         m3u8_url=master_playlist, 
-        output_path=os.path.join(mp4_path, mp4_name)
+        output_path=os.path.join(mp4_path, mp4_name),
+        use_raw_forDownload=True
     ).start()
      
     if hls_process['error'] is not None:

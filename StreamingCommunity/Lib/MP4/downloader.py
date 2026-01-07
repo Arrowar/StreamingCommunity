@@ -86,21 +86,21 @@ def MP4_Downloader(url: str, path: str, referer: str = None, headers_: dict = No
     # Set interrupt handler (only in main thread)
     temp_path = f"{path}.temp"
     interrupt_handler = InterruptHandler()
-    original_handler = None
 
     try:
         if threading.current_thread() is threading.main_thread():
-            original_handler = signal.signal(
+            previous_handler = signal.getsignal(signal.SIGINT)
+            signal.signal(
                 signal.SIGINT,
                 partial(
                     signal_handler,
                     interrupt_handler=interrupt_handler,
-                    original_handler=signal.getsignal(signal.SIGINT),
+                    original_handler=previous_handler,
                 ),
             )
 
     except Exception:
-        original_handler = None
+        pass
 
     # Ensure the output directory exists
     os.makedirs(os.path.dirname(path), exist_ok=True)

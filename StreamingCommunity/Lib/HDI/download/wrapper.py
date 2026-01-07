@@ -1,11 +1,12 @@
 # 10.01.26
 
 import os
+import logging
 import subprocess
 from pathlib import Path
 from datetime import datetime
-from typing import Generator, Any, Optional, List, Dict
 from urllib.parse import urlparse, urlunparse
+from typing import Generator, Any, Optional, List, Dict
 
 
 # Internal utilities
@@ -86,129 +87,168 @@ class N_m3u8DLWrapper:
     
     def _attempt_download(self, command: List[str], filename: str, headers: Optional[Dict[str, str]] = None, decryption_keys: Optional[List[str]] = None) -> bool:
         """Attempt to download with the given command. Returns True if successful, False otherwise."""
+        process = None
         try:
-            with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=False, bufsize=0, creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0) as process:
+            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=False, bufsize=0, creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0)
+            
+            buffer = []
+            in_stream_list = False
+            
+            for line in iter(process.stdout.readline, b''):
+                try:
+                    output = line.decode('utf-8', errors='ignore').strip()
+                except Exception:
+                    output = str(line, errors='ignore').strip()
                 
-                buffer = []
-                in_stream_list = False
+                if not output:
+                    continue
                 
-                for line in iter(process.stdout.readline, b''):
-                    try:
-                        output = line.decode('utf-8', errors='ignore').strip()
-                    except Exception:
-                        output = str(line, errors='ignore').strip()
-                    
-                    if not output:
-                        continue
-                    
-                    buffer.append(output)
-                    self._log(output, "OUTPUT")
-                    
-                    # Check for 404 errors early
-                    if "404" in output and "Not Found" in output:
-                        self._log("404 error detected, download will fail", "WARN")
-                    
-                    # 1) Parse stream list
-                    if any(kw in output for kw in ["Extracted", "streams found", "Vid ", "Aud ", "Sub "]):
-                        in_stream_list = True
-                    
-                    if in_stream_list and any(kw in output for kw in ["Selected streams:", "Start downloading"]):
-                        in_stream_list = False
-                    
-                    # 2) Selected streams
-                    if "Selected streams:" in output:
-                        pass
-                    
-                    # 3) Parse progress (optional for this method)
-                    if progress := StreamParser.parse_progress(output):
-                        pass
+                buffer.append(output)
+                self._log(output, "OUTPUT")
                 
-                process.wait()
+                # Check for 404 errors early
+                if "404" in output and "Not Found" in output:
+                    self._log("404 error detected, download will fail", "WARN")
                 
-                if process.returncode != 0:
-                    error_lines = [line for line in buffer if any(kw in line for kw in ["ERROR", "WARN", "Failed", "404"])]
-                    error_msg = "\n".join(error_lines[-5:]) if error_lines else "Unknown error"
-                    self._log(f"Download attempt failed with exit code {process.returncode}: {error_msg}", "ERROR")
-                    return False
+                # 1) Parse stream list
+                if any(kw in output for kw in ["Extracted", "streams found", "Vid ", "Aud ", "Sub "]):
+                    in_stream_list = True
                 
-                return True
+                if in_stream_list and any(kw in output for kw in ["Selected streams:", "Start downloading"]):
+                    in_stream_list = False
                 
+                # 2) Selected streams
+                if "Selected streams:" in output:
+                    pass
+                
+                # 3) Parse progress (optional for this method)
+                if progress := StreamParser.parse_progress(output):
+                    logging.info("Parsed progress: " + str(progress))
+                    pass
+            
+            process.wait()
+            
+            if process.returncode != 0:
+                error_lines = [line for line in buffer if any(kw in line for kw in ["ERROR", "WARN", "Failed", "404"])]
+                error_msg = "\n".join(error_lines[-5:]) if error_lines else "Unknown error"
+                self._log(f"Download attempt failed with exit code {process.returncode}: {error_msg}", "ERROR")
+                return False
+            
+            return True
+            
+        except KeyboardInterrupt:
+            self._log("Download interrupted by user", "WARN")
+            if process and process.poll() is None:
+                process.terminate()
+                try:
+                    process.wait(timeout=3)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait()
+            raise
         except Exception as e:
             self._log(f"Exception in download attempt: {e}", "ERROR")
+            if process and process.poll() is None:
+                process.terminate()
+                try:
+                    process.wait(timeout=3)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait()
             return False
     
     def _attempt_download_with_progress(self, command: List[str], filename: str, headers: Optional[Dict[str, str]] = None, decryption_keys: Optional[List[str]] = None) -> Generator[Dict[str, Any], None, None]:
         """Attempt to download with progress updates. Yields status updates."""
+        process = None
         try:
-            with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=False, bufsize=0, creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0) as process:
+            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=False, bufsize=0, creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0)
+            
+            buffer = []
+            in_stream_list = False
+            
+            for line in iter(process.stdout.readline, b''):
+                try:
+                    output = line.decode('utf-8', errors='ignore').strip()
+                except Exception:
+                    output = str(line, errors='ignore').strip()
                 
-                buffer = []
-                in_stream_list = False
+                if not output:
+                    continue
                 
-                for line in iter(process.stdout.readline, b''):
+                buffer.append(output)
+                self._log(output, "OUTPUT")
+                
+                # Check for 404 errors and terminate immediately
+                if "404" in output and "Not Found" in output:
+                    self._log("404 error detected, terminating download immediately", "WARN")
+                    process.terminate()
                     try:
-                        output = line.decode('utf-8', errors='ignore').strip()
-                    except Exception:
-                        output = str(line, errors='ignore').strip()
-                    
-                    if not output:
-                        continue
-                    
-                    buffer.append(output)
-                    self._log(output, "OUTPUT")
-                    
-                    # Check for 404 errors and terminate immediately
-                    if "404" in output and "Not Found" in output:
-                        self._log("404 error detected, terminating download immediately", "WARN")
-                        process.terminate()
-                        try:
-                            process.wait(timeout=3)
-                        except subprocess.TimeoutExpired:
-                            process.kill()
-                        yield {"status": "failed", "error": "404 Not Found - retry needed", "has_404": True}
-                        return
-                    
-                    # 1) Parse stream list
-                    if any(kw in output for kw in ["Extracted", "streams found", "Vid ", "Aud ", "Sub "]):
-                        in_stream_list = True
-                    
-                    if in_stream_list and any(kw in output for kw in ["Selected streams:", "Start downloading"]):
-                        in_stream_list = False
-                        yield {"status": "selected"}
-                    
-                    # 2) Selected streams
-                    if "Selected streams:" in output:
-                        yield {"status": "selected", "selected_streams": []}
-                    
-                    # 3) Parse progress
-                    if progress := StreamParser.parse_progress(output):
-                        update = {"status": "downloading"}
-                        if progress.stream_type == "Vid":
-                            update["progress_video"] = progress
-                        elif progress.stream_type == "Aud":
-                            update["progress_audio"] = progress
-                        yield update
-                
-                process.wait()
-                
-                if process.returncode != 0:
-                    error_lines = [line for line in buffer if any(kw in line for kw in ["ERROR", "WARN", "Failed", "404"])]
-                    error_msg = "\n".join(error_lines[-5:]) if error_lines else "Unknown error"
-                    self._log(f"Download attempt failed with exit code {process.returncode}: {error_msg}", "ERROR")
-                    yield {"status": "failed", "error": f"N_m3u8DL-RE failed with exit code {process.returncode}\n{error_msg}"}
+                        process.wait(timeout=3)
+                    except subprocess.TimeoutExpired:
+                        process.kill()
+                    yield {"status": "failed", "error": "404 Not Found - retry needed", "has_404": True}
                     return
                 
-                # Download successful - find files and yield result
-                result = FileUtils.find_downloaded_files(
-                    self.output_dir,
-                    filename,
-                    self.config.select_audio_lang[0] if isinstance(self.config.select_audio_lang, list) else self.config.select_audio_lang,
-                    self.config.select_subtitle_lang[0] if isinstance(self.config.select_subtitle_lang, list) else self.config.select_subtitle_lang
-                )
-                yield {"status": "completed", "result": result}
+                # 1) Parse stream list
+                if any(kw in output for kw in ["Extracted", "streams found", "Vid ", "Aud ", "Sub "]):
+                    in_stream_list = True
                 
+                if in_stream_list and any(kw in output for kw in ["Selected streams:", "Start downloading"]):
+                    in_stream_list = False
+                    yield {"status": "selected"}
+                
+                # 2) Selected streams
+                if "Selected streams:" in output:
+                    yield {"status": "selected", "selected_streams": []}
+                
+                # 3) Parse progress
+                if progress := StreamParser.parse_progress(output):
+                    update = {"status": "downloading"}
+                    if progress.stream_type == "Vid":
+                        update["progress_video"] = progress
+                    elif progress.stream_type == "Aud":
+                        update["progress_audio"] = progress
+                    yield update
+            
+            process.wait()
+            
+            if process.returncode != 0:
+                error_lines = [line for line in buffer if any(kw in line for kw in ["ERROR", "WARN", "Failed", "404"])]
+                error_msg = "\n".join(error_lines[-5:]) if error_lines else "Unknown error"
+                self._log(f"Download attempt failed with exit code {process.returncode}: {error_msg}", "ERROR")
+                yield {"status": "failed", "error": f"N_m3u8DL-RE failed with exit code {process.returncode}\n{error_msg}"}
+                return
+            
+            # Download successful - find files and yield result
+            result = FileUtils.find_downloaded_files(
+                self.output_dir,
+                filename,
+                self.config.select_audio_lang[0] if isinstance(self.config.select_audio_lang, list) else self.config.select_audio_lang,
+                self.config.select_subtitle_lang[0] if isinstance(self.config.select_subtitle_lang, list) else self.config.select_subtitle_lang
+            )
+            yield {"status": "completed", "result": result}
+            
+        except KeyboardInterrupt:
+            self._log("Download interrupted by user", "WARN")
+            if process and process.poll() is None:
+                process.terminate()
+                try:
+                    process.wait(timeout=3)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait()
+            yield {"status": "cancelled"}
+            raise
+
         except Exception as e:
             self._log(f"Exception in download attempt: {e}", "ERROR")
+            if process and process.poll() is None:
+                process.terminate()
+                try:
+                    process.wait(timeout=3)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait()
             yield {"status": "failed", "error": str(e)}
     
     def _build_command(self, url: str, filename: str, headers: Optional[Dict[str, str]] = None, decryption_keys: Optional[List[str]] = None, skip_download: bool = False, manifest_type: str = "UNKNOWN") -> List[str]:
@@ -386,8 +426,6 @@ class N_m3u8DLWrapper:
         self._log(" ".join(command), "DOWNLOAD_START")
         yield {"status": "starting"}
         
-        process = None
-        
         try:
             # First attempt
             for update in self._attempt_download_with_progress(command, filename, headers, decryption_keys):
@@ -422,12 +460,6 @@ class N_m3u8DLWrapper:
 
         except KeyboardInterrupt:
             self._log("Cancelled by user", "CANCEL")
-            if process and process.poll() is None:
-                process.terminate()
-                try:
-                    process.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    process.kill()
             yield {"status": "cancelled"}
             raise
 

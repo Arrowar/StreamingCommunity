@@ -1,10 +1,10 @@
-# MPD/parser.py
+# 10.01.26
 
+import xml.etree.ElementTree as ET
 from typing import Optional, List, Dict
 
 
 # External libraries
-from lxml import etree
 from curl_cffi import requests
 from rich.console import Console
 
@@ -52,31 +52,47 @@ class DRMSystem:
 
 
 class NamespaceManager:
-    def __init__(self, root: etree._Element):
+    def __init__(self, root: ET.Element):
         self.nsmap = self._extract_namespaces(root)
+        for prefix, uri in self.nsmap.items():
+            if prefix and prefix != 'mpd':
+                ET.register_namespace(prefix, uri)
     
     @staticmethod
-    def _extract_namespaces(root: etree._Element) -> Dict[str, str]:
-        nsmap = {}
-        if root.nsmap:
-            nsmap['mpd'] = root.nsmap.get(None) or 'urn:mpeg:dash:schema:mpd:2011'
-            nsmap['cenc'] = 'urn:mpeg:cenc:2013'
-            nsmap['mspr'] = 'urn:microsoft:playready'
-            for prefix, uri in root.nsmap.items():
-                if prefix is not None:
-                    nsmap[prefix] = uri
-
-        else:
-            nsmap['mpd'] = 'urn:mpeg:dash:schema:mpd:2011'
-            nsmap['cenc'] = 'urn:mpeg:cenc:2013'
-            nsmap['mspr'] = 'urn:microsoft:playready'
+    def _extract_namespaces(root: ET.Element) -> Dict[str, str]:
+        nsmap = {
+            'mpd': 'urn:mpeg:dash:schema:mpd:2011',
+            'cenc': 'urn:mpeg:cenc:2013',
+            'mspr': 'urn:microsoft:playready'
+        }
+        
+        for elem in root.iter():
+            tag = elem.tag
+            if '}' in tag:
+                ns = tag.split('}')[0].strip('{')
+                if ns and ns not in nsmap.values():
+                    # Prova a identificare il namespace
+                    if 'dash' in ns.lower() or 'mpd' in ns.lower():
+                        nsmap['mpd'] = ns
+                    elif 'cenc' in ns.lower():
+                        nsmap['cenc'] = ns
+                    elif 'playready' in ns.lower():
+                        nsmap['mspr'] = ns
+        
         return nsmap
     
-    def find(self, element: etree._Element, path: str) -> Optional[etree._Element]:
-        return element.find(path, namespaces=self.nsmap)
+    def find(self, element: ET.Element, path: str) -> Optional[ET.Element]:
+        xpath = self._convert_path(path)
+        return element.find(xpath, namespaces=self.nsmap)
     
-    def findall(self, element: etree._Element, path: str) -> List[etree._Element]:
-        return element.findall(path, namespaces=self.nsmap)
+    def findall(self, element: ET.Element, path: str) -> List[ET.Element]:
+        xpath = self._convert_path(path)
+        return element.findall(xpath, namespaces=self.nsmap)
+    
+    def _convert_path(self, path: str) -> str:
+        for prefix, uri in self.nsmap.items():
+            path = path.replace(f'{prefix}:', f'{{{uri}}}')
+        return path
 
 
 class ContentProtectionHandler:
@@ -84,7 +100,7 @@ class ContentProtectionHandler:
     def __init__(self, ns_manager: NamespaceManager):
         self.ns = ns_manager
     
-    def is_protected(self, element: etree._Element) -> bool:
+    def is_protected(self, element: ET.Element) -> bool:
         for cp in self.ns.findall(element, 'mpd:ContentProtection'):
             scheme_id = (cp.get('schemeIdUri') or '').lower()
             value = (cp.get('value') or '').lower()
@@ -97,7 +113,7 @@ class ContentProtectionHandler:
         
         return False
     
-    def get_drm_types(self, element: etree._Element) -> List[str]:
+    def get_drm_types(self, element: ET.Element) -> List[str]:
         drm_types = []
         
         for cp in self.ns.findall(element, 'mpd:ContentProtection'):
@@ -110,7 +126,7 @@ class ContentProtectionHandler:
         
         return drm_types
     
-    def _has_pssh_data(self, cp_element: etree._Element, drm_type: str) -> bool:
+    def _has_pssh_data(self, cp_element: ET.Element, drm_type: str) -> bool:
         pssh = self.ns.find(cp_element, 'cenc:pssh')
         if pssh is not None and pssh.text and pssh.text.strip():
             return True
@@ -121,24 +137,23 @@ class ContentProtectionHandler:
                 return True
         return False
     
-    def extract_pssh(self, root: etree._Element, drm_type: str = DRMSystem.WIDEVINE) -> Optional[str]:
+    def extract_pssh(self, root: ET.Element, drm_type: str = DRMSystem.WIDEVINE) -> Optional[str]:
         target_uuid = DRMSystem.get_uuid(drm_type)
         if not target_uuid:
             return None
         
-        all_cps = self.ns.findall(root, './/mpd:ContentProtection')
-        
-        for cp in all_cps:
-            scheme_id = (cp.get('schemeIdUri') or '').lower()
-            if target_uuid in scheme_id:
-                pssh = self.ns.find(cp, 'cenc:pssh')
-                if pssh is not None and pssh.text and pssh.text.strip():
-                    return pssh.text.strip()
-                
-                if drm_type == DRMSystem.PLAYREADY:
-                    pro = self.ns.find(cp, 'mspr:pro')
-                    if pro is not None and pro.text and pro.text.strip():
-                        return pro.text.strip()
+        for elem in root.iter():
+            if 'ContentProtection' in elem.tag:
+                scheme_id = (elem.get('schemeIdUri') or '').lower()
+                if target_uuid in scheme_id:
+                    for child in elem:
+                        if 'pssh' in child.tag:
+                            if child.text and child.text.strip():
+                                return child.text.strip()
+                        
+                        if drm_type == DRMSystem.PLAYREADY and 'pro' in child.tag:
+                            if child.text and child.text.strip():
+                                return child.text.strip()
         
         return None
 
@@ -155,7 +170,6 @@ class MPDParser:
     def parse(self) -> bool:
         """Parse MPD and setup handlers"""
         try:
-            console.print("[cyan]Fetching MPD from URL.")
             response = requests.get(
                 self.mpd_url, 
                 headers=self.headers,
@@ -164,7 +178,7 @@ class MPDParser:
             )
             response.raise_for_status()
             
-            self.root = etree.fromstring(response.content)
+            self.root = ET.fromstring(response.content)
             self.ns_manager = NamespaceManager(self.root)
             self.protection_handler = ContentProtectionHandler(self.ns_manager)
             
@@ -177,11 +191,8 @@ class MPDParser:
     def parse_from_file(self, file_path: str) -> bool:
         """Parse MPD from a local file (e.g., raw.mpd from m3u8dl)"""
         try:
-            console.print("[cyan]Parsing MPD from file.")
-            with open(file_path, 'rb') as f:
-                content = f.read()
-            
-            self.root = etree.fromstring(content)
+            tree = ET.parse(file_path)
+            self.root = tree.getroot()
             self.ns_manager = NamespaceManager(self.root)
             self.protection_handler = ContentProtectionHandler(self.ns_manager)
             return True

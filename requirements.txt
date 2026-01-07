@@ -1,7 +1,6 @@
 httpx
 bs4
 rich
-lxml
 unidecode
 curl_cffi
 jsbeautifier

@@ -56,6 +56,7 @@ class DASH_Downloader:
         self.query_params = query_params or {}
         self.key = key
         self.license_headers = license_headers or {}
+        self.mpd_sub_list = mpd_sub_list or []
         self.raw_mpd_path = None
         
         # Sanitize and validate output path
@@ -184,7 +185,8 @@ class DASH_Downloader:
             output_dir=self.output_dir,
             filename=self.filename_base,
             headers=self.custom_headers,
-            decryption_keys=None  # We don't have keys yet
+            decryption_keys=None,  # We don't have keys yet
+            external_subtitles=self.mpd_sub_list
         )
         self.media_downloader.configure(
             select_audio_lang=DOWNLOAD_SPECIFIC_AUDIO,

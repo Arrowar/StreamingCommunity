@@ -16,7 +16,7 @@
         "thread_count": 8,
         "retry_count": 10,
         "concurrent_download": true,
-        "max_speed": "50MB",
+        "max_speed": "30MB",
         "check_segments_count": false,
         "specific_list_audio": [
             "ita",

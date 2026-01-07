@@ -222,9 +222,9 @@ class MediaDownloader:
         # External subtitles
         for ext_sub in self.external_subtitles:
             table.add_row(
-                "Subtitle [yellow](External)[/yellow]", "X", "-", "-", "-",
+                "Subtitle [yellow](Ext)[/yellow]", "X", "-", "-", "-",
                 ext_sub.get("language", "unknown"),
-                f"External ({ext_sub.get('language', 'unknown')})",
+                f"Ext ({ext_sub.get('language', 'unknown')})",
                 "-"
             )
         
@@ -598,6 +598,7 @@ class MediaDownloader:
             try:
                 sub_filename = f"{self.filename}.{language}.{format_ext}"
                 sub_path = self.output_dir / sub_filename
+                console.print(f"\n[cyan]Download ext sub: [yellow]{language}.{format_ext}")
                 
                 response_text = fetch(url, headers=self.headers)
                 if response_text is None:

@@ -164,13 +164,15 @@ See [MEGA example](./Test/Downloads/MEGA.py) for complete usage.
 
 ---
 
-## Configuration
+# Configuration
 
-<summary>⚙️ Overview</summary>
+## ⚙️ Overview
 
 You can change some behaviors by tweaking the configuration file. The configuration file is divided into several main sections.
 
-<summary>📁 OUT_FOLDER</summary>
+---
+
+## 📁 OUT_FOLDER
 
 ```json
 {
@@ -185,17 +187,17 @@ You can change some behaviors by tweaking the configuration file. The configurat
 }
 ```
 
-#### Directory Configuration
+### Directory Configuration
 - `root_path`: Directory where all videos will be saved
   * Windows: `C:\\MyLibrary\\Folder` or `\\\\MyServer\\MyLibrary` (network folder)
   * Linux/MacOS: `Desktop/MyLibrary/Folder`
 
-#### Folder Names
+### Folder Names
 - `movie_folder_name`: Subdirectory for movies (can be changed with `--movie_folder_name`)
 - `serie_folder_name`: Subdirectory for TV series (can be changed with `--serie_folder_name`)
 - `anime_folder_name`: Subdirectory for anime (can be changed with `--anime_folder_name`)
 
-#### Episode Naming
+### Episode Naming
 - `map_episode_name`: Template for episode filenames
   * `%(tv_name)`: Name of TV Show
   * `%(season)`: Season number
@@ -203,74 +205,84 @@ You can change some behaviors by tweaking the configuration file. The configurat
   * `%(episode_name)`: Episode name
   * Can be changed with `--map_episode_name`
 
-#### Additional Options
+### Additional Options
 - `add_siteName`: Appends site_name to root path (can be changed with `--add_siteName true/false`)
 
-<summary>📥 M3U8_DOWNLOAD Settings</summary>
+
+---
+
+## 📥 M3U8_DOWNLOAD
 
 ```json
 {
     "M3U8_DOWNLOAD": {
-        "default_video_workser": 12,
-        "default_audio_workser": 12,
-        "segment_timeout": 8,
+        "thread_count": 8,
+        "retry_count": 10,
+        "concurrent_download": true,
+        "max_speed": "30MB",
+        "check_segments_count": false,
         "specific_list_audio": [
-            "ita"
+            "ita",
+            "it-IT"
         ],
         "merge_subs": true,
         "specific_list_subtitles": [
-            "ita",    // Specify language codes or use ["*"] to download all available subtitles
-            "eng"
+            "ita",
+            "it-IT"
         ],
-        "cleanup_tmp_folder": true,
-        "get_only_link": false
+        "cleanup_tmp_folder": true
     }
 }
 ```
 
-#### Performance Settings
-- `default_video_workser`: Number of threads for video download
-  * Can be changed with `--default_video_worker <number>`
-- `default_audio_workser`: Number of threads for audio download
-  * Can be changed with `--default_audio_worker <number>`
+### Download Performance
+- `thread_count`: Number of parallel threads for downloading segments (applies to both video and audio streams)
+- `retry_count`: Number of retry attempts for failed segment downloads
+- `concurrent_download`: Download video and audio streams simultaneously
+- `max_speed`: Maximum download speed per stream (e.g., `"30MB"`, `"10MB"`)
+- `check_segments_count`: Verify segment count matches manifest
 
-#### Audio Settings
-- `specific_list_audio`: List of audio languages to download
-  * Can be changed with `--specific_list_audio ita,eng`
+### Audio Settings
+- `specific_list_audio`: List of audio languages to download (e.g., `["ita", "eng"]` or `["it-IT", "en-US"]`)
 
-#### Subtitle Settings
+### Subtitle Settings
 - `merge_subs`: Whether to merge subtitles with video
-- `specific_list_subtitles`: List of subtitle languages to download
-  * Use `["*"]` to download all available subtitles
-  * Or specify individual languages like `["ita", "eng"]`
-  * Can be changed with `--specific_list_subtitles ita,eng`
 
-#### Cleanup
-- `cleanup_tmp_folder`: Remove temporary .ts files after download
+- `specific_list_subtitles`: List of subtitle languages to download (use `["*"]` for all available)
 
-<summary>🔍 M3U8_PARSER Settings</summary>
+### Cleanup
+- `cleanup_tmp_folder`: Remove temporary segment files after download
+
+
+---
+
+## 🎬 M3U8_CONVERSION
 
 ```json
 {
-    "M3U8_PARSER": {
-        "force_resolution": "Best"
+    "M3U8_CONVERSION": {
+        "use_gpu": false,
+        "param_video": ["-c:v", "libx265", "-crf", "28", "-preset", "medium"],
+        "param_audio": ["-c:a", "libopus", "-b:a", "128k"],
+        "subtitle_disposition": false,
+        "subtitle_disposition_language": "ita",
+        "param_final": ["-c", "copy"],
+        "force_resolution": "Best",
+        "extension": "mkv"
     }
 }
 ```
 
-#### Resolution Options
-- `force_resolution`: Choose video resolution:
-  * `"Best"`: Highest available resolution
-  * `"Worst"`: Lowest available resolution
-  * `"720p"`: Force 720p resolution
-  * Specific resolutions:
-    - 1080p (1920x1080)
-    - 720p (1280x720)
-    - 480p (640x480)
-    - 360p (640x360)
+### Hardware Acceleration
+- `use_gpu`: Enable GPU-accelerated encoding (requires compatible hardware)
 
-#### Link options
-- `get_only_link`: Return M3U8 playlist/index URL instead of downloading
+### Subtitle Configuration
+- `subtitle_disposition`: Automatically enable default subtitle track
+- `subtitle_disposition_language`: Language to set as default (e.g., `"ita"`, `"eng"`)
+
+### Resolution & Format
+- `force_resolution`: Choose video resolution (`"Best"`, `"Worst"`, `"1080p"`, `"720p"`, etc.)
+- `extension`: Output file format (e.g., `"mkv"`, `"mp4"`)
 
 
 ## Update Domains
@@ -526,9 +538,6 @@ The `run-container` command mounts also the `config.json` file, so any change to
 
 - [ ] **Improve GUI**  
   Enhance the graphical user interface for better usability and appearance.
-
-- [ ] **Sync parallel audio/video downloads**  
-  Ensure audio and video streams are downloaded in parallel and properly synchronized.
 
 - [ ] **Add Crunchyroll subtitle synchronization**  
   Implement subtitle timing alignment for Crunchyroll sources.

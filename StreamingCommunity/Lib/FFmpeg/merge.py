@@ -146,7 +146,7 @@ def join_audios(video_path: str, audio_tracks: List[Dict[str, str]], out_path: s
         
         # If any audio track has a significant duration difference, use -shortest
         if diff > limit_duration_diff:
-            print(f"Audio track '{audio_lang}' has a duration difference of {diff:.2f}s which exceeds the limit of {limit_duration_diff}s. Using -shortest option.")
+            console.print(f"[cyan]Audio track [red]'{audio_lang}' [cyan]has a duration difference of [red]{diff:.2f}s [cyan]which exceeds the limit of [red]{limit_duration_diff}s. [yellow]Using -shortest option.")
             use_shortest = True
 
     # Start command with locate ffmpeg

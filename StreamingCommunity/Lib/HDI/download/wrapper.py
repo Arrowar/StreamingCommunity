@@ -5,6 +5,7 @@ import subprocess
 from pathlib import Path
 from datetime import datetime
 from typing import Generator, Any, Optional, List, Dict
+from urllib.parse import urlparse, urlunparse
 
 
 # Internal utilities
@@ -50,6 +51,165 @@ class N_m3u8DLWrapper:
                 return str(raw_file.resolve())
         
         return None
+    
+    def _extract_base_url(self, url: str) -> str:
+        """Extract base URL preserving all parameters except the manifest filename"""
+        try:
+            parsed = urlparse(url)
+            
+            # Get the path and remove the last component (manifest filename)
+            path_parts = parsed.path.rstrip('/').split('/')
+            if path_parts and any(ext in path_parts[-1].lower() for ext in ['.m3u8', '.mpd']):
+                base_path = '/'.join(path_parts[:-1])
+                if base_path and not base_path.endswith('/'):
+                    base_path += '/'
+            else:
+                base_path = parsed.path
+                if not base_path.endswith('/'):
+                    base_path += '/'
+            
+            # Reconstruct the URL with all original components except the modified path
+            base_url = urlunparse((
+                parsed.scheme,
+                parsed.netloc, 
+                base_path,
+                parsed.params,
+                parsed.query,  # Preserve query parameters
+                parsed.fragment
+            ))
+            
+            return base_url
+            
+        except Exception as e:
+            self._log(f"Error extracting base URL: {e}", "WARN")
+            return url.rsplit('/', 1)[0] + '/' if '/' in url else url
+    
+    def _attempt_download(self, command: List[str], filename: str, headers: Optional[Dict[str, str]] = None, decryption_keys: Optional[List[str]] = None) -> bool:
+        """Attempt to download with the given command. Returns True if successful, False otherwise."""
+        try:
+            with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=False, bufsize=0, creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0) as process:
+                
+                buffer = []
+                in_stream_list = False
+                
+                for line in iter(process.stdout.readline, b''):
+                    try:
+                        output = line.decode('utf-8', errors='ignore').strip()
+                    except Exception:
+                        output = str(line, errors='ignore').strip()
+                    
+                    if not output:
+                        continue
+                    
+                    buffer.append(output)
+                    self._log(output, "OUTPUT")
+                    
+                    # Check for 404 errors early
+                    if "404" in output and "Not Found" in output:
+                        self._log("404 error detected, download will fail", "WARN")
+                    
+                    # 1) Parse stream list
+                    if any(kw in output for kw in ["Extracted", "streams found", "Vid ", "Aud ", "Sub "]):
+                        in_stream_list = True
+                    
+                    if in_stream_list and any(kw in output for kw in ["Selected streams:", "Start downloading"]):
+                        in_stream_list = False
+                    
+                    # 2) Selected streams
+                    if "Selected streams:" in output:
+                        pass
+                    
+                    # 3) Parse progress (optional for this method)
+                    if progress := StreamParser.parse_progress(output):
+                        pass
+                
+                process.wait()
+                
+                if process.returncode != 0:
+                    error_lines = [line for line in buffer if any(kw in line for kw in ["ERROR", "WARN", "Failed", "404"])]
+                    error_msg = "\n".join(error_lines[-5:]) if error_lines else "Unknown error"
+                    self._log(f"Download attempt failed with exit code {process.returncode}: {error_msg}", "ERROR")
+                    return False
+                
+                return True
+                
+        except Exception as e:
+            self._log(f"Exception in download attempt: {e}", "ERROR")
+            return False
+    
+    def _attempt_download_with_progress(self, command: List[str], filename: str, headers: Optional[Dict[str, str]] = None, decryption_keys: Optional[List[str]] = None) -> Generator[Dict[str, Any], None, None]:
+        """Attempt to download with progress updates. Yields status updates."""
+        try:
+            with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=False, bufsize=0, creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0) as process:
+                
+                buffer = []
+                in_stream_list = False
+                
+                for line in iter(process.stdout.readline, b''):
+                    try:
+                        output = line.decode('utf-8', errors='ignore').strip()
+                    except Exception:
+                        output = str(line, errors='ignore').strip()
+                    
+                    if not output:
+                        continue
+                    
+                    buffer.append(output)
+                    self._log(output, "OUTPUT")
+                    
+                    # Check for 404 errors and terminate immediately
+                    if "404" in output and "Not Found" in output:
+                        self._log("404 error detected, terminating download immediately", "WARN")
+                        process.terminate()
+                        try:
+                            process.wait(timeout=3)
+                        except subprocess.TimeoutExpired:
+                            process.kill()
+                        yield {"status": "failed", "error": "404 Not Found - retry needed", "has_404": True}
+                        return
+                    
+                    # 1) Parse stream list
+                    if any(kw in output for kw in ["Extracted", "streams found", "Vid ", "Aud ", "Sub "]):
+                        in_stream_list = True
+                    
+                    if in_stream_list and any(kw in output for kw in ["Selected streams:", "Start downloading"]):
+                        in_stream_list = False
+                        yield {"status": "selected"}
+                    
+                    # 2) Selected streams
+                    if "Selected streams:" in output:
+                        yield {"status": "selected", "selected_streams": []}
+                    
+                    # 3) Parse progress
+                    if progress := StreamParser.parse_progress(output):
+                        update = {"status": "downloading"}
+                        if progress.stream_type == "Vid":
+                            update["progress_video"] = progress
+                        elif progress.stream_type == "Aud":
+                            update["progress_audio"] = progress
+                        yield update
+                
+                process.wait()
+                
+                if process.returncode != 0:
+                    error_lines = [line for line in buffer if any(kw in line for kw in ["ERROR", "WARN", "Failed", "404"])]
+                    error_msg = "\n".join(error_lines[-5:]) if error_lines else "Unknown error"
+                    self._log(f"Download attempt failed with exit code {process.returncode}: {error_msg}", "ERROR")
+                    yield {"status": "failed", "error": f"N_m3u8DL-RE failed with exit code {process.returncode}\n{error_msg}"}
+                    return
+                
+                # Download successful - find files and yield result
+                result = FileUtils.find_downloaded_files(
+                    self.output_dir,
+                    filename,
+                    self.config.select_audio_lang[0] if isinstance(self.config.select_audio_lang, list) else self.config.select_audio_lang,
+                    self.config.select_subtitle_lang[0] if isinstance(self.config.select_subtitle_lang, list) else self.config.select_subtitle_lang
+                )
+                yield {"status": "completed", "result": result}
+                
+        except Exception as e:
+            self._log(f"Exception in download attempt: {e}", "ERROR")
+            yield {"status": "failed", "error": str(e)}
     
     def _build_command(self, url: str, filename: str, headers: Optional[Dict[str, str]] = None, decryption_keys: Optional[List[str]] = None, skip_download: bool = False, manifest_type: str = "UNKNOWN") -> List[str]:
         # Use absolute paths to avoid issues with relative path resolution
@@ -203,15 +363,14 @@ class N_m3u8DLWrapper:
         manifest_type = stream_info.manifest_type if stream_info else "UNKNOWN"
         
         # Try to use local manifest file with base URL to avoid re-downloading the manifest
-        input_source = url
         raw_manifest = self._find_raw_manifest()
         
+        # First attempt with raw.{ext} if available
         if raw_manifest:
             input_source = raw_manifest
             
-            # Extract base URL from the original URL
-            # This is the URL up to (and including) the last slash before the manifest filename
-            base_url = url.rsplit('/', 1)[0] + '/' if '/' in url else url
+            # Extract base URL preserving all parameters
+            base_url = self._extract_base_url(url)
             self._log(f"Base URL: {base_url}", "INFO")
 
             # Build command with base-url
@@ -221,75 +380,42 @@ class N_m3u8DLWrapper:
         
         else:
             self._log(f"Using original URL for download: {url}", "INFO")
-            command = self._build_command(input_source, filename, headers, decryption_keys, manifest_type=manifest_type)
+            command = self._build_command(url, filename, headers, decryption_keys, manifest_type=manifest_type)
+        
         self._log(" ".join(command), "DOWNLOAD_START")
         yield {"status": "starting"}
         
         process = None
         
         try:
-            #print("2) Call to start download with command: " + " ".join(command))
-            with subprocess.Popen(
-                command,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=False,
-                bufsize=0,
-                creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0
-            ) as process:
+            # First attempt with raw manifest if available
+            for update in self._attempt_download_with_progress(command, filename, headers, decryption_keys):
+                yield update
+                if update.get("status") == "completed":
+                    return
                 
-                buffer = []
-                in_stream_list = False
-                
-                for line in iter(process.stdout.readline, b''):
-                    try:
-                        output = line.decode('utf-8', errors='ignore').strip()
-                    except Exception:
-                        output = str(line, errors='ignore').strip()
-                    
-                    if not output:
-                        continue
-                    
-                    buffer.append(output)
-                    self._log(output, "OUTPUT")
-                    
-                    # 1) Parse stream list
-                    if any(kw in output for kw in ["Extracted", "streams found", "Vid ", "Aud ", "Sub "]):
-                        in_stream_list = True
-                    
-                    if in_stream_list and any(kw in output for kw in ["Selected streams:", "Start downloading"]):
-                        in_stream_list = False
-                        yield {"status": "selected"}
-                    
-                    # 2) Selected streams
-                    if "Selected streams:" in output:
-                        yield {"status": "selected", "selected_streams": []}
-                    
-                    # 3) Parse progress
-                    if progress := StreamParser.parse_progress(output):
-                        update = {"status": "downloading"}
-                        if progress.stream_type == "Vid":
-                            update["progress_video"] = progress
-                        elif progress.stream_type == "Aud":
-                            update["progress_audio"] = progress
-                        yield update
-                
-                process.wait()
-                
-                if process.returncode != 0:
-                    error_lines = [line for line in buffer if any(kw in line for kw in ["ERROR", "WARN", "Failed"])]
-                    error_msg = "\n".join(error_lines[-10:]) if error_lines else "Unknown error"
-                    self._log(error_msg, "ERROR")
-                    raise ValueError(f"N_m3u8DL-RE failed with exit code {process.returncode}\n{error_msg}")
-                
-                # 4) Get downloaded files
-                result = FileUtils.find_downloaded_files(
-                    self.output_dir,
-                    filename,
-                    self.config.select_audio_lang[0] if isinstance(self.config.select_audio_lang, list) else self.config.select_audio_lang,
-                    self.config.select_subtitle_lang[0] if isinstance(self.config.select_subtitle_lang, list) else self.config.select_subtitle_lang
-                )
-                yield {"status": "completed", "result": result}
+                elif update.get("status") == "failed":
+                    if update.get("has_404", False) and raw_manifest:
+                        self._log("404 error detected, switching to original URL immediately", "INFO")
+                        yield {"status": "retrying"}
+                        
+                        # Switch to original URL
+                        command = self._build_command(url, filename, headers, decryption_keys, manifest_type=manifest_type)
+                        self._log(" ".join(command), "DOWNLOAD_RETRY")
+                        
+                        # Try with original URL
+                        for retry_update in self._attempt_download_with_progress(command, filename, headers, decryption_keys):
+                            yield retry_update
+                            if retry_update.get("status") == "completed":
+                                return
+                        
+                        # If retry also failed, give up
+                        yield {"status": "failed", "error": "Both raw manifest and original URL failed"}
+                        return
+                    else:
+                        return
+            
+            yield {"status": "failed", "error": "Download completed without status"}
 
         except KeyboardInterrupt:
             self._log("Cancelled by user", "CANCEL")

@@ -346,11 +346,26 @@ class MediaDownloader:
                             progress_bars.stop()
                         console.file.flush()
                     
+                    # 6.5) Retrying with original URL
+                    elif update.get("status") == "retrying":
+                        if progress_bars:
+                            if not progress_bars.live.is_started:
+                                progress_bars.start()
+                            
+                            if video_task:
+                                progress_bars.update(video_task, completed=0, current="0", total_segments="0")
+                            for task in audio_tasks.values():
+                                progress_bars.update(task, completed=0, current="0", total_segments="0")
+                    
                     # 7) Failed
                     elif update.get("status") == "failed":
-                        if progress_bars:
+                        if progress_bars and not update.get("has_404", False):
                             progress_bars.stop()
-                        console.print(f"[bold red]Download fallito: {update.get('error')}")
+                        
+                        if update.get("has_404", False):
+                            console.log("[yellow]404 detected, switching to original URL...")
+                        else:
+                            console.print(f"[bold red]Download fallito: {update.get('error')}")
                         console.file.flush()
                 
                 yield update
@@ -391,12 +406,12 @@ class MediaDownloader:
         if total_audio_streams > 0 and matching_audio_streams == 0 and len(audio_langs) > 0:
             first_audio_lang = stream_info.audio_streams[0].language
             self.config.select_audio_lang = [first_audio_lang]
-            console.print("[yellow]None of the specified audio languages were found. Automatically selecting the first available audio language.")
+            console.log("[yellow]None of the specified audio languages were found. Automatically selecting the first available audio language.")
 
         elif total_audio_streams > 0 and len(audio_langs) == 0:
             first_audio_lang = stream_info.audio_streams[0].language
             self.config.select_audio_lang = [first_audio_lang]
-            console.print("[yellow]No audio language specified. Automatically selecting the first available audio language.")
+            console.log("[yellow]No audio language specified. Automatically selecting the first available audio language.")
         
         # Auto subtitle selection
         subtitle_langs = self.config.select_subtitle_lang or []
@@ -567,10 +582,17 @@ class MediaDownloader:
 
         # 4) Failed
         elif status == "failed":
-            self.status_info.status = DownloadStatus.FAILED
-            self.status_info.error_message = update.get("error")
+            if not update.get("has_404", False):
+                self.status_info.status = DownloadStatus.FAILED
+                self.status_info.error_message = update.get("error")
 
-        # 5) Cancelled
+        # 5) Retrying
+        elif status == "retrying":
+            self.status_info.status = DownloadStatus.DOWNLOADING
+            self._video_start_time = None
+            self._audio_start_time = None
+
+        # 6) Cancelled
         elif status == "cancelled":
             self.status_info.status = DownloadStatus.CANCELLED
     

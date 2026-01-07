@@ -93,7 +93,6 @@ class HLS_Downloader:
         os_manager.create_path(self.output_dir)
         
         # Get available streams
-        console.print("[cyan]Analyzing available streams...")
         stream_info = self.media_downloader.get_available_streams()
         
         if stream_info:

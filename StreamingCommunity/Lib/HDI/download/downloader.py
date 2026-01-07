@@ -46,6 +46,12 @@ class MediaDownloader:
         self._video_start_time: Optional[float] = None
         self._audio_start_time: Optional[float] = None
         
+        # Last valid progress info (for Done state)
+        self._last_video_size = "0.00 MB"
+        self._last_video_elapsed = 0.0
+        self._last_audio_size = "0.00 MB"
+        self._last_audio_elapsed = 0.0
+        
         # Audio selection tracking
         self.audio_disponibili = 0
         self.audio_selezionati = 0
@@ -427,6 +433,19 @@ class MediaDownloader:
             size_str = FormatUtils.parse_size_to_mb(p.total_size)
             size_parts = size_str.rsplit(' ', 1)
             
+            # Store last valid values when not Done
+            if p.percent < 99.5 and len(size_parts) == 2 and size_parts[0] != "0.00":
+                self._last_video_size = size_str
+                self._last_video_elapsed = elapsed
+            
+            # Use stored values when Done, otherwise use current values
+            if p.percent >= 99.5:
+                final_size_parts = self._last_video_size.rsplit(' ', 1)
+                final_elapsed = self._last_video_elapsed
+            else:
+                final_size_parts = size_parts
+                final_elapsed = elapsed
+            
             speed_value = "Done" if p.percent >= 99.5 else FormatUtils.parse_speed_to_mb(p.speed).split()[0]
             speed_unit = "" if p.percent >= 99.5 else "MB/s"
             
@@ -434,10 +453,10 @@ class MediaDownloader:
                 video_task,
                 completed=min(p.percent, 100.0),
                 current=str(p.current), total_segments=str(p.total),
-                elapsed=FormatUtils.format_time(elapsed),
+                elapsed=FormatUtils.format_time(final_elapsed),
                 eta=FormatUtils.format_time(eta),
-                size_value=size_parts[0] if len(size_parts) == 2 else "0.00",
-                size_unit=size_parts[1] if len(size_parts) == 2 else "MB",
+                size_value=final_size_parts[0] if len(final_size_parts) == 2 else "0.00",
+                size_unit=final_size_parts[1] if len(final_size_parts) == 2 else "MB",
                 speed_value=speed_value, speed_unit=speed_unit
             )
             progress_bars.refresh()
@@ -496,6 +515,19 @@ class MediaDownloader:
                 size_str = FormatUtils.parse_size_to_mb(p.total_size)
                 size_parts = size_str.rsplit(' ', 1)
                 
+                # Store last valid values when not Done
+                if p.percent < 99.5 and len(size_parts) == 2 and size_parts[0] != "0.00":
+                    self._last_audio_size = size_str
+                    self._last_audio_elapsed = elapsed
+                
+                # Use stored values when Done, otherwise use current values
+                if p.percent >= 99.5:
+                    final_size_parts = self._last_audio_size.rsplit(' ', 1)
+                    final_elapsed = self._last_audio_elapsed
+                else:
+                    final_size_parts = size_parts
+                    final_elapsed = elapsed
+                
                 speed_value = "Done" if p.percent >= 99.5 else FormatUtils.parse_speed_to_mb(p.speed).split()[0]
                 speed_unit = "" if p.percent >= 99.5 else "MB/s"
                 
@@ -503,10 +535,10 @@ class MediaDownloader:
                     target_task,
                     completed=min(p.percent, 100.0),
                     current=str(p.current), total_segments=str(p.total),
-                    elapsed=FormatUtils.format_time(elapsed),
+                    elapsed=FormatUtils.format_time(final_elapsed),
                     eta=FormatUtils.format_time(eta),
-                    size_value=size_parts[0] if len(size_parts) == 2 else "0.00",
-                    size_unit=size_parts[1] if len(size_parts) == 2 else "MB",
+                    size_value=final_size_parts[0] if len(final_size_parts) == 2 else "0.00",
+                    size_unit=final_size_parts[1] if len(final_size_parts) == 2 else "MB",
                     speed_value=speed_value, speed_unit=speed_unit
                 )
                 progress_bars.refresh()

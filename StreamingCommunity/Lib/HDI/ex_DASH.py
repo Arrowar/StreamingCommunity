@@ -195,7 +195,6 @@ class DASH_Downloader:
         )
         
         # Get available streams - this generates raw.mpd in temp_analysis folder
-        console.print("[cyan]Analyzing available streams...")
         stream_info = self.media_downloader.get_available_streams()
         
         if stream_info:

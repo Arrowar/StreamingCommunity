@@ -138,30 +138,16 @@ def join_audios(video_path: str, audio_tracks: List[Dict[str, str]], out_path: s
         - limit_duration_diff (float): Maximum duration difference in seconds.
     """
     use_shortest = False
-    duration_diffs = []
     
     for audio_track in audio_tracks:
         audio_path = audio_track.get('path')
         audio_lang = audio_track.get('name', 'unknown')
         is_matched, diff, video_duration, audio_duration = check_duration_v_a(video_path, audio_path)
         
-        duration_diffs.append({
-            'language': audio_lang,
-            'difference': diff,
-            'has_error': diff > limit_duration_diff,
-            'video_duration': video_duration,
-            'audio_duration': audio_duration
-        })
-        
         # If any audio track has a significant duration difference, use -shortest
         if diff > limit_duration_diff:
+            print(f"Audio track '{audio_lang}' has a duration difference of {diff:.2f}s which exceeds the limit of {limit_duration_diff}s. Using -shortest option.")
             use_shortest = True
-
-    # Print duration differences for each track
-    if use_shortest:
-        for track in duration_diffs:
-            color = "red" if track['has_error'] else "green"
-            console.print(f"[{color}]Audio {track['language']}: Video duration: {track['video_duration']:.2f}s, Audio duration: {track['audio_duration']:.2f}s, Difference: {track['difference']:.2f}s[/{color}] \n")
 
     # Start command with locate ffmpeg
     ffmpeg_cmd = [get_ffmpeg_path()]

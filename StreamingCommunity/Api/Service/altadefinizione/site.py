@@ -45,7 +45,12 @@ def title_search(query: str) -> int:
     soup = BeautifulSoup(response.text, "html.parser")
 
     # Collect data from new structure
-    boxes = soup.find("div", id="dle-content").find_all("div", class_="box")
+    try:
+        boxes = soup.find("div", id="dle-content").find_all("div", class_="box")
+    except Exception as e:
+        console.print(f"[red]Site: {site_constants.SITE_NAME}, parsing search results error: {e}")
+        return 0
+
     for i, box in enumerate(boxes):
         
         title_tag = box.find("h2", class_="titleFilm")

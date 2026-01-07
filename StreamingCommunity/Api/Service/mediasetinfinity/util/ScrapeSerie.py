@@ -1,12 +1,12 @@
 # 16.03.25
 
+import re
+import json
 import logging
-from urllib.parse import urlparse
-
+from urllib.parse import urlparse, quote
 
 # External libraries
 from bs4 import BeautifulSoup
-
 
 # Internal utilities
 from StreamingCommunity.Util.http_client import create_client, get_userAgent, get_headers
@@ -20,7 +20,6 @@ class GetSerieInfo:
         
         Args:
             - url (str): The URL of the streaming site.
-            - min_duration (int): Minimum duration in minutes for episodes to be included
         """
         self.headers = get_headers()
         self.url = url
@@ -116,8 +115,12 @@ class GetSerieInfo:
                     if carousel_link.has_attr('href'):
                         category_title = carousel_link.find('h2')
                         category_name = category_title.text.strip() if category_title else 'Unnamed'
-                        sb_id = carousel_link['href'].split(',')[-1]
-                        
+                        href = carousel_link['href']
+                        if ',' in href:
+                            sb_id = href.split(',')[-1]
+                        else:
+                            sb_id = href.split('_')[-1]
+
                         season['categories'].append({
                             'name': category_name,
                             'sb': sb_id
@@ -130,39 +133,106 @@ class GetSerieInfo:
         episode_headers = {
             'user-agent': get_userAgent(),
         }
-        params = {
-            'byCustomValue': "{subBrandId}{" + str(sb_id.replace('sb', '')) + "}",
-            'sort': ':publishInfo_lastPublished|asc,tvSeasonEpisodeNumber|asc',
-            'range': '0-200',
-        }
-        episode_url = f"https://feed.entertainment.tv.theplatform.eu/f/{self.public_id}/mediaset-prod-all-programs-v2"
         
-        try:
-            episode_response = create_client(headers=episode_headers).get(episode_url, params=params)
-            episode_response.raise_for_status()
+        # Check if sb_id is numeric (with sb prefix) or alphanumeric
+        if sb_id.startswith('sb'):
+            clean_sb_id = sb_id[2:]
             
-            episode_data = episode_response.json()
-            episodes = []
+            params = {
+                'byCustomValue': "{subBrandId}{" + str(clean_sb_id) + "}",
+                'sort': ':publishInfo_lastPublished|asc,tvSeasonEpisodeNumber|asc',
+                'range': '0-200',
+            }
+            episode_url = f"https://feed.entertainment.tv.theplatform.eu/f/{self.public_id}/mediaset-prod-all-programs-v2"
             
-            for entry in episode_data.get('entries', []):
-                duration = int(entry.get('mediasetprogram$duration', 0) / 60) if entry.get('mediasetprogram$duration') else 0
+            try:
+                episode_response = create_client(headers=episode_headers).get(episode_url, params=params)
+                episode_response.raise_for_status()
                 
+                episode_data = episode_response.json()
+                episodes = []
+                
+                for entry in episode_data.get('entries', []):
+                    duration = int(entry.get('mediasetprogram$duration', 0) / 60) if entry.get('mediasetprogram$duration') else 0
+                    
+                    episode_info = {
+                        'id': entry.get('guid'),
+                        'title': entry.get('title'),
+                        'duration': duration,
+                        'url': entry.get('media', [{}])[0].get('publicUrl') if entry.get('media') else None,
+                        'name': entry.get('title'),
+                        'category': category_name
+                    }
+                    episodes.append(episode_info)
+                
+                print(f"Found {len(episodes)} episodes for season {season['tvSeasonNumber']} ({category_name})")
+                return episodes
+                
+            except Exception as e:
+                logging.error(f"Failed to get episodes for season {season['tvSeasonNumber']} with error: {e}")
+                return []
+        
+        else:
+            category_slug = category_name.lower().replace(' ', '-').replace("'", "").replace("à", "a").replace("è", "e").replace("ì", "i").replace("ò", "o").replace("ù", "u")
+            browse_url = f"https://mediasetinfinity.mediaset.it/browse/{category_slug}_{sb_id}"
+            
+            # Create the router state
+            url_path = browse_url.split('mediasetinfinity.mediaset.it/')[1] if 'mediasetinfinity.mediaset.it/' in browse_url else browse_url
+            state = ["", {"children": [["path", url_path, "c"], {"children": ["__PAGE__", {}, None, "refetch"]}, None, None]}, None, None]
+            router_state_tree = quote(json.dumps(state, separators=(',', ':')))
+
+            rsc_headers = {
+                'rsc': '1',
+                'next-router-state-tree': router_state_tree,
+                'User-Agent': get_userAgent()
+            }
+            try:
+                episode_response = create_client(headers=rsc_headers).get(browse_url)
+                episode_response.raise_for_status()
+                
+                episodes = self._extract_episodes_from_rsc_text(episode_response.text, category_name)
+                print(f"Found {len(episodes)} episodes for season {season['tvSeasonNumber']} ({category_name})")
+                return episodes
+                
+            except Exception as e:
+                logging.error(f"Failed to get episodes for season {season['tvSeasonNumber']} with error: {e}")
+                return []
+
+    def _extract_episodes_from_rsc_text(self, text, category_name):
+        """Extract episodes from RSC response text"""
+        episodes = []
+        pattern = r'"__typename":"VideoItem".*?"url":"https://mediasetinfinity\.mediaset\.it/video/[^"]*?"'
+        
+        for match in re.finditer(pattern, text, re.DOTALL):
+            block = match.group(0)
+            ep = {}
+            fields = {
+                'title': r'"cardTitle":"([^"]*?)"',
+                'description': r'"description":"([^"]*?)"',
+                'duration': r'"duration":(\d+)',
+                'guid': r'"guid":"([^"]*?)"',
+                'url': r'"url":"(https://mediasetinfinity\.mediaset\.it/video/[^"]*?)"'
+            }
+            
+            for key, regex in fields.items():
+                m = re.search(regex, block)
+                if m:
+                    ep[key] = int(m.group(1)) if key == 'duration' else m.group(1)
+            
+            if ep:
                 episode_info = {
-                    'id': entry.get('guid'),
-                    'title': entry.get('title'),
-                    'duration': duration,
-                    'url': entry.get('media', [{}])[0].get('publicUrl') if entry.get('media') else None,
-                    'name': entry.get('title'),
-                    'category': category_name
+                    'id': ep.get('guid', ''),
+                    'title': ep.get('title', ''),
+                    'duration': int(ep.get('duration', 0) / 60) if ep.get('duration') else 0,
+                    'url': ep.get('url', ''),
+                    'name': ep.get('title', ''),
+                    'category': category_name,
+                    'description': ep.get('description', ''),
+                    'series': ''
                 }
                 episodes.append(episode_info)
-            
-            print(f"Found {len(episodes)} episodes for season {season['tvSeasonNumber']} ({category_name})")
-            return episodes
-
-        except Exception as e:
-            logging.error(f"Failed to get episodes for season {season['tvSeasonNumber']} with error: {e}")
-            return []
+        
+        return episodes
 
     def collect_season(self) -> None:
         """

@@ -13,7 +13,7 @@ from rich.console import Console
 from StreamingCommunity.Util import os_manager, start_message, config_manager
 from StreamingCommunity.Util.http_client import create_client, get_headers
 from StreamingCommunity.Api.Template import site_constants, MediaItem
-from StreamingCommunity.Lib.HLS import HLS_Downloader
+from StreamingCommunity.Lib.HDI import HLS_Downloader
 
 
 # Logic

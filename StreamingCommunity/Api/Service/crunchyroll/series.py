@@ -13,6 +13,7 @@ from rich.prompt import Prompt
 
 # Internal utilities
 from StreamingCommunity.Util import os_manager, config_manager, start_message
+from StreamingCommunity.Lib.HDI import DASH_Downloader
 from StreamingCommunity.Api.Template import site_constants, MediaItem
 from StreamingCommunity.Api.Template.episode_manager import (
     manage_selection, 
@@ -22,7 +23,6 @@ from StreamingCommunity.Api.Template.episode_manager import (
     display_episodes_list,
     display_seasons_list
 )
-from StreamingCommunity.Lib.DASH.downloader import DASH_Downloader
 
 
 # Logic
@@ -72,15 +72,6 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
     query_params = parse_qs(parsed_url.query)
     playback_guid = query_params.get('playbackGuid', [token])[0] if query_params.get('playbackGuid') else token
 
-    # Download the episode
-    dash_process = DASH_Downloader(
-        license_url='https://www.crunchyroll.com/license/v1/license/widevine',
-        mpd_url=mpd_url,
-        mpd_sub_list=mpd_list_sub,
-        output_path=os.path.join(mp4_path, mp4_name),
-    )
-    dash_process.parse_manifest(custom_headers=mpd_headers)
-
     # Create headers for license request
     license_headers = mpd_headers.copy()
     license_headers.update({
@@ -88,8 +79,15 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
         "x-cr-video-token": playback_guid,
     })
 
-    if dash_process.download_and_decrypt(custom_headers=license_headers):
-        dash_process.finalize_output()
+    # Download the episode
+    dash_process = DASH_Downloader(
+        mpd_url=mpd_url,
+        license_url='https://www.crunchyroll.com/license/v1/license/widevine',
+        license_headers=license_headers,
+        mpd_sub_list=mpd_list_sub,
+        output_path=os.path.join(mp4_path, mp4_name),
+    )
+    dash_process.start()
 
     # Get final output path and status
     status = dash_process.get_status()

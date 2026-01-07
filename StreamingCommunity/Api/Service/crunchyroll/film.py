@@ -11,7 +11,7 @@ from rich.console import Console
 # Internal utilities
 from StreamingCommunity.Util import config_manager, os_manager, start_message
 from StreamingCommunity.Api.Template import site_constants, MediaItem
-from StreamingCommunity.Lib.DASH.downloader import DASH_Downloader
+from StreamingCommunity.Lib.HDI import DASH_Downloader
 
 
 # Logic
@@ -54,24 +54,22 @@ def download_film(select_title: MediaItem) -> str:
     query_params = parse_qs(parsed_url.query)
     playback_guid = query_params.get('playbackGuid', [token])[0] if query_params.get('playbackGuid') else token
 
-    # Download the film
-    dash_process = DASH_Downloader(
-        license_url='https://www.crunchyroll.com/license/v1/license/widevine',
-        mpd_url=mpd_url,
-        mpd_sub_list=mpd_list_sub,
-        output_path=os.path.join(mp4_path, mp4_name),
-    )
-    dash_process.parse_manifest(custom_headers=mpd_headers)
-
-    # Create headers for license request
+    # Creaate headers for license request
     license_headers = mpd_headers.copy()
     license_headers.update({
         "x-cr-content-id": url_id,
         "x-cr-video-token": playback_guid,
     })
 
-    if dash_process.download_and_decrypt(custom_headers=license_headers):
-        dash_process.finalize_output()
+    # Download the film
+    dash_process = DASH_Downloader(
+        mpd_url=mpd_url,
+        license_url='https://www.crunchyroll.com/license/v1/license/widevine',
+        license_headers=license_headers,
+        mpd_sub_list=mpd_list_sub,
+        output_path=os.path.join(mp4_path, mp4_name),
+    )
+    dash_process.start()
 
     # Get final output path and status
     status = dash_process.get_status()

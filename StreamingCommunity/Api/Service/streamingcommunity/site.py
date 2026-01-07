@@ -83,11 +83,19 @@ def title_search(query: str) -> int:
             if filename:
                 image_url = f"{site_constants.FULL_URL.replace('stream', 'cdn.stream')}/images/{filename}"
 
-            # Extract date: prefer last_air_date, otherwise try translations (last_air_date or release_date)
-            date = dict_title.get('last_air_date')
+            # Extract date: prefer last_air_date at root level, otherwise search in translations
+            date = None
+            
             if not date:
                 for trans in dict_title.get('translations') or []:
-                    if trans.get('key') in ('last_air_date', 'release_date') and trans.get('value'):
+                    if trans.get('key') == 'last_air_date' and trans.get('value'):
+                        date = trans.get('value')
+                        break
+            
+            # If still no date, try release_date in translations
+            if not date:
+                for trans in dict_title.get('translations') or []:
+                    if trans.get('key') == 'release_date' and trans.get('value'):
                         date = trans.get('value')
                         break
 
@@ -96,10 +104,10 @@ def title_search(query: str) -> int:
                 'slug': dict_title.get('slug'),
                 'name': dict_title.get('name'),
                 'type': dict_title.get('type'),
-                'date': date if dict_title.get('date') not in ("", None) else "1999-19-19",
+                'date': date if date not in ("", None) else "1999-19-19",
                 'image': image_url
             })
-            
+
         except Exception as e:
             print(f"Error parsing a film entry: {e}")
 

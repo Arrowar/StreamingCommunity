@@ -12,8 +12,7 @@ from rich.console import Console
 from StreamingCommunity.Util import os_manager, config_manager, start_message
 from StreamingCommunity.Util.http_client import create_client, get_headers
 from StreamingCommunity.Api.Template import site_constants, MediaItem
-from StreamingCommunity.Lib.DASH.downloader import DASH_Downloader
-from StreamingCommunity.Lib.HLS import HLS_Downloader
+from StreamingCommunity.Lib.HDI import DASH_Downloader, HLS_Downloader
 
 
 # Logic
@@ -62,14 +61,11 @@ def download_film(select_title: MediaItem) -> Tuple[str, bool]:
         license_url = generate_license_url(select_title.mpd_id)
 
         dash_process = DASH_Downloader(
-            license_url=license_url,
             mpd_url=master_playlist,
+            license_url=license_url,
             output_path=os.path.join(mp4_path, mp4_name),
         )
-        dash_process.parse_manifest(custom_headers=get_headers())
-        
-        if dash_process.download_and_decrypt():
-            dash_process.finalize_output()
+        dash_process.start()
 
         # Get final output path and status
         r_proc = dash_process.get_status()

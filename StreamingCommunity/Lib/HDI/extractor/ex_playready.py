@@ -37,10 +37,9 @@ def get_playready_keys(pssh: str, license_url: str, cdm_device_path: str, header
     device = Device.load(cdm_device_path)
     cdm = Cdm.from_device(device)
     session_id = cdm.open()
-    console.log(f"[cyan]Session ID: [green]{session_id}")
 
     try:
-        console.log(f"[cyan]PSSH (PR): [green]{pssh[:30]}..." if len(pssh) > 30 else f"[cyan]PSSH (PR): [green]{pssh}")
+        console.print(f"[cyan]PSSH (PR): [green]{pssh}")
         
         try:
             pssh_obj = PSSH(pssh)
@@ -93,44 +92,16 @@ def get_playready_keys(pssh: str, license_url: str, cdm_device_path: str, header
             for key_obj in cdm.get_keys(session_id):
                 kid = key_obj.key_id.hex
                 key_val = key_obj.key.hex()
-
-                content_keys.append({
-                    'kid': kid.replace('-', '').strip(),
-                    'key': key_val.replace('-', '').strip()
-                })
+                content_keys.append(f"{kid.replace('-', '').strip()}:{key_val.replace('-', '').strip()}")
 
             # Return keys
-            console.log(f"[cyan]Extracted [red]{len(content_keys)} CONTENT [cyan]keys from license.")
+            console.print(f"[cyan]Extracted [red]{len(content_keys)} CONTENT [cyan]keys from license.")
             return content_keys
 
         else:
             content_keys = []
-            raw_kid = key.split(":")[0]
-            raw_key = key.split(":")[1]
-
-            content_keys.append({
-                'kid': raw_kid.replace('-', '').strip(),
-                'key': raw_key.replace('-', '').strip()
-            })
-
-            console.log(f"[cyan]KID: [green]{content_keys[0]['kid']} [white]| [cyan]KEY: [green]{content_keys[0]['key']}")
+            content_keys.append(f"{key.split(':')[0].replace('-', '').strip()}:{key.split(':')[1].replace('-', '').strip()}")
             return content_keys
     
     finally:
         cdm.close(session_id)
-
-
-def get_info_prd(cdm_device_path):
-    """
-    Extract device information from a PlayReady CDM device file (.prd).
-    
-    Args:
-        cdm_device_path (str): Path to CDM file (device.prd).
-    """
-    device = Device.load(cdm_device_path)
-    
-    console.print(
-        f"[cyan]Load PRD: "
-        f"[red]SL{device.security_level} [cyan]| "
-        f"[yellow]{device.get_name()} "
-    )

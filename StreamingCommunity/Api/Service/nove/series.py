@@ -12,15 +12,8 @@ from rich.prompt import Prompt
 # Internal utilities
 from StreamingCommunity.Util import config_manager, start_message
 from StreamingCommunity.Api.Template import site_constants, MediaItem
-from StreamingCommunity.Api.Template.episode_manager import (
-    manage_selection, 
-    map_episode_title, 
-    validate_selection, 
-    validate_episode_selection, 
-    display_episodes_list,
-    display_seasons_list
-)
-from StreamingCommunity.Lib.HLS import HLS_Downloader
+from StreamingCommunity.Api.Template.episode_manager import map_episode_title
+from StreamingCommunity.Lib.HDI import HLS_Downloader
 
 
 # Logic

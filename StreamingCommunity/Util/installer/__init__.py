@@ -1,14 +1,13 @@
 # 18.07.25
 
-from .ffmpeg_install import check_ffmpeg
-from .bento4_install import check_bento4_tools
+from .checker import check_bento4, check_ffmpeg, check_megatools, check_n_m3u8dl_re
 from .device_install import check_device_wvd_path, check_device_prd_path
-from .megatool_installer import check_megatools
 
 __all__ = [
     "check_ffmpeg",
-    "check_bento4_tools",
+    "check_bento4",
     "check_device_wvd_path",
     "check_device_prd_path",
-    "check_megatools"
+    "check_megatools",
+    "check_n_m3u8dl_re"
 ]

@@ -11,7 +11,7 @@ from rich.prompt import Prompt
 
 # Internal utilities
 from StreamingCommunity.Util import config_manager, start_message
-from StreamingCommunity.Util.http_client import get_headers, get_userAgent
+from StreamingCommunity.Util.http_client import get_userAgent
 from StreamingCommunity.Api.Template import site_constants, MediaItem
 from StreamingCommunity.Api.Template.episode_manager import (
     manage_selection, 
@@ -21,8 +21,7 @@ from StreamingCommunity.Api.Template.episode_manager import (
     display_episodes_list,
     display_seasons_list
 )
-from StreamingCommunity.Lib.DASH.downloader import DASH_Downloader
-from StreamingCommunity.Lib.HLS import HLS_Downloader
+from StreamingCommunity.Lib.HDI import DASH_Downloader, HLS_Downloader
 
 
 # Logic
@@ -81,14 +80,11 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
         }
 
         dash_process = DASH_Downloader(
-            license_url=full_license_url.split("?")[0],
             mpd_url=master_playlist,
+            license_url=full_license_url.split("?")[0],
+            license_headers=license_headers,
             output_path=os.path.join(mp4_path, mp4_name),
-        )
-        dash_process.parse_manifest(custom_headers=get_headers())
-        
-        if dash_process.download_and_decrypt(custom_headers=license_headers):
-            dash_process.finalize_output()
+        ).start()
 
         # Get final output path and status
         r_proc = dash_process.get_status()

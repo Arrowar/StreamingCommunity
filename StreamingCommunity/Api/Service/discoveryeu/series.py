@@ -11,6 +11,7 @@ from rich.prompt import Prompt
 
 # Internal utilities
 from StreamingCommunity.Util import os_manager, config_manager, start_message
+from StreamingCommunity.Lib.HDI import DASH_Downloader, HLS_Downloader
 from StreamingCommunity.Api.Template import site_constants, MediaItem
 from StreamingCommunity.Api.Template.episode_manager import (
     manage_selection,
@@ -20,8 +21,6 @@ from StreamingCommunity.Api.Template.episode_manager import (
     display_episodes_list,
     display_seasons_list
 )
-from StreamingCommunity.Lib.DASH.downloader import DASH_Downloader
-from StreamingCommunity.Lib.HLS import HLS_Downloader
 
 
 
@@ -52,10 +51,7 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
     
     # Get episode information
     obj_episode = scrape_serie.selectEpisode(index_season_selected, index_episode_selected - 1)
-    
-    # Get the real season number. Due to some seasons not having free episodes there's a mismatch between seasons and their index number.
     index_season_selected = scrape_serie.getRealNumberSeason(index_season_selected)
-
     console.print(f"\n[yellow]Download: [red]{site_constants.SITE_NAME} → [cyan]{scrape_serie.series_name} \\ [magenta]{obj_episode.name} ([cyan]S{index_season_selected}E{index_episode_selected}) \n")
 
     # Define output path
@@ -78,15 +74,12 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
     
         # Download the episode
         dash_process = DASH_Downloader(
-            license_url=playback_info['license_url'],
             mpd_url=playback_info['mpd_url'],
+            license_url=playback_info['license_url'],
+            license_headers=license_headers,
             output_path=os.path.join(mp4_path, mp4_name),
         )
-    
-        dash_process.parse_manifest(custom_headers=license_headers)
-    
-        if dash_process.download_and_decrypt(custom_headers=license_headers):
-            dash_process.finalize_output()
+        dash_process.start()
     
         # Get final status
         status = dash_process.get_status()

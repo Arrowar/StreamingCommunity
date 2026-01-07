@@ -15,16 +15,12 @@ from pathvalidate import sanitize_filename, sanitize_filepath
 
 
 # Internal utilities
-from .config_json import config_manager
-from .installer import check_ffmpeg, check_bento4_tools, check_device_wvd_path, check_device_prd_path, check_megatools
-from StreamingCommunity.Lib.DASH.extractor.ex_widevine import get_info_wvd
-from StreamingCommunity.Lib.DASH.extractor.ex_playready import get_info_prd
+from .installer import check_ffmpeg, check_bento4, check_megatools, check_n_m3u8dl_re, check_device_wvd_path, check_device_prd_path
 
 
 # Variable
 msg = Prompt()
 console = Console()
-SHOW_DEVICE_INFO = config_manager.config.get('DEFAULT', 'show_device_info')
 
 
 class OsManager:
@@ -214,16 +210,17 @@ class InternetManager():
 class OsSummary:
     def __init__(self):
         self.ffmpeg_path, self.ffprobe_path = check_ffmpeg()
-        self.bento4_decrypt_path, self.bento4_dump_path = check_bento4_tools()
+        self.bento4_decrypt_path = check_bento4()
         self.wvd_path = check_device_wvd_path()
         self.prd_path = check_device_prd_path()
         self.megatools_path = check_megatools()
+        self.n_m3u8dl_re_path = check_n_m3u8dl_re()
         self._display_binary_paths()
 
         if self.ffmpeg_path is None or self.ffprobe_path is None:
             console.print("[red]\nFFmpeg tools are missing or not found in PATH. Some functionalities may not work properly.")
             time.sleep(5)
-        if self.bento4_decrypt_path is None or self.bento4_dump_path is None:
+        if self.bento4_decrypt_path is None:
             console.print("[red]\nBento4 tools are missing or not found in PATH. Some functionalities may not work properly.")
             time.sleep(5)
         if self.megatools_path is None:
@@ -245,11 +242,6 @@ class OsSummary:
             path_strings.append(f"[red]{name} [yellow]{path_str}")
         
         console.print(f"[cyan]Utilities: {', [white]'.join(path_strings)}")
-        if SHOW_DEVICE_INFO:
-            if self.wvd_path:
-                get_info_wvd(self.wvd_path)
-            if self.prd_path:
-                get_info_prd(self.prd_path)
 
 
 # Initialize the os_summary, internet_manager, and os_manager when the module is imported
@@ -270,9 +262,13 @@ def get_bento4_decrypt_path():
     """Returns the path of mp4decrypt."""
     return os_summary.bento4_decrypt_path
 
-def get_bento4_dump_path():
-    """Returns the path of mp4dump."""
-    return os_summary.bento4_dump_path
+def get_megatools_path():
+    """Returns the path of megatools."""
+    return os_summary.megatools_path
+
+def get_n_m3u8dl_re_path():
+    """Returns the path of N_m3u8DL-RE."""
+    return os_summary.n_m3u8dl_re_path
 
 def get_wvd_path():
     """Returns the path of wvd."""
@@ -281,7 +277,3 @@ def get_wvd_path():
 def get_prd_path():
     """Returns the path of prd."""
     return os_summary.prd_path
-
-def get_megatools_path():
-    """Returns the path of megatools."""
-    return os_summary.megatools_path

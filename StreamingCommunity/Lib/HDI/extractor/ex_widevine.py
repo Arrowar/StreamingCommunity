@@ -38,10 +38,9 @@ def get_widevine_keys(pssh: str, license_url: str, cdm_device_path: str, headers
     device = Device.load(cdm_device_path)
     cdm = Cdm.from_device(device)
     session_id = cdm.open()
-    console.log(f"[cyan]Session ID: [green]{session_id}")
 
     try:
-        console.log(f"[cyan]PSSH (WV): [green]{pssh[:30]}..." if len(pssh) > 30 else f"[cyan]PSSH (WV): [green]{pssh}")
+        console.print(f"[cyan]PSSH (WV): [green]{pssh}")
         challenge = cdm.get_license_challenge(session_id, PSSH(pssh))
         
         # With request license
@@ -105,57 +104,16 @@ def get_widevine_keys(pssh: str, license_url: str, cdm_device_path: str, headers
                 if key.type == "CONTENT":
                     kid = key.kid.hex
                     key_val = key.key.hex()
-
-                    content_keys.append({
-                        'kid': kid.replace('-', '').strip(),
-                        'key': key_val.replace('-', '').strip()
-                    })
+                    content_keys.append(f"{kid.replace('-', '').strip()}:{key_val.replace('-', '').strip()}")
 
             # Return keys
-            console.log(f"[cyan]Extracted [red]{len(content_keys)} CONTENT [cyan]keys from license.")
+            console.print(f"[cyan]Extracted [red]{len(content_keys)} CONTENT [cyan]keys from license.")
             return content_keys
 
         else:
             content_keys = []
-            content_keys.append({
-                'kid': key.split(":")[0].replace('-', '').strip(),
-                'key': key.split(":")[1].replace('-', '').strip()
-            })
-
-            console.log(f"[cyan]KID: [green]{content_keys[0]['kid']} [white]| [cyan]KEY: [green]{content_keys[0]['key']}")
+            content_keys.append(f"{key.split(':')[0].replace('-', '').strip()}:{key.split(':')[1].replace('-', '').strip()}")
             return content_keys
     
     finally:
         cdm.close(session_id)
-
-
-def get_info_wvd(cdm_device_path):
-    """
-    Extract device information from a Widevine CDM device file (.wvd).
-
-    Args:
-        cdm_device_path (str): Path to CDM file (device.wvd).
-    """
-    device = Device.load(cdm_device_path)
-
-    # Extract client info
-    info = {ci.name: ci.value for ci in device.client_id.client_info}
-    model = info.get("model_name", "N/A")
-    device_name = info.get("device_name", "").lower()
-    build_info = info.get("build_info", "").lower()
-    is_emulator = any(x in device_name for x in [
-        "generic", "sdk", "emulator", "x86"
-    ]) or "test-keys" in build_info or "userdebug" in build_info
-    
-    if "tv" in model.lower():
-        dev_type = "Android TV"
-    elif is_emulator:
-        dev_type = "Android Emulator"
-    else:
-        dev_type = "Android Phone"
-
-    console.print(
-        f"[cyan]Load WVD: "
-        f"[red]L{device.security_level} [cyan]| [red]{dev_type} [cyan]| "
-        f"[cyan]SysID: [red]{device.system_id}"
-    )

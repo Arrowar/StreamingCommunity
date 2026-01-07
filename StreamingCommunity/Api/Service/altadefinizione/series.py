@@ -11,7 +11,7 @@ from rich.prompt import Prompt
 
 # Internal utilities
 from StreamingCommunity.Util.message import start_message, config_manager
-from StreamingCommunity.Lib.HLS import HLS_Downloader
+from StreamingCommunity.Lib.HDI import HLS_Downloader
 from StreamingCommunity.Api.Template import site_constants, MediaItem
 from StreamingCommunity.Api.Template.episode_manager import (
     manage_selection, 

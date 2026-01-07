@@ -2,8 +2,7 @@
     "DEFAULT": {
         "debug": false,
         "show_message": true,
-        "fetch_domain_online": true,
-        "show_device_info": true
+        "fetch_domain_online": true
     },
     "OUT_FOLDER": {
         "root_path": "Video",
@@ -14,10 +13,11 @@
         "add_siteName": false
     },
     "M3U8_DOWNLOAD": {
-        "default_video_workers": 8,
-        "default_audio_workers": 8,
-        "segment_timeout": 8,
-        "enable_retry": true,
+        "thread_count": 8,
+        "retry_count": 10,
+        "concurrent_download": true,
+        "max_speed": "50MB",
+        "check_segments_count": false,
         "specific_list_audio": [
             "ita",
             "it-IT"
@@ -27,8 +27,7 @@
             "ita",
             "it-IT"
         ],
-        "cleanup_tmp_folder": true,
-        "get_only_link": false
+        "cleanup_tmp_folder": true
     },
     "M3U8_CONVERSION": {
         "use_gpu": false,

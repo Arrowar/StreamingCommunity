@@ -21,7 +21,7 @@ from StreamingCommunity.Api.Template.episode_manager import (
     display_episodes_list,
     display_seasons_list
 )
-from StreamingCommunity.Lib.HLS import HLS_Downloader
+from StreamingCommunity.Lib.HDI import HLS_Downloader
 
 
 # Logic

@@ -1,6 +1,7 @@
 # 16.03.25
 
 import os
+import urllib.parse
 from typing import Tuple
 
 
@@ -11,8 +12,8 @@ from rich.prompt import Prompt
 
 # Internal utilities
 from StreamingCommunity.Util import os_manager, config_manager, start_message
-from StreamingCommunity.Util.http_client import get_headers
 from StreamingCommunity.Api.Template import site_constants, MediaItem
+from StreamingCommunity.Lib.HDI import DASH_Downloader
 from StreamingCommunity.Api.Template.episode_manager import (
     manage_selection, 
     map_episode_title,
@@ -21,7 +22,6 @@ from StreamingCommunity.Api.Template.episode_manager import (
     display_episodes_list,
     display_seasons_list
 )
-from StreamingCommunity.Lib.DASH.downloader import DASH_Downloader
 
 
 # Logic
@@ -63,19 +63,19 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
     playback_json = get_playback_url(obj_episode.id)
     tracking_info = get_tracking_info(playback_json)
     license_url, license_params = generate_license_url(tracking_info['videos'][0])
+    if license_params:
+        license_url = f"{license_url}?{urllib.parse.urlencode(license_params)}"
+
     mpd_url = get_manifest(tracking_info['videos'][0]['url'])
 
     # Download the episode
     dash_process = DASH_Downloader(
-        license_url=license_url,
         mpd_url=mpd_url,
+        license_url=license_url,
         mpd_sub_list=tracking_info['subtitles'],
         output_path=os.path.join(mp4_path, mp4_name),
     )
-    dash_process.parse_manifest(custom_headers=get_headers())
-
-    if dash_process.download_and_decrypt(query_params=license_params):
-        dash_process.finalize_output()
+    dash_process.start()
 
     # Get final output path and status
     status = dash_process.get_status()

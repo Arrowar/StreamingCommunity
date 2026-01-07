@@ -44,6 +44,7 @@ def add_encoding_params(ffmpeg_cmd: List[str]):
         ffmpeg_cmd.extend(PARAM_VIDEO)
         ffmpeg_cmd.extend(PARAM_AUDIO)
 
+
 def detect_gpu_device_type() -> str:
     """
     Detects the GPU device type available on the system.
@@ -59,21 +60,21 @@ def detect_gpu_device_type() -> str:
             output = result.stdout.lower()
         elif os_type == 'windows':
             try:
-                result = subprocess.run(['wmic', 'path', 'win32_videocontroller', 'get', 'name'], 
-                                      capture_output=True, text=True, check=True)
+                result = subprocess.run(['wmic', 'path', 'win32_videocontroller', 'get', 'name'], capture_output=True, text=True, check=True)
                 output = result.stdout.lower()
+
             except (subprocess.CalledProcessError, FileNotFoundError):
                 # Fallback to PowerShell if wmic is not available
                 try:
-                    result = subprocess.run(['powershell', '-Command', 'Get-WmiObject win32_videocontroller | Select-Object -ExpandProperty Name'], 
-                                          capture_output=True, text=True, check=True)
+                    result = subprocess.run(['powershell', '-Command', 'Get-WmiObject win32_videocontroller | Select-Object -ExpandProperty Name'], capture_output=True, text=True, check=True)
                     output = result.stdout.lower()
                 except (subprocess.CalledProcessError, FileNotFoundError):
                     return 'none'
+                
         elif os_type == 'darwin':  # macOS
-            result = subprocess.run(['system_profiler', 'SPDisplaysDataType'], 
-                                  capture_output=True, text=True, check=True)
+            result = subprocess.run(['system_profiler', 'SPDisplaysDataType'], capture_output=True, text=True, check=True)
             output = result.stdout.lower()
+
         else:
             return 'none'
         
@@ -88,9 +89,10 @@ def detect_gpu_device_type() -> str:
     except (subprocess.CalledProcessError, FileNotFoundError):
         return 'none'
 
+
 def join_video(video_path: str, out_path: str):
     """
-    Joins single ts video file to mp4
+    Mux video file using FFmpeg.
     
     Parameters:
         - video_path (str): The path to the video file.
@@ -247,7 +249,7 @@ def join_subtitle(video_path: str, subtitles_list: List[Dict[str, str]], out_pat
             console.log(f"[cyan]Setting subtitle disposition for language: [red]{SUBTITLE_DISPOSITION_LANGUAGE}")
             ffmpeg_cmd.extend([f'-disposition:s:{disposition_idx}', 'default+forced'])
         else:
-            console.log(f"[cyan]Using first subtitle for disposition.")
+            console.log("[cyan]Using first subtitle for disposition.")
             ffmpeg_cmd.extend(['-disposition:s:0', 'default+forced'])
     
     # Overwrite

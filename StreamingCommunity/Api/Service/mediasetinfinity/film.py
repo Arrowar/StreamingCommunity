@@ -1,6 +1,7 @@
 # 21.05.24
 
 import os
+import urllib.parse
 from typing import Tuple
 
 
@@ -10,9 +11,8 @@ from rich.console import Console
 
 # Internal utilities
 from StreamingCommunity.Util import os_manager, config_manager, start_message
-from StreamingCommunity.Util.http_client import get_headers
 from StreamingCommunity.Api.Template import site_constants, MediaItem
-from StreamingCommunity.Lib.DASH.downloader import DASH_Downloader
+from StreamingCommunity.Lib.HDI import DASH_Downloader
 
 
 # Logic
@@ -48,18 +48,18 @@ def download_film(select_title: MediaItem) -> Tuple[str, bool]:
     tracking_info = get_tracking_info(playback_json)['videos'][0]
 
     license_url, license_params = generate_license_url(tracking_info)
+    if license_params:
+        license_url = f"{license_url}?{urllib.parse.urlencode(license_params)}"
+
     mpd_url = get_manifest(tracking_info['url'])
 
     # Download the episode
     dash_process =  DASH_Downloader(
-        license_url=license_url,
         mpd_url=mpd_url,
+        license_url=license_url,
         output_path=os.path.join(mp4_path, mp4_name),
     )
-    dash_process.parse_manifest(custom_headers=get_headers())
-
-    if dash_process.download_and_decrypt(query_params=license_params):
-        dash_process.finalize_output()
+    dash_process.start()
 
     # Get final output path and status
     status = dash_process.get_status()

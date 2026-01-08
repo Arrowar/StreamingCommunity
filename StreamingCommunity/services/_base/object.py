@@ -1,6 +1,6 @@
 # 23.11.24
 
-from typing import Dict, Any, List, Optional, TypedDict
+from typing import Dict, Any, List, Optional
 
 
 class Episode:

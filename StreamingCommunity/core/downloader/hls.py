@@ -218,7 +218,7 @@ class HLS_Downloader:
                 console.print(f"[cyan]\nMerging [red]{len(sub_tracks)} [cyan]subtitle(s)...")
                 sub_output = os.path.join(self.output_dir, f"{self.filename_base}_final.{EXTENSION_OUTPUT}")
                 
-                merged_file, result_json = join_subtitle(
+                merged_file, result_json = join_subtitles(
                     video_path=current_file,
                     subtitles_list=sub_tracks,
                     out_path=sub_output

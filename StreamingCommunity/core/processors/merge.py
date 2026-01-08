@@ -1,7 +1,6 @@
 # 31.01.24
 
 import os
-import platform
 import subprocess
 from typing import List, Dict
 
@@ -12,7 +11,7 @@ from rich.console import Console
 
 # Internal utilities
 from StreamingCommunity.utils import config_manager
-from ...setup import binary_paths, get_ffmpeg_path
+from StreamingCommunity.setup import binary_paths, get_ffmpeg_path
 
 
 # Logic class

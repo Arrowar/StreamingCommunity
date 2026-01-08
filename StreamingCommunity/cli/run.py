@@ -19,7 +19,7 @@ from rich.prompt import Prompt
 
 # Internal utilities
 from .command import global_search
-from ..setup import get_prd_path, get_wvd_path, get_info_wvd, get_info_prd
+from StreamingCommunity.setup import get_prd_path, get_wvd_path, get_info_wvd, get_info_prd
 from StreamingCommunity.services._base import load_search_functions
 from StreamingCommunity.services._base.loader import folder_name as lazy_loader_folder
 from StreamingCommunity.utils import config_manager, os_manager, start_message

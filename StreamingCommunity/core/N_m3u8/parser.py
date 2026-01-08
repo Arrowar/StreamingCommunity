@@ -11,8 +11,8 @@ from .models import StreamInfo, Stream, DownloadProgress
 
 
 class StreamParser:
-    
-    PROGRESS = re.compile(r"(Vid|Aud|Sub)\s+([^-]+?)\s+-+\s+(\d+)/(\d+)\s+([\d.]+)%\s+(?:([\d.]+[KMGT]?B)/([\d.]+[KMGT]?B))?\s*(?:([\d.]+[KMGT]?Bps))?\s*([\d:]+)")
+    PROGRESS = re.compile(r"(Vid|Aud|Sub)\s+(.+?)\s+[-━\u2500\u2588\s]+\s+(\d+)/(\d+)\s+([\d.]+)%\s+(?:([\d.]+[KMGT]?B)/([\d.]+[KMGT]?B))?\s*(?:([\d.]+[KMGT]?Bps))?\s*([\d:]+)")
+    _ANSI_RE = re.compile(r"\x1B\[[0-?]*[ -/]*[@-~]")
     
     @staticmethod
     def parse_stream_info_from_json(meta_file_path: Path, manifest_type_hint: str = None) -> StreamInfo:
@@ -164,7 +164,8 @@ class StreamParser:
     
     @staticmethod
     def parse_progress(line: str) -> Optional[DownloadProgress]:
-        if match := StreamParser.PROGRESS.search(line):
+        clean = StreamParser._ANSI_RE.sub('', line)
+        if match := StreamParser.PROGRESS.search(clean):
             return DownloadProgress(
                 stream_type=match.group(1),
                 description=match.group(2).strip(),

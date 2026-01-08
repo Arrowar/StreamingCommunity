@@ -4,8 +4,8 @@ import os
 import sys
 import tempfile
 
-from StreamingCommunity.Util.config_json import config_manager
-from StreamingCommunity.run import execute_hooks
+from StreamingCommunity.utils.config_json import config_manager
+from StreamingCommunity.cli.run import execute_hooks
 
 
 def main():

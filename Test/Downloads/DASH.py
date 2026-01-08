@@ -10,9 +10,9 @@ src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 sys.path.append(src_path)
 
 
-from StreamingCommunity.Util import Logger, start_message
-from StreamingCommunity.Util.config_json import config_manager
-from StreamingCommunity.Lib.HDI import DASH_Downloader
+from StreamingCommunity.utils import Logger, start_message
+from StreamingCommunity.utils.config_json import config_manager
+from StreamingCommunity.core.downloader import DASH_Downloader
 
 
 start_message()

@@ -10,9 +10,9 @@ from .base import BaseStreamingAPI, MediaItem, Season, Episode
 
 
 # External utilities
-from StreamingCommunity.Util import config_manager
-from StreamingCommunity.Api.Template.loader import get_folder_name
-from StreamingCommunity.Api.Service.altadefinizione.util.ScrapeSerie import GetSerieInfo
+from StreamingCommunity.utils import config_manager
+from StreamingCommunity.services._base.loader import get_folder_name
+from StreamingCommunity.services.altadefinizione.util.ScrapeSerie import GetSerieInfo
 
 
 class AltaDefinizioneAPI(BaseStreamingAPI):
@@ -29,7 +29,7 @@ class AltaDefinizioneAPI(BaseStreamingAPI):
     def _get_search_fn(self):
         """Lazy load the search function."""
         if self._search_fn is None:
-            module = importlib.import_module(f"StreamingCommunity.Api.{get_folder_name()}.altadefinizione")
+            module = importlib.import_module(f"StreamingCommunity.service.{get_folder_name()}.altadefinizione")
             self._search_fn = getattr(module, "search")
         return self._search_fn
     

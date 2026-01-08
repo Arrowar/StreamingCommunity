@@ -10,8 +10,8 @@ from .base import BaseStreamingAPI, MediaItem, Season, Episode
 
 
 # External utilities
-from StreamingCommunity.Api.Template.loader import get_folder_name
-from StreamingCommunity.Api.Service.mediasetinfinity.util.ScrapeSerie import GetSerieInfo
+from StreamingCommunity.services._base.loader import get_folder_name
+from StreamingCommunity.services.mediasetinfinity.util.ScrapeSerie import GetSerieInfo
 
 
 class MediasetInfinityAPI(BaseStreamingAPI):
@@ -28,7 +28,7 @@ class MediasetInfinityAPI(BaseStreamingAPI):
     def _get_search_fn(self):
         """Lazy load the search function."""
         if self._search_fn is None:
-            module = importlib.import_module(f"StreamingCommunity.Api.{get_folder_name()}.mediasetinfinity")
+            module = importlib.import_module(f"StreamingCommunity.service.{get_folder_name()}.mediasetinfinity")
             self._search_fn = getattr(module, "search")
         return self._search_fn
     

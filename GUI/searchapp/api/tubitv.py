@@ -10,9 +10,9 @@ from .base import BaseStreamingAPI, MediaItem, Season, Episode
 
 
 # External utilities
-from StreamingCommunity.Api.Template.loader import get_folder_name
-from StreamingCommunity.Api.Service.tubitv.util.get_license import get_bearer_token
-from StreamingCommunity.Api.Service.tubitv.util.ScrapeSerie import GetSerieInfo
+from StreamingCommunity.services._base.loader import get_folder_name
+from StreamingCommunity.services.tubitv.util.get_license import get_bearer_token
+from StreamingCommunity.services.tubitv.util.ScrapeSerie import GetSerieInfo
 
 
 class TubiTVAPI(BaseStreamingAPI):
@@ -29,7 +29,7 @@ class TubiTVAPI(BaseStreamingAPI):
     def _get_search_fn(self):
         """Lazy load the search function."""
         if self._search_fn is None:
-            module = importlib.import_module(f"StreamingCommunity.Api.{get_folder_name()}.tubitv")
+            module = importlib.import_module(f"StreamingCommunity.service.{get_folder_name()}.tubitv")
             self._search_fn = getattr(module, "search")
         return self._search_fn
     

@@ -10,9 +10,9 @@ from .base import BaseStreamingAPI, MediaItem, Season, Episode
 
 
 # External utilities
-from StreamingCommunity.Util import config_manager
-from StreamingCommunity.Api.Template.loader import get_folder_name
-from StreamingCommunity.Api.Service.animeunity.util.ScrapeSerie import ScrapeSerieAnime
+from StreamingCommunity.utils import config_manager
+from StreamingCommunity.services._base.loader import get_folder_name
+from StreamingCommunity.services.animeunity.util.ScrapeSerie import ScrapeSerieAnime
 
 
 
@@ -30,7 +30,7 @@ class AnimeUnityAPI(BaseStreamingAPI):
     def _get_search_fn(self):
         """Lazy load the search function."""
         if self._search_fn is None:
-            module = importlib.import_module(f"StreamingCommunity.Api.{get_folder_name()}.animeunity")
+            module = importlib.import_module(f"StreamingCommunity.service.{get_folder_name()}.animeunity")
             self._search_fn = getattr(module, "search")
         return self._search_fn
     

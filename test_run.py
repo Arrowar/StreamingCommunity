@@ -2,7 +2,7 @@
 
 
 # Internal utilities
-from StreamingCommunity.run import main
+from StreamingCommunity.cli.run import main
 
 
 main()

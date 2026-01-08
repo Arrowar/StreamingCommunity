@@ -3,7 +3,6 @@
 import os
 import sys
 import glob
-import logging
 import importlib
 from typing import Dict
 
@@ -41,7 +40,6 @@ class LazySearchModule:
                 )
                 self._search_func = getattr(self._module, 'search')
                 self._use_for = getattr(self._module, '_useFor')
-                logging.info(f"Loaded module: {self.module_name}")
             except Exception as e:
                 console.print(f"[red]Failed to load module {self.module_name}: {str(e)}")
                 raise
@@ -129,7 +127,6 @@ def load_search_functions() -> Dict[str, LazySearchModule]:
             
             if indice is not None:
                 modules_metadata.append((module_name, indice))
-                logging.info(f"Found module: {module_name} (index: {indice})")
                 
         except Exception as e:
             console.print(f"[yellow]Warning: Could not read metadata from {module_name}: {str(e)}")
@@ -154,7 +151,6 @@ def load_search_functions() -> Dict[str, LazySearchModule]:
         except Exception as e:
             console.print(f"[yellow]Warning: Could not update indice in {module_name}: {str(e)}")
 
-    logging.info(f"Loaded {len(loaded_functions)} search modules")
     return loaded_functions
 
 

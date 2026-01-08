@@ -1,8 +1,5 @@
 # 21.03.25
 
-import logging
-
-
 # External libraries
 from bs4 import BeautifulSoup
 from rich.console import Console
@@ -30,7 +27,6 @@ def get_session_and_csrf() -> dict:
 
     # Extract the sessionId from the cookies
     session_id = response.cookies.get('sessionId')
-    logging.info(f"Session ID: {session_id}")
 
     # Use BeautifulSoup to parse the HTML and extract the CSRF-Token
     soup = BeautifulSoup(response.text, 'html.parser')
@@ -47,7 +43,6 @@ def get_session_and_csrf() -> dict:
         if input_tag:
             csrf_token = input_tag.get('value')
 
-    logging.info(f"CSRF Token: {csrf_token}")
     return session_id, csrf_token
 
 def title_search(query: str) -> int:

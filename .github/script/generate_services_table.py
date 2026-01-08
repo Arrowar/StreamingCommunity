@@ -8,7 +8,7 @@ from datetime import datetime
 
 def extract_service_info(init_file: Path) -> Tuple[str, str, bool, bool, str, str]:
     """
-    Extract _stream_type, _drm, _deprecate, _maxResolution, and _region from a service __init__.py file
+    Extract _stream_type, _drm, _deprecate, _maxResolution, and _region from a services __init__.py file
     
     Args:
         init_file: Path to the __init__.py file
@@ -21,7 +21,7 @@ def extract_service_info(init_file: Path) -> Tuple[str, str, bool, bool, str, st
     drm = False
     deprecate = False
     max_resolution = "N/A"
-    region = "N/A"  # Default value for _region
+    region = "N/A"
     
     try:
         with open(init_file, 'r', encoding='utf-8') as f:
@@ -68,7 +68,7 @@ def find_service_files(base_path: Path) -> List[Path]:
     Returns:
         List of paths to service __init__.py files
     """
-    services_path = base_path / "StreamingCommunity" / "Api" / "Service"
+    services_path = base_path / "StreamingCommunity" / "services"
     init_files = []
     
     if not services_path.exists():
@@ -148,7 +148,6 @@ def generate_markdown_table(services: List[Tuple[str, str, bool, str, str]]) -> 
     lines.append("")
     lines.append(f"*Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*")
     lines.append("")
-    
     return "\n".join(lines)
 
 
@@ -172,7 +171,7 @@ def main():
         service_name, stream_type, drm, deprecate, max_resolution, region = extract_service_info(init_file)
         
         # Only include services that are not deprecated
-        if not deprecate:
+        if not deprecate and stream_type != "N/A":
             services.append((service_name, stream_type, drm, max_resolution, region))
         else:
             deprecated_count += 1

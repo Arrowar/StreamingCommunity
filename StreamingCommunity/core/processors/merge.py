@@ -1,7 +1,6 @@
 # 31.01.24
 
 import os
-import logging
 import platform
 import subprocess
 from typing import List, Dict
@@ -12,8 +11,8 @@ from rich.console import Console
 
 
 # Internal utilities
-from StreamingCommunity.utils.config_json import config_manager
-from StreamingCommunity.utils.os import get_ffmpeg_path
+from StreamingCommunity.utils import config_manager
+from ...setup import binary_paths, get_ffmpeg_path
 
 
 # Logic class
@@ -23,6 +22,7 @@ from .capture import capture_ffmpeg_real_time
 
 # Config
 console = Console()
+os_type = binary_paths._detect_system()
 USE_GPU = config_manager.config.get_bool("M3U8_CONVERSION", "use_gpu")
 PARAM_VIDEO = config_manager.config.get_list("M3U8_CONVERSION", "param_video")
 PARAM_AUDIO = config_manager.config.get_list("M3U8_CONVERSION", "param_audio")
@@ -52,8 +52,6 @@ def detect_gpu_device_type() -> str:
     Returns:
         str: The type of GPU device detected ('cuda', 'vaapi', 'qsv', or 'none').
     """
-    os_type = platform.system().lower()
-    
     try:
         if os_type == 'linux':
             result = subprocess.run(['lspci'], capture_output=True, text=True, check=True)
@@ -103,7 +101,7 @@ def join_video(video_path: str, out_path: str):
     # Enabled the use of gpu
     if USE_GPU:
         gpu_type_hwaccel = detect_gpu_device_type()
-        logging.info(f"Detected GPU type for video join: {gpu_type_hwaccel}")
+        console.print(f"[cyan]Detected GPU type for video join: [red]{gpu_type_hwaccel}")
         ffmpeg_cmd.extend(['-hwaccel', gpu_type_hwaccel])
 
     # Add mpegts to force to detect input file as ts file
@@ -118,7 +116,6 @@ def join_video(video_path: str, out_path: str):
 
     # Output file and overwrite
     ffmpeg_cmd.extend([out_path, '-y'])
-    logging.info(f"FFMPEG Command: {' '.join(ffmpeg_cmd)} \n")
 
     # Run join
     result_json = capture_ffmpeg_real_time(ffmpeg_cmd, "[yellow]FFMPEG [cyan]Join video")
@@ -178,7 +175,6 @@ def join_audios(video_path: str, audio_tracks: List[Dict[str, str]], out_path: s
 
     # Output file and overwrite
     ffmpeg_cmd.extend([out_path, '-y'])
-    logging.info(f"FFMPEG Command: {' '.join(ffmpeg_cmd)} \n")
 
     # Run join
     result_json = capture_ffmpeg_real_time(ffmpeg_cmd, "[yellow]FFMPEG [cyan]Join audio")
@@ -240,7 +236,6 @@ def join_subtitles(video_path: str, subtitles_list: List[Dict[str, str]], out_pa
     
     # Overwrite
     ffmpeg_cmd += [out_path, "-y"]
-    logging.info(f"FFMPEG Command: {' '.join(ffmpeg_cmd)} \n")
     
     # Run join
     result_json = capture_ffmpeg_real_time(ffmpeg_cmd, "[yellow]FFMPEG [cyan]Join subtitle")

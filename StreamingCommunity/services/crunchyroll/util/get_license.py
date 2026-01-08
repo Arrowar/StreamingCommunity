@@ -94,7 +94,7 @@ def get_playback_session(client: CrunchyrollClient, url_id: str, main_guid: Opti
                 client.deauth_video(main_guid, main_token)
 
         except Exception as e:
-            logging.debug(f"Failed to fetch subtitles from main track: {e}")
+            logging.error(f"Failed to fetch subtitles from main track: {e}")
             subtitles = _extract_subtitles(playback_data)
 
     else:
@@ -105,7 +105,7 @@ def get_playback_session(client: CrunchyrollClient, url_id: str, main_guid: Opti
         try:
             client.deauth_video(url_id, token)
         except Exception as e:
-            logging.debug(f"Deauth during playback failed: {e}")
+            logging.error(f"Deauth during playback failed: {e}")
     
     headers = client._get_headers()
     return mpd_url, headers, subtitles, token, audio_locale

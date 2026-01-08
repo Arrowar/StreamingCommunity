@@ -73,7 +73,6 @@ def manage_selection(cmd_insert: str, max_count: int) -> List[int]:
     """
     while True:
         list_selection = []
-        logging.info(f"Command insert: {cmd_insert}, end index: {max_count + 1}")
 
         # For a single number (e.g., '5')
         if cmd_insert.isnumeric():
@@ -102,7 +101,6 @@ def manage_selection(cmd_insert: str, max_count: int) -> List[int]:
 
         cmd_insert = msg.ask("[red]Invalid input. Please enter a valid command")
     
-    logging.info(f"List return: {list_selection}")
     return list_selection
 
 
@@ -137,7 +135,6 @@ def map_episode_title(tv_name: str, number_season: int, episode_number: int, epi
     if episode_name is not None:
         map_episode_temp = map_episode_temp.replace("%(episode_name)", os_manager.get_sanitize_file(episode_name))
 
-    logging.info(f"Map episode string return: {map_episode_temp}")
     return map_episode_temp
 
 

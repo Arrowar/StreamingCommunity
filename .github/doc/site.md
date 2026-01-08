@@ -6,8 +6,8 @@
 | Animeunity         | MP4         | ❌   | 1080p          | IT     |
 | Animeworld         | MP4         | ❌   | 1080p          | IT     |
 | Crunchyroll        | DASH        | ✅   | 1080p          | IT     |
-| Discovery          | DASH        | ✅   | 720p           | US     |
 | Discoveryeu        | DASH        | ✅   | 1080p          | EU     |
+| Discoveryus        | DASH        | ✅   | 720p           | US     |
 | Dmax               | HLS         | ❌   | 1080p          | IT     |
 | Foodnetwork        | HLS         | ❌   | 1080p          | IT     |
 | Guardaserie        | HLS         | ❌   | 1080p          | IT     |

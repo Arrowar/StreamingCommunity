@@ -9,7 +9,7 @@ from typing import Dict, Optional
 
 
 # Internal utilities
-from StreamingCommunity.utils.config_json import config_manager
+from StreamingCommunity.utils import config_manager
 from StreamingCommunity.utils.http_client import create_client_curl, get_userAgent
 
 
@@ -130,7 +130,7 @@ class CrunchyrollClient:
 
             return data
         except Exception as e:
-            logging.debug(f"Token cache load failed: {e}")
+            logging.error(f"Token cache load failed: {e}")
             return {}
 
     def _save_token_cache(self) -> None:
@@ -158,7 +158,7 @@ class CrunchyrollClient:
                 json.dump(payload, f, indent=2)
 
         except Exception as e:
-            logging.debug(f"Token cache save failed: {e}")
+            logging.error(f"Token cache save failed: {e}")
 
     def _get_headers(self) -> Dict:
         """Generate HTTP headers for API requests including authorization."""
@@ -348,5 +348,5 @@ class CrunchyrollClient:
             return response.status_code in (200, 204)
         
         except Exception as e:
-            logging.debug(f"Failed to deauth stream token: {e}")
+            logging.error(f"Failed to deauth stream token: {e}")
             return False

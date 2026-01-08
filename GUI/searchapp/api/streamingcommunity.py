@@ -29,7 +29,7 @@ class StreamingCommunityAPI(BaseStreamingAPI):
     def _get_search_fn(self):
         """Lazy load the search function."""
         if self._search_fn is None:
-            module = importlib.import_module(f"StreamingCommunity.service.{get_folder_name()}.streamingcommunity")
+            module = importlib.import_module(f"StreamingCommunity.{get_folder_name()}.streamingcommunity")
             self._search_fn = getattr(module, "search")
         return self._search_fn
     

@@ -135,4 +135,7 @@ class BinaryPaths:
                     return None
         
         return None
+
+
+# Instance
 binary_paths = BinaryPaths()

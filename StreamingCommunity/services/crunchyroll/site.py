@@ -5,7 +5,7 @@ from rich.console import Console
 
 
 # Internal utilities
-from StreamingCommunity.utils.config_json import config_manager
+from StreamingCommunity.utils import config_manager
 from StreamingCommunity.utils import TVShowManager
 from StreamingCommunity.services._base import site_constants, MediaManager
 

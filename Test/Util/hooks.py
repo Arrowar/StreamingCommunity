@@ -4,7 +4,7 @@ import os
 import sys
 import tempfile
 
-from StreamingCommunity.utils.config_json import config_manager
+from StreamingCommunity.utils import config_manager
 from StreamingCommunity.cli.run import execute_hooks
 
 

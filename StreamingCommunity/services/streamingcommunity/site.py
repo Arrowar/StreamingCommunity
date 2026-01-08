@@ -34,7 +34,6 @@ def title_search(query: str) -> int:
     table_show_manager.clear()
 
     try:
-        print("Make req to: ", f"{site_constants.FULL_URL}/it")
         response = create_client(headers={'user-agent': get_userAgent()}).get(f"{site_constants.FULL_URL}/it")
         response.raise_for_status()
 

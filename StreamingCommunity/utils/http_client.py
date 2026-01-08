@@ -13,7 +13,7 @@ from curl_cffi import requests
 
 
 # Internal utilities
-from StreamingCommunity.utils.config_json import config_manager
+from StreamingCommunity.utils import config_manager
 
 
 # Variable

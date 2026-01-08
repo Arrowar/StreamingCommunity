@@ -17,7 +17,7 @@ from rich.progress import Progress, TextColumn
 # Internal utilities
 from StreamingCommunity.utils.http_client import create_client, get_userAgent
 from StreamingCommunity.utils import config_manager, os_manager, internet_manager
-from ..m3u8 import CustomBarColumn, FormatUtils
+from ..N_m3u8 import CustomBarColumn, FormatUtils
 
 
 # Config

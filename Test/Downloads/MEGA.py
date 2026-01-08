@@ -10,12 +10,11 @@ src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 sys.path.append(src_path)
 
 
-from StreamingCommunity.utils import Logger, start_message
+from StreamingCommunity.utils import start_message
 from StreamingCommunity.core.downloader import MEGA_Downloader
 
 
 start_message()
-Logger()
 mega = MEGA_Downloader(
     choose_files=True
 )

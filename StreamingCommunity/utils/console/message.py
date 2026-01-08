@@ -9,7 +9,7 @@ from rich.console import Console
 
 
 # Internal utilities
-from StreamingCommunity.utils.config_json import config_manager
+from StreamingCommunity.utils import config_manager
 
 
 # Variable
@@ -21,13 +21,12 @@ SHOW = config_manager.config.get_bool('DEFAULT', 'show_message')
 def start_message(clean: bool=True):
     """Display a stylized start message in the console."""
     msg = r'''
-     ___                                         ______                     _           
-    / _ | ___________ _    _____ _____[yellow]  __ __[purple]   / __/ /________ ___ ___ _  (_)__  ___ _ 
-   / __ |/ __/ __/ _ \ |/|/ / _ `/ __/[yellow]  \ \ /[purple]  _\ \/ __/ __/ -_) _ `/  ' \/ / _ \/ _ `/ 
-  /_/ |_/_/ /_/  \___/__,__/\_,_/_/   [yellow] /_\_\ [purple] /___/\__/_/  \__/\_,_/_/_/_/_/_//_/\_, /  
-                                                                                /___/   
-[red]+[cyan]=======================================================================================[red]+
-    '''.rstrip()
+[green]=>[purple]     ___                                         ______                     _           
+[green]=>[purple]    / _ | ___________ _    _____ _____[yellow]  __ __[purple]   / __/ /________ ___ ___ _  (_)__  ___ _ 
+[green]=>[purple]   / __ |/ __/ __/ _ \ |/|/ / _ `/ __/[yellow]  \ \ /[purple]  _\ \/ __/ __/ -_) _ `/  ' \/ / _ \/ _ `/ 
+[green]=>[purple]  /_/ |_/_/ /_/  \___/__,__/\_,_/_/   [yellow] /_\_\ [purple] /___/\__/_/  \__/\_,_/_/_/_/_/_//_/\_, /  
+[green]=>[purple]                                                                                /___/   
+    '''
 
     if CLEAN and clean: 
         os.system("cls" if platform.system() == 'Windows' else "clear")

@@ -1,7 +1,7 @@
 {
     "DEFAULT": {
-        "debug": false,
         "show_message": true,
+        "show_device_info": true,
         "fetch_domain_online": true
     },
     "OUT_FOLDER": {
@@ -14,7 +14,7 @@
     },
     "M3U8_DOWNLOAD": {
         "thread_count": 8,
-        "retry_count": 10,
+        "retry_count": 6,
         "concurrent_download": true,
         "max_speed": "30MB",
         "check_segments_count": false,

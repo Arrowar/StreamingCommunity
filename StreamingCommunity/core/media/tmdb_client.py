@@ -10,7 +10,7 @@ from rich.console import Console
 
 
 # Internal utilities
-from StreamingCommunity.utils.config_json import config_manager
+from StreamingCommunity.utils import config_manager
 
 
 # Variable

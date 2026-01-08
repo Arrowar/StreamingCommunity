@@ -5,7 +5,7 @@ from typing import Tuple, Optional
 
 
 # Internal utilities
-from StreamingCommunity.utils.config_json import config_manager
+from StreamingCommunity.utils import config_manager
 from StreamingCommunity.utils.http_client import create_client, get_userAgent, get_headers
 
 

@@ -51,7 +51,6 @@ def capture_output(process: subprocess.Popen, description: str, progress_data: P
         for line in iter(process.stdout.readline, ''):          
             try:
                 line = line.strip()
-                logging.info(f"CAPTURE ffmpeg line: {line}")
 
                 if not line:
                     continue

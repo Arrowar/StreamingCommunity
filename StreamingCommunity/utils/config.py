@@ -4,11 +4,11 @@ import os
 import sys
 import json
 import logging
-import requests
 from typing import Any, List, Dict
 
 
 # External library
+import httpx
 from rich.console import Console
 
 
@@ -18,8 +18,8 @@ CONFIG_FILENAME = 'config.json'
 LOGIN_FILENAME = 'login.json'
 DOMAINS_FILENAME = 'domains.json'
 GITHUB_DOMAINS_PATH = '.github/script/domains.json'
-CONFIG_DOWNLOAD_URL = 'https://raw.githubusercontent.com/Arrowar/StreamingCommunity/refs/heads/main/config.json'
-CONFIG_LOGIN_DOWNLOAD_URL = 'https://raw.githubusercontent.com/Arrowar/StreamingCommunity/refs/heads/main/login.json'
+CONFIG_DOWNLOAD_URL = 'https://raw.githubusercontent.com/Arrowar/StreamingCommunity/refs/heads/main/conf/config.json'
+CONFIG_LOGIN_DOWNLOAD_URL = 'https://raw.githubusercontent.com/Arrowar/StreamingCommunity/refs/heads/main/conf/login.json'
 DOMAINS_DOWNLOAD_URL = 'https://raw.githubusercontent.com/Arrowar/SC_Domains/refs/heads/main/domains.json'
 
 
@@ -49,19 +49,14 @@ class ConfigAccessor:
         if self._cache_enabled and cache_key in self._cache:
             return self._cache[cache_key]
         
-        # Log only if not in cache
-        logging.info(f"Reading key: {cache_key}")
-        
         # Check if the section and key exist
         if section not in self._config_dict:
             if default is not None:
-                logging.info(f"Section '{section}' not found. Returning default value.")
                 return default
             raise ValueError(f"Section '{section}' not found in {self._cache_prefix} configuration")
         
         if key not in self._config_dict[section]:
             if default is not None:
-                logging.info(f"Key '{key}' not found in section '{section}'. Returning default value.")
                 return default
             raise ValueError(f"Key '{key}' not found in section '{section}' of {self._cache_prefix} configuration")
         
@@ -157,8 +152,6 @@ class ConfigAccessor:
             cache_key = f"{self._cache_prefix}.{section}.{key}"
             self._cache[cache_key] = value
             
-            logging.info(f"Key '{key}' set in section '{section}' of {self._cache_prefix} configuration")
-        
         except Exception as e:
             error_msg = f"Error setting key '{key}' in section '{section}' of {self._cache_prefix} configuration: {e}"
             console.print(f"[red]{error_msg}")
@@ -174,13 +167,21 @@ class ConfigManager:
         else:
             self.base_path = os.getcwd()
             
-        # Initialize file paths using static variables
-        self.config_file_path = os.path.join(self.base_path, CONFIG_FILENAME)
-        self.login_file_path = os.path.join(self.base_path, LOGIN_FILENAME)
-        self.domains_path = os.path.join(self.base_path, DOMAINS_FILENAME)
+        # Initialize conf directory path
+        self.conf_path = os.path.join(self.base_path, 'conf')
+        
+        # Create conf directory if it doesn't exist
+        if not os.path.exists(self.conf_path):
+            os.makedirs(self.conf_path, exist_ok=True)
+            console.print(f"[green]Created conf directory: {self.conf_path}")
+            
+        # Initialize file paths using conf directory
+        self.config_file_path = os.path.join(self.conf_path, CONFIG_FILENAME)
+        self.login_file_path = os.path.join(self.conf_path, LOGIN_FILENAME)
+        self.domains_path = os.path.join(self.conf_path, DOMAINS_FILENAME)
         self.github_domains_path = os.path.join(self.base_path, GITHUB_DOMAINS_PATH)
         
-        # Display the actual file paths for debugging
+        # Display the actual file paths
         console.print(f"[cyan]Config path: [green]{self.config_file_path}")
         console.print(f"[cyan]Login path: [green]{self.login_file_path}")
         
@@ -261,7 +262,6 @@ class ConfigManager:
     def _precache_config_values(self) -> None:
         """Pre-cache commonly used configuration values."""
         common_keys = [
-            ('DEFAULT', 'debug', bool),
             ('M3U8_CONVERSION', 'use_gpu', bool),
             ('M3U8_CONVERSION', 'param_video', str),
             ('M3U8_CONVERSION', 'param_audio', str),
@@ -322,7 +322,7 @@ class ConfigManager:
     def _download_file(self, url: str, file_path: str, file_name: str) -> None:
         """Download a file from a URL."""
         try:
-            response = requests.get(url, timeout=8, headers={'User-Agent': "Mozilla/5.0"})
+            response = httpx.get(url, timeout=8.0, headers={'User-Agent': "Mozilla/5.0"})
             
             if response.status_code == 200:
                 with open(file_path, 'wb') as f:
@@ -337,23 +337,23 @@ class ConfigManager:
         except Exception as e:
             console.print(f"[red]Download error: {str(e)} for url: {url}")
             raise
-    
+
     def _load_site_data(self) -> None:
         """Load site data based on fetch_domain_online setting."""
         if self.fetch_domain_online:
             self._load_site_data_online()
         else:
             self._load_site_data_from_file()
-    
+
     def _load_site_data_online(self) -> None:
         """Load site data from GitHub and update local domains.json file."""
         headers = {
             "User-Agent": "Mozilla/5.0"
         }
         try:
-            response = requests.get(DOMAINS_DOWNLOAD_URL, timeout=8, headers=headers)
+            response = httpx.get(DOMAINS_DOWNLOAD_URL, timeout=8.0, headers=headers)
 
-            if response.ok:
+            if response.status_code == 200:
                 self._domains_data.clear()
                 self._domains_data.update(response.json())
                 
@@ -373,49 +373,36 @@ class ConfigManager:
             self._handle_site_data_fallback()
     
     def _save_domains_to_appropriate_location(self) -> None:
-        """Save domains to the appropriate location based on existing files."""
-        script_dir = os.path.join(self.base_path, ".github", "script")
-        if os.path.isdir(script_dir):
-            target_path = os.path.join(script_dir, DOMAINS_FILENAME)
-            console.print(f"[cyan]Domain path: [green]{target_path}")
-        else:
-            target_path = self.domains_path
-            console.print(f"[cyan]Domain path: [green]{target_path}")
+        """Save domains to the conf directory."""
+        target_path = self.domains_path
+        console.print(f"[cyan]Domain path: [green]{target_path}")
 
         try:
-            if not os.path.exists(target_path):
-                with open(target_path, 'w', encoding='utf-8') as f:
-                    json.dump(self._domains_data, f, indent=4, ensure_ascii=False)
-                
+            with open(target_path, 'w', encoding='utf-8') as f:
+                json.dump(self._domains_data, f, indent=4, ensure_ascii=False)
         except Exception as save_error:
-            console.print(f"[yellow]Warning: Could not save domains to file: {str(save_error)}")
-            if target_path != self.domains_path and not os.path.exists(self.domains_path):
-                try:
-                    with open(self.domains_path, 'w', encoding='utf-8') as f:
-                        json.dump(self._domains_data, f, indent=4, ensure_ascii=False)
-                    console.print(f"[green]Domains saved to fallback location: {self.domains_path}")
-                except Exception as fallback_error:
-                    console.print(f"[red]Failed to save to fallback location: {str(fallback_error)}")
+            console.print(f"[red]Could not save domains to file: {str(save_error)}")
 
     def _load_site_data_from_file(self) -> None:
         """Load site data from local domains.json file."""
         try:
-            if os.path.exists(self.github_domains_path):
-                console.print(f"[cyan]Domain path: [green]{self.github_domains_path}")
-                with open(self.github_domains_path, 'r', encoding='utf-8') as f:
-                    self._domains_data.clear()
-                    self._domains_data.update(json.load(f))
-                
-                site_count = len(self._domains_data) if isinstance(self._domains_data, dict) else 0
-                
-            elif os.path.exists(self.domains_path):
-                console.print(f"[cyan]Reading domains from root: {self.domains_path}")
+            if os.path.exists(self.domains_path):
+                console.print(f"[cyan]Domain path: [green]{self.domains_path}")
                 with open(self.domains_path, 'r', encoding='utf-8') as f:
                     self._domains_data.clear()
                     self._domains_data.update(json.load(f))
                 
                 site_count = len(self._domains_data) if isinstance(self._domains_data, dict) else 0
-                console.print(f"[green]Domains loaded from root file: {site_count} streaming services")
+                console.print(f"[green]Domains loaded from conf file: {site_count} streaming services")
+                
+            elif os.path.exists(self.github_domains_path):
+                console.print(f"[cyan]Fallback domain path: [green]{self.github_domains_path}")
+                with open(self.github_domains_path, 'r', encoding='utf-8') as f:
+                    self._domains_data.clear()
+                    self._domains_data.update(json.load(f))
+                
+                site_count = len(self._domains_data) if isinstance(self._domains_data, dict) else 0
+                console.print(f"[green]Domains loaded from GitHub structure: {site_count} streaming services")
 
             else:
                 console.print("[cyan]Domain path: [red]Disabled")
@@ -427,6 +414,17 @@ class ConfigManager:
     
     def _handle_site_data_fallback(self) -> None:
         """Handle site data fallback in case of error."""
+        if os.path.exists(self.domains_path):
+            console.print("[yellow]Attempting fallback to conf domains.json file...")
+            try:
+                with open(self.domains_path, 'r', encoding='utf-8') as f:
+                    self._domains_data.clear()
+                    self._domains_data.update(json.load(f))
+                console.print("[green]Fallback to conf domains successful")
+                return
+            except Exception as fallback_error:
+                console.print(f"[red]Conf domains fallback failed: {str(fallback_error)}")
+        
         if os.path.exists(self.github_domains_path):
             console.print("[yellow]Attempting fallback to GitHub structure domains.json file...")
             try:
@@ -438,17 +436,6 @@ class ConfigManager:
             except Exception as fallback_error:
                 console.print(f"[red]GitHub structure fallback failed: {str(fallback_error)}")
         
-        if os.path.exists(self.domains_path):
-            console.print("[yellow]Attempting fallback to root domains.json file...")
-            try:
-                with open(self.domains_path, 'r', encoding='utf-8') as f:
-                    self._domains_data.clear()
-                    self._domains_data.update(json.load(f))
-                console.print("[green]Fallback to root domains successful")
-                return
-            except Exception as fallback_error:
-                console.print(f"[red]Root domains fallback failed: {str(fallback_error)}")
-        
         console.print("[red]No local domains.json file available for fallback")
         self._domains_data.clear()
     
@@ -457,9 +444,6 @@ class ConfigManager:
         try:
             with open(self.config_file_path, 'w') as f:
                 json.dump(self._config_data, f, indent=4)
-
-            logging.info(f"Configuration saved to: {self.config_file_path}")
-
         except Exception as e:
             console.print(f"[red]Error saving configuration: {e}")
     
@@ -468,25 +452,16 @@ class ConfigManager:
         try:
             with open(self.login_file_path, 'w') as f:
                 json.dump(self._login_data, f, indent=4)
-
-            logging.info(f"Login configuration saved to: {self.login_file_path}")
-
         except Exception as e:
             console.print(f"[red]Error saving login configuration: {e}")
     
     def save_domains(self) -> None:
         """Save the domains configuration to file."""
         try:
-            script_dir = os.path.join(self.base_path, ".github", "script")
-            if os.path.isdir(script_dir):
-                target_path = os.path.join(script_dir, DOMAINS_FILENAME)
-            else:
-                target_path = self.domains_path
+            target_path = self.domains_path
             
             with open(target_path, 'w', encoding='utf-8') as f:
                 json.dump(self._domains_data, f, indent=4, ensure_ascii=False)
-
-            logging.info(f"Domains configuration saved to: {target_path}")
 
         except Exception as e:
             console.print(f"[red]Error saving domains configuration: {e}")

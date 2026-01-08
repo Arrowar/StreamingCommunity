@@ -18,12 +18,12 @@ from rich.prompt import Prompt
 
 
 # Internal utilities
-from .command.global_search import global_search
+from .command import global_search
+from ..setup import get_prd_path, get_wvd_path, get_info_wvd, get_info_prd
 from StreamingCommunity.services._base import load_search_functions
 from StreamingCommunity.services._base.loader import folder_name as lazy_loader_folder
-from StreamingCommunity.utils import config_manager, os_manager, start_message, Logger
+from StreamingCommunity.utils import config_manager, os_manager, start_message
 from StreamingCommunity.upload import git_update
-
 
 
 # Config
@@ -35,6 +35,7 @@ COLOR_MAP = {
     "serie": "blue"
 }
 CATEGORY_MAP = {1: "anime", 2: "film_&_serie", 3: "serie"}
+SHOW_DEVICE_INFO = config_manager.config.get_bool('DEFAULT', 'show_device_info')
 
 
 def run_function(func: Callable[..., None], close_console: bool = False, search_terms: str = None) -> None:
@@ -49,6 +50,12 @@ def run_function(func: Callable[..., None], close_console: bool = False, search_
 def initialize():
     """Initialize the application with system checks and setup."""
     start_message(False)
+
+    if SHOW_DEVICE_INFO:
+        prd_info = get_info_prd(get_prd_path())
+        wvd_info = get_info_wvd(get_wvd_path())
+        console.print(prd_info)
+        console.print(wvd_info)
     
     # Windows 7 terminal size fix
     if platform.system() == "Windows" and "7" in platform.version():
@@ -168,16 +175,13 @@ def execute_hooks(stage: str) -> None:
         timeout = hook.get('timeout')
 
         if not enabled:
-            logging.info(f"Skip hook (disabled): {name}")
             continue
 
         if not _should_run_on_current_os(hook):
-            logging.info(f"Skip hook (OS filter): {name}")
             continue
 
         try:
             command, popen_kwargs = _build_command_for_hook(hook)
-            logging.info(f"Running hook: {name} -> {' '.join(command)}")
             result = None
             if timeout is not None:
                 result = subprocess.run(command, check=False, capture_output=True, text=True, timeout=int(timeout), **popen_kwargs)
@@ -187,7 +191,6 @@ def execute_hooks(stage: str) -> None:
             stdout = (result.stdout or '').strip()
             stderr = (result.stderr or '').strip()
             if stdout:
-                logging.info(f"Hook '{name}' stdout: {stdout}")
                 try:
                     console.print(f"[cyan][hook:{name} stdout]\n{stdout}")
                 except Exception:
@@ -411,7 +414,6 @@ def get_user_site_selection(args, choice_labels):
 
 
 def main():
-    Logger()
     execute_hooks('pre_run')
     initialize()
 
@@ -420,7 +422,6 @@ def main():
 
         parser = setup_argument_parser(search_functions)
         args = parser.parse_args()
-
         apply_config_updates(args)
 
         if getattr(args, 'global'):
@@ -428,12 +429,10 @@ def main():
             return
 
         input_to_function, choice_labels, module_name_to_function = build_function_mappings(search_functions)
-
         if handle_direct_site_selection(args, input_to_function, module_name_to_function, args.search):
             return
 
         category = get_user_site_selection(args, choice_labels)
-
         if category == "global":
             global_search(args.search)
             return
@@ -442,7 +441,6 @@ def main():
             run_function(input_to_function[category], search_terms=args.search)
         else:
             console.print("[red]Invalid category.")
-
             if getattr(args, 'not_close'):
                 restart_script()
             else:

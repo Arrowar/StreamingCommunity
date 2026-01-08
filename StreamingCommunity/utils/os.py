@@ -15,7 +15,7 @@ from pathvalidate import sanitize_filename, sanitize_filepath
 
 
 # Internal utilities
-from StreamingCommunity.setup import check_ffmpeg, check_bento4, check_megatools, check_n_m3u8dl_re, check_device_wvd_path, check_device_prd_path
+from ..setup.binary_paths import binary_paths
 
 
 # Variable
@@ -25,15 +25,8 @@ console = Console()
 
 class OsManager:
     def __init__(self):
-        self.system = self._detect_system()
+        self.system = binary_paths._detect_system()
         self.max_length = self._get_max_length()
-
-    def _detect_system(self) -> str:
-        """Detect and normalize operating system name."""
-        system = platform.system().lower()
-        if system not in ['windows', 'darwin', 'linux']:
-            raise ValueError(f"Unsupported operating system: {system}")
-        return system
 
     def _get_max_length(self) -> int:
         """Get max filename length based on OS."""
@@ -84,8 +77,8 @@ class OsManager:
             # Handle network paths (UNC or IP-based)
             if sanitized.startswith('\\\\') or sanitized.startswith('//'):
                 parts = sanitized.replace('/', '\\').split('\\')
-                # Keep server/IP and share name as is
                 sanitized_parts = parts[:4]
+
                 # Sanitize remaining parts
                 if len(parts) > 4:
                     sanitized_parts.extend([
@@ -110,6 +103,7 @@ class OsManager:
             else:
                 parts = sanitized.replace('/', '\\').split('\\')
                 return '\\'.join(p for p in parts if p)
+        
         else:
             # Handle Unix-like paths (Linux and macOS)
             is_absolute = sanitized.startswith('/')
@@ -207,73 +201,6 @@ class InternetManager():
             return f"{bytes / (1024 * 1024):.2f} MB/s"
 
 
-class OsSummary:
-    def __init__(self):
-        self.ffmpeg_path, self.ffprobe_path = check_ffmpeg()
-        self.bento4_decrypt_path = check_bento4()
-        self.wvd_path = check_device_wvd_path()
-        self.prd_path = check_device_prd_path()
-        self.megatools_path = check_megatools()
-        self.n_m3u8dl_re_path = check_n_m3u8dl_re()
-        self._display_binary_paths()
-
-        if self.ffmpeg_path is None or self.ffprobe_path is None:
-            console.print("[red]\nFFmpeg tools are missing or not found in PATH. Some functionalities may not work properly.")
-            time.sleep(5)
-        if self.bento4_decrypt_path is None:
-            console.print("[red]\nBento4 tools are missing or not found in PATH. Some functionalities may not work properly.")
-            time.sleep(5)
-        if self.megatools_path is None:
-            console.print("[red]\nMegatools is missing or not found in PATH. Some functionalities may not work properly.")
-            time.sleep(5)
-            
-    def _display_binary_paths(self):
-        """Display the paths of all detected binaries."""
-        paths = {
-            'ffmpeg': self.ffmpeg_path,
-            'mp4decrypt': self.bento4_decrypt_path,
-            'wvd': self.wvd_path,
-            'megatools': self.megatools_path
-        }
-        
-        path_strings = []
-        for name, path in paths.items():
-            path_str = f"'{path}'" if path else "None"
-            path_strings.append(f"[red]{name} [yellow]{path_str}")
-        
-        console.print(f"[cyan]Utilities: {', [white]'.join(path_strings)}")
-
-
-# Initialize the os_summary, internet_manager, and os_manager when the module is imported
+# Initialize 
 os_manager = OsManager()
 internet_manager = InternetManager()
-os_summary = OsSummary()
-
-
-def get_ffmpeg_path():
-    """Returns the path of FFmpeg."""
-    return os_summary.ffmpeg_path
-
-def get_ffprobe_path():
-    """Returns the path of FFprobe."""
-    return os_summary.ffprobe_path
-
-def get_bento4_decrypt_path():
-    """Returns the path of mp4decrypt."""
-    return os_summary.bento4_decrypt_path
-
-def get_megatools_path():
-    """Returns the path of megatools."""
-    return os_summary.megatools_path
-
-def get_n_m3u8dl_re_path():
-    """Returns the path of N_m3u8DL-RE."""
-    return os_summary.n_m3u8dl_re_path
-
-def get_wvd_path():
-    """Returns the path of wvd."""
-    return os_summary.wvd_path
-
-def get_prd_path():
-    """Returns the path of prd."""
-    return os_summary.prd_path

@@ -22,12 +22,12 @@ def get_version():
         import pkg_resources
         return pkg_resources.get_distribution('StreamingCommunity').version
     except Exception:
-        version_file_path = os.path.join(os.path.dirname(__file__), "StreamingCommunity", "Upload", "version.py")
+        version_file_path = os.path.join(os.path.dirname(__file__), "StreamingCommunity", "upload", "version.py")
         with open(version_file_path, "r", encoding="utf-8") as f:
-            version_match = re.search(r"^__version__\s*=\s*['\"]([^'\"]*)['\"]", f.read(), re.M)
+            version_match = re.search(r"^__version__\s*=\s*['\"]([^'\"]*)['\"]$", f.read(), re.M)
         if version_match:
             return version_match.group(1)
-        raise RuntimeError("Unable to find version string in StreamingCommunity/Upload/version.py.")
+        raise RuntimeError("Unable to find version string in StreamingCommunity/upload/version.py.")
 
 def get_package_data_files(directory):
     """Get all .py files in the specified directory and its subdirectories."""
@@ -60,7 +60,7 @@ setup(
     
     entry_points={
         "console_scripts": [
-            "streamingcommunity=StreamingCommunity.run:main",
+            "streamingcommunity=StreamingCommunity.cli.run:main",
         ],
     },
     
@@ -70,11 +70,14 @@ setup(
         '': ['*.txt', '*.md', '*.json', '*.yaml', '*.yml', '*.cfg'],
         'StreamingCommunity': [
             '**/*.txt', '**/*.json', '**/*.yaml',
-            'Api/**/*.py',
-            'Api/Player/**/*.py',
-            'Api/Service/**/*.py',
-            'Api/Service/**/util/*.py',
-            'Api/Template/**/*.py',
+            'cli/**/*.py',
+            'core/**/*.py',
+            'player/**/*.py',
+            'services/**/*.py',
+            'services/**/util/*.py',
+            'setup/**/*.py',
+            'upload/**/*.py',
+            'utils/**/*.py',
         ],
     },
     

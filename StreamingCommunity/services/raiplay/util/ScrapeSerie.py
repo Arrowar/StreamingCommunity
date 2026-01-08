@@ -29,7 +29,7 @@ class GetSerieInfo:
             
             # If 404, content is not yet available
             if response.status_code == 404:
-                logging.info(f"Content not yet available: {program_url}")
+                logging.error(f"Content not yet available: {program_url}")
                 return
                 
             response.raise_for_status()

@@ -11,8 +11,8 @@ from rich.console import Console
 
 
 # Internal utilities
-from StreamingCommunity.utils.os import get_megatools_path
 from StreamingCommunity.utils.os import os_manager
+from StreamingCommunity.setup import get_megatools_path
 
 
 # Variable

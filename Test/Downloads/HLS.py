@@ -10,13 +10,11 @@ src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 sys.path.append(src_path)
 
 
-from StreamingCommunity.utils import Logger, start_message
-from StreamingCommunity.utils.config_json import config_manager
+from StreamingCommunity.utils import config_manager, start_message
 from StreamingCommunity.core.downloader import HLS_Downloader
 
 
 start_message()
-Logger()
 conf_extension = config_manager.config.get("M3U8_CONVERSION", "extension")
 hls_process =  HLS_Downloader(
     m3u8_url="",

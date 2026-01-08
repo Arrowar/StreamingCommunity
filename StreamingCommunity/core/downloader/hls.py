@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 
-# Extermal
+# External libraries
 from rich.console import Console
 
 
@@ -17,12 +17,11 @@ from StreamingCommunity.utils import config_manager, os_manager, internet_manage
 
 
 # Logic
-from ..m3u8 import MediaDownloader, DownloadStatus
+from ..N_m3u8 import MediaDownloader, DownloadStatus
 
 
 # Config
 console = Console()
-ENABLE_DEBUG = config_manager.config.get_bool('DEFAULT', 'debug')
 DOWNLOAD_SPECIFIC_AUDIO = config_manager.config.get_list('M3U8_DOWNLOAD', 'specific_list_audio')
 DOWNLOAD_SPECIFIC_SUBTITLE = config_manager.config.get_list('M3U8_DOWNLOAD', 'specific_list_subtitles')
 MERGE_SUBTITLE = config_manager.config.get_bool('M3U8_DOWNLOAD', 'merge_subs')
@@ -276,7 +275,7 @@ class HLS_Downloader:
                 logging.warning(f"Could not remove temp file {file_path}: {e}")
 
         # Remove log file and folder
-        if not ENABLE_DEBUG:
+        if CLEANUP_TMP:
             os.remove(os.path.join(self.output_dir, "log.txt"))
             shutil.rmtree(os.path.join(self.output_dir, "temp_analysis"))
 

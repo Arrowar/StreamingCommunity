@@ -13,7 +13,7 @@ from rich.console import Console
 
 
 # Internal utilities
-from StreamingCommunity.utils.os import get_ffprobe_path
+from StreamingCommunity.setup import get_ffprobe_path
 
 
 # Variable
@@ -33,7 +33,6 @@ def get_video_duration(file_path: str, file_type: str = "file") -> float:
     """
     try:
         ffprobe_cmd = [get_ffprobe_path(), '-v', 'error', '-show_format', '-print_format', 'json', file_path]
-        logging.info(f"FFmpeg command: {ffprobe_cmd}")
 
         # Use a with statement to ensure the subprocess is cleaned up properly
         with subprocess.Popen(ffprobe_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) as proc:
@@ -91,7 +90,6 @@ def get_ffprobe_info(file_path):
 
     try:
         cmd = [get_ffprobe_path(), '-v', 'error', '-show_format', '-show_streams', '-print_format', 'json', file_path]
-        logging.info(f"Running FFprobe command: {' '.join(cmd)}")
         
         # Use subprocess.run instead of Popen for better error handling
         result = subprocess.run(

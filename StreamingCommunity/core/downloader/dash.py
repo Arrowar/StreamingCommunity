@@ -7,25 +7,23 @@ from typing import Optional, Dict, Any
 from pathlib import Path
 
 
-# External
+# External libraries
 from rich.console import Console
 
 
 # Internal utilities
 from StreamingCommunity.core.processors import join_video, join_audios, join_subtitles
 from StreamingCommunity.utils import config_manager, os_manager, internet_manager
-from StreamingCommunity.utils.os import get_wvd_path
-from StreamingCommunity.utils.os import get_prd_path
+from StreamingCommunity.setup import get_wvd_path, get_prd_path
 
 
 # Logic class
 from ..extractors import MPDParser, DRMSystem, get_widevine_keys, get_playready_keys
-from ..m3u8 import MediaDownloader, DownloadStatus
+from ..N_m3u8 import MediaDownloader, DownloadStatus
 
 
 # Config
 console = Console()
-ENABLE_DEBUG = config_manager.config.get_bool('DEFAULT', 'debug')
 DOWNLOAD_SPECIFIC_SUBTITLE = config_manager.config.get_list('M3U8_DOWNLOAD', 'specific_list_subtitles')
 DOWNLOAD_SPECIFIC_AUDIO = config_manager.config.get_list('M3U8_DOWNLOAD', 'specific_list_audio')
 MERGE_SUBTITLE = config_manager.config.get_bool('M3U8_DOWNLOAD', 'merge_subs')
@@ -396,7 +394,7 @@ class DASH_Downloader:
                 logging.warning(f"Could not remove temp file {file_path}: {e}")
 
         # Remove log file and folder
-        if not ENABLE_DEBUG:
+        if CLEANUP_TMP:
             os.remove(os.path.join(self.output_dir, "log.txt"))
             shutil.rmtree(os.path.join(self.output_dir, "temp_analysis"))
     

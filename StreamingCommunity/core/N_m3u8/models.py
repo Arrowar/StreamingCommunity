@@ -6,8 +6,8 @@ from typing import List, Optional
 
 
 # Internal utilities
-from StreamingCommunity.utils.config_json import config_manager
-from StreamingCommunity.utils.os import get_bento4_decrypt_path, get_n_m3u8dl_re_path
+from StreamingCommunity.utils import config_manager
+from StreamingCommunity.setup import get_bento4_decrypt_path, get_n_m3u8dl_re_path
 
 
 # Variable
@@ -16,6 +16,7 @@ RETRY_COUNT = config_manager.config.get_int("M3U8_DOWNLOAD", "retry_count")
 SET_RESOLUTION = config_manager.config.get("M3U8_CONVERSION", "force_resolution")
 CONCURRENT_DOWNLOAD = config_manager.config.get_bool("M3U8_DOWNLOAD", "concurrent_download")
 MAX_SPEED = config_manager.config.get("M3U8_DOWNLOAD", "max_speed")
+REQ_TIMEOUT = config_manager.config.get_int("REQUESTS", "timeout")
 
 
 @dataclass
@@ -99,6 +100,7 @@ class DownloadConfig:
     mp4decrypt_path: str = get_bento4_decrypt_path()
     n_m3u8dl_path: str = get_n_m3u8dl_re_path()
     max_speed: str = MAX_SPEED
+    req_timeout: int = REQ_TIMEOUT
     enable_logging: bool = True
     use_raw_forDownload: bool = False  # If True: use raw file + base-url, if False: use original URL directly
 

@@ -217,7 +217,6 @@ You can change some behaviors by tweaking the configuration file. The configurat
 {
     "M3U8_DOWNLOAD": {
         "thread_count": 8,
-        "retry_count": 10,
         "concurrent_download": true,
         "max_speed": "30MB",
         "check_segments_count": false,
@@ -237,7 +236,6 @@ You can change some behaviors by tweaking the configuration file. The configurat
 
 ### Download Performance
 - `thread_count`: Number of parallel threads for downloading segments (applies to both video and audio streams)
-- `retry_count`: Number of retry attempts for failed segment downloads
 - `concurrent_download`: Download video and audio streams simultaneously
 - `max_speed`: Maximum download speed per stream (e.g., `"30MB"`, `"10MB"`)
 - `check_segments_count`: Verify segment count matches manifest

@@ -60,7 +60,7 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
     mp4_name = f"{map_episode_title(scrape_serie.series_name, index_season_selected, index_episode_selected, obj_episode.name)}.{extension_output}"
     mp4_path = os.path.join(site_constants.SERIES_FOLDER, scrape_serie.series_name, f"S{index_season_selected}")
 
-    if use_other_api:
+    if use_other_api and scrape_serie.years is not None:
         series_slug = scrape_serie.series_name.lower().replace(' ', '-').replace("'", '')
         result = tmdb.get_type_and_id_by_slug_year(str(series_slug), int(scrape_serie.years))
         
@@ -158,7 +158,16 @@ def download_series(select_season: MediaItem, season_selection: str = None, epis
 
     # Init class
     video_source = VideoSource(f"{site_constants.FULL_URL}/it", True, select_season.id)
-    scrape_serie = GetSerieInfo(f"{site_constants.FULL_URL}/it", select_season.id, select_season.slug, select_season.date.split("-")[0])
+    
+    # Handle date/year extraction safely
+    years = None
+    if select_season.date:
+        try:
+            years = int(select_season.date.split("-")[0])
+        except (AttributeError, ValueError, IndexError):
+            years = None
+    
+    scrape_serie = GetSerieInfo(f"{site_constants.FULL_URL}/it", select_season.id, select_season.slug, years)
 
     # Collect information about season
     scrape_serie.getNumberSeason()

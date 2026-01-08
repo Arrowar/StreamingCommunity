@@ -80,6 +80,33 @@ def manage_selection(cmd_insert: str, max_count: int) -> List[int]:
             list_selection.append(int(cmd_insert))
             break
 
+        # For all items ('*')
+        elif cmd_insert == "*":
+            list_selection = list(range(1, max_count + 1))
+            break
+
+        # Handle comma-separated selections (e.g., '1-5,7,9-12')
+        elif "," in cmd_insert:
+            try:
+                parts = [part.strip() for part in cmd_insert.split(',')]
+                for part in parts:
+                    if "-" in part:
+                        # Handle range (e.g., '1-5')
+                        start, end = map(str.strip, part.split('-'))
+                        start = int(start)
+                        end = int(end) if end.isnumeric() else max_count
+                        list_selection.extend(range(start, end + 1))
+                    elif part.isnumeric():
+                        # Handle single number (e.g., '7')
+                        list_selection.append(int(part))
+                    else:
+                        raise ValueError(f"Invalid part: {part}")
+                # Remove duplicates and sort
+                list_selection = sorted(list(set(list_selection)))
+                break
+            except ValueError:
+                pass
+
         # For a range (e.g., '5-12')
         elif "-" in cmd_insert:
             try:
@@ -90,11 +117,6 @@ def manage_selection(cmd_insert: str, max_count: int) -> List[int]:
                 break
             except ValueError:
                 pass
-
-        # For all items ('*')
-        elif cmd_insert == "*":
-            list_selection = list(range(1, max_count + 1))
-            break
 
         elif cmd_insert.lower() in ("q", "quit"):
             console.print("\n[red]Quit ...")

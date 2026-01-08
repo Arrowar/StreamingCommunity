@@ -88,54 +88,80 @@ class N_m3u8DLWrapper:
         """Attempt to download with progress updates. Yields status updates."""
         process = None
         try:
-            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=False, bufsize=0, creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0)
-            
-            buffer = []
-            in_stream_list = False
-            
-            for line in iter(process.stdout.readline, b''):
-                try:
-                    output = line.decode('utf-8', errors='ignore').strip()
-                except Exception:
-                    output = str(line, errors='ignore').strip()
-                
-                if not output:
-                    continue
-                
-                buffer.append(output)
-                self._log(output, "OUTPUT")
-                
-                # Check for 404 errors and terminate immediately
-                if "404" in output and "Not Found" in output:
-                    self._log("404 error detected, terminating download immediately", "WARN")
-                    process.terminate()
-                    try:
-                        process.wait(timeout=3)
-                    except subprocess.TimeoutExpired:
-                        process.kill()
-                    yield {"status": "failed", "error": "404 Not Found", "has_404": True}
-                    return
-                
-                # 1) Parse stream list
-                if any(kw in output for kw in ["Extracted", "streams found", "Vid ", "Aud ", "Sub "]):
-                    in_stream_list = True
-                
-                if in_stream_list and any(kw in output for kw in ["Selected streams:", "Start downloading"]):
-                    in_stream_list = False
-                    yield {"status": "selected"}
-                
-                # 2) Selected streams
-                if "Selected streams:" in output:
-                    yield {"status": "selected", "selected_streams": []}
-                
-                # 3) Parse progress
-                if progress := StreamParser.parse_progress(output):
-                    update = {"status": "downloading"}
-                    if progress.stream_type == "Vid":
-                        update["progress_video"] = progress
-                    elif progress.stream_type == "Aud":
-                        update["progress_audio"] = progress
-                    yield update
+            process = subprocess.Popen(
+                command,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+                creationflags=(subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0)
+            )
+
+            partial = ""
+            while True:
+                ch = process.stdout.read(1)
+                if ch == '':
+                    # EOF: flush any partial line
+                    if partial:
+                        output = partial.strip()
+                        partial = ""
+                        if output:
+                            self._log(output, "OUTPUT")
+                            # 404 handling
+                            if "404" in output and "Not Found" in output:
+                                self._log("404 error detected, terminating download immediately", "WARN")
+                                process.terminate()
+                                try:
+                                    process.wait(timeout=3)
+                                except subprocess.TimeoutExpired:
+                                    process.kill()
+                                yield {"status": "failed", "error": "404 Not Found", "has_404": True}
+                                return
+                            # Selected streams indicator
+                            if "Selected streams:" in output or "Start downloading" in output:
+                                yield {"status": "selected"}
+                            # Progress parsing
+                            if progress := StreamParser.parse_progress(output):
+                                update = {"status": "downloading"}
+                                if progress.stream_type == "Vid":
+                                    update["progress_video"] = progress
+                                elif progress.stream_type == "Aud":
+                                    update["progress_audio"] = progress
+                                yield update
+                    break
+
+                partial += ch
+                if ch in ('\n', '\r'):
+                    output = partial.rstrip('\r\n').strip()
+                    partial = ""
+                    if not output:
+                        continue
+
+                    self._log(output, "OUTPUT")
+
+                    # Check for 404 errors and terminate immediately
+                    if "404" in output and "Not Found" in output:
+                        self._log("404 error detected, terminating download immediately", "WARN")
+                        process.terminate()
+                        try:
+                            process.wait(timeout=3)
+                        except subprocess.TimeoutExpired:
+                            process.kill()
+                        yield {"status": "failed", "error": "404 Not Found", "has_404": True}
+                        return
+
+                    # Selected streams or start indicator
+                    if "Selected streams:" in output or "Start downloading" in output:
+                        yield {"status": "selected"}
+
+                    # Parse progress lines
+                    if progress := StreamParser.parse_progress(output):
+                        update = {"status": "downloading"}
+                        if progress.stream_type == "Vid":
+                            update["progress_video"] = progress
+                        elif progress.stream_type == "Aud":
+                            update["progress_audio"] = progress
+                        yield update
             
             process.wait()
             

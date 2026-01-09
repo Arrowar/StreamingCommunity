@@ -50,7 +50,7 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
     
     # Get episode information
     obj_episode = scrape_serie.selectEpisode(index_season_selected, index_episode_selected - 1)
-    console.print(f"\n[yellow]Download: [red]{site_constants.SITE_NAME} → [cyan]{scrape_serie.series_name} \\ [magenta]{obj_episode.name} ([cyan]S{index_season_selected}E{index_episode_selected}) \n")
+    console.print(f"\n[yellow]Download: [red]{site_constants.SITE_NAME} → [cyan]{scrape_serie.series_name} [white]\\ [magenta]{obj_episode.name} ([cyan]S{index_season_selected}E{index_episode_selected}) \n")
     
     # Define output path
     mp4_name = f"{map_episode_title(scrape_serie.series_name, index_season_selected, index_episode_selected, obj_episode.name)}.{extension_output}"
@@ -74,18 +74,8 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
         license_headers=license_headers,
         output_path=os.path.join(mp4_path, mp4_name),
     )
-    dash_process.start()
-    
-    # Get final status
-    status = dash_process.get_status()
-    
-    if status['error'] is not None and status['path']:
-        try:
-            os.remove(status['path'])
-        except Exception:
-            pass
-    
-    return status['path'], status['stopped']
+    out_path, need_stop = dash_process.start()
+    return out_path, need_stop
 
 
 def download_episode(index_season_selected: int, scrape_serie: GetSerieInfo, download_all: bool = False, episode_selection: str = None) -> None:

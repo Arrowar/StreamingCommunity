@@ -6,8 +6,6 @@
 [![Last Commit](https://img.shields.io/github/last-commit/Arrowar/StreamingCommunity?logo=git&logoColor=white&labelColor=2d3748&color=805ad5&style=for-the-badge)](https://github.com/Arrowar/StreamingCommunity/commits)
 [![Sponsor](https://img.shields.io/badge/💖_Sponsor-ea4aaa?style=for-the-badge&logo=github-sponsors&logoColor=white&labelColor=2d3748)](https://ko-fi.com/arrowar)
 
----
-
 [![Windows](https://img.shields.io/badge/🪟_Windows-0078D4?style=for-the-badge&logo=windows&logoColor=white&labelColor=2d3748)](https://github.com/Arrowar/StreamingCommunity/releases/latest/download/StreamingCommunity_win.exe)
 [![macOS](https://img.shields.io/badge/🍎_macOS-000000?style=for-the-badge&logo=apple&logoColor=white&labelColor=2d3748)](https://github.com/Arrowar/StreamingCommunity/releases/latest/download/StreamingCommunity_mac)
 [![Linux latest](https://img.shields.io/badge/🐧_Linux_latest-FCC624?style=for-the-badge&logo=linux&logoColor=black&labelColor=2d3748)](https://github.com/Arrowar/StreamingCommunity/releases/latest/download/StreamingCommunity_linux_latest)
@@ -16,309 +14,178 @@
 *⚡ **Quick Start:** `pip install StreamingCommunity && StreamingCommunity`*
 
 📺 **[Services](.github/doc/site.md)** - See all supported streaming platforms
+
 </div>
+
+## 📖 Table of Contents
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [DNS Configuration](#dns-configuration)
+- [Downloaders](#downloaders)
+- [Configuration](#configuration)
+- [Usage Examples](#usage-examples)
+- [Global Search](#global-search)
+- [Advanced Features](#advanced-features)
+- [Docker](#docker)
+- [Related Projects](#related-projects)
 
 ---
 
-## 📖 Table of Contents
-- ⚙️ [Installation](#installation)
-- 🚀 [Quick Start](#quick-start)
-- 📥 [Downloaders](#downloaders)
-- 🛠️ [Configuration](#configuration)
-- 🔐 [Login](.github/doc/login.md)
-- 💡 [Usage Examples](#usage-examples)
-- 🔍 [Global Search](#global-search)
-- 🧩 [Advanced Features](#advanced-options)
-- 🐳 [Deployment](#docker)
-- 📝 [TODO](#todo)
-- 🔗 [Related Projects](#useful-project)
-
 ## Installation
 
-### Prerequisites
-Make sure you have Python installed on your system:
-- **Windows**: Download from [python.org](https://python.org) or install via Microsoft Store
-- **Linux**: `sudo apt install python3 python3-pip` (Ubuntu/Debian) or equivalent for your distro
-- **MacOS**: `brew install python3` or download from [python.org](https://python.org)
-
-### Dependencies
+### Manual Clone
 ```bash
-# Windows
+git clone https://github.com/Arrowar/StreamingCommunity.git
+cd StreamingCommunity
 pip install -r requirements.txt
-
-# Linux/MacOS  
-pip3 install -r requirements.txt
+python test_run.py
 ```
 
 ### Update
 ```bash
-# Windows
 python update.py
-
-# Linux/MacOS
-python3 update.py
 ```
+
+### Additional Documentation
+- 📝 [Login Guide](.github/doc/login.md) - Authentication for supported services
 
 ---
 
 ## Quick Start
 
-**Via pip installation:**
 ```bash
+# If installed via PyPI
 StreamingCommunity
-```
 
-**Manual execution:**
-```bash
-# Windows
+# If cloned manually
 python test_run.py
-
-# Linux/MacOS
-python3 test_run.py
 ```
+
 ---
 
-## DNS
+## DNS Configuration
 
-DNS configuration is **required** to ensure full functionality, better reliability and proper connectivity.
+**Required for optimal functionality and reliability.**
 
-- **Cloudflare DNS:**  
-  - Primary: `1.1.1.1`
-  - Setup guide: https://developers.cloudflare.com/1.1.1.1/setup/
+Use one of these DNS providers:
 
-- **Quad9 DNS:**  
-  - Primary: `9.9.9.9`  
-  - Setup guide: https://quad9.net/
-
+- **Cloudflare DNS**: `1.1.1.1` - [Setup guide](https://developers.cloudflare.com/1.1.1.1/setup/)
+- **Quad9 DNS**: `9.9.9.9` - [Setup guide](https://quad9.net/)
 
 ---
 
 ## Downloaders
 
-<summary>📥 HLS</summary>
+| Type | Description | Example |
+|------|-------------|---------|
+| **HLS** | HTTP Live Streaming (m3u8) | [View example](./Test/Downloads/HLS.py) |
+| **MP4** | Direct MP4 download | [View example](./Test/Downloads/MP4.py) |
+| **DASH** | MPEG-DASH with DRM bypass* | [View example](./Test/Downloads/DASH.py) |
+| **MEGA** | MEGA.nz downloads | [View example](./Test/Downloads/MEGA.py) |
 
-Download HTTP Live Streaming (HLS) content from m3u8 URLs.
-
-```python
-from StreamingCommunity import HLS_Downloader
-
-downloader = HLS_Downloader(
-    m3u8_url="https://example.com/stream.m3u8",
-    output_path="/downloads/video.mp4"
-)
-
-downloader.download()
-```
-
-See [HLS example](./Test/Downloads//HLS.py) for complete usage.
-
-<summary>📽️ MP4</summary>
-
-Direct MP4 file downloader with support for custom headers and referrer.
-
-```python
-from StreamingCommunity import MP4_downloader
-
-downloader = MP4_downloader(
-    url="https://example.com/video.mp4",
-    path="/downloads/saved_video.mp4"
-)
-
-downloader.download()
-```
-
-See [MP4 example](./Test/Downloads/MP4.py) for complete usage.
-
-<summary>🎞️ DASH</summary>
-
-```python
-mpd_url = "https://example.com/stream.mpd"
-license_url = "https://example.com/get_license"
-
-dash_process = DASH_Downloader(
-    license_url=license_url,
-    mpd_url=mpd_url,
-    output_path="output.mp4",
-)
-dash_process.parse_manifest()
-
-if dash_process.download_and_decrypt():
-    dash_process.finalize_output()
-```
-
-See [DASH example](./Test/Downloads/DASH.py) for complete usage.
-
-<summary>Ⓜ️ MEGA</summary>
-
-```python
-mega = Mega_Downloader()
-m = mega.login()
-
-output_path = m.download_url(
-    url="https://mega.nz/file/0kgCWZZB#7u....",
-    dest_path=".\\prova.mp4"
-)
-```
-
-See [MEGA example](./Test/Downloads/MEGA.py) for complete usage.
+**\*DASH with DRM bypass:** Requires a valid L3 CDM (Content Decryption Module). This project does not provide or facilitate obtaining CDMs. Users must ensure compliance with applicable laws.
 
 ---
 
-# Configuration
+## Configuration
 
-## ⚙️ Overview
+Key configuration parameters in `config.json`:
 
-You can change some behaviors by tweaking the configuration file. The configuration file is divided into several main sections.
-
----
-
-## 📁 OUT_FOLDER
-
+### Output Directories
 ```json
 {
     "OUT_FOLDER": {
         "root_path": "Video",
-        "movie_folder_name": "Movie",
-        "serie_folder_name": "Serie",
-        "anime_folder_name": "Anime",
         "map_episode_name": "E%(episode)_%(episode_name)",
         "add_siteName": false
     }
 }
 ```
 
-### Directory Configuration
-- `root_path`: Directory where all videos will be saved
-  * Windows: `C:\\MyLibrary\\Folder` or `\\\\MyServer\\MyLibrary` (network folder)
-  * Linux/MacOS: `Desktop/MyLibrary/Folder`
+- **`root_path`**: Where videos are saved
+  - Windows: `C:\\MyLibrary\\Folder` or `\\\\MyServer\\Share`
+  - Linux/MacOS: `Desktop/MyLibrary/Folder`
 
-### Folder Names
-- `movie_folder_name`: Subdirectory for movies (can be changed with `--movie_folder_name`)
-- `serie_folder_name`: Subdirectory for TV series (can be changed with `--serie_folder_name`)
-- `anime_folder_name`: Subdirectory for anime (can be changed with `--anime_folder_name`)
+- **`map_episode_name`**: Episode filename template
+  - `%(tv_name)`: TV Show name
+  - `%(season)`: Season number
+  - `%(episode)`: Episode number
+  - `%(episode_name)`: Episode title
 
-### Episode Naming
-- `map_episode_name`: Template for episode filenames
-  * `%(tv_name)`: Name of TV Show
-  * `%(season)`: Season number
-  * `%(episode)`: Episode number
-  * `%(episode_name)`: Episode name
-  * Can be changed with `--map_episode_name`
+- **`add_siteName`**: Append site name to root path (default: `false`)
 
-### Additional Options
-- `add_siteName`: Appends site_name to root path (can be changed with `--add_siteName true/false`)
-
-
----
-
-## 📥 M3U8_DOWNLOAD
-
+### Language Selection
 ```json
 {
     "M3U8_DOWNLOAD": {
-        "thread_count": 8,
+        "specific_list_audio": ["ita", "it-IT"],
+        "specific_list_subtitles": ["ita", "it-IT"],
+        "merge_subs": true
+    }
+}
+```
+
+- **`specific_list_audio`**: Audio languages to download (e.g., `["ita", "eng"]`)
+- **`specific_list_subtitles`**: Subtitle languages (use `["*"]` for all available)
+- **`merge_subs`**: Merge subtitles into video file (default: `true`)
+
+### Performance
+```json
+{
+    "M3U8_DOWNLOAD": {
         "concurrent_download": true,
         "max_speed": "30MB",
         "check_segments_count": false,
-        "specific_list_audio": [
-            "ita",
-            "it-IT"
-        ],
-        "merge_subs": true,
-        "specific_list_subtitles": [
-            "ita",
-            "it-IT"
-        ],
         "cleanup_tmp_folder": true
     }
 }
 ```
 
-### Download Performance
-- `thread_count`: Number of parallel threads for downloading segments (applies to both video and audio streams)
-- `concurrent_download`: Download video and audio streams simultaneously
-- `max_speed`: Maximum download speed per stream (e.g., `"30MB"`, `"10MB"`)
-- `check_segments_count`: Verify segment count matches manifest
+- **`concurrent_download`**: Download video and audio simultaneously
+- **`max_speed`**: Speed limit per stream (e.g., `"30MB"`, `"10MB"`)
+- **`check_segments_count`**: Verify segment count matches manifest
+- **`cleanup_tmp_folder`**: Remove temporary files after download
 
-### Audio Settings
-- `specific_list_audio`: List of audio languages to download (e.g., `["ita", "eng"]` or `["it-IT", "en-US"]`)
-
-### Subtitle Settings
-- `merge_subs`: Whether to merge subtitles with video
-
-- `specific_list_subtitles`: List of subtitle languages to download (use `["*"]` for all available)
-
-### Cleanup
-- `cleanup_tmp_folder`: Remove temporary segment files after download
-
-
----
-
-## 🎬 M3U8_CONVERSION
-
+### Video Encoding
 ```json
 {
     "M3U8_CONVERSION": {
-        "use_gpu": false,
-        "param_video": ["-c:v", "libx265", "-crf", "28", "-preset", "medium"],
-        "param_audio": ["-c:a", "libopus", "-b:a", "128k"],
-        "subtitle_disposition": false,
-        "subtitle_disposition_language": "ita",
-        "param_final": ["-c", "copy"],
         "force_resolution": "Best",
-        "extension": "mkv"
+        "extension": "mkv",
+        "use_gpu": false,
+        "subtitle_disposition": false,
+        "subtitle_disposition_language": "ita"
     }
 }
 ```
 
-### Hardware Acceleration
-- `use_gpu`: Enable GPU-accelerated encoding (requires compatible hardware)
+- **`force_resolution`**: `"Best"`, `"1080p"`, `"720p"`, etc.
+- **`extension`**: Output format (`"mkv"`, `"mp4"`)
+- **`use_gpu`**: Enable hardware acceleration
+- **`subtitle_disposition`**: Automatically set default subtitle track
+- **`subtitle_disposition_language`**: Language to set as default (e.g., `"ita"`, `"eng"`)
 
-### Subtitle Configuration
-- `subtitle_disposition`: Automatically enable default subtitle track
-- `subtitle_disposition_language`: Language to set as default (e.g., `"ita"`, `"eng"`)
-
-### Resolution & Format
-- `force_resolution`: Choose video resolution (`"Best"`, `"Worst"`, `"1080p"`, `"720p"`, etc.)
-- `extension`: Output file format (e.g., `"mkv"`, `"mp4"`)
-
-
-## Update Domains
-
-<summary>🌐 Domain Configuration Methods</summary>
-
-There are two ways to manage the domains for the supported websites:
-
-### 1. Online Domain Fetching (Recommended)
-
-Set `fetch_domain_online` to `true` in your `config.json`:
-
+### Domain Management
 ```json
 {
-   "DEFAULT": {
-      "fetch_domain_online": true
-   }
+    "DEFAULT": {
+        "fetch_domain_online": true
+    }
 }
 ```
 
-This will:
-- Download the latest domains from the GitHub repository
-- Automatically save them to a local `domains.json` file
-- Ensure you always have the most up-to-date streaming site domains
+#### Online Domain Fetching (Recommended)
+When `fetch_domain_online` is set to `true`:
+  - Automatically downloads the latest domains from the GitHub repository
+  - Saves domains to a local `domains.json` file
+  - Ensures you always have up-to-date streaming site domains
+  - Falls back to local `domains.json` if online fetch fails
 
-### 2. Local Domain Configuration
-
-Set `fetch_domain_online` to `false` to use a local configuration:
-
-```json
-{
-   "DEFAULT": {
-      "fetch_domain_online": false
-   }
-}
-```
-
-Then create a `domains.json` file in the root directory with your domain configuration:
+#### Local Domain Configuration
+When `fetch_domain_online` is set to `false`:
+  - Uses only the local `domains.json` file in the root directory
+  - Allows manual domain management
+  - Example `domains.json` structure:
 
 ```json
 {
@@ -333,121 +200,62 @@ Then create a `domains.json` file in the root directory with your domain configu
 }
 ```
 
-### 3. Automatic Fallback
-
-If online fetching fails, the script will automatically attempt to use the local `domains.json` file as a fallback, ensuring maximum reliability.
-
-#### 💡 Adding a New Site
-If you want to request a new site to be added to the repository, message us on the Discord server!
-
+#### Adding New Sites
+To request a new site, contact us on the Discord server!
 
 ---
 
 ## Usage Examples
 
 ### Basic Commands
-
 ```bash
-# Show help (includes available sites by name and by index)
+# Show help and available sites
 python test_run.py -h
 
-# Run a specific site by name with a search term
+# Search and download
 python test_run.py --site streamingcommunity --search "interstellar"
 
-# Run a specific site by numeric index
-python test_run.py --site 0 --search "interstellar"
-
-# Auto-download the first result from search
+# Auto-download first result
 python test_run.py --site streamingcommunity --search "interstellar" --auto-first
+
+# Use site by index
+python test_run.py --site 0 --search "interstellar"
 ```
 
 ### Advanced Options
-
 ```bash
-# Change video and audio workers
-python test_run.py --default_video_worker 8 --default_audio_worker 8
-
-# Set specific languages
+# Specify languages
 python test_run.py --specific_list_audio ita,eng --specific_list_subtitles eng,spa
 
-# Keep console open after download
+# Keep console open
 python test_run.py --not_close true
 ```
 
-### Global Search Commands
+---
+
+## Global Search
+
+Search across multiple streaming sites simultaneously:
 
 ```bash
-# Use global search
+# Global search
 python test_run.py --global -s "cars"
 
-# Select specific category
-python test_run.py --category 1       # Search in anime category
-python test_run.py --category 2       # Search in movies & series
-python test_run.py --category 3       # Search in series
+# Search by category
+python test_run.py --category 1    # Anime
+python test_run.py --category 2    # Movies & Series
+python test_run.py --category 3    # Series only
 ```
 
-### PyPI Installation Usage
-
-```bash
-# If installed via pip, you can simply run:
-StreamingCommunity
-
-# Or use the entrypoint with arguments, for example:
-StreamingCommunity --site streamingcommunity --search "interstellar" --auto-first
-```
+Results display title, media type, and source site in a consolidated table.
 
 ---
 
-# Global Search
+## Advanced Features
 
-<summary>🔍 Feature Overview</summary>
+### Hook System
 
-You can now search across multiple streaming sites at once using the Global Search feature. This allows you to find content more efficiently without having to search each site individually.
-
-<summary>🎯 Search Options</summary>
-
-When using Global Search, you have three ways to select which sites to search:
-
-1. **Search all sites** - Searches across all available streaming sites
-2. **Search by category** - Group sites by their categories (movies, series, anime, etc.)
-3. **Select specific sites** - Choose individual sites to include in your search
-
-<summary>📝 Navigation and Selection</summary>
-
-After performing a search:
-
-1. Results are displayed in a consolidated table showing:
-   - Title
-   - Media type (movie, TV series, etc.)
-   - Source site
-
-2. Select an item by number to view details or download
-
-3. The system will automatically use the appropriate site's API to handle the download
-
-<summary>⌨️ Command Line Arguments</summary>
-
-The Global Search can be configured from the command line:
-
-- `--global` - Perform a global search across multiple sites.
-- `-s`, `--search` - Specify the search terms.
-
----
-
-## 🧩 Advanced Features
-
-## Hook/Plugin System
-
-<summary>🧩 Run custom scripts before/after the main execution</summary>
-
-Define pre/post hooks in `config.json` under the `HOOKS` section. Supported types:
-
-- **python**: runs `script.py` with the current Python interpreter
-- **bash/sh**: runs via `bash`/`sh` on macOS/Linux
-- **bat/cmd**: runs via `cmd /c` on Windows
-- Inline **command**: use `command` instead of `path`
-
-Sample configuration:
+Execute custom scripts before/after downloads. Configure in `config.json`:
 
 ```json
 {
@@ -477,85 +285,99 @@ Sample configuration:
 }
 ```
 
-Notes:
+#### Hook Configuration Options
 
-- **os**: optional OS filter (`windows`, `darwin` (`darwin` is used for MacOS), `linux`).
-- **args**: list of arguments passed to the script.
-- **env**: additional environment variables.
-- **cwd**: working directory for the script; supports `~` and environment variables.
-- **continue_on_error**: if `false`, the app stops when the hook fails.
-- **timeout**: in seconds; when exceeded the hook fails.
+- **`name`**: Descriptive name for the hook
+- **`type`**: Script type - `python`, `bash`, `sh`, `bat`, `cmd`
+- **`path`**: Path to script file (alternative to `command`)
+- **`command`**: Inline command to execute (alternative to `path`)
+- **`args`**: List of arguments passed to the script
+- **`env`**: Additional environment variables as key-value pairs
+- **`cwd`**: Working directory for script execution (supports `~` and environment variables)
+- **`os`**: Optional OS filter - `["windows"]`, `["darwin"]` (macOS), `["linux"]`, or combinations
+- **`timeout`**: Maximum execution time in seconds (hook fails if exceeded)
+- **`enabled`**: Enable/disable the hook without removing configuration
+- **`continue_on_error`**: If `false`, stops execution when hook fails
 
-Hooks are executed automatically by `run.py` before (`pre_run`) and after (`post_run`) the main execution.
+#### Hook Types
 
+- **Python hooks**: Run with current Python interpreter
+- **Bash/sh hooks**: Execute via `bash`/`sh` on macOS/Linux
+- **Bat/cmd hooks**: Execute via `cmd /c` on Windows
+- **Inline commands**: Use `command` instead of `path` for simple one-liners
+
+Hooks are automatically executed by `run.py` before (`pre_run`) and after (`post_run`) the main execution flow.
 
 ---
 
-# Docker
+## Docker
 
-<summary>🐳 Basic Setup</summary>
-
-Build the image:
-```
+### Basic Setup
+```bash
+# Build image
 docker build -t streaming-community-api .
-```
 
-Run the container with Cloudflare DNS for better connectivity:
-```
+# Run with Cloudflare DNS
 docker run -d --name streaming-community --dns 1.1.1.1 -p 8000:8000 streaming-community-api
 ```
 
-Tip CLI:
-- To run the CLI inside the container, attach to the container and execute:
-```
-docker exec -it streaming-community python test_run.py
-```
-
-<summary>💾 Custom Storage Location</summary>
-
-By default the videos will be saved in `/app/Video` inside the container. To save them on your machine:
-
-```
-docker run -it --dns 9.9.9.9 -p 8000:8000 -v /path/to/download:/app/Video streaming-community-api
+### Custom Storage Location
+```bash
+docker run -d --dns 9.9.9.9 -p 8000:8000 -v /your/path:/app/Video streaming-community-api
 ```
 
-<summary>🛠️ Quick Setup with Make</summary>
-
-Inside the Makefile (install `make`) are already configured two commands to build and run the container:
-
-```
+### Using Make
+```bash
 make build-container
-
-# set your download directory as ENV variable
-make LOCAL_DIR=/path/to/download run-container
+make LOCAL_DIR=/your/path run-container
 ```
 
-The `run-container` command mounts also the `config.json` file, so any change to the configuration file is reflected immediately without having to rebuild the image.
+---
 
 ## TODO
 
-- [ ] **Improve GUI**  
-  Enhance the graphical user interface for better usability and appearance.
-
-- [ ] **Add Crunchyroll subtitle synchronization**  
-  Implement subtitle timing alignment for Crunchyroll sources.
-
-# Useful Project
-
-## 🎯 [Unit3Dup](https://github.com/31December99/Unit3Dup)
-Bot in Python per la generazione e l'upload automatico di torrent su tracker basati su Unit3D.
-
-## 🇮🇹 [MammaMia](https://github.com/UrloMythus/MammaMia)
-Addon per Stremio che consente lo streaming HTTPS di film, serie, anime e TV in diretta in lingua italiana.
-
-# Disclaimer
-> **Note:** This software is provided "as is", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose, and noninfringement. In no event shall the authors or copyright holders be liable for any claim, damages, or other liability, whether in an action of contract, tort, or otherwise, arising from, out of, or in connection with the software or the use or other dealings in the software.
-
-> **Note:** DASH downloads require a valid L3 CDM (Content Decryption Module) to proceed. This project does not provide, include, or facilitate obtaining any CDM. Users are responsible for ensuring compliance with all applicable laws and requirements regarding DRM and decryption modules.
+- [ ] Improve GUI - Enhance the graphical user interface
+- [ ] Add Crunchyroll subtitle synchronization
 
 ---
+
+## Related Projects
+
+- **[Unit3Dup](https://github.com/31December99/Unit3Dup)** - Torrent automation for Unit3D trackers
+- **[MammaMia](https://github.com/UrloMythus/MammaMia)** - Stremio addon for Italian streaming
+
+---
+
+## Disclaimer
+>
+> This software is provided strictly for **educational and research purposes only**. The author and contributors:
+>
+> - **DO NOT** assume any responsibility for illegal or unauthorized use of this software
+> - **DO NOT** encourage, promote, or support the download of copyrighted content without proper authorization
+> - **DO NOT** provide, include, or facilitate obtaining any DRM circumvention tools, CDM modules, or decryption keys
+> - **DO NOT** endorse piracy or copyright infringement in any form
+>
+> ### User Responsibilities
+>
+> By using this software, you agree that:
+>
+> 1. **You are solely responsible** for ensuring your use complies with all applicable local, national, and international laws and regulations
+> 2. **You must have legal rights** to access and download any content you process with this software
+> 3. **You will not use** this software to circumvent DRM, access unauthorized content, or violate copyright laws
+> 4. **You understand** that downloading copyrighted content without permission is illegal in most jurisdictions
+>
+> ### No Warranty
+>
+> This software is provided "as is", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose, and noninfringement. In no event shall the authors or copyright holders be liable for any claim, damages, or other liability, whether in an action of contract, tort, or otherwise, arising from, out of, or in connection with the software or the use or other dealings in the software.
+>
+> **If you do not agree with these terms, do not use this software.**
+
+---
+
 <div align="center">
+
 **Made with ❤️ for streaming lovers**
 
 *If you find this project useful, consider starring it! ⭐*
+
 </div>

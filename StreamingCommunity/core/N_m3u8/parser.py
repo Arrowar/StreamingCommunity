@@ -1,8 +1,8 @@
 # 10.01.26
 
 import re
+import os
 import json
-from pathlib import Path
 from typing import Optional
 
 
@@ -11,22 +11,26 @@ from .models import StreamInfo, Stream, DownloadProgress
 
 
 class StreamParser:
-    
-    PROGRESS = re.compile(r"(Vid|Aud|Sub)\s+([^-]+?)\s+-+\s+(\d+)/(\d+)\s+([\d.]+)%\s+(?:([\d.]+[KMGT]?B)/([\d.]+[KMGT]?B))?\s*(?:([\d.]+[KMGT]?Bps))?\s*([\d:]+)")
+    PROGRESS = re.compile(
+        r"(Vid|Aud|Sub)\s+"                             # Stream type
+        r"([^━\-]+?)\s+"                                # Description 
+        r"[━\-\s]*"                                     # Progress bar chars (any)
+        r"(\d+)/(\d+)\s+"                               # current/total segments
+        r"([\d.]+)%"                                    # percentage
+        r"(?:\s*([\d.]+[KMGT]*B?)/?([\d.]+[KMGT]*B?))?" # optional sizes
+        r"(?:\s*([\d.]+[KMGT]*Bps))?"                   # optional speed
+        r"(?:\s*([\d:.\-]+))?"                          # optional time
+    )
     
     @staticmethod
-    def parse_stream_info_from_json(meta_file_path: Path, manifest_type_hint: str = None) -> StreamInfo:
+    def parse_stream_info_from_json(meta_file_path, manifest_type_hint: str = None) -> StreamInfo:
         """Parse stream info directly from meta.json file instead of log parsing
         
         Args:
             meta_file_path: Path to meta.json file
             manifest_type_hint: Optional hint about manifest type ('HLS', 'DASH', or None for auto-detect)
         """
-        # Ensure meta_file_path is a Path object
-        if isinstance(meta_file_path, str):
-            meta_file_path = Path(meta_file_path)
-        
-        if not meta_file_path.exists():
+        if not os.path.exists(meta_file_path):
             return StreamInfo("UNKNOWN", [])
         
         try:
@@ -160,20 +164,55 @@ class StreamParser:
                     segments_count=segments_count
                 )
                 streams.append(stream)
+        
+        streams = StreamParser._deduplicate_subtitles(streams)
         return StreamInfo(manifest_type, streams)
     
     @staticmethod
+    def _deduplicate_subtitles(streams: list) -> list:
+        """Remove duplicate subtitle streams based on language and lang_code."""
+        seen_subtitles = {}
+        result = []
+        
+        for stream in streams:
+            if stream.type == "Subtitle":
+                key = (stream.language.lower(), stream.lang_code.lower())
+                if key not in seen_subtitles:
+                    seen_subtitles[key] = True
+                    result.append(stream)
+            else:
+                result.append(stream)
+        
+        return result
+    
+    @staticmethod
     def parse_progress(line: str) -> Optional[DownloadProgress]:
-        if match := StreamParser.PROGRESS.search(line):
+        clean_line = re.sub(r'\x1b\[[0-9;]*m', '', line).strip()
+        match = StreamParser.PROGRESS.search(clean_line)
+        if not match:
+            return None
+        
+        try:
+            stream_type = match.group(1)
+            description = match.group(2).strip()
+            current = int(match.group(3))
+            total = int(match.group(4))
+            percent = float(match.group(5))
+            downloaded_size = match.group(6) or "-"
+            total_size = match.group(7) or "-"
+            speed = match.group(8) or "-"
+            time_remaining = match.group(9) or "--:--:--"
+            
             return DownloadProgress(
-                stream_type=match.group(1),
-                description=match.group(2).strip(),
-                current=int(match.group(3)),
-                total=int(match.group(4)),
-                percent=float(match.group(5)),
-                downloaded_size=match.group(6) or "-",
-                total_size=match.group(7) or "-",
-                speed=match.group(8) or "-",
-                time=match.group(9)
+                stream_type=stream_type,
+                description=description,
+                current=current,
+                total=total,
+                percent=percent,
+                downloaded_size=downloaded_size,
+                total_size=total_size,
+                speed=speed,
+                time=time_remaining
             )
-        return None
+        except (ValueError, IndexError):
+            return None

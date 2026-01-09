@@ -51,21 +51,16 @@ def download_film(select_title: MediaItem) -> str:
     
     # Extract mega link
     mega_link = None
-    try:
-        response = create_client(headers=get_headers()).get(proton_url)
-        response.raise_for_status()
+    response = create_client(headers=get_headers()).get(proton_url)
+    response.raise_for_status()
 
-        soup = BeautifulSoup(response.text, 'html.parser')
-        for link in soup.find_all('a', href=True):
-            href = link['href']
-            if 'mega' in href:
-                mega_link = href
-                break
-    
-    except Exception as e:
-        console.print(f"[red]Site: {site_constants.SITE_NAME}, request error: {e}, get mega link")
-        return None
-    
+    soup = BeautifulSoup(response.text, 'html.parser')
+    for link in soup.find_all('a'):
+        href = link['href']
+        if 'mega' in href:
+            mega_link = href
+            break
+
     # Define the filename and path for the downloaded film
     if select_title.type == "film":
         mp4_path = os.path.join(site_constants.MOVIE_FOLDER, str(select_title.name).replace(extension_output, ""))

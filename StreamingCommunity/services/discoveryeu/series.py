@@ -52,7 +52,7 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
     # Get episode information
     obj_episode = scrape_serie.selectEpisode(index_season_selected, index_episode_selected - 1)
     index_season_selected = scrape_serie.getRealNumberSeason(index_season_selected)
-    console.print(f"\n[yellow]Download: [red]{site_constants.SITE_NAME} → [cyan]{scrape_serie.series_name} \\ [magenta]{obj_episode.name} ([cyan]S{index_season_selected}E{index_episode_selected}) \n")
+    console.print(f"\n[yellow]Download: [red]{site_constants.SITE_NAME} → [cyan]{scrape_serie.series_name} [white]\\ [magenta]{obj_episode.name} ([cyan]S{index_season_selected}E{index_episode_selected}) \n")
 
     # Define output path
     mp4_name = f"{map_episode_title(scrape_serie.series_name, index_season_selected, index_episode_selected, obj_episode.name)}.{extension_output}"
@@ -68,7 +68,6 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
         return None, False
     
     # Check the type of stream
-    status = None
     if  playback_info['type'] == 'dash':
         license_headers = generate_license_headers(playback_info['license_token'])
     
@@ -79,10 +78,8 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
             license_headers=license_headers,
             output_path=os.path.join(mp4_path, mp4_name),
         )
-        dash_process.start()
-    
-        # Get final status
-        status = dash_process.get_status()
+        out_path, need_stop = dash_process.start()
+        return out_path, need_stop
         
     elif playback_info['type'] == 'hls':
         
@@ -90,19 +87,13 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
         headers = api.get_request_headers()
         
         # Download the episode
-        status =  HLS_Downloader(
-            m3u8_url=playback_info['mpd_url'], #mpd_url is just a typo: it is a hls
+        hls_process =  HLS_Downloader(
+            m3u8_url=playback_info['mpd_url'],
             headers=headers,
             output_path=os.path.join(mp4_path, mp4_name),
-        ).start()
-
-    if status['error'] is not None and status['path']:
-        try:
-            os.remove(status['path'])
-        except Exception:
-            pass
-    
-    return status['path'], status['stopped']
+        )
+        out_path, need_stop = hls_process.start()
+        return out_path, need_stop
 
 
 def download_episode(index_season_selected: int, scrape_serie: GetSerieInfo, download_all: bool = False, episode_selection: str = None) -> None:

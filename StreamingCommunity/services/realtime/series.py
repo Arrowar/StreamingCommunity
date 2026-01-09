@@ -51,7 +51,7 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
 
     # Get episode information
     obj_episode = scrape_serie.selectEpisode(index_season_selected, index_episode_selected-1)
-    console.print(f"\n[yellow]Download: [red]{site_constants.SITE_NAME} → [cyan]{scrape_serie.series_name} \\ [magenta]{obj_episode.name} ([cyan]S{index_season_selected}E{index_episode_selected}) \n")
+    console.print(f"\n[yellow]Download: [red]{site_constants.SITE_NAME} → [cyan]{scrape_serie.series_name} [white]\\ [magenta]{obj_episode.name} ([cyan]S{index_season_selected}E{index_episode_selected}) \n")
 
     # Define filename and path for the downloaded video
     mp4_name = f"{map_episode_title(scrape_serie.series_name, index_season_selected, index_episode_selected, obj_episode.name)}.{extension_output}"
@@ -65,15 +65,9 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
     hls_process = HLS_Downloader(
         m3u8_url=master_playlist,
         output_path=os.path.join(mp4_path, mp4_name)
-    ).start()
-
-    if hls_process['error'] is not None:
-        try: 
-            os.remove(hls_process['path'])
-        except Exception: 
-            pass
-
-    return hls_process['path'], hls_process['stopped']
+    )
+    out_path, need_stop = hls_process.start()
+    return out_path, need_stop
 
 
 def download_episode(index_season_selected: int, scrape_serie: GetSerieInfo, download_all: bool = False, episode_selection: str = None) -> None:

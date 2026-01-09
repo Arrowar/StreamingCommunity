@@ -80,12 +80,6 @@ def download_film(select_title: MediaItem) -> str:
         m3u8_url=master_playlist,
         output_path=os.path.join(mp4_path, title_name),
         use_raw_forDownload=True
-    ).start()
-
-    if hls_process['error'] is not None:
-        try: 
-            os.remove(hls_process['path'])
-        except Exception: 
-            pass
-
-    return hls_process['path']
+    )
+    out_path, need_stop = hls_process.start()
+    return out_path, need_stop

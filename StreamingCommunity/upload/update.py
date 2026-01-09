@@ -2,7 +2,6 @@
 
 import os
 import sys
-import asyncio
 import importlib.metadata
 
 
@@ -25,25 +24,15 @@ else:
 console = Console()
 
 
-async def fetch_github_data(client, url):
-    """Helper function to fetch data from GitHub API"""
-    response = await client.get(
-        url=url,
+def fetch_github_releases():
+    """Fetch releases data from GitHub API (sync)"""
+    response = httpx.get(
+        f"https://api.github.com/repos/{__author__}/{__title__}/releases",
         headers={'user-agent': get_userAgent()},
         timeout=config_manager.config.get_int("REQUESTS", "timeout"),
         follow_redirects=True
     )
     return response.json()
-
-
-async def async_github_requests():
-    """Make concurrent GitHub API requests"""
-    async with httpx.AsyncClient() as client:
-        tasks = [
-            fetch_github_data(client, f"https://api.github.com/repos/{__author__}/{__title__}/releases"),
-            fetch_github_data(client, f"https://api.github.com/repos/{__author__}/{__title__}/commits")
-        ]
-        return await asyncio.gather(*tasks)
 
 
 def get_execution_mode():
@@ -64,8 +53,7 @@ def get_execution_mode():
 def update():
     """Check for updates on GitHub and display relevant information."""
     try:
-        # Run async requests concurrently
-        response_releases, response_commits = asyncio.run(async_github_requests())
+        response_releases = fetch_github_releases()
     except Exception as e:
         console.print(f"[red]Error accessing GitHub API: {e}")
         return
@@ -89,14 +77,10 @@ def update():
     except importlib.metadata.PackageNotFoundError:
         current_version = source_code_version
 
-    # Get commit details
-    latest_commit = response_commits[0] if response_commits else None
-    latest_commit_message = latest_commit.get('commit', {}).get('message', 'No commit message')
-
     console.print(
         f"\n[red]{__title__} has been downloaded: [yellow]{total_download_count}"
         f"\n[yellow]{get_execution_mode()} - [green]Current installed version: [yellow]{current_version} "
-        f"[green]last commit: [white]'[yellow]{latest_commit_message.splitlines()[0]}[white]'\n"
+        f"\n"
         f"  [cyan]Help the repository grow today by leaving a [yellow]star [cyan]and [yellow]sharing "
         f"[cyan]it with others online!\n"
         f"      [magenta]If you'd like to support development and keep the program updated, consider leaving a "

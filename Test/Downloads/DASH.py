@@ -31,6 +31,5 @@ dash_process = DASH_Downloader(
     output_path=fr".\Video\Prova.{conf_extension}"
 )
 
-dash_process.start()
-status = dash_process.get_status()
-print("Status:", status)
+out_path, need_stop = dash_process.start()
+print(f"Output path: {out_path}, Need stop: {need_stop}")

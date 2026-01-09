@@ -4,7 +4,6 @@ import os
 import shutil
 import logging
 from typing import Optional, Dict, Any
-from pathlib import Path
 
 
 # External libraries
@@ -64,8 +63,8 @@ class DASH_Downloader:
             self.output_path += f'.{EXTENSION_OUTPUT}'
         
         # Extract directory and filename components ONCE
-        self.output_dir = str(Path(self.output_path).parent)
-        self.filename_base = Path(self.output_path).stem
+        self.output_dir = os.path.dirname(self.output_path)
+        self.filename_base = os.path.splitext(os.path.basename(self.output_path))[0]
         
         # Check if file already exists
         self.file_already_exists = os.path.exists(self.output_path)
@@ -167,13 +166,7 @@ class DASH_Downloader:
         """Main execution flow for downloading DASH content"""
         if self.file_already_exists:
             console.log(f"[yellow]File already exists: [red]{self.output_path}")
-            return {
-                'path': self.output_path,
-                'url': self.mpd_url,
-                'msg': 'File already exists',
-                'error': None,
-                'stopped': False
-            }
+            return self.output_path, False
         
         # Create output directory
         os_manager.create_path(self.output_dir)
@@ -194,12 +187,12 @@ class DASH_Downloader:
             use_raw_forDownload=self.use_raw_forDownload
         )
         
-        # Get available streams - this generates raw.mpd in temp_analysis folder
+        console.print("[green]Call [purple]get_streams_json() [cyan]to retrieve stream information ...")
         stream_info = self.media_downloader.get_available_streams()
         
         if stream_info:
             console.print(f"[cyan]Manifest [yellow]{stream_info.manifest_type} [green]Video streams[white]: [red]{len(stream_info.video_streams)}[white], [green]Audio streams[white]: [red]{len(stream_info.audio_streams)}[white], [green]Subtitle streams[white]: [red]{len(stream_info.subtitle_streams)}")
-            self.media_downloader.show_table(stream_info)
+            self.media_downloader.show_table()
         
         # Parse MPD for DRM info (uses raw.mpd if available, falls back to URL)
         self._fetch_drm_info()
@@ -207,18 +200,13 @@ class DASH_Downloader:
         # Fetch decryption keys if DRM protected
         if self.drm_info and self.drm_info['available_drm_types']:
             if not self._fetch_decryption_keys():
-                return {
-                    'path': None,
-                    'url': self.mpd_url,
-                    'msg': f'Failed to fetch decryption keys: {self.error}',
-                    'error': self.error,
-                    'stopped': True
-                }
+                logging.error(f"Failed to fetch decryption keys: {self.error}")
+                return None, True
         
         # Set decryption keys on the existing MediaDownloader instance
         self.media_downloader.set_keys(self.decryption_keys if self.decryption_keys else None)
         
-        # Start download
+        console.print("\n[green]Call [purple]start_download() [cyan]to begin downloading ...")
         for update in self.media_downloader.start_download(show_progress=True):
             pass  # Progress is shown automatically
         
@@ -228,25 +216,15 @@ class DASH_Downloader:
             console.log("[red]Cant find video path after download")
         
         if status.status != DownloadStatus.COMPLETED or not status.video_path:
-            return {
-                'path': None,
-                'url': self.mpd_url,
-                'msg': f'Download failed: {status.error_message or "Unknown error"}',
-                'error': status.error_message,
-                'stopped': True
-            }
+            logging.error(f"Download failed: {status.error_message}")
+            return None, True
         
         # Merge files using FFmpeg
         final_file = self._merge_files(status)
         
         if not final_file or not os.path.exists(final_file):
-            return {
-                'path': None,
-                'url': self.mpd_url,
-                'msg': 'Merge failed',
-                'error': self.error or 'Merge operation failed',
-                'stopped': True
-            }
+            logging.error("Merge operation failed")
+            return None, True
         
         # Move to final location if needed
         if os.path.abspath(final_file) != os.path.abspath(self.output_path):
@@ -261,15 +239,8 @@ class DASH_Downloader:
         # Print summary and cleanup
         self._print_summary()
         self._cleanup_temp_files(status)
-        
-        return {
-            'path': self.output_path,
-            'url': self.mpd_url,
-            'msg': 'Download completed successfully',
-            'error': None,
-            'stopped': False
-        }
-    
+        return self.output_path, False
+
     def _merge_files(self, status) -> Optional[str]:
         """Merge downloaded files using FFmpeg"""
         video_path = status.video_path
@@ -343,7 +314,6 @@ class DASH_Downloader:
                 self.last_merge_result = result_json
                 
                 if os.path.exists(merged_file):
-                    # Remove intermediate file if different
                     if current_file != video_path and os.path.exists(current_file):
                         try:
                             os.remove(current_file)
@@ -413,11 +383,3 @@ class DASH_Downloader:
         console.print(f"  [cyan]Path: [red]{os.path.abspath(self.output_path)}")
         console.print(f"  [cyan]Size: [red]{file_size}")
         console.print(f"  [cyan]Duration: [red]{duration}")
-    
-    def get_status(self):
-        """Returns status dict for external use"""
-        return {
-            "path": self.output_path if os.path.exists(self.output_path) else None,
-            "error": self.error,
-            "stopped": self.error is not None
-        }

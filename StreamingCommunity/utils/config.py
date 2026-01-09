@@ -181,10 +181,6 @@ class ConfigManager:
         self.domains_path = os.path.join(self.conf_path, DOMAINS_FILENAME)
         self.github_domains_path = os.path.join(self.base_path, GITHUB_DOMAINS_PATH)
         
-        # Display the actual file paths
-        console.print(f"[cyan]Config path: [green]{self.config_file_path}")
-        console.print(f"[cyan]Login path: [green]{self.login_file_path}")
-        
         # Initialize data structures
         self._config_data = {}
         self._login_data = {}
@@ -262,16 +258,15 @@ class ConfigManager:
     def _precache_config_values(self) -> None:
         """Pre-cache commonly used configuration values."""
         common_keys = [
+            ('M3U8_DOWNLOAD', 'thread_count', int),
+            ('M3U8_DOWNLOAD', 'retry_count', int),
+            ('M3U8_DOWNLOAD', 'concurrent_download', bool),
+            ('M3U8_DOWNLOAD', 'cleanup_tmp_folder', bool),
+            ('M3U8_DOWNLOAD', 'merge_subs', bool),
             ('M3U8_CONVERSION', 'use_gpu', bool),
             ('M3U8_CONVERSION', 'param_video', str),
             ('M3U8_CONVERSION', 'param_audio', str),
             ('M3U8_CONVERSION', 'param_final', str),
-            ('M3U8_DOWNLOAD', 'cleanup_tmp_folder', bool),
-            ('M3U8_DOWNLOAD', 'default_video_workers', int),
-            ('M3U8_DOWNLOAD', 'default_audio_workers', int),
-            ('M3U8_DOWNLOAD', 'segment_timeout', int),
-            ('M3U8_DOWNLOAD', 'enable_retry', bool),
-            ('M3U8_DOWNLOAD', 'merge_subs', bool),
             ('REQUESTS', 'verify', bool),
             ('REQUESTS', 'timeout', int),
             ('REQUESTS', 'max_retry', int)
@@ -375,7 +370,7 @@ class ConfigManager:
     def _save_domains_to_appropriate_location(self) -> None:
         """Save domains to the conf directory."""
         target_path = self.domains_path
-        console.print(f"[cyan]Domain path: [green]{target_path}")
+        console.print(f"\n[cyan]Domain path: [green]{target_path}")
 
         try:
             with open(target_path, 'w', encoding='utf-8') as f:
@@ -393,7 +388,6 @@ class ConfigManager:
                     self._domains_data.update(json.load(f))
                 
                 site_count = len(self._domains_data) if isinstance(self._domains_data, dict) else 0
-                console.print(f"[green]Domains loaded from conf file: {site_count} streaming services")
                 
             elif os.path.exists(self.github_domains_path):
                 console.print(f"[cyan]Fallback domain path: [green]{self.github_domains_path}")

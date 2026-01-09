@@ -51,10 +51,12 @@ def download_film(select_title: MediaItem) -> Tuple[str, bool]:
 
     # HLS
     if ".mpd" not in master_playlist:
-        r_proc = HLS_Downloader(
+        hls_process = HLS_Downloader(
             m3u8_url=fix_manifest_url(master_playlist),
             output_path=os.path.join(mp4_path, mp4_name)
-        ).start()
+        )
+        out_path, need_stop = hls_process.start()
+        return out_path, need_stop
 
     # MPD
     else:
@@ -65,15 +67,5 @@ def download_film(select_title: MediaItem) -> Tuple[str, bool]:
             license_url=license_url,
             output_path=os.path.join(mp4_path, mp4_name),
         )
-        dash_process.start()
-
-        # Get final output path and status
-        r_proc = dash_process.get_status()
-
-    if r_proc['error'] is not None:
-        try: 
-            os.remove(r_proc['path'])
-        except Exception: 
-            pass
-
-    return r_proc['path'], r_proc['stopped']
+        out_path, need_stop = dash_process.start()
+        return out_path, need_stop

@@ -1,9 +1,9 @@
 # 16.12.25
 
 import re
+import os
 import subprocess
 import shutil
-from pathlib import Path
 
 
 # External libraries
@@ -50,10 +50,10 @@ class MEGA_Downloader:
 
     def _download_movie_megatools(self, url, dest_path=None):
         """Download a single movie file using megatools"""
-        output_dir = Path(dest_path).parent if dest_path else Path("./Movies")
-        output_dir.mkdir(parents=True, exist_ok=True)
+        output_dir = os.path.dirname(dest_path) if dest_path else "./Movies"
+        os.makedirs(output_dir, exist_ok=True)
         
-        cmd = [str(self.megatools_exe), "dl", url, "--path", str(output_dir)]
+        cmd = [str(self.megatools_exe), "dl", url, "--path", output_dir]
         process = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
@@ -77,23 +77,23 @@ class MEGA_Downloader:
         # Sanitize dest_path if provided
         if dest_path:
             dest_path = os_manager.get_sanitize_path(dest_path)
-            base_dir = Path(dest_path).parent
+            base_dir = os.path.dirname(dest_path)
         else:
-            base_dir = Path("./")
+            base_dir = "./"
         
-        tv_dir = base_dir / "TV"
+        tv_dir = os.path.join(base_dir, "TV")
         
         # Use a shorter temp directory name to avoid path length issues
         import uuid
         tmp_dir_name = f"_tmp_{uuid.uuid4().hex[:8]}"  # Shorter temp name
-        tmp_dir = base_dir / tmp_dir_name
+        tmp_dir = os.path.join(base_dir, tmp_dir_name)
         
         console.print("[cyan]Download Series ...")
-        if tmp_dir.exists():
+        if os.path.exists(tmp_dir):
             shutil.rmtree(tmp_dir)
-        tmp_dir.mkdir(parents=True, exist_ok=True)
+        os.makedirs(tmp_dir, exist_ok=True)
 
-        cmd = [str(self.megatools_exe), "dl", url, "--path", str(tmp_dir)]
+        cmd = [str(self.megatools_exe), "dl", url, "--path", tmp_dir]
         if self.choose_files:
             cmd.append("--choose-files")
 

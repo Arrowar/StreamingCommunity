@@ -47,28 +47,21 @@ def title_search(query: str) -> int:
 
     # Track seen URLs to avoid duplicates
     seen_urls = set()
+    articles = table.find_all("article")
+    
+    for i, article in enumerate(articles):
+        title_element = article.find("h2", class_="entry-title")
+        link = title_element.find("a") if title_element else None
+        title = link.text.strip() if link else "N/A"
+        url = link.get('href', '') if link else "N/A"
 
-    for i, element in enumerate(table.find_all("div")):
-
-        # Extract title and URL from h2.posttitle > a
-        title_element = element.find("h2", class_="posttitle")
-        if not title_element:
-            continue
-            
-        link = title_element.find("a")
-        if not link:
-            continue
-            
-        title = link.text.strip()
-        url = link.get('href', '')
-        
         # Skip duplicates
         if url in seen_urls:
             continue
         seen_urls.add(url)
         
         # Determine type based on categories
-        categs_div = element.find("div", class_="categs")
+        categs_div = article.find("div", class_="categs")
         tipo = "film"
         if categs_div:
             categs_text = categs_div.get_text().lower()

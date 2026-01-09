@@ -55,7 +55,7 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
 
     # Get episode information
     obj_episode = scrape_serie.selectEpisode(index_season_selected, index_episode_selected-1)
-    console.print(f"\n[yellow]Download: [red]{site_constants.SITE_NAME} → [cyan]{scrape_serie.series_name} \\ [magenta]{obj_episode.name} ([cyan]S{index_season_selected}E{index_episode_selected}) \n")
+    console.print(f"\n[yellow]Download: [red]{site_constants.SITE_NAME} → [cyan]{scrape_serie.series_name} [white]\\ [magenta]{obj_episode.name} ([cyan]S{index_season_selected}E{index_episode_selected}) \n")
 
     # Define filename and path
     mp4_name = f"{map_episode_title(scrape_serie.series_name, index_season_selected, index_episode_selected, obj_episode.name)}.{extension_output}"
@@ -66,12 +66,14 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
 
     # HLS
     if ".mpd" not in master_playlist:
-        r_proc = HLS_Downloader(
+        hls_process = HLS_Downloader(
             m3u8_url=fix_manifest_url(master_playlist),
             output_path=os.path.join(mp4_path, mp4_name)
-        ).start()
+        )
+        out_path, need_stop = hls_process.start()
+        return out_path, need_stop
 
-    # MPD (DASH)
+    # MPD
     else:
         full_license_url = generate_license_url(obj_episode.mpd_id)
         license_headers = {
@@ -84,19 +86,11 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
             license_url=full_license_url.split("?")[0],
             license_headers=license_headers,
             output_path=os.path.join(mp4_path, mp4_name),
-        ).start()
+        )
+        out_path, need_stop = dash_process.start()
+        return out_path, need_stop
 
-        # Get final output path and status
-        r_proc = dash_process.get_status()
-
-    if r_proc['error'] is not None:
-        try: 
-            os.remove(r_proc['path'])
-        except Exception: 
-            pass
-
-    return r_proc['path'], r_proc['stopped']
-
+        
 
 def download_episode(index_season_selected: int, scrape_serie: GetSerieInfo, download_all: bool = False, episode_selection: str = None) -> None:
     """

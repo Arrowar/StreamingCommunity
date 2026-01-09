@@ -21,7 +21,6 @@ hls_process =  HLS_Downloader(
     headers={},
     license_url=None,
     output_path=fr".\Video\Prova.{conf_extension}",
-).start()
-
-thereIsError = hls_process['error'] is not None
-print(thereIsError)
+)
+out_path, need_stop = hls_process.start()
+print("Downloaded to:", out_path, "Stopped:", need_stop)

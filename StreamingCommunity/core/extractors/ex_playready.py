@@ -39,7 +39,7 @@ def get_playready_keys(pssh: str, license_url: str, cdm_device_path: str, header
     session_id = cdm.open()
 
     try:
-        console.print(f"[cyan]PSSH (PR): [green]{pssh}")
+        console.print(f"[cyan]PSSH ([yellow]PR[cyan]): [green]{pssh}")
         
         try:
             pssh_obj = PSSH(pssh)
@@ -95,7 +95,7 @@ def get_playready_keys(pssh: str, license_url: str, cdm_device_path: str, header
                 content_keys.append(f"{kid.replace('-', '').strip()}:{key_val.replace('-', '').strip()}")
 
             # Return keys
-            console.print(f"[cyan]Extracted [red]{len(content_keys)} CONTENT [cyan]keys from license.\n")
+            console.print(f"[cyan]Extracted [red]{len(content_keys)} CONTENT [cyan]keys from license.")
             return content_keys
 
         else:

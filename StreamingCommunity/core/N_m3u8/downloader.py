@@ -2,14 +2,11 @@
 
 import os
 import time
-from pathlib import Path
 from typing import Generator, Any, Optional, List, Dict
 
 
 # External library
 from rich.console import Console
-from rich.table import Table
-from rich.progress import Progress, TextColumn
 
 
 # Internal utilities
@@ -20,7 +17,8 @@ from StreamingCommunity.utils.http_client import fetch
 from .models import StreamInfo, DownloadStatusInfo, DownloadStatus, DownloadConfig, MediaTrack
 from .wrapper import N_m3u8DLWrapper
 from .parser import StreamParser
-from .utils import CustomBarColumn, FileUtils, FormatUtils
+from .progress import ProgressBarManager, show_streams_table
+from .utils import FileUtils
 
 
 # Variable
@@ -29,9 +27,9 @@ show_full_table = False
 
 
 class MediaDownloader:
-    def __init__(self, url: str, output_dir: Path, filename: str, headers: Optional[Dict[str, str]] = None, decryption_keys: Optional[List[str]] = None, external_subtitles: Optional[List[dict]] = None):
+    def __init__(self, url: str, output_dir: str, filename: str, headers: Optional[Dict[str, str]] = None, decryption_keys: Optional[List[str]] = None, external_subtitles: Optional[List[dict]] = None):
         self.url = url
-        self.output_dir = Path(output_dir)
+        self.output_dir = output_dir
         self.filename = filename
         self.headers = headers
         self.decryption_keys = decryption_keys
@@ -42,19 +40,11 @@ class MediaDownloader:
         self.status_info = DownloadStatusInfo()
         self.stream_info: Optional[StreamInfo] = None
         
-        # Internal timing for progress calculation
-        self._video_start_time: Optional[float] = None
-        self._audio_start_time: Optional[float] = None
-        
-        # Last valid progress info (for Done state)
-        self._last_video_size = "0.00 MB"
-        self._last_video_elapsed = 0.0
-        self._last_audio_size = "0.00 MB"
-        self._last_audio_elapsed = 0.0
-        
-        # Audio selection tracking
+        # Audio/subtitle selection tracking
         self.audio_disponibili = 0
         self.audio_selezionati = 0
+        self.subtitle_disponibili = 0
+        self.subtitle_selezionati = 0
         
         # Real-time download statistics for GUI API
         self._current_video_progress = None
@@ -145,24 +135,12 @@ class MediaDownloader:
         
         return stats
     
-    def show_table(self, stream_info: Optional[StreamInfo] = None) -> None:
+    def show_table(self) -> None:
         """Show table with available streams"""
-        # Use internal API to get stream data instead of duplicating logic
         streams_data = self.get_streams_json()
         if not streams_data["success"]:
             console.print("[red]Unable to retrieve stream information.")
             return
-        
-        table = Table()
-        table.add_column("Type", style="bright_cyan")
-        table.add_column("Sel", style="bold bright_green", justify="center")
-        table.add_column("Resolution", style="bright_yellow")
-        table.add_column("Bitrate", style="bright_white")
-        table.add_column("Codec", style="bright_green")
-        table.add_column("Lang", style="bright_magenta")
-        table.add_column("Lang_L", style="bright_blue")
-        table.add_column("Duration", style="bright_white")
-        table.add_column("Segments", style="bright_cyan", justify="right")
         
         # Count selections for tracking
         self.audio_disponibili = len([s for s in streams_data["streams"] if s["type"] == "Audio"])
@@ -170,38 +148,12 @@ class MediaDownloader:
         self.subtitle_disponibili = len([s for s in streams_data["streams"] if s["type"] == "Subtitle"])
         self.subtitle_selezionati = len([s for s in streams_data["streams"] if s["type"] == "Subtitle" and s["selected"]])
         
-        for stream in streams_data["streams"]:
-            # Skip non-selected subtitles if more than 6 and show_full_table is False
-            if (stream["type"] == "Subtitle" and self.subtitle_disponibili > 6 and 
-                not show_full_table and not stream["selected"]):
-                continue
-            
-            sel_icon = "X" if stream["selected"] else ""
-            type_display = f"{stream['type']} [red]*CENC[/red]" if stream["encrypted"] else stream["type"]
-            
-            table.add_row(
-                type_display, sel_icon, stream["resolution"] or "-",
-                stream["bitrate"] or "-", stream["codec"] or "-",
-                stream["lang_code"] or "-", stream.get("language", "-"),
-                "-", str(stream["segments_count"]) if stream["segments_count"] else "-"
-            )
-        
-        # Add external subtitles
-        for ext_sub in self.external_subtitles:
-            table.add_row(
-                "Subtitle [yellow](Ext)[/yellow]", "X", "-", "-", "-",
-                ext_sub.get("language", "unknown"),
-                f"Ext ({ext_sub.get('language', 'unknown')})", "-", "-"
-            )
-        
-        console.print(table)
+        show_streams_table(streams_data, self.external_subtitles, show_full_table)
 
     def start_download(self, show_progress: bool = True) -> Generator[Dict[str, Any], None, None]:
         """Start the download process, yielding status updates."""
         self.status_info = DownloadStatusInfo()
         self.status_info.status = DownloadStatus.PARSING
-        self._video_start_time = None
-        self._audio_start_time = None
         
         # Initialize real-time stats tracking
         self._current_video_progress = None
@@ -210,7 +162,7 @@ class MediaDownloader:
         self._is_downloading = True
         
         # Create output directory
-        self.output_dir.mkdir(parents=True, exist_ok=True)
+        os.makedirs(self.output_dir, exist_ok=True)
         
         # Apply auto-selection if stream info is available
         if self.stream_info:
@@ -218,18 +170,16 @@ class MediaDownloader:
         
         download_wrapper = N_m3u8DLWrapper(self.config, self.output_dir)
         
-        # Variable for progress display
+        # Progress bar manager
+        progress_manager = None
         table_shown = False
-        progress_bars = None
-        video_task = None
-        audio_tasks = {}
         
         try:
             for update in download_wrapper.download(self.url, self.filename, self.headers, self.decryption_keys, self.stream_info):
                 self._update_status(update)
                 
                 if show_progress:
-                    # 1) Parsing - store stream info but don't show table (already shown before download)
+                    # 1) Parsing - store stream info
                     if update.get("status") == "parsing" and not table_shown:
                         if "stream_info" in update:
                             table_shown = True
@@ -237,90 +187,44 @@ class MediaDownloader:
                             console.file.flush()
                     
                     # 2) Selected streams - setup progress bars
-                    elif update.get("status") == "selected" and not progress_bars:
+                    elif update.get("status") == "selected" and not progress_manager:
                         protocol = self.stream_info.manifest_type if self.stream_info else "UNKNOWN"
-                        progress_bars = Progress(
-                            TextColumn("[bold]{task.description}[/bold]"),
-                            CustomBarColumn(bar_width=40),
-                            TextColumn("[bright_green]{task.fields[current]}[/bright_green][dim]/[/dim][bright_cyan]{task.fields[total_segments]}[/bright_cyan]"),
-                            TextColumn("[dim]\\[[/dim][bright_yellow]{task.fields[elapsed]}[/bright_yellow][dim] < [/dim][bright_cyan]{task.fields[eta]}[/bright_cyan][dim]][/dim]"),
-                            TextColumn("[bright_green]{task.fields[size_value]}[/bright_green] [bright_magenta]{task.fields[size_unit]}[/bright_magenta]"),
-                            TextColumn("[dim]@[/dim]"),
-                            TextColumn("[bright_cyan]{task.fields[speed_value]}[/bright_cyan] [bright_magenta]{task.fields[speed_unit]}[/bright_magenta]"),
-                            console=console
-                        )
-                        progress_bars.start()
+                        progress_manager = ProgressBarManager(protocol)
+                        progress_manager.setup()
                         
-                        # 3) Task video
-                        video_task = progress_bars.add_task(
-                            f"[yellow]{protocol} [cyan]Video",
-                            total=100,
-                            current="0", total_segments="0",
-                            elapsed="00:00", eta="00:00",
-                            size_value="0.00", size_unit="MB",
-                            speed_value="0.00", speed_unit="MB/s"
-                        )
-                        
-                        # 4) Task audio
+                        # Add audio tasks
                         if self.config.select_audio_lang and self.stream_info:
-
-                            # If using "all", create a single audio task
-                            if "all" in [lang.lower() for lang in self.config.select_audio_lang]:
-                                audio_task = progress_bars.add_task(
-                                    f"[yellow]{protocol} [cyan]Audio [bright_magenta][ALL]",
-                                    total=100,
-                                    current="0", total_segments="0",
-                                    elapsed="00:00", eta="00:00",
-                                    size_value="0.00", size_unit="MB",
-                                    speed_value="0.00", speed_unit="MB/s"
-                                )
-                                audio_tasks["all"] = audio_task
-
-                            else:
-                                available_audio_langs = set()
-                                for stream in self.stream_info.audio_streams:
-
-                                    # Add both lang_code and language for matching
-                                    if stream.lang_code and stream.lang_code != "-":
-                                        available_audio_langs.add(stream.lang_code.lower())
-                                    if stream.language and stream.language != "-":
-                                        available_audio_langs.add(stream.language.lower())
-                                
-                                # Create tasks only for configured languages that exist in the streams
-                                for lang in self.config.select_audio_lang:
-                                    lang_lower = lang.lower()
-
-                                    # Check if the configured language is present in the available streams
-                                    if any(lang_lower in available_lang for available_lang in available_audio_langs):
-                                        audio_task = progress_bars.add_task(
-                                            f"[yellow]{protocol} [cyan]Audio [bright_magenta][{lang.upper()}]",
-                                            total=100,
-                                            current="0", total_segments="0",
-                                            elapsed="00:00", eta="00:00",
-                                            size_value="0.00", size_unit="MB",
-                                            speed_value="0.00", speed_unit="MB/s"
-                                        )
-                                        audio_tasks[lang_lower] = audio_task  # Use lowercase key
+                            progress_manager.add_audio_task(
+                                "", 
+                                self.config.select_audio_lang,
+                                self.stream_info
+                            )
                     
-                    # 5) Downloading - update progress
-                    elif update.get("status") == "downloading" and progress_bars:
-                        self._update_progress_bars(update, progress_bars, video_task, audio_tasks)
+                    # 3) Downloading - update progress
+                    elif update.get("status") == "downloading" and progress_manager:
+                        if "progress_video" in update:
+                            self._current_video_progress = update["progress_video"]
+                            progress_manager.update_video_progress(update["progress_video"])
+                        
+                        if "progress_audio" in update:
+                            self._current_audio_progress = update["progress_audio"]
+                            progress_manager.update_audio_progress(update["progress_audio"], self.stream_info)
                     
-                    # 6) Finished
+                    # 4) Finished
                     elif update.get("status") == "completed":
-                        if progress_bars:
-                            progress_bars.stop()
+                        if progress_manager:
+                            progress_manager.stop()
                         console.file.flush()
                     
-                    # 7) Failed
+                    # 5) Failed
                     elif update.get("status") == "failed":
-                        if progress_bars and not update.get("has_404", False):
-                            progress_bars.stop()
+                        if progress_manager and not update.get("has_404", False):
+                            progress_manager.stop()
                         
                         if update.get("has_404", False):
                             console.log("[yellow]404 detected, switching to original URL...")
                         else:
-                            console.print(f"[bold red]Download fallito: {update.get('error')}")
+                            console.print(f"[bold red]Download failed: {update.get('error')}")
                         console.file.flush()
                 
                 yield update
@@ -329,16 +233,16 @@ class MediaDownloader:
                     break
         
         except KeyboardInterrupt:
-            if show_progress and progress_bars:
-                progress_bars.stop()
-                console.print("\n[yellow]7) Download cancelled")
+            if show_progress and progress_manager:
+                progress_manager.stop()
+                console.print("\n[yellow]Download cancelled")
             self.status_info.status = DownloadStatus.CANCELLED
             self._is_downloading = False
             raise
         
         except Exception as e:
-            if show_progress and progress_bars:
-                progress_bars.stop()
+            if show_progress and progress_manager:
+                progress_manager.stop()
             self.status_info.status = DownloadStatus.FAILED
             self.status_info.error_message = str(e)
             self._is_downloading = False
@@ -348,179 +252,32 @@ class MediaDownloader:
             self._is_downloading = False
     
     def _apply_auto_selection(self, stream_info: StreamInfo):
-        """Apply automatic audio/subtitle selection if no matches found"""
-        total_audio_streams = len(stream_info.audio_streams)
-        total_subtitle_streams = len(stream_info.subtitle_streams)
-
-        # Auto audio selection
-        audio_langs = self.config.select_audio_lang or []
-        matching_audio_streams = 0
+        """Auto-select audio and subtitle languages if none selected or not found"""
+        audio_langs = [lang.lower() for lang in (self.config.select_audio_lang or [])]
+        subtitle_langs = [lang.lower() for lang in (self.config.select_subtitle_lang or [])]
         
-        for stream in stream_info.audio_streams:
-            if audio_langs:
-                # Use exact matching for language codes
-                if any(lang.lower() == stream.language.lower() for lang in audio_langs):
-                    matching_audio_streams += 1
-
-        # If no audio matches but audio is available, select the first one
-        if total_audio_streams > 0 and matching_audio_streams == 0 and len(audio_langs) > 0:
-            first_audio_lang = stream_info.audio_streams[0].language
-            self.config.select_audio_lang = [first_audio_lang]
-            console.log("[yellow]None of the specified audio languages were found. Automatically selecting the first available audio language.")
-
-        elif total_audio_streams > 0 and len(audio_langs) == 0:
-            first_audio_lang = stream_info.audio_streams[0].language
-            self.config.select_audio_lang = [first_audio_lang]
-            console.log("[yellow]No audio language specified. Automatically selecting the first available audio language.")
+        # Count matches
+        audio_matches = sum(1 for s in stream_info.audio_streams if s.language.lower() in audio_langs)
+        subtitle_matches = sum(1 for s in stream_info.subtitle_streams if s.language.lower() in subtitle_langs)
         
-        # Auto subtitle selection
-        subtitle_langs = self.config.select_subtitle_lang or []
-        matching_subtitle_streams = 0
+        # Auto audio
+        if stream_info.audio_streams:
+            if audio_matches == 0 and audio_langs:
+                self.config.select_audio_lang = [stream_info.audio_streams[0].language]
+                console.log("[yellow]Auto-selecting first audio language")
+            elif not audio_langs:
+                self.config.select_audio_lang = [stream_info.audio_streams[0].language]
+                console.log("[yellow]Auto-selecting first audio language")
         
-        for stream in stream_info.subtitle_streams:
-            if subtitle_langs:
-                if any(lang.lower() == stream.language.lower() for lang in subtitle_langs):
-                    matching_subtitle_streams += 1
+        # Auto subtitle
+        if stream_info.subtitle_streams:
+            if subtitle_matches == 0 and subtitle_langs:
+                self.config.select_subtitle_lang = [stream_info.subtitle_streams[0].language]
+                console.print("[yellow]Auto-selecting first subtitle language")
+            elif not subtitle_langs:
+                self.config.select_subtitle_lang = [stream_info.subtitle_streams[0].language]
+                console.print("[yellow]Auto-selecting first subtitle language")
         
-        if total_subtitle_streams > 0 and matching_subtitle_streams == 0 and len(subtitle_langs) > 0:
-            first_subtitle_lang = stream_info.subtitle_streams[0].language
-            self.config.select_subtitle_lang = [first_subtitle_lang]
-            console.print("[yellow]None of the specified subtitle languages were found. Automatically selecting the first available subtitle language.")
-
-        elif total_subtitle_streams > 0 and len(subtitle_langs) == 0:
-            first_subtitle_lang = stream_info.subtitle_streams[0].language
-            self.config.select_subtitle_lang = [first_subtitle_lang]
-            console.print("[yellow]No subtitle language specified. Automatically selecting the first available subtitle language.")
-    
-    def _update_progress_bars(self, update, progress_bars, video_task, audio_tasks):
-        """Aggiorna le progress bar con i nuovi dati"""
-        protocol = self.stream_info.manifest_type if self.stream_info else "UNKNOWN"
-        
-        # 1) Video progress
-        if "progress_video" in update:
-            p = update["progress_video"]
-            self._current_video_progress = p
-            
-            if self._video_start_time is None:
-                self._video_start_time = time.time()
-            
-            elapsed = time.time() - self._video_start_time
-            eta = FormatUtils.calculate_eta(p.current, p.total, elapsed) if p.percent < 99.5 else 0
-            
-            size_str = FormatUtils.parse_size_to_mb(p.total_size)
-            size_parts = size_str.rsplit(' ', 1)
-            
-            # Store last valid values when not Done
-            if p.percent < 99.5 and len(size_parts) == 2 and size_parts[0] != "0.00":
-                self._last_video_size = size_str
-                self._last_video_elapsed = elapsed
-            
-            # Use stored values when Done, otherwise use current values
-            if p.percent >= 99.5:
-                final_size_parts = self._last_video_size.rsplit(' ', 1)
-                final_elapsed = self._last_video_elapsed
-            else:
-                final_size_parts = size_parts
-                final_elapsed = elapsed
-            
-            speed_value = "Done" if p.percent >= 99.5 else FormatUtils.parse_speed_to_mb(p.speed).split()[0]
-            speed_unit = "" if p.percent >= 99.5 else "MB/s"
-            
-            progress_bars.update(
-                video_task,
-                completed=min(p.percent, 100.0),
-                current=str(p.current), total_segments=str(p.total),
-                elapsed=FormatUtils.format_time(final_elapsed),
-                eta=FormatUtils.format_time(eta),
-                size_value=final_size_parts[0] if len(final_size_parts) == 2 else "0.00",
-                size_unit=final_size_parts[1] if len(final_size_parts) == 2 else "MB",
-                speed_value=speed_value, speed_unit=speed_unit
-            )
-            progress_bars.refresh()
-        
-        # 2) Audio progress
-        if "progress_audio" in update:
-            p = update["progress_audio"]
-            self._current_audio_progress = p
-            
-            # Check if we're using "all" mode
-            target_task = None
-            if "all" in audio_tasks:
-                target_task = audio_tasks["all"]
-            else:
-                audio_lang = None
-                if " | " in p.description:
-                    parts = p.description.split(" | ")
-                    if len(parts) >= 2:
-                        audio_lang = parts[1].strip().lower()
-                
-                # Check if we already have a task for this language
-                if not audio_lang or audio_lang not in audio_tasks:
-                    if self.stream_info and not audio_lang:
-                        for stream in self.stream_info.audio_streams:
-                            if stream.language.lower() in p.description.lower():
-                                audio_lang = stream.language.lower()  # Use language instead of lang_code
-                                break
-                    
-                    # Fallback 
-                    if not audio_lang:
-                        audio_lang = "unk"
-                    
-                    if audio_lang not in audio_tasks:
-                        audio_task = progress_bars.add_task(
-                            f"[orange1]{protocol}[/orange1] [cyan]Audio[/cyan] [bright_magenta][{audio_lang.upper()}][/bright_magenta]",
-                            total=100,
-                            current="0", total_segments="0",
-                            elapsed="00:00", eta="00:00",
-                            size_value="0.00", size_unit="MB",
-                            speed_value="0.00", speed_unit="MB/s"
-                        )
-                        audio_tasks[audio_lang] = audio_task
-                        target_task = audio_task
-                    else:
-                        target_task = audio_tasks[audio_lang]
-                        
-                else:
-                    target_task = audio_tasks[audio_lang]
-            
-            if target_task:
-                if self._audio_start_time is None:
-                    self._audio_start_time = time.time()
-                
-                elapsed = time.time() - self._audio_start_time
-                eta = FormatUtils.calculate_eta(p.current, p.total, elapsed) if p.percent < 99.5 else 0
-                
-                size_str = FormatUtils.parse_size_to_mb(p.total_size)
-                size_parts = size_str.rsplit(' ', 1)
-                
-                # Store last valid values when not Done
-                if p.percent < 99.5 and len(size_parts) == 2 and size_parts[0] != "0.00":
-                    self._last_audio_size = size_str
-                    self._last_audio_elapsed = elapsed
-                
-                # Use stored values when Done, otherwise use current values
-                if p.percent >= 99.5:
-                    final_size_parts = self._last_audio_size.rsplit(' ', 1)
-                    final_elapsed = self._last_audio_elapsed
-                else:
-                    final_size_parts = size_parts
-                    final_elapsed = elapsed
-                
-                speed_value = "Done" if p.percent >= 99.5 else FormatUtils.parse_speed_to_mb(p.speed).split()[0]
-                speed_unit = "" if p.percent >= 99.5 else "MB/s"
-                
-                progress_bars.update(
-                    target_task,
-                    completed=min(p.percent, 100.0),
-                    current=str(p.current), total_segments=str(p.total),
-                    elapsed=FormatUtils.format_time(final_elapsed),
-                    eta=FormatUtils.format_time(eta),
-                    size_value=final_size_parts[0] if len(final_size_parts) == 2 else "0.00",
-                    size_unit=final_size_parts[1] if len(final_size_parts) == 2 else "MB",
-                    speed_value=speed_value, speed_unit=speed_unit
-                )
-                progress_bars.refresh()
-    
     def _update_status(self, update: Dict[str, Any]) -> None:
         """Update internal status based on the update"""
         status = update.get("status")
@@ -611,7 +368,7 @@ class MediaDownloader:
             
             try:
                 sub_filename = f"{self.filename}.{language}.{format_ext}"
-                sub_path = self.output_dir / sub_filename
+                sub_path = os.path.join(self.output_dir, sub_filename)
                 console.print(f"\n[cyan]Download ext sub: [yellow]{language}.{format_ext}")
                 
                 response_text = fetch(url, headers=self.headers)
@@ -628,12 +385,13 @@ class MediaDownloader:
                 ))
 
             except Exception as e:
-                print(f"Errore download sottotitolo {url}: {e}")
+                print(f"Error downloading subtitle {url}: {e}")
                 continue
         
         return downloaded_subs
     
     def get_status(self) -> DownloadStatusInfo:
+        """Get current download status"""
         if (self.status_info.is_completed and not self.status_info.video_path and not self.status_info.audios_paths):
             audio_lang_param = None
             if self.config.select_audio_lang:
@@ -642,7 +400,6 @@ class MediaDownloader:
                 else:
                     audio_lang_param = self.config.select_audio_lang[0] if isinstance(self.config.select_audio_lang, list) else self.config.select_audio_lang
             
-            # Determine the subtitle language parameter for file finding
             subtitle_lang_param = None
             if self.config.select_subtitle_lang:
                 if "all" in [lang.lower() for lang in self.config.select_subtitle_lang]:

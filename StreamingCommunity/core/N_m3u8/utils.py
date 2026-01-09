@@ -1,7 +1,6 @@
 # 10.01.26
 
-from pathlib import Path
-
+import os
 
 # External library
 from rich.progress import ProgressColumn
@@ -18,50 +17,40 @@ class FileUtils:
     SUBTITLE_EXT = ['.srt', '.vtt', '.ass', '.sub', '.idx']
     
     @staticmethod
-    def find_downloaded_files(output_dir: Path, filename: str, audio_lang: str = None, subtitle_lang: str = None) -> DownloadResult:
-        """Search downloaded files in the output directory"""
+    def find_downloaded_files(output_dir: str, filename: str, audio_lang: str = None, subtitle_lang: str = None) -> DownloadResult:
+        """Download files finder"""
         result = DownloadResult()
-
-        # Order files
         clean_filename = filename.rstrip('.')
-        all_files = list(output_dir.glob(f"{clean_filename}*"))
-        all_files.sort(key=lambda x: len(x.name))
         
-        for file_path in all_files:
-            suffix = file_path.suffix.lower()
-            name_without_ext = file_path.name.replace(suffix, '')
+        try:
+            files = os.listdir(output_dir)
+        except:
+            return result
+        
+        # Order and filter files
+        matching_files = [(f, os.path.join(output_dir, f)) for f in files if f.startswith(clean_filename)]
+        matching_files.sort(key=lambda x: len(x[0]))
+        
+        for basename, filepath in matching_files:
+            ext = os.path.splitext(basename)[1].lower()
+            name_no_ext = os.path.splitext(basename)[0]
             
             # 1) Video
-            if name_without_ext == clean_filename and suffix in FileUtils.VIDEO_EXT and not result.video_path:
-                result.video_path = str(file_path)
+            if name_no_ext == clean_filename and ext in FileUtils.VIDEO_EXT and not result.video_path:
+                result.video_path = filepath
                 continue
             
-            # 2) Audio or subtitle
-            if file_path.name.startswith(clean_filename):
-                if suffix in FileUtils.SUBTITLE_EXT:
-                    name_parts = file_path.name.replace(clean_filename, '').lstrip('.').split('.')
-                    lang = name_parts[0] if name_parts and name_parts[0] else "unknown"
-                    
-                    result.subtitle_tracks.append(MediaTrack(
-                        path=str(file_path),
-                        language=lang,
-                        format=suffix[1:]
-                    ))
-                
-                # 3) Audio
-                elif suffix in FileUtils.AUDIO_EXT and name_without_ext != clean_filename:
-                    name_parts = file_path.name.replace(clean_filename, '').lstrip('.').split('.')
-                    
-                    if name_parts and len(name_parts) >= 2:
-                        lang = name_parts[0]
-                    else:
-                        lang = audio_lang if audio_lang else "unknown"
-                    
-                    result.audio_tracks.append(MediaTrack(
-                        path=str(file_path),
-                        language=lang,
-                        format=suffix[1:]
-                    ))
+            # 2)Subtitle
+            if ext in FileUtils.SUBTITLE_EXT:
+                parts = basename.replace(clean_filename, '').lstrip('.').split('.')
+                lang = parts[0] if parts else "unknown"
+                result.subtitle_tracks.append(MediaTrack(path=filepath, language=lang, format=ext[1:]))
+            
+            # 3) Audio
+            elif ext in FileUtils.AUDIO_EXT and name_no_ext != clean_filename:
+                parts = basename.replace(clean_filename, '').lstrip('.').split('.')
+                lang = parts[0] if parts and len(parts) >= 2 else (audio_lang or "unknown")
+                result.audio_tracks.append(MediaTrack(path=filepath, language=lang, format=ext[1:]))
         
         return result
 
@@ -72,7 +61,6 @@ class FormatUtils:
             size_str = size_str.strip().replace(" ", "")
             if not size_str or size_str == "-":
                 return "0.00 MB"
-            
             if "GB" in size_str:
                 value = float(size_str.replace("GB", ""))
                 return f"{value:.2f} GB"
@@ -92,6 +80,7 @@ class FormatUtils:
                 if value > 900:
                     return f"{value / 1024:.2f} GB"
                 return f"{value:.2f} MB"
+            
         except Exception:
             return "0.00 MB"
     
@@ -101,7 +90,6 @@ class FormatUtils:
             speed_str = speed_str.strip().replace(" ", "").replace("ps", "")
             if not speed_str or speed_str == "-":
                 return "0.00 MB/s"
-            
             if "GB" in speed_str:
                 value = float(speed_str.replace("GB", ""))
                 return f"{value * 1024:.2f} MB/s"
@@ -114,6 +102,7 @@ class FormatUtils:
             else:
                 value = float(speed_str)
                 return f"{value:.2f} MB/s"
+            
         except Exception:
             return "0.00 MB/s"
     
@@ -159,7 +148,6 @@ class CustomBarColumn(ProgressColumn):
         if bar_width > 0:
             text.append(self.complete_char * bar_width, style=self.complete_style)
         if bar_width < self.bar_width:
-            text.append(self.incomplete_char * (self.bar_width - bar_width), 
-                       style=self.incomplete_style)
+            text.append(self.incomplete_char * (self.bar_width - bar_width), style=self.incomplete_style)
         
         return text

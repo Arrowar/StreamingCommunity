@@ -69,15 +69,5 @@ def download_film(select_title: MediaItem) -> str:
         mpd_sub_list=mpd_list_sub,
         output_path=os.path.join(mp4_path, mp4_name),
     )
-    dash_process.start()
-
-    # Get final output path and status
-    status = dash_process.get_status()
-
-    if status['error'] is not None and status['path']:
-        try: 
-            os.remove(status['path'])
-        except Exception: 
-            pass
-        
-    return status['path'], status['stopped']
+    out_path, need_stop = dash_process.start()
+    return out_path, need_stop

@@ -187,22 +187,7 @@ class StreamParser:
     
     @staticmethod
     def parse_progress(line: str) -> Optional[DownloadProgress]:
-        clean_line = re.sub(r'\x1b\[[0-9;]*m', '', line).strip()
-        match = StreamParser.PROGRESS.search(clean_line)
-        if not match:
-            return None
-        
-        try:
-            stream_type = match.group(1)
-            description = match.group(2).strip()
-            current = int(match.group(3))
-            total = int(match.group(4))
-            percent = float(match.group(5))
-            downloaded_size = match.group(6) or "-"
-            total_size = match.group(7) or "-"
-            speed = match.group(8) or "-"
-            time_remaining = match.group(9) or "--:--:--"
-            
+        if match := StreamParser.PROGRESS.search(line):
             return DownloadProgress(
                 stream_type=stream_type,
                 description=description,
@@ -214,5 +199,4 @@ class StreamParser:
                 speed=speed,
                 time=time_remaining
             )
-        except (ValueError, IndexError):
-            return None
+        return None

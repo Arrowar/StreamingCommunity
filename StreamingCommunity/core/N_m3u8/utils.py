@@ -24,7 +24,7 @@ class FileUtils:
         
         try:
             files = os.listdir(output_dir)
-        except:
+        except Exception:
             return result
         
         # Order and filter files

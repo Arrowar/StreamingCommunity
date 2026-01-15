@@ -13,7 +13,7 @@ from rich.prompt import Prompt
 from StreamingCommunity.utils import os_manager, start_message
 from StreamingCommunity.services._base import site_constants, MediaItem
 from StreamingCommunity.services._base.episode_manager import manage_selection, dynamic_format_number
-from StreamingCommunity.core.downloader import MP4_Downloader
+from StreamingCommunity.core.downloader import MP4_Downloader, HLS_Downloader
 
 
 # Logis
@@ -24,7 +24,8 @@ from StreamingCommunity.player.vixcloud import VideoSourceAnime
 # Variable
 console = Console()
 msg = Prompt()
-KILL_HANDLER = bool(False)
+KILL_HANDLER = False
+DOWNOAD_HLS = False
 
 
 def download_episode(index_select: int, scrape_serie: ScrapeSerieAnime, video_source: VideoSourceAnime) -> Tuple[str,bool]:
@@ -45,7 +46,7 @@ def download_episode(index_select: int, scrape_serie: ScrapeSerieAnime, video_so
     console.print(f"\n[yellow]Download: [red]{site_constants.SITE_NAME} → [cyan]{scrape_serie.series_name} ([cyan]E{obj_episode.number}) \n")
 
     # Collect mp4 url
-    video_source.get_embed(obj_episode.id)
+    video_source.get_embed(obj_episode.id, not DOWNOAD_HLS)
 
     # Create output path
     mp4_name = f"{scrape_serie.series_name}_EP_{dynamic_format_number(str(obj_episode.number))}.mp4"
@@ -59,12 +60,19 @@ def download_episode(index_select: int, scrape_serie: ScrapeSerieAnime, video_so
     os_manager.create_path(mp4_path)
 
     # Start downloading
-    path, kill_handler = MP4_Downloader(
-        url=str(video_source.src_mp4).strip(),
-        path=os.path.join(mp4_path, mp4_name)
-    )
-
-    return path, kill_handler
+    if not DOWNOAD_HLS:
+        path, kill_handler = MP4_Downloader(
+            url=str(video_source.src_mp4).strip(),
+            path=os.path.join(mp4_path, mp4_name)
+        )
+        return path, kill_handler
+    
+    else:
+        path, kill_handler = HLS_Downloader(
+            m3u8_url=video_source.master_playlist,
+            output_path=os.path.join(mp4_path, mp4_name)
+        ).start()
+        return path, kill_handler
 
 
 def download_series(select_title: MediaItem, season_selection: str = None, episode_selection: str = None):

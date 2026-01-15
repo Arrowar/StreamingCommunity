@@ -340,9 +340,11 @@ class VideoSourceAnime(VideoSource):
         self.headers = {'user-agent': get_userAgent()}
         self.url = url
         self.src_mp4 = None
+        self.master_playlist = None
         self.iframe_src = None
+        self.tmdb_id = None
 
-    def get_embed(self, episode_id: int):
+    def get_embed(self, episode_id: int, prefer_mp4: bool = True) -> str:
         """
         Retrieve embed URL and extract video source.
         
@@ -368,6 +370,10 @@ class VideoSourceAnime(VideoSource):
             soup = BeautifulSoup(video_response.text, "html.parser")
             script = soup.find("body").find("script").text
             self.src_mp4 = soup.find("body").find_all("script")[1].text.split(" = ")[1].replace("'", "")
+
+            if not prefer_mp4:
+                self.get_content()
+                self.master_playlist = self.get_playlist()
 
             return script
         

@@ -234,9 +234,7 @@ class MPDParser:
             selected_pssh = pssh_data.get(selected_drm_type)
         
         if available_drm_types:
-            console.print(f"\n[cyan]Detected DRM types[white]: [[red]{', '.join(available_drm_types)}[white]]")
-            if selected_drm_type:
-                console.print(f"[cyan]Selected DRM[white]: [red]{selected_drm_type}")
+            console.print(f"\n[cyan]Detected DRM types [[red]{', '.join(available_drm_types)}[white]]")
         
         return {
             'available_drm_types': available_drm_types,

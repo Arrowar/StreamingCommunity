@@ -96,112 +96,148 @@ Key configuration parameters in `config.json`:
 {
     "OUT_FOLDER": {
         "root_path": "Video",
-        "map_episode_name": "E%(episode)_%(episode_name)",
+        "movie_folder_name": "Movie",
+        "serie_folder_name": "Serie",
+        "anime_folder_name": "Anime",
+        "map_episode_name": "%(episode_name) S%(season)E%(episode)",
         "add_siteName": false
     }
 }
 ```
 
-- **`root_path`**: Where videos are saved
+- **`root_path`**: Base directory where videos are saved
   - Windows: `C:\\MyLibrary\\Folder` or `\\\\MyServer\\Share`
   - Linux/MacOS: `Desktop/MyLibrary/Folder`
 
+- **`movie_folder_name`**: Subfolder name for movies (default: `"Movie"`)
+- **`serie_folder_name`**: Subfolder name for TV series (default: `"Serie"`)
+- **`anime_folder_name`**: Subfolder name for anime (default: `"Anime"`)
+
 - **`map_episode_name`**: Episode filename template
   - `%(tv_name)`: TV Show name
-  - `%(season)`: Season number
-  - `%(episode)`: Episode number
+  - `%(season)`: Season number (zero-padded)
+  - `%(episode)`: Episode number (zero-padded)
   - `%(episode_name)`: Episode title
+  - Example: `"%(episode_name) S%(season)E%(episode)"` → `"Pilot S01E01"`
 
 - **`add_siteName`**: Append site name to root path (default: `false`)
 
-### Language Selection
+### M3U8 Download Settings
 ```json
 {
     "M3U8_DOWNLOAD": {
-        "specific_list_audio": ["ita", "it-IT"],
-        "specific_list_subtitles": ["ita", "it-IT"],
-        "merge_subs": true
-    }
-}
-```
-
-- **`specific_list_audio`**: Audio languages to download (e.g., `["ita", "eng"]`)
-- **`specific_list_subtitles`**: Subtitle languages (use `["*"]` for all available)
-- **`merge_subs`**: Merge subtitles into video file (default: `true`)
-
-### Performance
-```json
-{
-    "M3U8_DOWNLOAD": {
+        "thread_count": 12,
+        "retry_count": 40,
         "concurrent_download": true,
         "max_speed": "30MB",
-        "check_segments_count": false,
+        "check_segments_count": true,
+        "select_video": "res=.*1080.*:for=best",
+        "select_audio": "lang='ita|Ita':for=all",
+        "select_subtitle": "lang='ita|eng|Ita|Eng':for=all",
         "cleanup_tmp_folder": true
     }
 }
 ```
 
-- **`concurrent_download`**: Download video and audio simultaneously
+#### Performance Settings
+- **`thread_count`**: Number of parallel download threads (default: `12`)
+- **`retry_count`**: Maximum retry attempts for failed segments (default: `40`)
+- **`concurrent_download`**: Download video and audio simultaneously (default: `true`)
 - **`max_speed`**: Speed limit per stream (e.g., `"30MB"`, `"10MB"`)
-- **`check_segments_count`**: Verify segment count matches manifest
-- **`cleanup_tmp_folder`**: Remove temporary files after download
+- **`check_segments_count`**: Verify segment count matches manifest (default: `true`)
+- **`cleanup_tmp_folder`**: Remove temporary files after download (default: `true`)
 
-### Video Encoding
+#### Stream Selection
+
+**- `select_video`**
+```
+OPTIONS: id=REGEX:lang=REGEX:name=REGEX:codecs=REGEX:res=REGEX:frame=REGEX:
+         segsMin=number:segsMax=number:ch=REGEX:range=REGEX:url=REGEX:
+         plistDurMin=hms:plistDurMax=hms:bwMin=int:bwMax=int:role=string:for=FOR
+
+    for=FOR: Selection type - best (default), best[number], worst[number], all
+```
+```json
+"select_video": "for=best"                                // Select best video
+"select_video": "res=3840*:codecs=hvc1:for=best"          // Select 4K HEVC video
+"select_video": "res=.*1080.*:for=best"                   // Select 1080p video
+"select_video": "plistDurMin=1h20m30s:for=best"           // Duration > 1h 20m 30s
+"select_video": "role=main:for=best"                      // Main video role
+"select_video": "bwMin=800:bwMax=1000:for=best"           // Bandwidth 800-1000 Kbps
+```
+
+**- `select_audio`** 
+```json
+"select_audio": "for=all"                                 // Select all audio tracks
+"select_audio": "lang=en:for=best"                        // Select best English audio
+"select_audio": "lang='ja|en':for=best2"                  // Best 2 tracks (Japanese or English)
+"select_audio": "lang='ita|Ita':for=all"                  // All Italian audio tracks
+"select_audio": "role=main:for=best"                      // Main audio role
+```
+
+**- `select_subtitle`** 
+```json
+"select_subtitle": "for=all"                              // Select all subtitles
+"select_subtitle": "name=English:for=all"                 // All subtitles containing "English"
+"select_subtitle": "lang='ita|eng|Ita|Eng':for=all"       // Italian and English subtitles
+"select_subtitle": "lang=en:for=best"                     // Best English subtitle
+```
+
+### M3U8 Conversion Settings
 ```json
 {
     "M3U8_CONVERSION": {
-        "force_resolution": "Best",
-        "extension": "mkv",
         "use_gpu": false,
-        "subtitle_disposition": false,
-        "subtitle_disposition_language": "ita"
+        "param_video": ["-c:v", "libx265", "-crf", "28", "-preset", "medium"],
+        "param_audio": ["-c:a", "libopus", "-b:a", "128k"],
+        "subtitle_disposition": true,
+        "subtitle_disposition_language": ["forced-ita", "ita-forced"],
+        "param_final": ["-c", "copy"],
+        "extension": "mkv"
     }
 }
 ```
 
-- **`force_resolution`**: `"Best"`, `"1080p"`, `"720p"`, etc.
-- **`extension`**: Output format (`"mkv"`, `"mp4"`)
-- **`use_gpu`**: Enable hardware acceleration
-- **`subtitle_disposition`**: Automatically set default subtitle track
-- **`subtitle_disposition_language`**: Language to set as default (e.g., `"ita"`, `"eng"`)
+- **`use_gpu`**: Enable hardware acceleration (default: `false`)
+- **`param_video`**: FFmpeg video encoding parameters
+  - Example: `["-c:v", "libx265", "-crf", "28", "-preset", "medium"]` (H.265/HEVC encoding)
+- **`param_audio`**: FFmpeg audio encoding parameters
+  - Example: `["-c:a", "libopus", "-b:a", "128k"]` (Opus audio at 128kbps)
+- **`subtitle_disposition`**: Automatically set default subtitle track (default: `true`)
+- **`subtitle_disposition_language`**: Languages to mark as default/forced
+  - Example: `["forced-ita", "ita-forced"]` for Italian forced subtitles
+- **`param_final`**: Final FFmpeg parameters (default: `["-c", "copy"]` for stream copy)
+- **`extension`**: Output file format (`"mkv"` or `"mp4"`)
+
+### Request Settings
+```json
+{
+    "REQUESTS": {
+        "verify": false,
+        "timeout": 30,
+        "max_retry": 10
+    }
+}
+```
+
+- **`verify`**: Enable SSL certificate verification (default: `false`)
+- **`timeout`**: Request timeout in seconds (default: `30`)
+- **`max_retry`**: Maximum retry attempts for failed requests (default: `10`)
 
 ### Domain Management
 ```json
 {
     "DEFAULT": {
+        "show_message": false,
+        "show_device_info": false,
         "fetch_domain_online": true
     }
 }
 ```
 
-#### Online Domain Fetching (Recommended)
-When `fetch_domain_online` is set to `true`:
-  - Automatically downloads the latest domains from the GitHub repository
-  - Saves domains to a local `domains.json` file
-  - Ensures you always have up-to-date streaming site domains
-  - Falls back to local `domains.json` if online fetch fails
-
-#### Local Domain Configuration
-When `fetch_domain_online` is set to `false`:
-  - Uses only the local `domains.json` file in the root directory
-  - Allows manual domain management
-  - Example `domains.json` structure:
-
-```json
-{
-   "altadefinizione": {
-       "domain": "si",
-       "full_url": "https://altadefinizione.si/"
-   },
-   "streamingcommunity": {
-       "domain": "best",
-       "full_url": "https://streamingcommunity.best/"
-   }
-}
-```
-
-#### Adding New Sites
-To request a new site, contact us on the Discord server!
+- **`show_message`**: Display debug messages (default: `false`)
+- **`show_device_info`**: Display device information (default: `false`)
+- **`fetch_domain_online`**: Automatically fetch latest domains from GitHub (default: `true`)
 
 ---
 
@@ -224,9 +260,6 @@ python test_run.py --site 0 --search "interstellar"
 
 ### Advanced Options
 ```bash
-# Specify languages
-python test_run.py --specific_list_audio ita,eng --specific_list_subtitles eng,spa
-
 # Keep console open
 python test_run.py --not_close true
 ```

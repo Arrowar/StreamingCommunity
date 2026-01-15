@@ -78,7 +78,7 @@ def capture_output(process: subprocess.Popen, description: str, progress_data: P
                         speed = data.get('speed', 'N/A')
 
                         # Format elapsed time as HH:MM:SS
-                        elapsed_formatted = format_time(elapsed_time)
+                        elapsed_formatted = internet_manager.format_time(elapsed_time, add_hours=True)
 
                         # Store progress data as JSON
                         json_data = {'fps': fps,'speed': speed, 'time': time_processed,'bitrate': bitrate}
@@ -113,19 +113,6 @@ def capture_output(process: subprocess.Popen, description: str, progress_data: P
             terminate_process(process)
         except Exception as e:
             logging.error(f"Error terminating process: {e}")
-
-
-def format_time(seconds: float) -> str:
-    """
-    Format seconds into HH:MM:SS format.
-
-    Parameters:
-        - seconds (float): Time in seconds.
-    """
-    hours = int(seconds // 3600)
-    minutes = int((seconds % 3600) // 60)
-    secs = int(seconds % 60)
-    return f"{hours:02d}:{minutes:02d}:{secs:02d}"
 
 
 def parse_output_line(line: str) -> dict:

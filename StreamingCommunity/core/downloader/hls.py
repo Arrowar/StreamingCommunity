@@ -1,6 +1,7 @@
 # 17.10.24
 
 import os
+import glob
 import shutil
 import logging
 from typing import Any, Dict, Optional
@@ -17,28 +18,22 @@ from StreamingCommunity.utils import config_manager, os_manager, internet_manage
 
 
 # Logic
-from ..N_m3u8 import MediaDownloader, DownloadStatus
+from StreamingCommunity.source.N_m3u8 import MediaDownloader
 
 
 # Config
 console = Console()
-DOWNLOAD_SPECIFIC_AUDIO = config_manager.config.get_list('M3U8_DOWNLOAD', 'specific_list_audio')
-DOWNLOAD_SPECIFIC_SUBTITLE = config_manager.config.get_list('M3U8_DOWNLOAD', 'specific_list_subtitles')
-MERGE_SUBTITLE = config_manager.config.get_bool('M3U8_DOWNLOAD', 'merge_subs')
 CLEANUP_TMP = config_manager.config.get_bool('M3U8_DOWNLOAD', 'cleanup_tmp_folder')
 EXTENSION_OUTPUT = config_manager.config.get("M3U8_CONVERSION", "extension")
 
 
 class HLS_Downloader:
-    def __init__(self, m3u8_url: str, license_url: Optional[str] = None, output_path: Optional[str] = None, headers: Optional[Dict[str, str]] = None, use_raw_forDownload: bool = False):
+    def __init__(self, m3u8_url: str, license_url: Optional[str] = None, output_path: Optional[str] = None, headers: Optional[Dict[str, str]] = None):
         """
-        Initialize HLS Downloader.
-        
         Args:
             m3u8_url: Source M3U8 playlist URL
             license_url: License URL for DRM content (unused with MediaDownloader)
             output_path: Full path including filename and extension (e.g., /path/to/video.mp4)
-            use_raw_forDownload: Whether to use raw m3u8 for downloading process
             headers: Custom headers for requests
         """
         self.m3u8_url = str(m3u8_url).strip()
@@ -73,12 +68,7 @@ class HLS_Downloader:
             filename=self.filename_base,
             headers=self.custom_headers
         )
-        self.media_downloader.configure(
-            select_audio_lang=DOWNLOAD_SPECIFIC_AUDIO,
-            select_subtitle_lang=DOWNLOAD_SPECIFIC_SUBTITLE,
-            enable_logging=True,
-            use_raw_forDownload=use_raw_forDownload
-        )
+        self.media_downloader.parser_stream()
 
     def start(self) -> Dict[str, Any]:
         """Main execution flow for downloading HLS content"""
@@ -88,26 +78,11 @@ class HLS_Downloader:
         
         # Create output directory
         os_manager.create_path(self.output_dir)
-        
-        console.print("[green]Call [purple]get_streams_json() [cyan]...")
-        stream_info = self.media_downloader.get_available_streams()
-        
-        if stream_info:
-            console.print(f"[cyan]Manifest [yellow]{stream_info.manifest_type} [green]Video streams[white]: [red]{len(stream_info.video_streams)}[white], [green]Audio streams[white]: [red]{len(stream_info.audio_streams)}[white], [green]Subtitle streams[white]: [red]{len(stream_info.subtitle_streams)}")
-            self.media_downloader.show_table()
-        
-        console.print("\n[green]Call [purple]start_download() [cyan]...")
-        for update in self.media_downloader.start_download(show_progress=True):
-            pass  # Progress is shown automatically
+        status = self.media_downloader.start_download()
 
         # Get final status
         status = self.media_downloader.get_status()
-        console.print(f"[green]Found [cyan]n.[red]{1 if status.video_path else 0} [green]video, [cyan]n.[red]{len(status.audios_paths)} [green]audios, [cyan]n.[red]{len(status.subtitle_paths)} [green]subtitles after download.")
-        
-        if status.status != DownloadStatus.COMPLETED or not status.video_path:
-            logging.error(f"Download failed: {status.error_message}")
-            return None, True
-        
+
         # Merge files using FFmpeg
         final_file = self._merge_files(status)
         
@@ -133,7 +108,7 @@ class HLS_Downloader:
 
     def _merge_files(self, status) -> Optional[str]:
         """Merge downloaded files using FFmpeg"""
-        video_path = status.video_path
+        video_path = status['video'].get('path')
         
         if not os.path.exists(video_path):
             console.print(f"[red]Video file not found: {video_path}")
@@ -141,7 +116,7 @@ class HLS_Downloader:
             return None
         
         # If no additional tracks, mux video using join_video
-        if not status.audios_paths and not status.subtitle_paths:
+        if not status['audios'] and not status['subtitles']:
             console.print("[cyan]\nNo additional tracks to merge, muxing video...")
             merged_file, result_json = join_video(
                 video_path=video_path,
@@ -157,62 +132,44 @@ class HLS_Downloader:
         current_file = video_path
         
         # Merge audio tracks if present
-        if status.audios_paths:
-            audio_tracks = []
-            for audio in status.audios_paths:
-                if os.path.exists(audio['path']):
-                    audio_tracks.append({
-                        'path': audio['path'],
-                        'name': audio['language']
-                    })
+        if status['audios']:
+            console.print(f"[cyan]\nMerging [red]{len(status['audios'])} [cyan]audio track(s)...")
+            audio_output = os.path.join(self.output_dir, f"{self.filename_base}_with_audio.{EXTENSION_OUTPUT}")
             
-            if audio_tracks:
-                console.print(f"[cyan]\nMerging [red]{len(audio_tracks)} [cyan]audio track(s)...")
-                audio_output = os.path.join(self.output_dir, f"{self.filename_base}_with_audio.{EXTENSION_OUTPUT}")
-                
-                merged_file, use_shortest, result_json = join_audios(
-                    video_path=current_file,
-                    audio_tracks=audio_tracks,
-                    out_path=audio_output
-                )
-                self.last_merge_result = result_json
-                
-                if os.path.exists(merged_file):
-                    current_file = merged_file
-                else:
-                    console.print("[yellow]Audio merge failed, continuing with video only")
+            merged_file, use_shortest, result_json = join_audios(
+                video_path=current_file,
+                audio_tracks=status['audios'],
+                out_path=audio_output
+            )
+            self.last_merge_result = result_json
+            
+            if os.path.exists(merged_file):
+                current_file = merged_file
+            else:
+                console.print("[yellow]Audio merge failed, continuing with video only")
         
         # Merge subtitles if enabled and present
-        if MERGE_SUBTITLE and status.subtitle_paths:
-            sub_tracks = []
-            for sub in status.subtitle_paths:
-                if os.path.exists(sub['path']):
-                    sub_tracks.append({
-                        'path': sub['path'],
-                        'language': sub['language']
-                    })
+        if status['subtitles']:
+            console.print(f"[cyan]\nMerging [red]{len(status['subtitles'])} [cyan]subtitle track(s)...")
+            sub_output = os.path.join(self.output_dir, f"{self.filename_base}_final.{EXTENSION_OUTPUT}")
             
-            if sub_tracks:
-                console.print(f"[cyan]\nMerging [red]{len(sub_tracks)} [cyan]subtitle(s)...")
-                sub_output = os.path.join(self.output_dir, f"{self.filename_base}_final.{EXTENSION_OUTPUT}")
-                
-                merged_file, result_json = join_subtitles(
-                    video_path=current_file,
-                    subtitles_list=sub_tracks,
-                    out_path=sub_output
-                )
-                self.last_merge_result = result_json
-                
-                if os.path.exists(merged_file):
-                    if current_file != video_path and os.path.exists(current_file):
-                        try:
-                            os.remove(current_file)
-                        except Exception:
-                            pass
-                    current_file = merged_file
-                else:
-                    console.print("[yellow]Subtitle merge failed, continuing without subtitles")
-        
+            merged_file, result_json = join_subtitles(
+                video_path=current_file,
+                subtitles_list=status['subtitles'],
+                out_path=sub_output
+            )
+            self.last_merge_result = result_json
+            
+            if os.path.exists(merged_file):
+                if current_file != video_path and os.path.exists(current_file):
+                    try:
+                        os.remove(current_file)
+                    except Exception:
+                        pass
+                current_file = merged_file
+            else:
+                console.print("[yellow]Subtitle merge failed, continuing without subtitles")
+    
         return current_file
 
     def _cleanup_temp_files(self, status):
@@ -220,16 +177,20 @@ class HLS_Downloader:
         files_to_remove = []
         
         # Add original downloaded files
-        if status.video_path and os.path.abspath(status.video_path) != os.path.abspath(self.output_path):
-            files_to_remove.append(status.video_path)
+        if status['video'] and os.path.abspath(status['video'].get('path')) != os.path.abspath(self.output_path):
+            files_to_remove.append(status['video'].get('path'))
         
-        for audio in status.audios_paths:
-            if os.path.abspath(audio['path']) != os.path.abspath(self.output_path):
-                files_to_remove.append(audio['path'])
+        for audio in status['audios']:
+            if os.path.abspath(audio.get('path')) != os.path.abspath(self.output_path):
+                files_to_remove.append(audio.get('path'))
         
-        for sub in status.subtitle_paths:
-            if os.path.abspath(sub['path']) != os.path.abspath(self.output_path):
-                files_to_remove.append(sub['path'])
+        for sub in status['subtitles']:
+            if os.path.abspath(sub.get('path')) != os.path.abspath(self.output_path):
+                files_to_remove.append(sub.get('path'))
+
+        for ext_sub in status['external_subtitles']:
+            if os.path.abspath(ext_sub.get('path')) != os.path.abspath(self.output_path):
+                files_to_remove.append(ext_sub.get('path'))
         
         # Remove intermediate merge files
         intermediate_patterns = [
@@ -250,9 +211,9 @@ class HLS_Downloader:
             except Exception as e:
                 logging.warning(f"Could not remove temp file {file_path}: {e}")
 
-        # Temp log
-        os.remove(os.path.join(self.output_dir, "log.txt"))
-        shutil.rmtree(os.path.join(self.output_dir, "temp_analysis"))
+        for log_file in glob.glob(os.path.join(self.output_dir, "*.log")):
+            os.remove(log_file)
+        shutil.rmtree(os.path.join(self.output_dir, "analysis_temp"), ignore_errors=True)
 
     def _print_summary(self):
         """Print download summary"""

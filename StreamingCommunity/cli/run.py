@@ -292,20 +292,6 @@ def setup_argument_parser(search_functions):
     parser.add_argument('-s', '--search', default=None, help='Search terms')
     parser.add_argument('--global', action='store_true', help='Global search across sites')
     parser.add_argument('--not_close', type=bool, help='Keep console open after execution')
-    
-    parser.add_argument('--specific_list_audio', type=str, help='Audio languages (e.g., ita,eng)')
-    parser.add_argument('--specific_list_subtitles', type=str, help='Subtitle languages (e.g., eng,spa)')
-    parser.add_argument('--force_resolution', type=str, choices=["Best", "Worst", "720p", "1080p", "480p", "360p"],
-                    help='Choose video resolution:\n'
-                            '  "Best": Highest available resolution\n'
-                            '  "Worst": Lowest available resolution\n'
-                            '  "720p": Force 720p resolution\n'
-                            '  Specific resolutions:\n'
-                            '    - 1080p (1920x1080)\n'
-                            '    - 720p (1280x720)\n'
-                            '    - 480p (640x480)\n'
-                            '    - 360p (640x360)')
-
     parser.add_argument('--category', type=int, help='Category (1: anime, 2: film_&_serie, 3: serie, 4: torrent)')
     parser.add_argument('--auto-first', action='store_true', help='Auto-download first result (use with --site and --search)')
     parser.add_argument('--site', type=str, help='Site by name or index')
@@ -318,19 +304,12 @@ def apply_config_updates(args):
     config_updates = {}
     
     arg_mappings = {
-        'not_close': 'DEFAULT.not_close', 
-        'force_resolution': 'M3U8_CONVERSION.force_resolution',
+        'not_close': 'DEFAULT.not_close'
     }
     
     for arg_name, config_key in arg_mappings.items():
         if getattr(args, arg_name) is not None:
             config_updates[config_key] = getattr(args, arg_name)
-    
-    # Handle list arguments
-    if args.specific_list_audio is not None:
-        config_updates['M3U8_DOWNLOAD.specific_list_audio'] = args.specific_list_audio.split(',')
-    if args.specific_list_subtitles is not None:
-        config_updates['M3U8_DOWNLOAD.specific_list_subtitles'] = args.specific_list_subtitles.split(',')
     
     # Apply updates
     for key, value in config_updates.items():

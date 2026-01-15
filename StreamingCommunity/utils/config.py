@@ -262,14 +262,15 @@ class ConfigManager:
             ('M3U8_DOWNLOAD', 'retry_count', int),
             ('M3U8_DOWNLOAD', 'concurrent_download', bool),
             ('M3U8_DOWNLOAD', 'cleanup_tmp_folder', bool),
-            ('M3U8_DOWNLOAD', 'merge_subs', bool),
             ('M3U8_CONVERSION', 'use_gpu', bool),
             ('M3U8_CONVERSION', 'param_video', str),
             ('M3U8_CONVERSION', 'param_audio', str),
             ('M3U8_CONVERSION', 'param_final', str),
             ('REQUESTS', 'verify', bool),
             ('REQUESTS', 'timeout', int),
-            ('REQUESTS', 'max_retry', int)
+            ('REQUESTS', 'max_retry', int),
+            ('REQUESTS', 'use_proxy', bool),
+            ('REQUESTS', 'proxy', dict)
         ]
         
         cached_count = 0
@@ -379,7 +380,6 @@ class ConfigManager:
         """Load site data from local domains.json file."""
         try:
             if os.path.exists(self.domains_path):
-                console.print(f"[cyan]Domain path: [green]{self.domains_path}")
                 with open(self.domains_path, 'r', encoding='utf-8') as f:
                     self._domains_data.clear()
                     self._domains_data.update(json.load(f))

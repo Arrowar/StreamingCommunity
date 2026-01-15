@@ -197,6 +197,20 @@ class InternetManager():
             return f"{bytes / 1024:.2f} KB/s"
         else:
             return f"{bytes / (1024 * 1024):.2f} MB/s"
+        
+    def format_time(self, seconds: float, add_hours: bool = False) -> str:
+        """Format seconds to MM:SS or HH:MM:SS"""
+        if seconds < 0 or seconds == float('inf'):
+            return "00:00"
+        
+        minutes = int(seconds // 60)
+        secs = int(seconds % 60)
+        if add_hours:
+            hours = int(minutes // 60)
+            minutes = int(minutes % 60)
+            return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+        else:
+            return f"{minutes:02d}:{secs:02d}"
 
 
 # Initialize 

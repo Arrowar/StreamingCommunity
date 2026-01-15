@@ -13,18 +13,14 @@
         "add_siteName": false
     },
     "M3U8_DOWNLOAD": {
-        "thread_count": 8,
-        "retry_count": 10,
-        "concurrent_download": false,
+        "thread_count": 10,
+        "retry_count": 40,
+        "concurrent_download": true,
         "max_speed": "30MB",
         "check_segments_count": true,
-        "specific_list_audio": [
-            "ita"
-        ],
-        "merge_subs": true,
-        "specific_list_subtitles": [
-            "ita"
-        ],
+        "select_video": "res=.*1080.*:for=best",
+        "select_audio": "lang='ita|Ita':for=all",
+        "select_subtitle": "lang='ita|eng|Ita|Eng':for=all",
         "cleanup_tmp_folder": true
     },
     "M3U8_CONVERSION": {
@@ -32,15 +28,16 @@
         "param_video": ["-c:v", "libx265", "-crf", "28", "-preset", "medium"],
         "param_audio": ["-c:a", "libopus", "-b:a", "128k"],
         "subtitle_disposition": false,
-        "subtitle_disposition_language": "ita - Italian - Forced",
+        "subtitle_disposition_language": ["forced-ita", "ita-forced"],
         "param_final": ["-c", "copy"],
-        "force_resolution": "Best",
         "extension": "mkv"
     },
     "REQUESTS": {
         "verify": false,
         "timeout": 30,
-        "max_retry": 10
+        "max_retry": 10,
+        "use_proxy": false,
+        "proxy": {"http": "http://localhost:8888", "https": "http://localhost:8888"}
     },
     "HOOKS": {
         "pre_run": [],

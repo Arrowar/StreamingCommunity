@@ -47,7 +47,7 @@ def get_execution_mode():
     except importlib.metadata.PackageNotFoundError:
         pass
 
-    return "python"
+    return "source_code"
 
 
 def update():

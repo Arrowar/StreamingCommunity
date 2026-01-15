@@ -17,7 +17,7 @@ from rich.progress import Progress, TextColumn
 # Internal utilities
 from StreamingCommunity.utils.http_client import create_client, get_userAgent
 from StreamingCommunity.utils import config_manager, os_manager, internet_manager
-from ..N_m3u8 import CustomBarColumn, FormatUtils
+from StreamingCommunity.source.N_m3u8 import CustomBarColumn
 
 
 # Config
@@ -117,7 +117,7 @@ def MP4_Downloader(url: str, path: str, referer: str = None, headers_: dict = No
             # Create progress bar with Rich
             progress_bars = Progress(
                 TextColumn("[bold yellow]MP4[/bold yellow] [bold cyan]Downloading[/bold cyan]: "),
-                CustomBarColumn(bar_width=40),
+                CustomBarColumn(),
                 TextColumn("[bright_green]{task.fields[downloaded]}[/bright_green] [bright_magenta]{task.fields[downloaded_unit]}[/bright_magenta][dim]/[/dim][bright_cyan]{task.fields[total_size]}[/bright_cyan] [bright_magenta]{task.fields[total_unit]}[/bright_magenta]"),
                 TextColumn("[dim]\\[[/dim][bright_yellow]{task.fields[elapsed]}[/bright_yellow][dim] < [/dim][bright_cyan]{task.fields[eta]}[/bright_cyan][dim]][/dim]"),
                 TextColumn("[bright_magenta]@[/bright_magenta]"),
@@ -156,7 +156,7 @@ def MP4_Downloader(url: str, path: str, referer: str = None, headers_: dict = No
                                 
                                 # Calculate stats
                                 elapsed = time.time() - start_time
-                                elapsed_str = FormatUtils.format_time(elapsed)
+                                elapsed_str = internet_manager.format_time(elapsed)
                                 
                                 # Calculate speed and ETA
                                 if elapsed > 0:
@@ -165,7 +165,7 @@ def MP4_Downloader(url: str, path: str, referer: str = None, headers_: dict = No
                                     
                                     remaining_bytes = total - downloaded
                                     eta_seconds = remaining_bytes / speed if speed > 0 else 0
-                                    eta_str = FormatUtils.format_time(eta_seconds)
+                                    eta_str = internet_manager.format_time(eta_seconds)
                                 else:
                                     speed_str = "-- B/s"
                                     eta_str = "--"

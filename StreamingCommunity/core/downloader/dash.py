@@ -1,6 +1,7 @@
 # 05.01.26
 
 import os
+import glob
 import shutil
 import logging
 from typing import Optional, Dict, Any
@@ -19,20 +20,17 @@ from StreamingCommunity.setup import get_wvd_path, get_prd_path
 
 # Logic class
 from ..extractors import MPDParser, DRMSystem, get_widevine_keys, get_playready_keys
-from ..N_m3u8 import MediaDownloader, DownloadStatus
+from StreamingCommunity.source.N_m3u8 import MediaDownloader
 
 
 # Config
 console = Console()
-DOWNLOAD_SPECIFIC_SUBTITLE = config_manager.config.get_list('M3U8_DOWNLOAD', 'specific_list_subtitles')
-DOWNLOAD_SPECIFIC_AUDIO = config_manager.config.get_list('M3U8_DOWNLOAD', 'specific_list_audio')
-MERGE_SUBTITLE = config_manager.config.get_bool('M3U8_DOWNLOAD', 'merge_subs')
 CLEANUP_TMP = config_manager.config.get_bool('M3U8_DOWNLOAD', 'cleanup_tmp_folder')
 EXTENSION_OUTPUT = config_manager.config.get("M3U8_CONVERSION", "extension")
 
 
 class DASH_Downloader:
-    def __init__(self, license_url: str, mpd_url: str, mpd_sub_list: list = None, output_path: str = None, drm_preference: str = 'widevine', custom_headers: Dict[str, str] = None, query_params: Dict[str, str] = None, key: str = None, license_headers: Dict[str, str] = None, use_raw_forDownload: bool = False):
+    def __init__(self, license_url: str, license_headers: Dict[str, str] = None, mpd_url: str = None, mpd_headers: Dict[str, str] = None, mpd_sub_list: list = None, output_path: str = None, drm_preference: str = 'widevine', query_params: Dict[str, str] = None, key: str = None, cookies: Dict[str, str] = None):
         """
         Initialize DASH Downloader.
         
@@ -42,23 +40,23 @@ class DASH_Downloader:
             mpd_sub_list: List of subtitle dicts (unused with MediaDownloader)
             output_path: Full path including filename and extension (e.g., /path/to/video.mp4)
             drm_preference: Preferred DRM system ('widevine', 'playready', 'auto')
-            custom_headers: Custom headers for requests
-            query_params: Query parameters for license requests
-            key: Encryption key for license requests
-            use_raw_forDownload: Whether to use raw m3u8 for downloading process
         """
+        self.mpd_url = str(mpd_url).strip() if mpd_url else None
         self.license_url = str(license_url).strip() if license_url else None
-        self.mpd_url = str(mpd_url).strip()
-        self.drm_preference = drm_preference.lower()
-        self.custom_headers = custom_headers
-        if self.custom_headers is None:
-            self.custom_headers = get_headers()
+        self.mpd_headers = mpd_headers
+        self.license_headers = license_headers
         self.query_params = query_params or {}
-        self.key = key
-        self.license_headers = license_headers or {}
         self.mpd_sub_list = mpd_sub_list or []
+        self.drm_preference = drm_preference.lower()
+        self.key = key
+        self.cookies = cookies or {}
+        
+        if self.mpd_headers is None:
+            self.mpd_headers = get_headers()
+        if self.mpd_headers is None:
+            self.mpd_headers = get_headers()
+
         self.raw_mpd_path = None
-        self.use_raw_forDownload = use_raw_forDownload
         
         # Sanitize and validate output path
         self.output_path = os_manager.get_sanitize_path(output_path)
@@ -78,6 +76,7 @@ class DASH_Downloader:
         
         # MediaDownloader instance
         self.media_downloader = None
+        self.meta_json, self.meta_selected, self.raw_mpd = None, None, None
         
         # Status tracking
         self.error = None
@@ -86,29 +85,8 @@ class DASH_Downloader:
     def _fetch_drm_info(self) -> bool:
         """Parse MPD and extract DRM information from raw.mpd file if available, otherwise fetch from URL"""
         try:
-            parser = MPDParser(self.mpd_url, headers=self.custom_headers)
-            raw_mpd_path = None
-            
-            # 1) Try temp_analysis/raw.mpd first
-            temp_analysis_path = os.path.join(self.output_dir, "temp_analysis", "raw.mpd")
-            if os.path.exists(temp_analysis_path):
-                raw_mpd_path = os.path.abspath(temp_analysis_path)
-            
-            # 2) Then check output_dir/raw.mpd
-            else:
-                output_raw_mpd = os.path.join(self.output_dir, "raw.mpd")
-                if os.path.exists(output_raw_mpd):
-                    raw_mpd_path = os.path.abspath(output_raw_mpd)
-            
-            # 3) Parse from file if found, otherwise from URL
-            if raw_mpd_path:
-                if not parser.parse_from_file(raw_mpd_path):
-                    if not parser.parse():
-                        return False
-            else:
-                if not parser.parse():
-                    return False
-            
+            parser = MPDParser(self.mpd_url, headers=self.mpd_headers)
+            parser.parse_from_file(self.raw_mpd)
             self.drm_info = parser.get_drm_info(self.drm_preference)
             return True
             
@@ -179,25 +157,15 @@ class DASH_Downloader:
             url=self.mpd_url,
             output_dir=self.output_dir,
             filename=self.filename_base,
-            headers=self.custom_headers,
-            decryption_keys=None,  # We don't have keys yet
-            external_subtitles=self.mpd_sub_list
+            headers=self.mpd_headers,
+            cookies=self.cookies
         )
-        self.media_downloader.configure(
-            select_audio_lang=DOWNLOAD_SPECIFIC_AUDIO,
-            select_subtitle_lang=DOWNLOAD_SPECIFIC_SUBTITLE,
-            enable_logging=True,
-            use_raw_forDownload=self.use_raw_forDownload
-        )
-        
-        console.print("[green]Call [purple]get_streams_json() [cyan]...")
-        stream_info = self.media_downloader.get_available_streams()
-        
-        if stream_info:
-            console.print(f"[cyan]Manifest [yellow]{stream_info.manifest_type} [green]Video streams[white]: [red]{len(stream_info.video_streams)}[white], [green]Audio streams[white]: [red]{len(stream_info.audio_streams)}[white], [green]Subtitle streams[white]: [red]{len(stream_info.subtitle_streams)}")
-            self.media_downloader.show_table()
+        if self.mpd_sub_list:
+            self.media_downloader.external_subtitles = self.mpd_sub_list
+        self.media_downloader.parser_stream()
         
         # Parse MPD for DRM info (uses raw.mpd if available, falls back to URL)
+        self.meta_json, self.meta_selected, _, self.raw_mpd = self.media_downloader.get_metadata()
         self._fetch_drm_info()
         
         # Fetch decryption keys if DRM protected
@@ -207,20 +175,9 @@ class DASH_Downloader:
                 return None, True
         
         # Set decryption keys on the existing MediaDownloader instance
-        self.media_downloader.set_keys(self.decryption_keys if self.decryption_keys else None)
-        
-        console.print("\n[green]Call [purple]start_download() [cyan]...")
-        for update in self.media_downloader.start_download(show_progress=True):
-            pass  # Progress is shown automatically
-        
-        # Get final status
-        status = self.media_downloader.get_status()
-        console.print(f"[green]Found [cyan]n.[red]{1 if status.video_path else 0} [green]video, [cyan]n.[red]{len(status.audios_paths)} [green]audios, [cyan]n.[red]{len(status.subtitle_paths)} [green]subtitles after download.")
-        
-        if status.status != DownloadStatus.COMPLETED or not status.video_path:
-            logging.error(f"Download failed: {status.error_message}")
-            return None, True
-        
+        self.media_downloader.set_key(self.decryption_keys if self.decryption_keys else None)
+        status = self.media_downloader.start_download()    
+    
         # Merge files using FFmpeg
         final_file = self._merge_files(status)
         
@@ -246,7 +203,7 @@ class DASH_Downloader:
 
     def _merge_files(self, status) -> Optional[str]:
         """Merge downloaded files using FFmpeg"""
-        video_path = status.video_path
+        video_path = status['video'].get('path')
         
         if not os.path.exists(video_path):
             console.print(f"[red]Video file not found: {video_path}")
@@ -254,7 +211,7 @@ class DASH_Downloader:
             return None
         
         # If no additional tracks, mux video using join_video
-        if not status.audios_paths and not status.subtitle_paths:
+        if not status['audios'] and not status['subtitles']:
             console.print("[cyan]\nNo additional tracks to merge, muxing video...")
             merged_file, result_json = join_video(
                 video_path=video_path,
@@ -270,79 +227,65 @@ class DASH_Downloader:
         current_file = video_path
         
         # Merge audio tracks if present
-        if status.audios_paths:
-            audio_tracks = []
-            for audio in status.audios_paths:
-                if os.path.exists(audio['path']):
-                    audio_tracks.append({
-                        'path': audio['path'],
-                        'name': audio['language']
-                    })
+        if status['audios']:
+            console.print(f"[cyan]\nMerging [red]{len(status['audios'])} [cyan]audio track(s)...")
+            audio_output = os.path.join(self.output_dir, f"{self.filename_base}_with_audio.{EXTENSION_OUTPUT}")
             
-            if audio_tracks:
-                console.print(f"[cyan]\nMerging [red]{len(audio_tracks)} [cyan]audio track(s)...")
-                audio_output = os.path.join(self.output_dir, f"{self.filename_base}_with_audio.{EXTENSION_OUTPUT}")
-                
-                merged_file, use_shortest, result_json = join_audios(
-                    video_path=current_file,
-                    audio_tracks=audio_tracks,
-                    out_path=audio_output
-                )
-                self.last_merge_result = result_json
-                
-                if os.path.exists(merged_file):
-                    current_file = merged_file
-                else:
-                    console.print("[yellow]Audio merge failed, continuing with video only")
+            merged_file, use_shortest, result_json = join_audios(
+                video_path=current_file,
+                audio_tracks=status['audios'],
+                out_path=audio_output
+            )
+            self.last_merge_result = result_json
+            
+            if os.path.exists(merged_file):
+                current_file = merged_file
+            else:
+                console.print("[yellow]Audio merge failed, continuing with video only")
         
         # Merge subtitles if enabled and present
-        if MERGE_SUBTITLE and status.subtitle_paths:
-            sub_tracks = []
-            for sub in status.subtitle_paths:
-                if os.path.exists(sub['path']):
-                    sub_tracks.append({
-                        'path': sub['path'],
-                        'language': sub['language']
-                    })
+        if status['subtitles']:
+            console.print(f"[cyan]\nMerging [red]{len(status['subtitles'])} [cyan]subtitle track(s)...")
+            sub_output = os.path.join(self.output_dir, f"{self.filename_base}_final.{EXTENSION_OUTPUT}")
             
-            if sub_tracks:
-                console.print(f"[cyan]\nMerging [red]{len(sub_tracks)} [cyan]subtitle(s)...")
-                sub_output = os.path.join(self.output_dir, f"{self.filename_base}_final.{EXTENSION_OUTPUT}")
-                
-                merged_file, result_json = join_subtitles(
-                    video_path=current_file,
-                    subtitles_list=sub_tracks,
-                    out_path=sub_output
-                )
-                self.last_merge_result = result_json
-                
-                if os.path.exists(merged_file):
-                    if current_file != video_path and os.path.exists(current_file):
-                        try:
-                            os.remove(current_file)
-                        except Exception:
-                            pass
-                    current_file = merged_file
-                else:
-                    console.print("[yellow]Subtitle merge failed, continuing without subtitles")
-        
-        return current_file
+            merged_file, result_json = join_subtitles(
+                video_path=current_file,
+                subtitles_list=status['subtitles'],
+                out_path=sub_output
+            )
+            self.last_merge_result = result_json
+            
+            if os.path.exists(merged_file):
+                if current_file != video_path and os.path.exists(current_file):
+                    try:
+                        os.remove(current_file)
+                    except Exception:
+                        pass
+                current_file = merged_file
+            else:
+                console.print("[yellow]Subtitle merge failed, continuing without subtitles")
     
+        return current_file
+
     def _cleanup_temp_files(self, status):
         """Clean up temporary files"""
         files_to_remove = []
         
         # Add original downloaded files
-        if status.video_path and os.path.abspath(status.video_path) != os.path.abspath(self.output_path):
-            files_to_remove.append(status.video_path)
+        if status['video'] and os.path.abspath(status['video'].get('path')) != os.path.abspath(self.output_path):
+            files_to_remove.append(status['video'].get('path'))
         
-        for audio in status.audios_paths:
-            if os.path.abspath(audio['path']) != os.path.abspath(self.output_path):
-                files_to_remove.append(audio['path'])
+        for audio in status['audios']:
+            if os.path.abspath(audio.get('path')) != os.path.abspath(self.output_path):
+                files_to_remove.append(audio.get('path'))
         
-        for sub in status.subtitle_paths:
-            if os.path.abspath(sub['path']) != os.path.abspath(self.output_path):
-                files_to_remove.append(sub['path'])
+        for sub in status['subtitles']:
+            if os.path.abspath(sub.get('path')) != os.path.abspath(self.output_path):
+                files_to_remove.append(sub.get('path'))
+
+        for ext_sub in status['external_subtitles']:
+            if os.path.abspath(ext_sub.get('path')) != os.path.abspath(self.output_path):
+                files_to_remove.append(ext_sub.get('path'))
         
         # Remove intermediate merge files
         intermediate_patterns = [
@@ -363,9 +306,9 @@ class DASH_Downloader:
             except Exception as e:
                 logging.warning(f"Could not remove temp file {file_path}: {e}")
 
-        # Temp log
-        os.remove(os.path.join(self.output_dir, "log.txt"))
-        shutil.rmtree(os.path.join(self.output_dir, "temp_analysis"))
+        for log_file in glob.glob(os.path.join(self.output_dir, "*.log")):
+            os.remove(log_file)
+        shutil.rmtree(os.path.join(self.output_dir, "analysis_temp"), ignore_errors=True)
     
     def _print_summary(self):
         """Print download summary"""

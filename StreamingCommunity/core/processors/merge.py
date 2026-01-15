@@ -15,7 +15,9 @@ from StreamingCommunity.setup import binary_paths, get_ffmpeg_path
 
 
 # Logic class
-from .util import need_to_force_to_ts, check_duration_v_a
+from .helper.ex_video import need_to_force_to_ts
+from .helper.ex_audio import check_duration_v_a
+from .helper.ex_sub import fix_subtitle_extension
 from .capture import capture_ffmpeg_real_time
 
 
@@ -27,7 +29,7 @@ PARAM_VIDEO = config_manager.config.get_list("M3U8_CONVERSION", "param_video")
 PARAM_AUDIO = config_manager.config.get_list("M3U8_CONVERSION", "param_audio")
 PARAM_FINAL = config_manager.config.get_list("M3U8_CONVERSION", "param_final")
 SUBTITLE_DISPOSITION = config_manager.config.get_bool("M3U8_CONVERSION", "subtitle_disposition")
-SUBTITLE_DISPOSITION_LANGUAGE = config_manager.config.get("M3U8_CONVERSION", "subtitle_disposition_language")
+SUBTITLE_DISPOSITION_LANGUAGE = config_manager.config.get_list("M3U8_CONVERSION", "subtitle_disposition_language")
 
 
 def add_encoding_params(ffmpeg_cmd: List[str]):
@@ -122,7 +124,8 @@ def join_video(video_path: str, out_path: str):
 
     return out_path, result_json
 
-def join_audios(video_path: str, audio_tracks: List[Dict[str, str]], out_path: str, limit_duration_diff: float = 20.0):
+
+def join_audios(video_path: str, audio_tracks: List[Dict[str, str]], out_path: str, limit_duration_diff: float = 3):
     """
     Joins audio tracks with a video file using FFmpeg.
     
@@ -138,8 +141,8 @@ def join_audios(video_path: str, audio_tracks: List[Dict[str, str]], out_path: s
     for audio_track in audio_tracks:
         audio_path = audio_track.get('path')
         audio_lang = audio_track.get('name', 'unknown')
-        is_matched, diff, video_duration, audio_duration = check_duration_v_a(video_path, audio_path)
-        console.print(f"[yellow]    - [cyan]Audio lang [red]{audio_lang}, [cyan]Path: [red]{audio_path}")
+        _, diff, video_duration, audio_duration = check_duration_v_a(video_path, audio_path)
+        console.print(f"[yellow]    - [cyan]Audio lang [red]{audio_lang}, [cyan]Path: [red]{audio_path}, [cyan]Video duration: [red]{video_duration:.2f}s, [cyan]Audio duration: [red]{audio_duration:.2f}s, [cyan]Diff: [red]{diff:.2f}s")
         
         # If any audio track has a significant duration difference, use -shortest
         if diff > limit_duration_diff:
@@ -171,8 +174,6 @@ def join_audios(video_path: str, audio_tracks: List[Dict[str, str]], out_path: s
         lang_code = audio_track.get('name', 'unknown')
         
         # Extract language code (e.g., "ita" from "ita - Italian")
-        if ' - ' in lang_code:
-            lang_code = lang_code.split(' - ')[0].strip()
         ffmpeg_cmd.extend([f'-metadata:s:a:{i}', f'language={lang_code}'])
         ffmpeg_cmd.extend([f'-metadata:s:a:{i}', f'title={audio_track.get("name", "unknown")}'])
 
@@ -192,6 +193,7 @@ def join_audios(video_path: str, audio_tracks: List[Dict[str, str]], out_path: s
 
     return out_path, use_shortest, result_json
 
+
 def join_subtitles(video_path: str, subtitles_list: List[Dict[str, str]], out_path: str):
     """
     Joins subtitles with a video file using FFmpeg.
@@ -202,6 +204,12 @@ def join_subtitles(video_path: str, subtitles_list: List[Dict[str, str]], out_pa
             Each dictionary should contain the 'path' key with the path to the subtitle file and the 'name' key with the name of the subtitle.
         - out_path (str): The path to save the output file.
     """
+    # First, detect and fix subtitle extensions
+    for subtitle in subtitles_list:
+        original_path = subtitle['path']
+        corrected_path = fix_subtitle_extension(original_path)
+        subtitle['path'] = corrected_path
+    
     ffmpeg_cmd = [get_ffmpeg_path(), "-i", video_path]
     output_ext = os.path.splitext(out_path)[1].lower()
     
@@ -222,28 +230,39 @@ def join_subtitles(video_path: str, subtitles_list: List[Dict[str, str]], out_pa
     
     # Add subtitle maps and metadata
     for idx, subtitle in enumerate(subtitles_list):
-        console.print(f"[yellow]    - [cyan]Subtitle lang [red]{subtitle.get('language', 'unknown')}, [cyan]Path: [red]{subtitle.get('path', 'unknown')}")
+        lang_display = subtitle.get('lang', subtitle.get('language', 'unknown'))
+        console.print(f"[yellow]    - [cyan]Subtitle lang [red]{lang_display}, [cyan]Path: [red]{subtitle.get('path', 'unknown')}")
         ffmpeg_cmd += ["-map", f"{idx + 1}:s"]
-        ffmpeg_cmd += ["-metadata:s:s:{}".format(idx), "title={}".format(subtitle['language'])]
+        ffmpeg_cmd += ["-metadata:s:s:{}".format(idx), "title={}".format(lang_display)]
     
     # For subtitles, we always use copy for video/audio
     ffmpeg_cmd.extend(['-c:v', 'copy', '-c:a', 'copy', '-c:s', subtitle_codec])
     
-    # Set disposition for subtitle matching the configured language
+    # Handle disposition: set all subtitles to 0 (disabled) by default
+    for idx in range(len(subtitles_list)):
+        ffmpeg_cmd.extend([f'-disposition:s:{idx}', '0'])
+    
+    # Set disposition ONLY if SUBTITLE_DISPOSITION is enabled
     if SUBTITLE_DISPOSITION and len(subtitles_list) > 0:
         disposition_idx = None
-        for idx, subtitle in enumerate(subtitles_list):
-            if subtitle.get('language', '').lower() == SUBTITLE_DISPOSITION_LANGUAGE.lower():
-                console.print(f"[yellow]    Disposition [red]{SUBTITLE_DISPOSITION_LANGUAGE}")
-                disposition_idx = idx
-                break
         
-        # If matching subtitle found, set disposition, otherwise use first subtitle
+        # Find subtitle matching the configured language
+        for idx, subtitle in enumerate(subtitles_list):
+            subtitle_lang = subtitle.get('language', '').lower()
+            for lang in SUBTITLE_DISPOSITION_LANGUAGE:
+                config_lang = lang.lower().strip()
+                
+                if subtitle_lang == config_lang or subtitle_lang.startswith(config_lang):
+                    console.print(f"[yellow]    Setting disposition for subtitle: [red]{subtitle.get('language')}")
+                    disposition_idx = idx
+                    break
+                    
+            if disposition_idx is not None:
+                break
+            
+        # If matching subtitle found, set it as default
         if disposition_idx is not None:
-            ffmpeg_cmd.extend([f'-disposition:s:{disposition_idx}', 'default+forced'])
-        else:
-            console.print("[red]Using first subtitle for disposition")
-            ffmpeg_cmd.extend(['-disposition:s:0', 'default+forced'])
+            ffmpeg_cmd.extend([f'-disposition:s:{disposition_idx}', 'default'])
     
     # Overwrite
     ffmpeg_cmd += [out_path, "-y"]

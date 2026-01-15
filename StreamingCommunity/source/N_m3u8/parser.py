@@ -205,5 +205,21 @@ def parse_meta_json(json_path: str, selected_json_path: str) -> List[StreamInfo]
                 total_duration=final_total_duration,
                 segment_count=final_segment_count
             ))
+
+        else:
+            # Fallback: some meta.json entries (e.g. simple HLS playlists) don't include MediaType, treat as Video
+            final_total_duration = total_duration
+            final_segment_count = segment_count
+            streams.append(StreamInfo(
+                type_="Video",
+                resolution="",
+                bandwidth=bandwidth_str,
+                codec=stream.get("Codecs", ""),
+                selected=False,
+                encrypted=False,
+                extension=stream.get("Extension", ""),
+                total_duration=final_total_duration,
+                segment_count=final_segment_count
+            ))
     
     return streams

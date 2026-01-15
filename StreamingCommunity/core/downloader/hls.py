@@ -108,6 +108,9 @@ class HLS_Downloader:
 
     def _merge_files(self, status) -> Optional[str]:
         """Merge downloaded files using FFmpeg"""
+        if status['video'] is None:
+            return None
+        
         video_path = status['video'].get('path')
         
         if not os.path.exists(video_path):

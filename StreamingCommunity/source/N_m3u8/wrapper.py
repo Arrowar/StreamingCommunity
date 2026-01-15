@@ -53,6 +53,7 @@ class MediaDownloader:
         self.cookies = cookies or {}
         self.streams = []
         self.external_subtitles = []
+        self.force_best_video = False           # Flag to force best video if no video selected
         self.meta_json_path, self.meta_selected_path, self.raw_m3u8, self.raw_mpd = None, None, None, None 
         self.status = None
         self.manifest_type = "Unknown"
@@ -120,6 +121,17 @@ class MediaDownloader:
         
         if self.meta_json_path.exists():
             self.streams = parse_meta_json(str(self.meta_json_path), str(self.meta_selected_path))
+
+            # If there are video streams but none were selected by the configured filter,
+            # force `--select-video best` for the actual download to avoid downloading nothing.
+            try:
+                has_video = any(s.type == "Video" for s in self.streams)
+                video_selected = any(s.type == "Video" and s.selected for s in self.streams)
+                if has_video and not video_selected:
+                    console.log("[yellow]No video matched select_video filter; forcing 'best' for download[/yellow]")
+                    self.force_best_video = True
+            except Exception:
+                self.force_best_video = False
             
             # Add external subtitles to stream list
             for ext_sub in self.external_subtitles:
@@ -226,6 +238,7 @@ class MediaDownloader:
     def start_download(self) -> Dict[str, Any]:
         """Start the download process with automatic retry on segment count mismatch"""
         log_parser = LogParser()
+        select_video = ("best" if getattr(self, "force_best_video", False) else video_filter)
         cmd = [
             get_n_m3u8dl_re_path(),
             self.url,
@@ -238,7 +251,7 @@ class MediaDownloader:
             "--write-meta-json", "false",
             "--binary-merge", "true",
             "--del-after-done", "true",
-            "--select-video", video_filter,
+            "--select-video", select_video,
             "--select-audio", audio_filter,
             "--select-subtitle", subtitle_filter,
             "--auto-subtitle-fix", "false"           # CON TRUE ALCUNE VOLTE NON SCARICATA TUTTI I SUB SELEZIONATI
@@ -333,40 +346,54 @@ class MediaDownloader:
         
         # 1) Video progress
         if line.startswith("Vid"):
-            if video_match := VIDEO_LINE_RE.search(line):
+            video_match = VIDEO_LINE_RE.search(line)
+
+            if video_match:
                 resolution = video_match.group(1)
-                task_key = f"video_{resolution}"
-                
-                if task_key not in tasks:
-                    tasks[task_key] = progress.add_task(
-                        f"[yellow]{self.manifest_type} [cyan]Vid [red]{resolution}",
-                        total=100,
-                        segment="0/0",
-                        speed="0Bps",
-                        size="0B/0B"
-                    )
-                
-                # Update progress
-                task = tasks[task_key]
-                
-                # Get segment count
-                if segment_match := SEGMENT_RE.search(line):
-                    progress.update(task, segment=segment_match.group(0))
-                
-                # Get percentage
-                if percent_match := PERCENT_RE.search(line):
+            else:
+                # Fallback: no resolution in meta; try to use first video stream info
+                resolution = ""
+                for s in self.streams:
+                    if s.type == "Video":
+                        resolution = s.resolution or s.extension or "main"
+                        break
+
+            task_key = f"video_{resolution}"
+
+            if task_key not in tasks:
+                display_res = resolution if resolution else "main"
+                tasks[task_key] = progress.add_task(
+                    f"[yellow]{self.manifest_type} [cyan]Vid [red]{display_res}",
+                    total=100,
+                    segment="0/0",
+                    speed="0Bps",
+                    size="0B/0B"
+                )
+
+            # Update progress
+            task = tasks[task_key]
+
+            # Get segment count
+            if segment_match := SEGMENT_RE.search(line):
+                progress.update(task, segment=segment_match.group(0))
+
+            # Get percentage
+            if percent_match := PERCENT_RE.search(line):
+                try:
                     progress.update(task, completed=float(percent_match.group(1)))
-                
-                # Get speed
-                if speed_match := SPEED_RE.search(line):
-                    progress.update(task, speed=speed_match.group(1))
-                
-                # Get size
-                if size_match := SIZE_RE.search(line):
-                    current = size_match.group(1)
-                    total = size_match.group(2)
-                    progress.update(task, size=f"{current}/{total}")
-        
+                except Exception:
+                    pass
+
+            # Get speed
+            if speed_match := SPEED_RE.search(line):
+                progress.update(task, speed=speed_match.group(1))
+
+            # Get size
+            if size_match := SIZE_RE.search(line):
+                current = size_match.group(1)
+                total = size_match.group(2)
+                progress.update(task, size=f"{current}/{total}")
+
         # 2) Audio progress
         elif line.startswith("Aud"):
             audio_match = AUDIO_LINE_RE.search(line)
@@ -471,6 +498,7 @@ class MediaDownloader:
         table.add_column("Resolution", style="yellow")
         table.add_column("Bitrate", style="yellow")
         table.add_column("Codec", style="green")
+        table.add_column("Ext", style="magenta")
         table.add_column("Language", style="blue")
         table.add_column("Name", style="green")
         table.add_column("Duration", style="magenta")
@@ -503,7 +531,9 @@ class MediaDownloader:
                 bitrate = ""
             
             codec = stream.codec if stream.codec else ""
+            ext = stream.extension if stream.extension else ""
             name = stream.name if stream.name else ""
+            language = stream.language if stream.language else ""
             
             # Format duration from meta_selected.json
             if stream.total_duration > 0:
@@ -517,8 +547,9 @@ class MediaDownloader:
                 resolution,
                 bitrate,
                 codec,
+                ext,
+                language,
                 name,
-                stream.language,
                 duration,
                 str(stream.segment_count)
             )

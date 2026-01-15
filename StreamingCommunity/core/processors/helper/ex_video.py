@@ -79,7 +79,7 @@ def is_png_format_or_codec(file_info):
     # Handle None values in format_name gracefully
     format_name = file_info.get('format_name')
     codec_names = file_info.get('codec_names', [])
-    console.print(f"[yellow]FFMPEG [cyan]Format [white]'[green]{format_name}[white]' [cyan]codec[white]: [green]{codec_names}")
+    console.print(f"[yellow]FFMPEG [red]Format [green]{format_name} [cyan]codec[white]: [green]{codec_names}")
     return format_name == 'png_pipe' or 'png' in codec_names
 
 

@@ -19,8 +19,8 @@
         "max_speed": "30MB",
         "check_segments_count": true,
         "select_video": "res=.*1080.*:for=best",
-        "select_audio": "lang='ita|Ita':for=all",
-        "select_subtitle": "lang='ita|eng|Ita|Eng':for=all",
+        "select_audio": "lang='ita|Ita|it'",
+        "select_subtitle": "lang='ita|eng|Ita|Eng|it|en':for=all",
         "cleanup_tmp_folder": true
     },
     "M3U8_CONVERSION": {

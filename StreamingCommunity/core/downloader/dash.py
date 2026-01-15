@@ -1,6 +1,7 @@
 # 05.01.26
 
 import os
+import time
 import glob
 import shutil
 import logging
@@ -104,6 +105,7 @@ class DASH_Downloader:
         pssh = self.drm_info['pssh']
         
         try:
+            time.sleep(0.1)
             if drm_type == DRMSystem.WIDEVINE:
                 keys = get_widevine_keys(
                     pssh=pssh,

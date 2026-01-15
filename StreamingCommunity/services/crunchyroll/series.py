@@ -82,10 +82,11 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
     # Download the episode
     dash_process = DASH_Downloader(
         mpd_url=mpd_url,
+        mpd_headers=mpd_headers,
         license_url='https://www.crunchyroll.com/license/v1/license/widevine',
         license_headers=license_headers,
         mpd_sub_list=mpd_list_sub,
-        output_path=os.path.join(mp4_path, mp4_name),
+        output_path=os.path.join(mp4_path, mp4_name)
     )
     out_path, need_stop = dash_process.start()
 

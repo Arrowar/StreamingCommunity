@@ -123,11 +123,49 @@ class MediaDownloader:
             
             # Add external subtitles to stream list
             for ext_sub in self.external_subtitles:
+
+                # Determine selection for external subtitles based on `subtitle_filter` from config
+                ext_lang = ext_sub.get('language', '') or ''
+                selected = False
+                try:
+
+                    # Try to extract language tokens from the selection filter, e.g. lang='ita|eng|it|en'
+                    lang_match = re.search(r"lang=['\"]([^'\"]+)['\"]", subtitle_filter or "")
+                    if lang_match:
+                        tokens = [t.strip() for t in lang_match.group(1).split('|') if t.strip()]
+                        for t in tokens:
+                            tl = t.lower()
+                            el = ext_lang.lower()
+
+                            # match exact, prefix (en -> en-US), or contained token
+                            if not el:
+                                continue
+                            if tl == el or el.startswith(tl) or tl in el:
+                                selected = True
+                                break
+                    
+                    else:
+                        # Fallback: try to match any simple alpha tokens found in the filter
+                        simple_tokens = re.findall(r"[A-Za-z]{2,}", subtitle_filter or "")
+                        for t in simple_tokens:
+                            if t.lower() in ext_lang.lower():
+                                selected = True
+                                break
+                
+                except Exception:
+                    selected = False
+
+                # Persist selection and extension back to the external subtitle dict
+                ext_type = ext_sub.get('type') or ext_sub.get('format') or 'srt'
+                ext_sub['_selected'] = selected
+                ext_sub['_ext'] = ext_type
+
                 self.streams.append(StreamInfo(
                     type_="Subtitle [red]*EXT",
                     language=ext_sub.get('language', ''),
-                    name=ext_sub.get('type', 'External'),
-                    selected=True
+                    name=(ext_sub.get('type') or ext_sub.get('format') or 'External'),
+                    selected=selected,
+                    extension=ext_type
                 ))
             
             self._display_stream_table()
@@ -152,10 +190,15 @@ class MediaDownloader:
         async with httpx.AsyncClient(headers=self.headers, timeout=30.0) as client:
             for sub in self.external_subtitles:
                 try:
+                    # Skip external subtitles that were marked as not selected (default: True)
+                    if not sub.get('_selected', True):
+                        continue
+
                     url = sub['url']
                     lang = sub.get('language', 'unknown')
-                    sub_type = sub.get('type', 'srt')
-                    
+                    # Prefer previously resolved extension, then explicit 'type', then 'format', then fallback 'srt'
+                    sub_type = sub.get('_ext') or sub.get('type') or sub.get('format') or 'srt'
+
                     # Create filename
                     sub_filename = f"{self.filename}.{lang}.{sub_type}"
                     sub_path = self.output_dir / sub_filename

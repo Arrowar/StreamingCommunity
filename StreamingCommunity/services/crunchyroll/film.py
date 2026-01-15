@@ -64,6 +64,7 @@ def download_film(select_title: MediaItem) -> str:
     # Download the film
     dash_process = DASH_Downloader(
         mpd_url=mpd_url,
+        mpd_headers=mpd_headers,
         license_url='https://www.crunchyroll.com/license/v1/license/widevine',
         license_headers=license_headers,
         mpd_sub_list=mpd_list_sub,

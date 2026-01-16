@@ -76,6 +76,7 @@ setup(
             'services/**/*.py',
             'services/**/util/*.py',
             'setup/**/*.py',
+            'source/**/*.py',
             'upload/**/*.py',
             'utils/**/*.py',
         ],

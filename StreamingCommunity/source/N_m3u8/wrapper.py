@@ -102,7 +102,16 @@ class MediaDownloader:
 
         console.print("[cyan]Analyzing playlist...")
         log_parser = LogParser()
-        result = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", timeout=30)
+        result = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", timeout=45)
+        
+        # Save parsing log
+        log_path = self.output_dir / f"{self.filename}_parsing.log"
+        with open(log_path, 'w', encoding='utf-8') as log_file:
+            log_file.write(f"Command: {' '.join(cmd)}\n{'='*80}\n\n")
+            log_file.write(result.stdout)
+            if result.stderr:
+                log_file.write("\n--- STDERR ---\n")
+                log_file.write(result.stderr)
         
         # Parse stderr for warnings/errors
         for line in result.stderr.split('\n'):

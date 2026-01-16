@@ -44,7 +44,7 @@ def title_search(query: str) -> int:
     # Create soup and find table
     soup = BeautifulSoup(response.text, "html.parser")
 
-    for serie_div in soup.find_all('div', class_='entry'):
+    for serie_div in soup.find_all('div', class_='mlnew'):
         try:
             serie_info = {
                 'name': serie_div.find('a').get("title").replace("streaming guardaserie", ""),

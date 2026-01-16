@@ -17,7 +17,7 @@ from rich.progress import Progress, TextColumn
 # Interl 
 from StreamingCommunity.utils.config import config_manager
 from StreamingCommunity.utils import internet_manager
-from StreamingCommunity.setup import get_ffmpeg_path, get_n_m3u8dl_re_path, get_bento4_decrypt_path
+from StreamingCommunity.setup import get_ffmpeg_path, get_n_m3u8dl_re_path, get_bento4_decrypt_path, binary_paths
 
 
 # Logic
@@ -29,7 +29,7 @@ from .utils import convert_size_to_bytes
 
 
 # Variable
-console = Console()
+console = Console(force_terminal=True if binary_paths._detect_system() != 'windows' else None)
 video_filter = config_manager.config.get("M3U8_DOWNLOAD", "select_video")
 audio_filter = config_manager.config.get("M3U8_DOWNLOAD", "select_audio")
 subtitle_filter = config_manager.config.get("M3U8_DOWNLOAD", "select_subtitle")
@@ -58,7 +58,26 @@ class MediaDownloader:
         self.status = None
         self.manifest_type = "Unknown"
         self.output_dir.mkdir(parents=True, exist_ok=True)
-    
+
+    def _get_common_args(self) -> List[str]:
+        """Get common command line arguments for N_m3u8DL-RE"""
+        cmd = []
+        if self.headers:
+            for k, v in self.headers.items():
+                cmd.extend(["--header", f"{k}: {v}"])
+
+        if self.cookies:
+            if cookie_str := "; ".join(f"{k}={v}" for k, v in self.cookies.items()):
+                cmd.extend(["--header", f"Cookie: {cookie_str}"])
+
+        if USE_PROXY and (proxy_url := CONF_PROXY.get("https") or CONF_PROXY.get("http")):
+            cmd.extend(["--use-system-proxy", "false", "--custom-proxy", proxy_url])
+
+        if binary_paths._detect_system() != 'windows':
+            cmd.extend(["--force-ansi-console", "--no-ansi-color"])
+
+        return cmd
+
     def parser_stream(self) -> List[StreamInfo]:
         """Analyze playlist and display table of available streams"""
         analysis_path = self.output_dir / "analysis_temp"
@@ -77,20 +96,7 @@ class MediaDownloader:
             "--select-subtitle", subtitle_filter,
             "--skip-download"
         ]
-        
-        if self.headers:
-            for k, v in self.headers.items():
-                cmd.extend(["--header", f"{k}: {v}"])
-
-        if self.cookies:
-            cookie_str = "; ".join(f"{k}={v}" for k, v in self.cookies.items())
-            if cookie_str:
-                cmd.extend(["--header", f"Cookie: {cookie_str}"])
-        
-        if USE_PROXY:
-            proxy_url = CONF_PROXY.get("https") or CONF_PROXY.get("http")
-            if proxy_url:
-                cmd.extend(["--use-system-proxy", "false", "--custom-proxy", proxy_url])
+        cmd.extend(self._get_common_args())
 
         console.print("[cyan]Analyzing playlist...")
         log_parser = LogParser()
@@ -256,6 +262,7 @@ class MediaDownloader:
             "--select-subtitle", subtitle_filter,
             "--auto-subtitle-fix", "false"           # CON TRUE ALCUNE VOLTE NON SCARICATA TUTTI I SUB SELEZIONATI
         ]
+        cmd.extend(self._get_common_args())
 
         if concurrent_download:
             cmd.extend(["--concurrent-download", "true"])
@@ -274,21 +281,6 @@ class MediaDownloader:
         if self.key:
             for single_key in self.key:
                 cmd.extend(["--key", single_key])
-        
-        # Add header
-        if self.headers:
-            for k, v in self.headers.items():
-                cmd.extend(["--header", f"{k}: {v}"])
-
-        if self.cookies:
-            cookie_str = "; ".join(f"{k}={v}" for k, v in self.cookies.items())
-            if cookie_str:
-                cmd.extend(["--header", f"Cookie: {cookie_str}"])
-
-        if USE_PROXY:
-            proxy_url = CONF_PROXY.get("https") or CONF_PROXY.get("http")
-            if proxy_url:
-                cmd.extend(["--use-system-proxy", "false", "--custom-proxy", proxy_url])
         
         console.print("\n[cyan]Starting download...")
         
@@ -341,349 +333,191 @@ class MediaDownloader:
         self.status = self._get_download_status(subtitle_sizes, external_subs)
         return self.status
 
+    def _update_task(self, progress, tasks: dict, key: str, label: str, line: str):
+        """Generic task update helper to reduce duplication"""
+        if key not in tasks:
+            tasks[key] = progress.add_task(
+                f"[yellow]{self.manifest_type} {label}",
+                total=100, segment="0/0", speed="0Bps", size="0B/0B"
+            )
+        task = tasks[key]
+
+        # 1) Update segments
+        if m := SEGMENT_RE.search(line): 
+            progress.update(task, segment=m.group(0))
+
+        # 2) Update percentage
+        if m := PERCENT_RE.search(line): 
+            try: 
+                progress.update(task, completed=float(m.group(1)))
+            except Exception:  
+                pass
+
+        # 3) Update speed
+        if m := SPEED_RE.search(line): 
+            progress.update(task, speed=m.group(1))
+
+        # 4) Update size
+        if m := SIZE_RE.search(line): 
+            progress.update(task, size=f"{m.group(1)}/{m.group(2)}")
+        
+        return task
+
     def _parse_progress_line(self, line: str, progress, tasks: dict, subtitle_sizes: dict):
         """Parse a progress line and update progress bars with better colors"""
         
         # 1) Video progress
         if line.startswith("Vid"):
-            video_match = VIDEO_LINE_RE.search(line)
-
-            if video_match:
-                resolution = video_match.group(1)
-            else:
-                # Fallback: no resolution in meta; try to use first video stream info
-                resolution = ""
-                for s in self.streams:
-                    if s.type == "Video":
-                        resolution = s.resolution or s.extension or "main"
-                        break
-
-            task_key = f"video_{resolution}"
-
-            if task_key not in tasks:
-                display_res = resolution if resolution else "main"
-                tasks[task_key] = progress.add_task(
-                    f"[yellow]{self.manifest_type} [cyan]Vid [red]{display_res}",
-                    total=100,
-                    segment="0/0",
-                    speed="0Bps",
-                    size="0B/0B"
-                )
-
-            # Update progress
-            task = tasks[task_key]
-
-            # Get segment count
-            if segment_match := SEGMENT_RE.search(line):
-                progress.update(task, segment=segment_match.group(0))
-
-            # Get percentage
-            if percent_match := PERCENT_RE.search(line):
-                try:
-                    progress.update(task, completed=float(percent_match.group(1)))
-                except Exception:
-                    pass
-
-            # Get speed
-            if speed_match := SPEED_RE.search(line):
-                progress.update(task, speed=speed_match.group(1))
-
-            # Get size
-            if size_match := SIZE_RE.search(line):
-                current = size_match.group(1)
-                total = size_match.group(2)
-                progress.update(task, size=f"{current}/{total}")
+            res = (VIDEO_LINE_RE.search(line).group(1) if VIDEO_LINE_RE.search(line) else 
+                  next((s.resolution or s.extension or "main" for s in self.streams if s.type == "Video"), "main"))
+            self._update_task(progress, tasks, f"video_{res}", f"[cyan]Vid [red]{res}", line)
 
         # 2) Audio progress
         elif line.startswith("Aud"):
-            audio_match = AUDIO_LINE_RE.search(line)
-            if audio_match:
-                bitrate = audio_match.group(1).strip()
-                language_or_name = audio_match.group(2).strip()
-                
-                # Determine what to display: prefer language, fallback to name
-                display_name = language_or_name
-                
-                # Se l'audio è identificato solo per bitrate, cerchiamo il nome nella lista degli stream
-                if not any(c.isalpha() for c in language_or_name):
-                    for stream in self.streams:
-                        if stream.type == "Audio" and stream.bandwidth and bitrate in stream.bandwidth:
-                            if stream.language:
-                                display_name = stream.language
-                            elif stream.name:
-                                display_name = stream.name
-                            else:
-                                display_name = bitrate
-                            break
-                    else:
-                        display_name = bitrate
-                
-                task_key = f"audio_{language_or_name}_{bitrate.replace(' ', '_')}"
-                
-                if task_key not in tasks:
-                    tasks[task_key] = progress.add_task(
-                        f"[yellow]{self.manifest_type} [cyan]Aud [red]{display_name}",
-                        total=100,
-                        segment="0/0",
-                        speed="0Bps",
-                        size="0B/0B"
-                    )
-                
-                task = tasks[task_key]
-                
-                # Get segment count
-                if segment_match := SEGMENT_RE.search(line):
-                    progress.update(task, segment=segment_match.group(0))
-                
-                if percent_match := PERCENT_RE.search(line):
-                    progress.update(task, completed=float(percent_match.group(1)))
-                
-                if speed_match := SPEED_RE.search(line):
-                    progress.update(task, speed=speed_match.group(1))
-                
-                if size_match := SIZE_RE.search(line):
-                    current = size_match.group(1)
-                    total = size_match.group(2)
-                    progress.update(task, size=f"{current}/{total}")
-        
+            if m := AUDIO_LINE_RE.search(line):
+                bitrate, lang_name = m.group(1).strip(), m.group(2).strip()
+                display = lang_name
+                if not any(c.isalpha() for c in lang_name):
+                    display = next((s.language or s.name or bitrate for s in self.streams if s.type == "Audio" and s.bandwidth and bitrate in s.bandwidth), bitrate)
+                self._update_task(progress, tasks, f"audio_{lang_name}_{bitrate}", f"[cyan]Aud [red]{display}", line)
+
         # 3) Subtitle progress
         elif line.startswith("Sub"):
-            subtitle_match = SUBTITLE_LINE_RE.search(line)
-            if subtitle_match:
-                language_code = subtitle_match.group(1).strip()
-                subtitle_name = subtitle_match.group(2).strip()
-                task_key = f"sub_{language_code}_{subtitle_name.replace(' ', '_')}"
-                display_name = f"{language_code}: {subtitle_name}"
+            if m := SUBTITLE_LINE_RE.search(line):
+                lang, name = m.group(1).strip(), m.group(2).strip()
+                task = self._update_task(progress, tasks, f"sub_{lang}_{name}", f"[cyan]Sub [red]{name}", line)
                 
-                if task_key not in tasks:
-                    tasks[task_key] = progress.add_task(
-                        f"[yellow]{self.manifest_type} [cyan]Sub [red]{subtitle_name}",
-                        total=100,
-                        segment="0/0",
-                        speed="0Bps",
-                        size="0B/0B"
-                    )
-                
-                task = tasks[task_key]
-                
-                # Get segment count
-                if segment_match := SEGMENT_RE.search(line):
-                    progress.update(task, segment=segment_match.group(0))
-                
-                if percent_match := PERCENT_RE.search(line):
-                    progress.update(task, completed=float(percent_match.group(1)))
-                
-                # Capture final size
-                if size_final_match := SUBTITLE_FINAL_SIZE_RE.search(line):
-                    final_size = size_final_match.group(1)
+                # Special capture for final size
+                if fm := SUBTITLE_FINAL_SIZE_RE.search(line):
+                    final_size = fm.group(1)
                     progress.update(task, size=final_size, completed=100)
-                    subtitle_sizes[display_name] = final_size
-                elif size_match := SIZE_RE.search(line):
-                    current = size_match.group(1)
-                    total = size_match.group(2)
-                    progress.update(task, size=f"{current}/{total}")
-                else:
-                    
-                    # Try to extract size from the line pattern
-                    size_match_simple = re.search(r"(\d+\.\d+(?:B|KB|MB|GB))\s*$", line)
-                    if size_match_simple:
-                        final_size = size_match_simple.group(1)
-                        subtitle_sizes[display_name] = final_size
+                    subtitle_sizes[f"{lang}: {name}"] = final_size
+
+                # Also capture size if available
+                elif not SIZE_RE.search(line):
+                    if sm := re.search(r"(\d+\.\d+(?:B|KB|MB|GB))\s*$", line):
+                        subtitle_sizes[f"{lang}: {name}"] = sm.group(1)
 
     def _display_stream_table(self):
         """Display streams in a rich table"""
         table = Table(show_header=True, header_style="bold cyan")
-        table.add_column("Type", style="cyan")
-        table.add_column("Sel", style="green", justify="center")
-        table.add_column("Resolution", style="yellow")
-        table.add_column("Bitrate", style="yellow")
-        table.add_column("Codec", style="green")
-        table.add_column("Ext", style="magenta")
-        table.add_column("Language", style="blue")
-        table.add_column("Name", style="green")
-        table.add_column("Duration", style="magenta")
-        table.add_column("Segments", justify="right")
+        cols = [
+            ("Type", "cyan"), ("Ext", "magenta"), ("Sel", "green"),
+            ("Resolution", "yellow"), ("Bitrate", "yellow"), ("Codec", "green"), 
+            ("Language", "blue"), ("Name", "green"), ("Duration", "magenta"), 
+            ("Segments", None)
+        ]
+        for col, color in cols:
+            table.add_column(col, style=color, justify="right" if col == "Segments" else "left")
         
-        for stream in self.streams:
-            type_info = stream.type
-            if stream.encrypted:
-                type_info += " [red]*CENC"
-            
-            # Build resolution info
-            if stream.type == "Video":
-                resolution = stream.resolution
-                if stream.bandwidth and stream.bandwidth != "0 bps":
-                    bitrate = stream.bandwidth
-                else:
-                    bitrate = ""
-
-            elif stream.type in ["Audio", "Subtitle", "Subtitle [red]*EXT"]:
-                resolution = ""
-                if stream.type == "Audio":
-                    if stream.bandwidth and stream.bandwidth != "0 bps" and stream.bandwidth != "N/A":
-                        bitrate = stream.bandwidth
-                    else:
-                        bitrate = ""
-                else:
-                    bitrate = ""
-            else:
-                resolution = ""
-                bitrate = ""
-            
-            codec = stream.codec if stream.codec else ""
-            ext = stream.extension if stream.extension else ""
-            name = stream.name if stream.name else ""
-            language = stream.language if stream.language else ""
-            
-            # Format duration from meta_selected.json
-            if stream.total_duration > 0:
-                duration = internet_manager.format_time(stream.total_duration, add_hours=True)
-            else:
-                duration = "N/A"
-            
+        for s in self.streams:
+            bitrate = s.bandwidth if (s.bandwidth and s.bandwidth not in ["0 bps", "N/A"]) else ""
             table.add_row(
-                type_info,
-                "X" if stream.selected else "",
-                resolution,
+                f"{s.type}{' [red]*CENC' if s.encrypted else ''}",
+                s.extension or "",
+                "X" if s.selected else "",
+                s.resolution if s.type == "Video" else "",
                 bitrate,
-                codec,
-                ext,
-                language,
-                name,
-                duration,
-                str(stream.segment_count)
+                s.codec or "",
+                s.language or "",
+                s.name or "",
+                internet_manager.format_time(s.total_duration, add_hours=True) if s.total_duration > 0 else "N/A",
+                str(s.segment_count)
             )
         
         console.print(table)
 
     def _extract_language_from_filename(self, filename: str, base_name: str) -> str:
         """Extract language from filename by removing base name and extension"""
-        if filename.startswith(base_name):
-            stem = filename[len(base_name):].lstrip('.')
-        else:
-            stem = filename
-        
-        if '.' in stem:
-            stem = stem.rsplit('.', 1)[0]
-        
-        parts = stem.split('.')
-        return parts[0]
+        stem = filename[len(base_name):].lstrip('.') if filename.startswith(base_name) else filename
+        return stem.rsplit('.', 1)[0].split('.')[0] if '.' in stem else stem
 
     def _get_download_status(self, subtitle_sizes: dict, external_subs: list) -> Dict[str, Any]:
         """Get final download status"""
-        status = {
-            'video': None, 
-            'audios': [], 
-            'subtitles': [],
-            'external_subtitles': external_subs
+        status = {'video': None, 'audios': [], 'subtitles': [], 'external_subtitles': external_subs}
+        exts = {
+            'video': ['.mp4', '.mkv', '.m4v', '.ts', '.mov'],
+            'audio': ['.m4a', '.aac', '.mp3', '.ts', '.mp4', '.wav'],
+            'subtitle': ['.srt', '.vtt', '.ass', '.sub', '.ssa']
         }
         
-        video_extensions = ['.mp4', '.mkv', '.m4v', '.ts', '.mov']
-        audio_extensions = ['.m4a', '.aac', '.mp3', '.ts', '.mp4', '.wav']
-        subtitle_extensions = ['.srt', '.vtt', '.ass', '.sub', '.ssa']
-        
-        # Find video file
-        for ext in video_extensions:
-            main_file = self.output_dir / f"{self.filename}{ext}"
-            if main_file.exists():
-                status['video'] = {
-                    'path': str(main_file),
-                    'size': main_file.stat().st_size
-                }
+        # Find video
+        for ext in exts['video']:
+            if (f := self.output_dir / f"{self.filename}{ext}").exists():
+                status['video'] = {'path': str(f), 'size': f.stat().st_size}
                 break
         
-        # Prepare subtitle size mapping
-        subtitle_size_map = {}
-        for display_name, size_str in subtitle_sizes.items():
+        # Process downloaded subtitle metadata
+        downloaded_subs = []
+        for d_name, size_str in subtitle_sizes.items():
+            lang, name = d_name.split(':', 1) if ':' in d_name else (d_name, d_name)
+            lang, name = lang.strip(), name.strip()
             
-            # Parse display name like "eng: English [CC]"
-            if ':' in display_name:
-                lang, name = display_name.split(':', 1)
-                lang = lang.strip()
-                name = name.strip()
-            else:
-                lang = display_name
-                name = display_name
-            
-            size_bytes = convert_size_to_bytes(size_str)
-            if size_bytes:
-                key1 = (lang, name)
-                key2 = (lang, name.lower())
-                key3 = (lang, "")  # Just language
-                
-                subtitle_size_map[key1] = (name, size_bytes)
-                subtitle_size_map[key2] = (name, size_bytes)
-                subtitle_size_map[key3] = (name, size_bytes)
+            if sz := convert_size_to_bytes(size_str):
+                downloaded_subs.append({'lang': lang, 'name': name, 'size': sz, 'used': False})
+
+        if downloaded_subs:
+            pass
+
+        def norm_lang(lang): 
+            return set(lang.lower().replace('-', '.').split('.'))
         
-        # Group subtitles by language for better matching
-        subtitles_by_lang = {}
-        for (lang, _), (name, size) in subtitle_size_map.items():
-            if lang not in subtitles_by_lang:
-                subtitles_by_lang[lang] = []
-            subtitles_by_lang[lang].append((name, size))
-        
-        # Scan for audio and subtitle files
-        for file_path in self.output_dir.iterdir():
-            if not file_path.is_file():
+        seen_langs = {} # Track seen language codes during scanning to handle duplicates
+
+        # Scan files
+        for f in sorted(list(self.output_dir.iterdir())):
+            if not f.is_file(): 
                 continue
             
-            file_name = file_path.name
-            file_stem = file_path.stem
-            
-            # Audio files
-            if any(file_name.lower().endswith(ext) for ext in audio_extensions):
-
-                # Skip if this is the main video file
-                if status['video'] and file_path.name == Path(status['video']['path']).name:
+            # Audio
+            if any(f.name.lower().endswith(e) for e in exts['audio']):
+                if status['video'] and f.name == Path(status['video']['path']).name:
                     continue
-                
-                audio_name = file_stem
-                if audio_name.lower().startswith(self.filename.lower()):
-                    audio_name = audio_name[len(self.filename):].lstrip('.')
-                
-                status['audios'].append({
-                    'path': str(file_path),
-                    'name': audio_name,
-                    'size': file_path.stat().st_size
-                })
+
+                name = f.stem[len(self.filename):].lstrip('.') if f.stem.lower().startswith(self.filename.lower()) else f.stem
+                status['audios'].append({'path': str(f), 'name': name, 'size': f.stat().st_size})
             
-            # Subtitle files
-            elif any(file_name.lower().endswith(ext) for ext in subtitle_extensions):
-                sub_size = file_path.stat().st_size
-                sub_stem = file_stem
+            # Subtitle
+            elif any(f.name.lower().endswith(e) for e in exts['subtitle']):
+                ext_lang = self._extract_language_from_filename(f.stem, self.filename)
+                f_size = f.stat().st_size
+                best_sub, min_diff = None, float('inf')
                 
-                # Extract language from filename
-                extracted_lang = self._extract_language_from_filename(sub_stem, self.filename)
-                
-                # Try to find the best match
-                best_match_name = None
-                min_diff = float('inf')
-                
-                # First, try exact language match
-                if extracted_lang in subtitles_by_lang:
-                    for name, size in subtitles_by_lang[extracted_lang]:
-                        diff = abs(size - sub_size)
-                        if diff < min_diff and diff <= 2048:  # 2KB tolerance
-                            min_diff = diff
-                            best_match_name = name
-                
-                # If no match found, try all subtitles
-                if not best_match_name:
-                    for (lang, name), (_, size) in subtitle_size_map.items():
-                        diff = abs(size - sub_size)
+                # 1. Try to find the best match based on size and language tokens
+                f_lang_tokens = norm_lang(ext_lang)
+                for sub in downloaded_subs:
+                    if sub.get('used'): 
+                        continue
+                    
+                    s_lang_tokens = norm_lang(sub['lang'])
+                    overlap = f_lang_tokens & s_lang_tokens
+                    diff = abs(sub['size'] - f_size)
+                    
+                    if (not f_lang_tokens or not s_lang_tokens or overlap) or not downloaded_subs:
                         if diff < min_diff and diff <= 2048:
-                            min_diff = diff
-                            best_match_name = name
+                            min_diff, best_sub = diff, sub
                 
-                # If still no match, use extracted language
-                if not best_match_name:
-                    best_match_name = extracted_lang
-                
+                # 2. Determine display name
+                if best_sub:
+                    lang, name = best_sub['lang'], best_sub['name']
+                    best_sub['used'] = True
+                    
+                    # If we've already seen this exact language code, use Language - Name
+                    if seen_langs.get(lang):
+                        final_name = f"{lang} - {name}" if name and name != lang else lang
+                    else:
+                        # First occurrence: always use the Language code
+                        final_name = lang
+                    
+                    seen_langs[lang] = seen_langs.get(lang, 0) + 1
+                else:
+                    final_name = ext_lang
+
                 status['subtitles'].append({
-                    'path': str(file_path),
-                    'language': extracted_lang,
-                    'name': best_match_name,
-                    'size': sub_size
+                    'path': str(f), 
+                    'language': final_name, 
+                    'name': final_name, 
+                    'size': f_size
                 })
         
         return status

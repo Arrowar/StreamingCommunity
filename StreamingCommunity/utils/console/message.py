@@ -1,8 +1,5 @@
 # 3.12.23
 
-import os
-import platform
-
 
 # External library
 from rich.console import Console
@@ -29,7 +26,7 @@ def start_message(clean: bool=True):
     '''
 
     if CLEAN and clean: 
-        os.system("cls" if platform.system() == 'Windows' else "clear")
+        console.clear()
     
     if SHOW:
         console.print(f"[purple]{msg}")

@@ -1,6 +1,7 @@
 # 04.01.25
 
 import re
+import platform
 import subprocess
 import asyncio
 from pathlib import Path
@@ -17,7 +18,7 @@ from rich.progress import Progress, TextColumn
 # Interl 
 from StreamingCommunity.utils.config import config_manager
 from StreamingCommunity.utils import internet_manager
-from StreamingCommunity.setup import get_ffmpeg_path, get_n_m3u8dl_re_path, get_bento4_decrypt_path, binary_paths
+from StreamingCommunity.setup import get_ffmpeg_path, get_n_m3u8dl_re_path, get_bento4_decrypt_path
 
 
 # Logic
@@ -29,7 +30,7 @@ from .utils import convert_size_to_bytes
 
 
 # Variable
-console = Console(force_terminal=True if binary_paths._detect_system() != 'windows' else None)
+console = Console(force_terminal=True if platform.system().lower() != 'windows' else None)
 video_filter = config_manager.config.get("M3U8_DOWNLOAD", "select_video")
 audio_filter = config_manager.config.get("M3U8_DOWNLOAD", "select_audio")
 subtitle_filter = config_manager.config.get("M3U8_DOWNLOAD", "select_subtitle")
@@ -73,8 +74,9 @@ class MediaDownloader:
         if USE_PROXY and (proxy_url := CONF_PROXY.get("https") or CONF_PROXY.get("http")):
             cmd.extend(["--use-system-proxy", "false", "--custom-proxy", proxy_url])
 
-        if binary_paths._detect_system() != 'windows':
-            cmd.extend(["--force-ansi-console", "--no-ansi-color"])
+        # Always use these to ensure consistent output format for parsing, 
+        # and to avoid ANSI-related issues on some Windows terminals.
+        cmd.extend(["--force-ansi-console", "--no-ansi-color"])
 
         return cmd
 
@@ -85,9 +87,8 @@ class MediaDownloader:
         
         cmd = [
             get_n_m3u8dl_re_path(),
-            self.url,
-            "--write-meta-json", "true",
-            "--no-log", "true",
+            "--write-meta-json",
+            "--no-log",
             "--save-dir", str(analysis_path),
             "--tmp-dir", str(analysis_path),
             "--save-name", "temp_analysis",
@@ -97,6 +98,7 @@ class MediaDownloader:
             "--skip-download"
         ]
         cmd.extend(self._get_common_args())
+        cmd.append(self.url)
 
         console.print("[cyan]Analyzing playlist...")
         log_parser = LogParser()
@@ -245,27 +247,30 @@ class MediaDownloader:
         """Start the download process with automatic retry on segment count mismatch"""
         log_parser = LogParser()
         select_video = ("best" if getattr(self, "force_best_video", False) else video_filter)
-        cmd = [
-            get_n_m3u8dl_re_path(),
-            self.url,
-            "--save-name", self.filename,
-            "--save-dir", str(self.output_dir),
-            "--tmp-dir", str(self.output_dir),
-            "--ffmpeg-binary-path", get_ffmpeg_path(),
-            "--decryption-binary-path", get_bento4_decrypt_path(),
-            "--no-log",
-            "--write-meta-json", "false",
-            "--binary-merge", "true",
-            "--del-after-done", "true",
-            "--select-video", select_video,
-            "--select-audio", audio_filter,
-            "--select-subtitle", subtitle_filter,
-            "--auto-subtitle-fix", "false"           # CON TRUE ALCUNE VOLTE NON SCARICATA TUTTI I SUB SELEZIONATI
-        ]
+        
+        # Build command list
+        cmd = [get_n_m3u8dl_re_path()]
+        
+        # Options
+        cmd.extend(["--save-name", self.filename])
+        cmd.extend(["--save-dir", str(self.output_dir)])
+        cmd.extend(["--tmp-dir", str(self.output_dir)])
+        cmd.extend(["--ffmpeg-binary-path", get_ffmpeg_path()])
+        cmd.extend(["--decryption-binary-path", get_bento4_decrypt_path()])
+        cmd.extend(["--no-log"])
+        cmd.extend(["--write-meta-json", "false"])
+        cmd.extend(["--binary-merge"])
+        cmd.extend(["--del-after-done"])
+        cmd.extend(["--select-video", select_video])
+        cmd.extend(["--select-audio", audio_filter])
+        cmd.extend(["--select-subtitle", subtitle_filter])
+        cmd.extend(["--auto-subtitle-fix", "false"])        # CON TRUE ALCUNE VOLTE NON SCARICATA TUTTI I SUB SELEZIONATI
+        
+        # Common args (headers, proxy, ansi)
         cmd.extend(self._get_common_args())
 
         if concurrent_download:
-            cmd.extend(["--concurrent-download", "true"])
+            cmd.append("--concurrent-download")
         if thread_count > 0:
             cmd.extend(["--thread-count", str(thread_count)])
         if request_timeout > 0:
@@ -275,13 +280,17 @@ class MediaDownloader:
         if max_speed:
             cmd.extend(["--max-speed", max_speed])
         if check_segments_count:
-            cmd.extend(["--check-segments-count", "true"])
+            cmd.append("--check-segments-count")
         
         # Add key if provided
         if self.key:
-            for single_key in self.key:
+            keys = [self.key] if isinstance(self.key, str) else self.key
+            for single_key in keys:
                 cmd.extend(["--key", single_key])
         
+        # Input URL always at the end to avoid confusion with flags
+        cmd.append(self.url)
+
         console.print("\n[cyan]Starting download...")
         
         # Download external subtitles in parallel

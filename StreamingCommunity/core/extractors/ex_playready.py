@@ -95,7 +95,8 @@ def get_playready_keys(pssh: str, license_url: str, cdm_device_path: str, header
                 content_keys.append(f"{kid.replace('-', '').strip()}:{key_val.replace('-', '').strip()}")
 
             # Return keys
-            console.print(f"[cyan]Extracted [red]{len(content_keys)} CONTENT [cyan]keys from license.")
+            for i, key in enumerate(content_keys):
+                console.print(f"    [yellow]{i}) [cyan]Extracted kid: [red]{key.split(':')[0]} [cyan]| key: [green]{key.split(':')[1]}")
             return content_keys
 
         else:

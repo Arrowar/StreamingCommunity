@@ -14,6 +14,7 @@ from rich.console import Console
 from .version import __version__ as source_code_version, __author__, __title__
 from StreamingCommunity.utils import config_manager
 from StreamingCommunity.utils.http_client import get_userAgent
+from StreamingCommunity.setup.binary_paths import binary_paths
 
 
 # Variable
@@ -79,7 +80,7 @@ def update():
 
     console.print(
         f"\n[red]{__title__} has been downloaded: [yellow]{total_download_count}"
-        f"\n[yellow]{get_execution_mode()} - [green]Current installed version: [yellow]{current_version} "
+        f"\n[yellow]{get_execution_mode()} [white]- [red]{binary_paths._detect_system()} [white]- [green]Current installed version: [yellow]{current_version} "
         f"\n"
         f"  [cyan]Help the repository grow today by leaving a [yellow]star [cyan]and [yellow]sharing "
         f"[cyan]it with others online!\n"
@@ -88,4 +89,5 @@ def update():
     )
 
     if str(current_version).lower().replace("v.", "").replace("v", "") != str(last_version).lower().replace("v.", "").replace("v", ""):
-        console.print(f"\n[cyan]New version available: [yellow]{last_version}")
+        console.print(f"\n[red]New version available: [yellow]{last_version}")
+        console.print(f"[green]Download it from: [yellow]https://github.com/Arrowar/StreamingCommunity/releases/tag/v{last_version}")

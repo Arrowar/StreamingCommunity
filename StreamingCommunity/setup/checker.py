@@ -20,7 +20,6 @@ console = Console()
 def check_bento4() -> Optional[str]:
     """
     Check for a Bento4 binary and download if not found.
-
     Order: system PATH -> binary directory -> download from GitHub
     """
     system_platform = binary_paths.system
@@ -49,7 +48,6 @@ def check_bento4() -> Optional[str]:
 def check_ffmpeg() -> Tuple[Optional[str], Optional[str]]:
     """
     Check for FFmpeg executables and download if not found.
-
     Order: system PATH -> binary directory -> download from GitHub
     """
     system_platform = binary_paths.system
@@ -84,7 +82,6 @@ def check_ffmpeg() -> Tuple[Optional[str], Optional[str]]:
 def check_megatools() -> Optional[str]:
     """
     Check for megatools and download if not found.
-
     Order: system PATH -> binary directory -> download from GitHub
     """
     system_platform = binary_paths.system
@@ -138,3 +135,33 @@ def check_n_m3u8dl_re() -> Optional[str]:
     
     console.print(f"Failed to download {binary_exec}", style="red")
     return None
+
+
+def check_shaka_packager() -> Tuple[Optional[str], Optional[str]]:
+    """
+    Check for Shaka Packager executables and download if not found.
+    Order: system PATH -> binary directory -> download from GitHub
+    """
+    system_platform = binary_paths.system
+    packager_name = "packager.exe" if system_platform == "windows" else "packager"
+    
+    # STEP 1: Check system PATH
+    packager_path = shutil.which(packager_name)
+    
+    if packager_path:
+        return packager_path
+    
+    # STEP 2: Check binary directory
+    packager_local = binary_paths.get_binary_path("shaka_packager", packager_name)
+    
+    if packager_local and os.path.isfile(packager_local):
+        return packager_local
+    
+    # STEP 3: Download from GitHub repository
+    packager_downloaded = binary_paths.download_binary("shaka_packager", packager_name)
+    
+    if packager_downloaded:
+        return packager_downloaded
+    
+    console.print("Failed to download Shaka Packager", style="red")
+    return None, None

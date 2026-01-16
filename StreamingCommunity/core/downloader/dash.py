@@ -31,7 +31,7 @@ EXTENSION_OUTPUT = config_manager.config.get("M3U8_CONVERSION", "extension")
 
 
 class DASH_Downloader:
-    def __init__(self, license_url: str, license_headers: Dict[str, str] = None, mpd_url: str = None, mpd_headers: Dict[str, str] = None, mpd_sub_list: list = None, output_path: str = None, drm_preference: str = 'widevine', query_params: Dict[str, str] = None, key: str = None, cookies: Dict[str, str] = None):
+    def __init__(self, license_url: str, license_headers: Dict[str, str] = None, mpd_url: str = None, mpd_headers: Dict[str, str] = None, mpd_sub_list: list = None, output_path: str = None, drm_preference: str = 'widevine', decrypt_preference : str = "shaka", query_params: Dict[str, str] = None, key: str = None, cookies: Dict[str, str] = None):
         """
         Initialize DASH Downloader.
         
@@ -51,6 +51,7 @@ class DASH_Downloader:
         self.drm_preference = drm_preference.lower()
         self.key = key
         self.cookies = cookies or {}
+        self.decrypt_preference = decrypt_preference.lower()
         
         if self.mpd_headers is None:
             self.mpd_headers = get_headers()
@@ -105,7 +106,7 @@ class DASH_Downloader:
         pssh = self.drm_info['pssh']
         
         try:
-            time.sleep(0.1)
+            time.sleep(0.25)
             if drm_type == DRMSystem.WIDEVINE:
                 keys = get_widevine_keys(
                     pssh=pssh,
@@ -160,13 +161,15 @@ class DASH_Downloader:
             output_dir=self.output_dir,
             filename=self.filename_base,
             headers=self.mpd_headers,
-            cookies=self.cookies
+            cookies=self.cookies,
+            decrypt_preference=self.decrypt_preference
         )
         if self.mpd_sub_list:
             self.media_downloader.external_subtitles = self.mpd_sub_list
         self.media_downloader.parser_stream()
         
         # Parse MPD for DRM info (uses raw.mpd if available, falls back to URL)
+        console.print("\n[cyan]Starting fetching decryption keys...")
         self.meta_json, self.meta_selected, _, self.raw_mpd = self.media_downloader.get_metadata()
         self._fetch_drm_info()
         

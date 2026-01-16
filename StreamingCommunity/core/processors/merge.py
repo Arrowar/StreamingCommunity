@@ -102,7 +102,7 @@ def join_video(video_path: str, out_path: str):
     # Enabled the use of gpu
     if USE_GPU:
         gpu_type_hwaccel = detect_gpu_device_type()
-        console.print(f"[cyan]Detected GPU type for video join: [red]{gpu_type_hwaccel}")
+        console.print(f"[yellow]FFMPEG [cyan]Detected GPU for video join: [red]{gpu_type_hwaccel}")
         ffmpeg_cmd.extend(['-hwaccel', gpu_type_hwaccel])
 
     # Add mpegts to force to detect input file as ts file

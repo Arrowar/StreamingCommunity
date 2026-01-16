@@ -13,10 +13,11 @@
         "add_siteName": false
     },
     "M3U8_DOWNLOAD": {
-        "thread_count": 10,
-        "retry_count": 40,
+        "thread_count": 8,
+        "retry_count": 30,
         "concurrent_download": true,
         "max_speed": "30MB",
+        "real_time_decryption": true,
         "check_segments_count": true,
         "select_video": "res=.*1080.*:for=best",
         "select_audio": "lang='ita|Ita|it'",
@@ -35,7 +36,7 @@
     "REQUESTS": {
         "verify": false,
         "timeout": 30,
-        "max_retry": 10,
+        "max_retry": 8,
         "use_proxy": false,
         "proxy": {"http": "http://localhost:8888", "https": "http://localhost:8888"}
     },

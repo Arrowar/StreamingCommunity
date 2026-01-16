@@ -30,68 +30,87 @@ class GetSerieInfo:
         """
         response = create_client(headers=self.headers).get(self.url)
         soup = BeautifulSoup(response.text, "html.parser")
-        self.series_name = soup.find("title").get_text(strip=True).split(" - ")[0]
+        
+        # Get series name from title
+        title_tag = soup.find("title")
+        if title_tag:
+            self.series_name = title_tag.get_text(strip=True).split(" - ")[0]
+        else:
+            self.series_name = "Unknown Series"
 
-        tt_holder = soup.find('div', id='tt_holder')
-
-        # Find all seasons
-        seasons_div = tt_holder.find('div', class_='tt_season')
-        if not seasons_div:
+        # Find the series-select container
+        series_select = soup.find('div', class_='series-select')
+        if not series_select:
+            logging.warning("series-select div not found")
             return
 
-        season_list_items = seasons_div.find_all('li')
-        for season_li in season_list_items:
-            season_anchor = season_li.find('a')
-            if not season_anchor:
-                continue
+        # Find all season dropdowns
+        seasons_dropdown = series_select.find('div', class_='dropdown seasons')
+        if not seasons_dropdown:
+            logging.warning("seasons dropdown not found")
+            return
 
-            season_num = int(season_anchor.get_text(strip=True))
-            season_name = f"Stagione {season_num}"
+        season_items = seasons_dropdown.find_all('span', {'data-season': True})
+        
+        for season_span in season_items:
+            try:
+                season_num = int(season_span.get('data-season'))
+                season_name = season_span.get_text(strip=True)
 
-            # Create a new season
-            current_season = self.seasons_manager.add_season({
-                'number': season_num,
-                'name': season_name
-            })
+                # Create a new season
+                current_season = self.seasons_manager.add_season({
+                    'number': season_num,
+                    'name': season_name
+                })
 
-            # Find episodes for this season
-            tt_series_div = tt_holder.find('div', class_='tt_series')
-            tab_content = tt_series_div.find('div', class_='tab-content')
-            tab_pane = tab_content.find('div', id=f'season-{season_num}')
-
-            episode_list_items = tab_pane.find_all('li')
-            for ep_li in episode_list_items:
-                ep_anchor = ep_li.find('a', id=lambda x: x and x.startswith(f'serie-{season_num}_'))
-                if not ep_anchor:
+                # Find episodes for this season
+                episodes_dropdown = series_select.find('div', class_='dropdown episodes', attrs={'data-season': str(season_num)})
+                if not episodes_dropdown:
                     continue
 
-                ep_num_str = ep_anchor.get('data-num', '')
-                try:
-                    ep_num = int(ep_num_str.split('x')[1])
-                except (IndexError, ValueError):
-                    ep_num = int(ep_anchor.get_text(strip=True))
+                episode_items = episodes_dropdown.find_all('span', {'data-episode': True})
+                
+                for ep_span in episode_items:
+                    try:
+                        ep_data = ep_span.get('data-episode')  # format: "season-episode" e.g. "1-1"
+                        ep_parts = ep_data.split('-')
+                        if len(ep_parts) != 2:
+                            continue
+                            
+                        ep_num = int(ep_parts[1])
+                        ep_title = ep_span.get_text(strip=True)
 
-                ep_title = ep_anchor.get('data-title', '').strip()
-                ep_url = ep_anchor.get('data-link', '').strip()
-
-                # Prefer supervideo link from mirrors if available
-                mirrors_div = ep_li.find('div', class_='mirrors')
-                supervideo_url = None
-                if mirrors_div:
-                    supervideo_a = mirrors_div.find('a', class_='mr', text=lambda t: t and 'Supervideo' in t)
-                    if supervideo_a:
-                        supervideo_url = supervideo_a.get('data-link', '').strip()
+                        # Find the corresponding mirrors div for this episode
+                        mirrors_div = series_select.find('div', class_='dropdown mirrors', attrs={'data-season': str(season_num), 'data-episode': ep_data})
                         
-                if supervideo_url:
-                    ep_url = supervideo_url
-
-                if current_season:
-                    current_season.episodes.add({
-                        'number': ep_num,
-                        'name': ep_title if ep_title else f"Episodio {ep_num}",
-                        'url': ep_url
-                    })
-
+                        supervideo_url = None
+                        if mirrors_div:
+                            
+                            # Look for supervideo link (Player 1)
+                            mirrors_menu = mirrors_div.find('div', class_='dropdown-menu')
+                            if mirrors_menu:
+                                # Find the span with data-id="supervideo"
+                                supervideo_span = mirrors_menu.find('span', {'data-id': 'supervideo'})
+                                if supervideo_span:
+                                    supervideo_url = supervideo_span.get('data-link', '').strip()
+                        
+                        # Only add episode if supervideo link is available
+                        if supervideo_url and current_season:
+                            current_season.episodes.add({
+                                'number': ep_num,
+                                'name': ep_title if ep_title else f"Episodio {ep_num}",
+                                'url': supervideo_url
+                            })
+                        else:
+                            logging.warning(f"Supervideo link not available for Season {season_num}, Episode {ep_num}")
+                            
+                    except Exception as e:
+                        logging.error(f"Error parsing episode: {e}")
+                        continue
+                        
+            except Exception as e:
+                logging.error(f"Error parsing season: {e}")
+                continue
 
     # ------------- FOR GUI -------------
     def getNumberSeason(self) -> int:

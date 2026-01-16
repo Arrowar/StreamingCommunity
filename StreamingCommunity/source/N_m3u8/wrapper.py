@@ -18,7 +18,7 @@ from rich.progress import Progress, TextColumn
 # Interl 
 from StreamingCommunity.utils.config import config_manager
 from StreamingCommunity.utils import internet_manager
-from StreamingCommunity.setup import get_ffmpeg_path, get_n_m3u8dl_re_path, get_bento4_decrypt_path
+from StreamingCommunity.setup import get_ffmpeg_path, get_n_m3u8dl_re_path, get_bento4_decrypt_path, get_shaka_packager_path
 
 
 # Logic
@@ -40,18 +40,22 @@ concurrent_download = config_manager.config.get_int("M3U8_DOWNLOAD", "concurrent
 retry_count = config_manager.config.get_int("M3U8_DOWNLOAD", "retry_count")
 request_timeout = config_manager.config.get_int("REQUESTS", "timeout")
 thread_count = config_manager.config.get_int("M3U8_DOWNLOAD", "thread_count")
+real_time_decryption = config_manager.config.get_bool("M3U8_DOWNLOAD", "real_time_decryption")
 USE_PROXY = bool(config_manager.config.get_bool("REQUESTS", "use_proxy"))
 CONF_PROXY = config_manager.config.get_dict("REQUESTS", "proxy") or {}
 
 
 class MediaDownloader:
-    def __init__(self, url: str, output_dir: str, filename: str, headers: Optional[Dict] = None, key: Optional[str] = None, cookies: Optional[Dict] = None):
+    def __init__(self, url: str, output_dir: str, filename: str, headers: Optional[Dict] = None, key: Optional[str] = None, cookies: Optional[Dict] = None, decrypt_preference: str = "bento4"):
         self.url = url
         self.output_dir = Path(output_dir)
         self.filename = filename
         self.headers = headers or {}
         self.key = key
         self.cookies = cookies or {}
+        self.decrypt_preference = decrypt_preference.lower()
+
+        # Initialize other attributes
         self.streams = []
         self.external_subtitles = []
         self.force_best_video = False           # Flag to force best video if no video selected
@@ -79,6 +83,16 @@ class MediaDownloader:
         cmd.extend(["--force-ansi-console", "--no-ansi-color"])
 
         return cmd
+    
+    def determine_decryption_tool(self) -> str:
+        """Determine decryption tool based on preference and availability"""
+        if self.decrypt_preference == "bento4":
+            return get_bento4_decrypt_path()
+        elif self.decrypt_preference == "shaka":
+            return get_shaka_packager_path()
+        else:
+            console.log(f"[yellow]Unknown decryption preference '{self.decrypt_preference}'; defaulting to Bento4")
+            return get_bento4_decrypt_path()
 
     def parser_stream(self) -> List[StreamInfo]:
         """Analyze playlist and display table of available streams"""
@@ -192,7 +206,7 @@ class MediaDownloader:
                 self.streams.append(StreamInfo(
                     type_="Subtitle [red]*EXT",
                     language=ext_sub.get('language', ''),
-                    name=(ext_sub.get('type') or ext_sub.get('format') or 'External'),
+                    name=ext_sub.get('name', ''),
                     selected=selected,
                     extension=ext_type
                 ))
@@ -265,7 +279,7 @@ class MediaDownloader:
         cmd.extend(["--save-dir", str(self.output_dir)])
         cmd.extend(["--tmp-dir", str(self.output_dir)])
         cmd.extend(["--ffmpeg-binary-path", get_ffmpeg_path()])
-        cmd.extend(["--decryption-binary-path", get_bento4_decrypt_path()])
+        cmd.extend(["--decryption-binary-path", self.determine_decryption_tool()])
         cmd.extend(["--no-log"])
         cmd.extend(["--write-meta-json", "false"])
         cmd.extend(["--binary-merge"])
@@ -289,7 +303,9 @@ class MediaDownloader:
         if max_speed:
             cmd.extend(["--max-speed", max_speed])
         if check_segments_count:
-            cmd.append("--check-segments-count")
+            cmd.extend(["--check-segments-count", "true"])
+        if real_time_decryption:
+            cmd.extend(["--mp4-real-time-decryption", "true"])
         
         # Add key if provided
         if self.key:

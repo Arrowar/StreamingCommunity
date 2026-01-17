@@ -5,7 +5,7 @@ import base64
 
 
 # External libraries
-from curl_cffi import requests
+from curl_cffi_smart import requests
 from rich.console import Console
 from pywidevine.cdm import Cdm
 from pywidevine.device import Device
@@ -69,7 +69,7 @@ def get_widevine_keys(pssh_list: list[dict], license_url: str, cdm_device_path: 
                 console.print("[red]License URL is None.")
                 continue
 
-            response = requests.post(license_url, headers=req_headers, data=challenge, impersonate="chrome142")
+            response = requests.post(license_url, headers=req_headers, data=challenge, impersonate="chrome99")
             time.sleep(0.25)
 
             if response.status_code != 200:

@@ -45,6 +45,7 @@ downloaded_files/
 .idea
 .vscode
 .ruff_cache
+*.iml
 
 # Other
 Video

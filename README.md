@@ -41,6 +41,18 @@ pip install -r requirements.txt
 python test_run.py
 ```
 
+### Dependencies
+```bash
+# Windows
+pip install -r requirements.txt
+
+# Linux/MacOS  
+pip3 install -r requirements.txt
+
+# Android Termux
+pip install -r requirements-termux.txt
+```
+
 ### Update
 ```bash
 python update.py

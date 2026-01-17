@@ -7,7 +7,7 @@ from typing import Optional, List, Dict
 
 
 # External libraries
-from curl_cffi import requests
+from curl_cffi_smart import requests
 from rich.console import Console
 
 
@@ -295,7 +295,7 @@ class MPDParser:
     def parse(self) -> bool:
         """Parse MPD and setup handlers"""
         try:
-            r = requests.get(self.mpd_url, headers=self.headers, timeout=self.timeout, impersonate="chrome142")
+            r = requests.get(self.mpd_url, headers=self.headers, timeout=self.timeout, impersonate="chrome99")
             r.raise_for_status()
             self._set_root(ET.fromstring(r.content))
             return True

@@ -547,7 +547,7 @@ stdownload:
     container_name: stdownload
     environment:
       - NVIDIA_VISIBLE_DEVICES=void
-      - TZ=EAmerica/Chicago
+      - TZ=America/Chicago
     group_add:
       - '568'   ##permissions for writing files
     image: ghcr.io/arrowar/streamingcommunity:latest

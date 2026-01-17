@@ -538,6 +538,60 @@ make LOCAL_DIR=/path/to/download run-container
 
 The `run-container` command mounts also the `config.json` file, so any change to the configuration file is reflected immediately without having to rebuild the image.
 
+# Docker Compose 
+
+Code for Docker Compose:
+
+```
+stdownload:
+    container_name: stdownload
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=void
+      - TZ=Europe/Rome
+    group_add:
+      - '568'   ##permissions for writing files
+    image: ghcr.io/arrowar/streamingcommunity:latest
+    platform: linux/amd64
+    privileged: False
+    restart: 'no'
+    stdin_open: False
+    tty: False
+    volumes:
+      - /mnt/qualcosa/st:/app
+      - /mnt/qualcosa/st/video:/app/video
+volumes: {}
+```
+
+🛠️ Fix folder issue
+After running Docker Compose, you need to do something a little strange. You need to enter the folder from outside the Docker shell (for example, with FTP or, personally, I use FileBrowser). Once inside the Docker folder, you need to delete all the files inside except for the video folder. 
+Then clone the repository on your PC and upload the files to the Docker folder.
+
+🛠️ Run the container
+Return to the Docker shell and ensure that Python is installed. To verify, use this command:
+
+```
+python --version
+```
+
+If Python is not installed, you can install it using the following command:
+
+```
+sudo apt install python3 python3-pip
+```
+
+If everything is ok, you can run the intallation script for dependencies:
+
+```
+pip3 install -r requirements.txt
+```
+
+At the end of the installation, you can run the test_run.py script to test the installation using this command:
+
+```
+python3 test_run.py
+```
+
+For the webui work in progress (:
 
 # Telegram Usage
 

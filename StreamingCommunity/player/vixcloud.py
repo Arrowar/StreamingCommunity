@@ -13,7 +13,7 @@ from rich.console import Console
 
 
 # Internal utilities
-from StreamingCommunity.utils.http_client import create_client, get_userAgent
+from StreamingCommunity.utils.http_client import create_client, get_userAgent, create_client_curl
 
 
 # Variable
@@ -355,7 +355,7 @@ class VideoSourceAnime(VideoSource):
             str: Parsed script content
         """
         try:
-            response = create_client(headers=self.headers).get(f"{self.url}/embed-url/{episode_id}")
+            response = create_client_curl(headers=self.headers).get(f"{self.url}/embed-url/{episode_id}")
             response.raise_for_status()
 
             # Extract and clean embed URL

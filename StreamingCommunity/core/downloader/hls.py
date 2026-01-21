@@ -14,10 +14,11 @@ from rich.console import Console
 # Internal utilities
 from StreamingCommunity.utils.http_client import get_headers
 from StreamingCommunity.core.processors import join_video, join_audios, join_subtitles
+from StreamingCommunity.core.downloader.media_players import MediaPlayers
 from StreamingCommunity.utils import config_manager, os_manager, internet_manager
 
 
-# Logic
+# DRM Utilities
 from StreamingCommunity.source.N_m3u8 import MediaDownloader
 
 
@@ -79,9 +80,9 @@ class HLS_Downloader:
         
         # Create output directory
         os_manager.create_path(self.output_dir)
+        
         # Create media player ignore files to prevent media scanners
         try:
-            from StreamingCommunity.core.downloader.media_players import MediaPlayers
             self.media_players = MediaPlayers(self.output_dir)
             self.media_players.create()
         except Exception:
@@ -227,6 +228,7 @@ class HLS_Downloader:
         for log_file in glob.glob(os.path.join(self.output_dir, "*.log")):
             os.remove(log_file)
         shutil.rmtree(os.path.join(self.output_dir, "analysis_temp"), ignore_errors=True)
+        
         # Remove media player ignore files if created
         try:
             if getattr(self, 'media_players', None):

@@ -16,13 +16,14 @@ from rich.console import Console
 # Internal utilities
 from StreamingCommunity.utils.http_client import get_headers
 from StreamingCommunity.core.processors import join_video, join_audios, join_subtitles
+from StreamingCommunity.core.downloader.media_players import MediaPlayers
 from StreamingCommunity.utils import config_manager, os_manager, internet_manager
-from StreamingCommunity.setup import get_wvd_path, get_prd_path
 
 
-# Logic class
-from ..extractors import MPDParser, DRMSystem, get_widevine_keys, get_playready_keys
+# DRM Utilities
 from StreamingCommunity.source.N_m3u8 import MediaDownloader
+from StreamingCommunity.setup import get_wvd_path, get_prd_path
+from ..extractors import MPDParser, DRMSystem, get_widevine_keys, get_playready_keys
 
 
 # Config
@@ -186,9 +187,9 @@ class DASH_Downloader:
         
         # Create output directory
         os_manager.create_path(self.output_dir)
+        
         # Create media player ignore files to prevent media scanners
         try:
-            from StreamingCommunity.core.downloader.media_players import MediaPlayers
             self.media_players = MediaPlayers(self.output_dir)
             self.media_players.create()
         except Exception:
@@ -223,6 +224,7 @@ class DASH_Downloader:
             if self.media_downloader.force_best_video and os.path.exists(self.meta_json):
                 with open(self.meta_json, 'r', encoding='utf-8-sig') as f:
                     meta_data = json.load(f)
+                    
                     # Filter for video tracks (usually no MediaType field and has Bandwidth)
                     videos = [item for item in meta_data if not item.get('MediaType') and item.get('Bandwidth')]
                     if videos:
@@ -386,6 +388,7 @@ class DASH_Downloader:
         for log_file in glob.glob(os.path.join(self.output_dir, "*.log")):
             os.remove(log_file)
         shutil.rmtree(os.path.join(self.output_dir, "analysis_temp"), ignore_errors=True)
+        
         # Remove media player ignore files if created
         try:
             if getattr(self, 'media_players', None):

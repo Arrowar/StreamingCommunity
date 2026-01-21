@@ -84,6 +84,7 @@ class DASH_Downloader:
         # Status tracking
         self.error = None
         self.last_merge_result = None
+        self.media_players = None
     
     def _fetch_drm_info(self, selected_ids: list = None) -> bool:
         """Parse MPD and extract DRM information from raw.mpd file if available, otherwise fetch from URL"""
@@ -185,6 +186,13 @@ class DASH_Downloader:
         
         # Create output directory
         os_manager.create_path(self.output_dir)
+        # Create media player ignore files to prevent media scanners
+        try:
+            from StreamingCommunity.core.downloader.media_players import MediaPlayers
+            self.media_players = MediaPlayers(self.output_dir)
+            self.media_players.create()
+        except Exception:
+            pass
         
         # Initialize MediaDownloader
         self.media_downloader = MediaDownloader(
@@ -378,6 +386,12 @@ class DASH_Downloader:
         for log_file in glob.glob(os.path.join(self.output_dir, "*.log")):
             os.remove(log_file)
         shutil.rmtree(os.path.join(self.output_dir, "analysis_temp"), ignore_errors=True)
+        # Remove media player ignore files if created
+        try:
+            if getattr(self, 'media_players', None):
+                self.media_players.remove()
+        except Exception:
+            pass
     
     def _print_summary(self):
         """Print download summary"""

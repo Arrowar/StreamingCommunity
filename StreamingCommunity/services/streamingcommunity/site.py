@@ -1,4 +1,4 @@
-# 10.12.23
+# 22.01.26
 
 import json
 
@@ -83,12 +83,12 @@ def title_search(query: str) -> int:
             if filename:
                 image_url = f"{site_constants.FULL_URL.replace('stream', 'cdn.stream')}/images/{filename}"
 
-            # Extract date: prefer last_air_date at root level, otherwise search in translations
+            # Extract date: prefer first_air_date at root level, otherwise search in translations
             date = None
             
             if not date:
                 for trans in dict_title.get('translations') or []:
-                    if trans.get('key') == 'last_air_date' and trans.get('value'):
+                    if trans.get('key') == 'first_air_date' and trans.get('value'):
                         date = trans.get('value')
                         break
             

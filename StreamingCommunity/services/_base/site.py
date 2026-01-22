@@ -1,4 +1,4 @@
-# 19.06.24
+# 22.01.26
 
 # External library
 from rich.console import Console
@@ -7,7 +7,7 @@ from rich.console import Console
 # Variable
 console = Console()
 available_colors = ['red', 'magenta', 'yellow', 'cyan', 'green', 'blue', 'white']
-column_to_hide = ['Slug', 'Sub_ita', 'Last_air_date', 'Seasons_count', 'Url', 'Image', 'Path_id']
+column_to_hide = ['Slug', 'Sub_ita', 'First_air_date', 'Seasons_count', 'Url', 'Image', 'Path_id']
 
 
 def get_select_title(table_show_manager, media_search_manager, num_results_available): 

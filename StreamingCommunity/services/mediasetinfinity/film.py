@@ -51,13 +51,9 @@ def download_film(select_title: MediaItem) -> Tuple[str, bool]:
     if license_params:
         license_url = f"{license_url}?{urllib.parse.urlencode(license_params)}"
 
-    mpd_url = get_manifest(tracking_info['url'])
-
     # Download the episode
-    dash_process =  DASH_Downloader(
-        mpd_url=mpd_url,
+    return DASH_Downloader(
+        mpd_url=get_manifest(tracking_info['url']),
         license_url=license_url,
         output_path=os.path.join(mp4_path, mp4_name),
-    )
-    out_path, need_stop = dash_process.start()
-    return out_path, need_stop
+    ).start()

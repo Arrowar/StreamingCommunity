@@ -39,10 +39,10 @@ class LogParser:
 def create_key(s):
     """Create a unique key for a stream from meta.json data"""
     if "Resolution" in s and s.get("Resolution"): 
-        return f"VIDEO|{s.get('Resolution','')}|{s.get('Bandwidth',0)}|{s.get('Codecs','')}"
+        return f"VIDEO|{s.get('Resolution','')}|{s.get('Bandwidth',0)}|{s.get('Codecs','')}|{s.get('FrameRate','')}|{s.get('VideoRange','')}"
 
     if s.get("MediaType") == "AUDIO": 
-        return f"AUDIO|{s.get('Language','')}|{s.get('Name','')}|{s.get('Bandwidth',0)}|{s.get('Codecs','')}"
+        return f"AUDIO|{s.get('Language','')}|{s.get('Name','')}|{s.get('Bandwidth',0)}|{s.get('Codecs','')}|{s.get('Channels','')}"
 
     return f"SUBTITLE|{s.get('Language','')}|{s.get('Name','')}"
 
@@ -71,11 +71,16 @@ def parse_meta_json(json_path: str, selected_json_path: str) -> List[StreamInfo]
                 }
     
     streams = []
+    seen_keys = set()
     for s in metadata:
+        key = create_key(s)
+        if key in seen_keys:
+            continue
+        seen_keys.add(key)
+        
         bw = s.get('Bandwidth', 0)
         bw_str = f"{bw/1e6:.1f} Mbps" if bw >= 1e6 else (f"{bw/1e3:.0f} Kbps" if bw >= 1e3 else f"{bw:.0f} bps")
         
-        key = create_key(s)
         sel = key in selected_map
         det = selected_map.get(key, {})
         

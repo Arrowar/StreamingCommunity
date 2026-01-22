@@ -11,7 +11,7 @@ from rich.console import Console
 
 
 # Internal utilities
-from StreamingCommunity.utils.http_client import create_client, get_headers, get_userAgent
+from StreamingCommunity.utils.http_client import create_client, create_client_curl, get_headers, get_userAgent
 
 
 # Variable
@@ -49,8 +49,8 @@ class MediasetAPI:
         response = create_client(headers=self.headers).post('https://api-ott-prod-fe.mediaset.net/PROD/play/idm/anonymous/login/v2.0', json=json_data)
         return response.json()['response']['beToken']
 
-    def fetch_html(self, timeout=10):
-        response = create_client(headers=self.headers).get("https://mediasetinfinity.mediaset.it/")
+    def fetch_html(self):
+        response = create_client_curl(headers=self.headers).get("https://mediasetinfinity.mediaset.it/")
         response.raise_for_status()
         return response.text
 

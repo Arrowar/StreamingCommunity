@@ -20,7 +20,7 @@
         "max_speed": "30MB",
         "real_time_decryption": true,
         "check_segments_count": true,
-        "select_video": "res=1080:for=best",
+        "select_video": "res=1920:for=best",
         "select_audio": "lang='ita|Ita|it'",
         "select_subtitle": "lang='ita|eng|Ita|Eng|it|en':for=all",
         "cleanup_tmp_folder": true

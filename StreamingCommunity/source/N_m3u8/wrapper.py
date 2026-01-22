@@ -23,7 +23,7 @@ from StreamingCommunity.setup import get_ffmpeg_path, get_n_m3u8dl_re_path, get_
 
 # Logic
 from .object import StreamInfo
-from .pattern import (VIDEO_LINE_RE, AUDIO_LINE_RE, SUBTITLE_LINE_RE, SEGMENT_RE, PERCENT_RE, SPEED_RE, SIZE_RE, SUBTITLE_FINAL_SIZE_RE)
+from .pattern import VIDEO_LINE_RE, AUDIO_LINE_RE, SUBTITLE_LINE_RE, SEGMENT_RE, PERCENT_RE, SPEED_RE, SIZE_RE, SUBTITLE_FINAL_SIZE_RE
 from .progress_bar import CustomBarColumn, ColoredSegmentColumn, CompactTimeColumn, CompactTimeRemainingColumn, SizeColumn
 from .parser import parse_meta_json, LogParser
 from .utils import convert_size_to_bytes

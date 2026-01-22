@@ -1,7 +1,6 @@
 # 17.10.24
 
 import os
-import glob
 import shutil
 import logging
 from typing import Any, Dict, Optional
@@ -14,10 +13,11 @@ from rich.console import Console
 # Internal utilities
 from StreamingCommunity.utils.http_client import get_headers
 from StreamingCommunity.core.processors import join_video, join_audios, join_subtitles
+from StreamingCommunity.core.downloader.media_players import MediaPlayers
 from StreamingCommunity.utils import config_manager, os_manager, internet_manager
 
 
-# Logic
+# DRM Utilities
 from StreamingCommunity.source.N_m3u8 import MediaDownloader
 
 
@@ -51,15 +51,14 @@ class HLS_Downloader:
             self.output_path += f'.{EXTENSION_OUTPUT}'
         
         # Extract directory and filename components ONCE
-        self.output_dir = os.path.dirname(self.output_path)
         self.filename_base = os.path.splitext(os.path.basename(self.output_path))[0]
-        
-        # Check if file already exists
+        self.output_dir = os.path.join(os.path.dirname(self.output_path), self.filename_base + "_hls_temp")
         self.file_already_exists = os.path.exists(self.output_path)
         
         # Status tracking
         self.error = None
         self.last_merge_result = None
+        self.media_players = None
         
         # Setup MediaDownloader
         self.media_downloader = MediaDownloader(
@@ -78,10 +77,19 @@ class HLS_Downloader:
         
         # Create output directory
         os_manager.create_path(self.output_dir)
+        
+        # Create media player ignore files to prevent media scanners
+        try:
+            self.media_players = MediaPlayers(self.output_dir)
+            self.media_players.create()
+        except Exception:
+            pass
         status = self.media_downloader.start_download()
 
-        # Get final status
-        status = self.media_downloader.get_status()
+        # Check if any media was downloaded
+        if status.get('video') is None and status.get('audios') == [] and status.get('subtitles') == [] and status.get('external_subtitles') == []:
+            logging.error("No media downloaded")
+            return None, True
 
         # Merge files using FFmpeg
         final_file = self._merge_files(status)
@@ -103,7 +111,7 @@ class HLS_Downloader:
         # Print summary and cleanup
         self._print_summary()
         if CLEANUP_TMP:
-            self._cleanup_temp_files(status)
+            shutil.rmtree(self.output_dir, ignore_errors=True)
         return self.output_path, False
 
     def _merge_files(self, status) -> Optional[str]:
@@ -174,49 +182,6 @@ class HLS_Downloader:
                 console.print("[yellow]Subtitle merge failed, continuing without subtitles")
     
         return current_file
-
-    def _cleanup_temp_files(self, status):
-        """Clean up temporary files"""
-        files_to_remove = []
-        
-        # Add original downloaded files
-        if status['video'] and os.path.abspath(status['video'].get('path')) != os.path.abspath(self.output_path):
-            files_to_remove.append(status['video'].get('path'))
-        
-        for audio in status['audios']:
-            if os.path.abspath(audio.get('path')) != os.path.abspath(self.output_path):
-                files_to_remove.append(audio.get('path'))
-        
-        for sub in status['subtitles']:
-            if os.path.abspath(sub.get('path')) != os.path.abspath(self.output_path):
-                files_to_remove.append(sub.get('path'))
-
-        for ext_sub in status['external_subtitles']:
-            if os.path.abspath(ext_sub.get('path')) != os.path.abspath(self.output_path):
-                files_to_remove.append(ext_sub.get('path'))
-        
-        # Remove intermediate merge files
-        intermediate_patterns = [
-            f"{self.filename_base}_with_audio.{EXTENSION_OUTPUT}",
-            f"{self.filename_base}_final.{EXTENSION_OUTPUT}"
-        ]
-        
-        for pattern in intermediate_patterns:
-            file_path = os.path.join(self.output_dir, pattern)
-            if os.path.exists(file_path) and os.path.abspath(file_path) != os.path.abspath(self.output_path):
-                files_to_remove.append(file_path)
-        
-        # Remove files
-        for file_path in files_to_remove:
-            try:
-                if os.path.exists(file_path):
-                    os.remove(file_path)
-            except Exception as e:
-                logging.warning(f"Could not remove temp file {file_path}: {e}")
-
-        for log_file in glob.glob(os.path.join(self.output_dir, "*.log")):
-            os.remove(log_file)
-        shutil.rmtree(os.path.join(self.output_dir, "analysis_temp"), ignore_errors=True)
 
     def _print_summary(self):
         """Print download summary"""

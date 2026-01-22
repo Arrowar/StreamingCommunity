@@ -1,9 +1,9 @@
-# 10.01.26
+﻿# 10.01.26
 
-import xml.etree.ElementTree as ET
 import base64
 import binascii
-from typing import Optional, List, Dict
+import xml.etree.ElementTree as ET
+from typing import Optional, List, Dict, Tuple
 
 
 # External libraries
@@ -16,7 +16,7 @@ console = Console()
 
 
 class DRMSystem:
-    """DRM system constants and utilities"""
+    """DRM system constants and utilities."""
     WIDEVINE = 'widevine'
     PLAYREADY = 'playready'
     FAIRPLAY = 'fairplay'
@@ -50,409 +50,424 @@ class DRMSystem:
         return next((t for t, v in cls.UUIDS.items() if v in u), None)
 
 
-class NamespaceManager:
-    def __init__(self, root: ET.Element):
-        self.nsmap = self._extract_namespaces(root)
-        for prefix, uri in self.nsmap.items():
-            if prefix and prefix != 'mpd':
-                ET.register_namespace(prefix, uri)
-    
-    @staticmethod
-    def _extract_namespaces(root: ET.Element) -> Dict[str, str]:
-        nsmap = {
-            'mpd': 'urn:mpeg:dash:schema:mpd:2011',
-            'cenc': 'urn:mpeg:cenc:2013',
-            'mspr': 'urn:microsoft:playready'
-        }
-        
-        for elem in root.iter():
-            tag = elem.tag
-            if '}' in tag:
-                ns = tag.split('}')[0].strip('{')
-                if ns and ns not in nsmap.values():
-                    # Prova a identificare il namespace
-                    if 'dash' in ns.lower() or 'mpd' in ns.lower():
-                        nsmap['mpd'] = ns
-                    elif 'cenc' in ns.lower():
-                        nsmap['cenc'] = ns
-                    elif 'playready' in ns.lower():
-                        nsmap['mspr'] = ns
-        
-        return nsmap
-    
-    def find(self, element: ET.Element, path: str) -> Optional[ET.Element]:
-        xpath = self._convert_path(path)
-        return element.find(xpath, namespaces=self.nsmap)
-    
-    def findall(self, element: ET.Element, path: str) -> List[ET.Element]:
-        xpath = self._convert_path(path)
-        return element.findall(xpath, namespaces=self.nsmap)
-    
-    def _convert_path(self, path: str) -> str:
-        for prefix, uri in self.nsmap.items():
-            path = path.replace(f'{prefix}:', f'{{{uri}}}')
-        return path
-
-
-class ContentProtectionHandler:
-    """Handles DRM and content protection"""
-    def __init__(self, ns_manager: NamespaceManager):
-        self.ns = ns_manager
-    
-    def is_protected(self, element: ET.Element) -> bool:
-        for cp in self.ns.findall(element, 'mpd:ContentProtection'):
-            sid = (cp.get('schemeIdUri') or '').lower()
-            if DRMSystem.CENC_SCHEME in sid or DRMSystem.from_uuid(sid):
-                return True
-        return False
-    
-    def get_default_kid(self, element: ET.Element) -> Optional[str]:
-        """Extract default_KID from ContentProtection elements"""
-        for cp in self.ns.findall(element, 'mpd:ContentProtection'):
-            target_attr = f'{{{self.ns.nsmap.get("cenc", "")}}}default_KID'
-            kid = cp.get(target_attr) or cp.get('default_KID')
-            if kid:
-                return kid
-        
-        return None
-    
-    def get_drm_types(self, element: ET.Element) -> List[str]:
-        drm_types = []
-        
-        for cp in self.ns.findall(element, 'mpd:ContentProtection'):
-            scheme_id = (cp.get('schemeIdUri') or '').lower()
-            drm_type = DRMSystem.from_uuid(scheme_id)
-            
-            if drm_type and drm_type not in drm_types:
-                if self._has_pssh_data(cp, drm_type):
-                    drm_types.append(drm_type)
-        
-        return drm_types
-    
-    def _has_pssh_data(self, cp_element: ET.Element, drm_type: str) -> bool:
-        pssh = self.ns.find(cp_element, 'cenc:pssh')
-        if pssh is not None and pssh.text and pssh.text.strip():
-            if self._is_valid_pssh(pssh.text.strip(), drm_type):
-                return True
-        
-        if drm_type == DRMSystem.PLAYREADY:
-            pro = self.ns.find(cp_element, 'mspr:pro')
-            if pro is not None and pro.text and pro.text.strip():
-                if self._is_valid_pro(pro.text.strip()):
-                    return True
-        
-        return False
-    
-    def _is_valid_pssh(self, pssh_b64: str, drm_type: str) -> bool:
-        """Verify if the PSSH is valid for the given DRM type"""
-        try:
-            data = base64.b64decode(pssh_b64)
-            if len(data) < 32:
-                return False
-            if data[4:8] != b'pssh': 
-                return False
-            
-            target_uuid = DRMSystem.get_uuid(drm_type)
-            if not target_uuid: 
-                return False
-            
-            target_bytes = binascii.unhexlify(target_uuid.replace('-', ''))
-            return data[12:28] == target_bytes
-        except Exception:
-            return False
-
-    def _is_valid_pro(self, pro_b64: str) -> bool:
-        """Verify if the PlayReady Object is valid"""
-        try:
-            data = base64.b64decode(pro_b64)
-            if len(data) < 10: 
-                return False
-            
-            length = int.from_bytes(data[:4], byteorder='little')
-            return len(data) == length
-        except Exception:
-            return False
-
-    def extract_pssh(self, root: ET.Element, drm_type: str = DRMSystem.WIDEVINE) -> List[str]:
-        target_uuid = DRMSystem.get_uuid(drm_type)
-        if not target_uuid:
-            return []
-        
-        pssh_list = []
-        for elem in root.iter():
-            if 'ContentProtection' in elem.tag:
-                scheme_id = (elem.get('schemeIdUri') or '').lower()
-                if target_uuid in scheme_id:
-                    for child in elem:
-                        text = (child.text or "").strip()
-                        if not text:
-                            continue
-
-                        if 'pssh' in child.tag:
-                            if self._is_valid_pssh(text, drm_type):
-                                if text not in pssh_list:
-                                    pssh_list.append(text)
-                        elif drm_type == DRMSystem.PLAYREADY and 'pro' in child.tag:
-                            if self._is_valid_pro(text):
-                                if text not in pssh_list:
-                                    pssh_list.append(text)
-        
-        return pssh_list
-
-    def extract_pssh_full(self, root: ET.Element, drm_type: str = DRMSystem.WIDEVINE, target_kids: List[str] = None) -> List[Dict[str, str]]:
-        target_uuid = DRMSystem.get_uuid(drm_type)
-        if not target_uuid:
-            return []
-        
-        pssh_list = []
-        observed = set()
-        norm_target_kids = [k.lower().replace('-', '') for k in target_kids] if target_kids else None
-
-        # Check AdaptationSets
-        for period in self.ns.findall(root, 'mpd:Period'):
-            for adapt_set in self.ns.findall(period, 'mpd:AdaptationSet'):
-                content_type = adapt_set.get('contentType') or adapt_set.get('mimeType', 'unknown')
-                if 'video' in content_type.lower(): 
-                    content_type = 'video'
-                elif 'audio' in content_type.lower():
-                    content_type = 'audio'
-                
-                default_kid = self.get_default_kid(adapt_set)
-                
-                # Check for target KIDs filter
-                if norm_target_kids:
-                    potential_kids = []
-                    if default_kid:
-                        potential_kids.append(default_kid.lower().replace('-', ''))
-                    
-                    for rep in self.ns.findall(adapt_set, 'mpd:Representation'):
-                        rkid = self.get_default_kid(rep)
-                        if rkid:
-                            potential_kids.append(rkid.lower().replace('-', ''))
-                    
-                    if not any(tk in potential_kids for tk in norm_target_kids):
-                        continue
-
-                # Check directly in AdaptationSet
-                for cp in self.ns.findall(adapt_set, 'mpd:ContentProtection'):
-                    scheme_id = (cp.get('schemeIdUri') or '').lower()
-                    if target_uuid in scheme_id:
-                        for child in cp:
-                            text = (child.text or "").strip()
-                            if not text: 
-                                continue
-
-                            is_valid = False
-                            if 'pssh' in child.tag:
-                                is_valid = self._is_valid_pssh(text, drm_type)
-                            elif drm_type == DRMSystem.PLAYREADY and 'pro' in child.tag:
-                                is_valid = self._is_valid_pro(text)
-
-                            if is_valid:
-                                if text not in observed:
-                                    observed.add(text)
-                                    pssh_list.append({'pssh': text, 'kid': default_kid or 'N/A', 'type': content_type})
-                
-                # Check in Representations
-                for rep in self.ns.findall(adapt_set, 'mpd:Representation'):
-                    for cp in self.ns.findall(rep, 'mpd:ContentProtection'):
-                         scheme_id = (cp.get('schemeIdUri') or '').lower()
-                         if target_uuid in scheme_id:
-                             for child in cp:
-                                text = (child.text or "").strip()
-                                if not text: 
-                                    continue
-
-                                is_valid = False
-                                if 'pssh' in child.tag:
-                                    is_valid = self._is_valid_pssh(text, drm_type)
-                                elif drm_type == DRMSystem.PLAYREADY and 'pro' in child.tag:
-                                    is_valid = self._is_valid_pro(text)
-
-                                if is_valid:
-                                    if text not in observed:
-                                        observed.add(text)
-                                        pssh_list.append({'pssh': text, 'kid': default_kid or 'N/A', 'type': content_type})
-
-        # Fallback for generic PSSHs not in AdaptationSets
-        if not pssh_list:
-            for elem in root.iter():
-                if 'ContentProtection' in elem.tag:
-                    scheme_id = (elem.get('schemeIdUri') or '').lower()
-                    if target_uuid in scheme_id:
-                        for child in elem:
-                            text = (child.text or "").strip()
-                            if not text: 
-                                continue
-
-                            is_valid = False
-                            if 'pssh' in child.tag:
-                                is_valid = self._is_valid_pssh(text, drm_type)
-                            elif drm_type == DRMSystem.PLAYREADY and 'pro' in child.tag:
-                                is_valid = self._is_valid_pro(text)
-
-                            if is_valid:
-                                if text not in observed:
-                                    observed.add(text)
-                                    pssh_list.append({'pssh': text, 'kid': 'N/A', 'type': 'global'})
-        
-        return pssh_list
-
-
 class MPDParser:
     def __init__(self, mpd_url: str, headers: Dict[str, str] = None, timeout: int = 30):
-        self.mpd_url, self.headers, self.timeout = mpd_url, headers or {}, timeout
-        self.root = self.ns_manager = self.protection_handler = None
+        self.mpd_url = mpd_url
+        self.headers = headers or {}
+        self.timeout = timeout
+        self.root = None
+        self.namespace_map = {}
     
-    def _set_root(self, root: ET.Element):
-        self.root = root
-        self.ns_manager = NamespaceManager(self.root)
-        self.protection_handler = ContentProtectionHandler(self.ns_manager)
-
     def parse(self) -> bool:
-        """Parse MPD and setup handlers"""
+        """Parse MPD from URL."""
         try:
             r = requests.get(self.mpd_url, headers=self.headers, timeout=self.timeout, impersonate="chrome142")
             r.raise_for_status()
-            self._set_root(ET.fromstring(r.content))
+            self.root = ET.fromstring(r.content)
+            self._extract_namespaces()
             return True
+        
         except Exception as e:
             console.print(f"[red]Error parsing MPD: {e}")
             return False
     
     def parse_from_file(self, file_path: str) -> bool:
-        """Parse MPD from a local file"""
+        """Parse MPD from a local file."""
         try:
-            self._set_root(ET.parse(file_path).getroot())
+            self.root = ET.parse(file_path).getroot()
+            self._extract_namespaces()
             return True
-        except Exception as e:
-            console.print(f"[red]Error parsing MPD: {e}")
+        except Exception:
+            # Fallback to URL parsing
+            return self.parse()
+    
+    def _extract_namespaces(self):
+        """Extract and register namespaces from XML root."""
+        self.namespace_map = {'mpd': 'urn:mpeg:dash:schema:mpd:2011'}
+        
+        # Common namespaces
+        common_ns = {
+            'cenc': 'urn:mpeg:cenc:2013',
+            'mspr': 'urn:microsoft:playready'
+        }
+        
+        # Register namespaces
+        for prefix, uri in {**self.namespace_map, **common_ns}.items():
+            ET.register_namespace(prefix, uri)
+            self.namespace_map[prefix] = uri
+    
+    def _xpath(self, path: str) -> str:
+        """Convert path with namespace prefixes to full namespace URIs."""
+        for prefix, uri in self.namespace_map.items():
+            path = path.replace(f'{prefix}:', f'{{{uri}}}')
+        return path
+    
+    def _find(self, element: ET.Element, path: str) -> Optional[ET.Element]:
+        """Find element with namespace handling."""
+        return element.find(self._xpath(path), self.namespace_map)
+    
+    def _findall(self, element: ET.Element, path: str) -> List[ET.Element]:
+        """Find all elements with namespace handling."""
+        return element.findall(self._xpath(path), self.namespace_map)
+    
+    def _is_protected(self, element: ET.Element) -> bool:
+        """Check if element has DRM protection."""
+        for cp in self._findall(element, 'mpd:ContentProtection'):
+            scheme = cp.get('schemeIdUri', '').lower()
+            if (DRMSystem.CENC_SCHEME in scheme or 
+                DRMSystem.from_uuid(scheme) is not None):
+                return True
+        return False
+    
+    def _get_default_kid(self, element: ET.Element) -> Optional[str]:
+        """Extract default_KID from ContentProtection elements."""
+        for cp in self._findall(element, 'mpd:ContentProtection'):
+            cenc_ns = self.namespace_map.get('cenc', '')
+            kid = cp.get(f'{{{cenc_ns}}}default_KID') or cp.get('default_KID')
+            if kid:
+                return kid
+        return None
+    
+    def _get_drm_types(self, element: ET.Element) -> List[str]:
+        """Extract DRM types from element."""
+        drm_types = []
+        for cp in self._findall(element, 'mpd:ContentProtection'):
+            scheme = cp.get('schemeIdUri', '').lower()
+            drm_type = DRMSystem.from_uuid(scheme)
+            if drm_type and drm_type not in drm_types:
+                # Check for PSSH data
+                if self._has_pssh_data(cp, drm_type):
+                    drm_types.append(drm_type)
+        return drm_types
+    
+    def _has_pssh_data(self, cp_element: ET.Element, drm_type: str) -> bool:
+        """Check if element has valid PSSH data."""
+        # Check for cenc:pssh
+        pssh = self._find(cp_element, 'cenc:pssh')
+        if pssh is not None and pssh.text and pssh.text.strip():
+            return self._is_valid_pssh(pssh.text.strip(), drm_type)
+        
+        # Check for playready pro
+        if drm_type == DRMSystem.PLAYREADY:
+            pro = self._find(cp_element, 'mspr:pro')
+            return (pro is not None and pro.text and pro.text.strip() and 
+                    self._is_valid_pro(pro.text.strip()))
+        
+        return False
+    
+    def _is_valid_pssh(self, pssh_b64: str, drm_type: str) -> bool:
+        """Verify if PSSH is valid for given DRM type."""
+        try:
+            data = base64.b64decode(pssh_b64)
+            uuid = DRMSystem.get_uuid(drm_type)
+            return (uuid and len(data) >= 32 and 
+                    data[4:8] == b'pssh' and 
+                    data[12:28] == binascii.unhexlify(uuid.replace('-', '')))
+        except Exception:
             return False
     
-    def get_adaptation_sets_info(self, selected_ids: List[str] = None) -> List[Dict[str, any]]:
-        """Get information about all AdaptationSets including KID, optionally filtered by selected IDs"""
-        if self.root is None or self.ns_manager is None:
+    def _is_valid_pro(self, pro_b64: str) -> bool:
+        """Verify if PlayReady Object is valid."""
+        try:
+            data = base64.b64decode(pro_b64)
+            return len(data) >= 10 and int.from_bytes(data[:4], 'little') == len(data)
+        except Exception:
+            return False
+    
+    def _get_content_info(self, adapt_set: ET.Element) -> Tuple[str, str]:
+        """Extract content type and language from adaptation set."""
+        c_type = (adapt_set.get('contentType') or adapt_set.get('mimeType') or '').lower()
+        content_type = 'video' if 'video' in c_type else 'audio' if 'audio' in c_type else 'unknown'
+        lang = adapt_set.get('lang', 'N/A')
+        return content_type, lang
+    
+    def get_adaptation_sets_info(self, selected_ids=None, selected_kids=None, selected_langs=None, selected_periods=None):
+        """Get information about all AdaptationSets."""
+        if not self.root:
             return []
         
         adaptation_sets = []
+        idx = 1
         
-        for period in self.ns_manager.findall(self.root, 'mpd:Period'):
-            for adapt_set in self.ns_manager.findall(period, 'mpd:AdaptationSet'):
+        # Normalize filter parameters
+        norm_selected_ids = [str(i) for i in (selected_ids or [])]
+        norm_selected_kids = [k.lower().replace('-', '') for k in (selected_kids or []) if k]
+        norm_selected_langs = [lang.lower() for lang in (selected_langs or []) if lang]
+        norm_selected_periods = [str(p) for p in (selected_periods or []) if p]
+        
+        for period in self._findall(self.root, 'mpd:Period'):
+            period_id = period.get('id')
+            
+            # Filter by period if specified
+            if norm_selected_periods and period_id and period_id not in norm_selected_periods:
+                idx += len(self._findall(period, 'mpd:AdaptationSet'))
+                continue
+            
+            for adapt_set in self._findall(period, 'mpd:AdaptationSet'):
                 adapt_id = adapt_set.get('id', 'N/A')
-                rep_ids = [rep.get('id') for rep in self.ns_manager.findall(adapt_set, 'mpd:Representation')]
-
-                # Filter by selected IDs if provided
-                if selected_ids:
-                    if adapt_id not in selected_ids and not any(rid in selected_ids for rid in rep_ids):
-                        continue
-
-                content_type = adapt_set.get('contentType') or adapt_set.get('mimeType', 'unknown')
-                if 'video' in content_type.lower():
-                    content_type = 'video'
-                elif 'audio' in content_type.lower():
-                    content_type = 'audio'
-                lang = adapt_set.get('lang', 'N/A')
+                content_type, lang = self._get_content_info(adapt_set)
                 
-                # Get default_KID (check AdaptationSet then Representations)
-                default_kid = self.protection_handler.get_default_kid(adapt_set)
-                drm_types = self.protection_handler.get_drm_types(adapt_set)
+                # Skip non-media types
+                if content_type in ('image', 'text'):
+                    idx += 1
+                    continue
                 
-                # Metadata for display
-                width = None
-                height = None
+                # Check if this set matches filters
+                if not self._matches_filters(adapt_set, adapt_id, idx, content_type, lang,
+                                           norm_selected_ids, norm_selected_kids, norm_selected_langs):
+                    idx += 1
+                    continue
                 
-                reps = self.ns_manager.findall(adapt_set, 'mpd:Representation')
-                for rep in reps:
-                    if not default_kid:
-                        default_kid = self.protection_handler.get_default_kid(rep)
-                    
-                    if not width: 
-                        width = rep.get('width')
-                    if not height: 
-                        height = rep.get('height')
-                    
-                    # If DRM types still empty, check representations
-                    if not drm_types:
-                        drm_types = self.protection_handler.get_drm_types(rep)
-
-                adaptation_sets.append({
-                    'id': adapt_id,
-                    'content_type': content_type,
-                    'language': lang,
-                    'default_kid': default_kid,
-                    'drm_types': drm_types,
-                    'is_protected': self.protection_handler.is_protected(adapt_set),
-                    'width': width,
-                    'height': height
-                })
+                # Extract information
+                info = self._extract_adaptation_set_info(adapt_set, adapt_id, content_type, lang, norm_selected_ids)
+                adaptation_sets.append(info)
+                idx += 1
         
         return adaptation_sets
     
-    def print_adaptation_sets_info(self, selected_ids: List[str] = None):
-        """Print AdaptationSets information in a simplified format"""
-        sets = [s for s in self.get_adaptation_sets_info(selected_ids) if s['content_type'] not in ('image', 'text')]
-        if not sets: 
+    def _matches_filters(self, adapt_set, adapt_id, idx, content_type, lang, selected_ids, selected_kids, selected_langs):
+        """Check if adaptation set matches filter criteria."""
+        # Get representation IDs
+        rep_ids = [rep.get('id') for rep in self._findall(adapt_set, 'mpd:Representation')]
+        
+        # Check ID filter
+        if selected_ids:
+            id_match = (adapt_id in selected_ids or 
+                       str(idx) in selected_ids or 
+                       any(rid in selected_ids for rid in rep_ids))
+            if not id_match:
+                return False
+        
+        # Check KID filter
+        if selected_kids:
+            adapt_kids = self._get_kids_from_adaptset(adapt_set)
+            norm_adapt_kids = [k.lower().replace('-', '') for k in adapt_kids if k]
+            kid_match = any(tk in norm_adapt_kids for tk in selected_kids)
+            if not kid_match:
+                return False
+        
+        # Check language filter for audio
+        if selected_langs and content_type == 'audio':
+            if lang.lower() not in selected_langs:
+                return False
+        
+        return True
+    
+    def _get_kids_from_adaptset(self, adapt_set: ET.Element) -> List[str]:
+        """Extract all KIDs from an AdaptationSet."""
+        kids = []
+        
+        # Check adaptation set
+        if kid := self._get_default_kid(adapt_set):
+            kids.append(kid)
+        
+        # Check representations
+        for rep in self._findall(adapt_set, 'mpd:Representation'):
+            if kid := self._get_default_kid(rep):
+                kids.append(kid)
+        
+        return kids
+    
+    def _extract_adaptation_set_info(self, adapt_set, adapt_id, content_type, lang, selected_ids=None):
+        """Extract detailed information from adaptation set."""
+        # Get DRM info
+        default_kid = self._get_default_kid(adapt_set)
+        drm_types = self._get_drm_types(adapt_set)
+        
+        # Get resolution for video
+        height = None
+        if content_type == 'video':
+            height = self._get_video_height(adapt_set, selected_ids)
+        
+        return {
+            'id': adapt_id,
+            'content_type': content_type,
+            'language': lang,
+            'default_kid': default_kid,
+            'drm_types': drm_types,
+            'is_protected': self._is_protected(adapt_set),
+            'height': height
+        }
+    
+    def _get_video_height(self, adapt_set: ET.Element, selected_ids=None) -> Optional[int]:
+        """Get height from video representations, prioritizing selected IDs."""
+        max_height = 0
+        selected_rep_heights = []
+        
+        for rep in self._findall(adapt_set, 'mpd:Representation'):
+            rid = rep.get('id')
+            h = rep.get('height')
+            if not h:
+                continue
+                
+            try:
+                height_val = int(h)
+                if selected_ids and rid in selected_ids:
+                    selected_rep_heights.append(height_val)
+                max_height = max(max_height, height_val)
+            except ValueError:
+                pass
+        
+        if selected_rep_heights:
+            return max(selected_rep_heights)
+        return max_height if max_height > 0 else None
+    
+    def print_adaptation_sets_info(self, selected_ids=None, selected_kids=None, selected_langs=None, selected_periods=None):
+        """Print AdaptationSets information in simplified format."""
+        sets = self.get_adaptation_sets_info(selected_ids, selected_kids, selected_langs, selected_periods)
+        
+        if not sets:
             return
-
+        
+        # Group by content type
         groups = {}
         for s in sets:
             groups.setdefault(s['content_type'], []).append(s)
-
+        
         for c_type, items in groups.items():
-            # Consider unique if all have same KID
-            is_uni = len({i['default_kid'] for i in items}) == 1
+            # Check if uniform (all same KID and no specific filter)
+            has_filter = any([selected_ids, selected_kids, selected_langs])
+            is_uni = len({i['default_kid'] for i in items}) == 1 and not has_filter
             
             seen_items = set()
-            for i in ([items[0]] if is_uni else items):
-                kid = i['default_kid'] or 'Not found'
-                prot = (', '.join(i['drm_types']) or 'Unknown') if i['is_protected'] else 'No'
+            for item in ([items[0]] if is_uni else items):
+                kid = item['default_kid'] or 'Not found'
+                prot = ', '.join(item['drm_types']) if item['drm_types'] else 'No'
                 
                 if is_uni:
                     label = f"all {c_type}"
                 else:
                     parts = [c_type]
-                    if i.get('height'): 
-                        parts.append(f"{i['height']}p")
-                    if i.get('language') and i['language'] != 'N/A': 
-                        parts.append(f"({i['language']})")
+                    if item.get('height'):
+                        parts.append(f"{item['height']}p")
+                    if item.get('language') and item['language'] != 'N/A':
+                        parts.append(f"({item['language']})")
                     label = " ".join(parts)
                 
-                # Deduplicate display based on label and KID
+                # Deduplicate display
                 display_key = f"{label}_{kid}"
                 if display_key in seen_items:
                     continue
                 seen_items.add(display_key)
                 
                 console.print(f"    [red]- {label}[white], [cyan]Kid: [yellow]{kid}, [cyan]Protection: [yellow]{prot}")
-
-    def get_drm_info(self, drm_preference: str = 'widevine', selected_ids: List[str] = None) -> Dict[str, any]:
-        """Extract DRM information from MPD"""
-        if not self.root: 
+    
+    def _extract_pssh_data(self, drm_type: str, target_kids=None, target_periods=None, target_ids=None, target_langs=None):
+        """Extract PSSH data for specific DRM type."""
+        pssh_list = []
+        observed = set()
+        uuid = DRMSystem.get_uuid(drm_type)
+        
+        if not uuid:
+            return pssh_list
+        
+        # Get adaptation sets matching filters
+        adapt_sets_info = self.get_adaptation_sets_info(target_ids, target_kids, target_langs, target_periods)
+        
+        for info in adapt_sets_info:
+            if info['default_kid']:
+                # Extract PSSH from root with this KID
+                pssh_items = self._find_pssh_by_kid(info['default_kid'], drm_type)
+                for pssh_item in pssh_items:
+                    if pssh_item['pssh'] not in observed:
+                        observed.add(pssh_item['pssh'])
+                        pssh_list.append(pssh_item)
+        
+        # If no filtered PSSH found, try global extraction
+        if not pssh_list and not target_kids and not target_periods:
+            pssh_list = self._extract_global_pssh(drm_type, observed)
+        
+        return pssh_list
+    
+    def _find_pssh_by_kid(self, kid, drm_type):
+        """Find PSSH data by KID."""
+        pssh_items = []
+        uuid = DRMSystem.get_uuid(drm_type)
+        
+        for elem in self.root.iter():
+            if 'ContentProtection' in elem.tag and uuid in (elem.get('schemeIdUri') or '').lower():
+                elem_kid = self._get_default_kid(elem)
+                if elem_kid and elem_kid.lower().replace('-', '') == kid.lower().replace('-', ''):
+                    for child in elem:
+                        if child.text and child.text.strip():
+                            pssh_items.append({
+                                'pssh': child.text.strip(),
+                                'kid': kid,
+                                'type': drm_type
+                            })
+        
+        return pssh_items
+    
+    def _extract_global_pssh(self, drm_type, observed):
+        """Extract global PSSH data (no filtering)."""
+        pssh_list = []
+        uuid = DRMSystem.get_uuid(drm_type)
+        
+        for elem in self.root.iter():
+            if 'ContentProtection' in elem.tag and uuid in (elem.get('schemeIdUri') or '').lower():
+                for child in elem:
+                    txt = (child.text or "").strip()
+                    if txt and txt not in observed:
+                        observed.add(txt)
+                        pssh_list.append({
+                            'pssh': txt,
+                            'kid': 'N/A',
+                            'type': 'global'
+                        })
+        
+        return pssh_list
+    
+    def get_drm_info(self, drm_preference="widevine", selected_ids=None, selected_kids=None, selected_langs=None, selected_periods=None):
+        """Extract DRM information from MPD."""
+        if not self.root:
             return {
-                'available_drm_types': [], 
-                'selected_drm_type': None, 
-                'widevine_pssh': [],
-                'playready_pssh': [],
-                'fairplay_pssh': []
+                "available_drm_types": [],
+                "selected_drm_type": None,
+                "widevine_pssh": [],
+                "playready_pssh": [],
+                "fairplay_pssh": []
             }
         
-        # Get target KIDs if selected_ids provided
-        target_kids = None
-        if selected_ids:
-            target_kids = [s['default_kid'] for s in self.get_adaptation_sets_info(selected_ids) if s['default_kid']]
-
-        pssh_data = {t: self.protection_handler.extract_pssh_full(self.root, t, target_kids=target_kids) 
-                     for t in [DRMSystem.WIDEVINE, DRMSystem.PLAYREADY, DRMSystem.FAIRPLAY]}
+        # Determine target KIDs for exact filtering
+        target_kids = []
+        if selected_kids:
+            target_kids.extend([k.lower().replace("-", "") for k in selected_kids])
         
-        avail = [t for t, v in pssh_data.items() if v]
-        sel_type = drm_preference if drm_preference in avail else (avail[0] if avail else None)
+        # Also include KIDs from matched AdaptationSets
+        matched_sets = self.get_adaptation_sets_info(selected_ids, selected_kids, selected_langs, selected_periods)
+        for s in matched_sets:
+            if s["default_kid"]:
+                k = s["default_kid"].lower().replace("-", "")
+                if k not in target_kids:
+                    target_kids.append(k)
         
-        self.print_adaptation_sets_info(selected_ids)
+        # If filters were provided but no KIDs found, filter for NOTHING
+        if not target_kids and (selected_ids or selected_kids or selected_langs or selected_periods):
+            target_kids = []
+        elif not target_kids:
+            target_kids = None
+        
+        # Extract PSSH data for each DRM type
+        pssh_data = {}
+        for drm_type in [DRMSystem.WIDEVINE, DRMSystem.PLAYREADY, DRMSystem.FAIRPLAY]:
+            pssh_data[drm_type] = self._extract_pssh_data(
+                drm_type, target_kids, selected_periods, selected_ids, selected_langs
+            )
+        
+        # Determine available DRM types
+        available = [t for t, v in pssh_data.items() if v]
+        
+        # Select DRM type based on preference
+        selected = drm_preference if drm_preference in available else (available[0] if available else None)
+        
+        # Print adaptation sets info
+        self.print_adaptation_sets_info(selected_ids, selected_kids, selected_langs, selected_periods)
         print("")
+        
         return {
-            'available_drm_types': avail,
-            'selected_drm_type': sel_type,
+            'available_drm_types': available,
+            'selected_drm_type': selected,
             'widevine_pssh': pssh_data.get(DRMSystem.WIDEVINE, []),
             'playready_pssh': pssh_data.get(DRMSystem.PLAYREADY, []),
-            'fairplay_pssh': pssh_data.get(DRMSystem.FAIRPLAY, []),
+            'fairplay_pssh': pssh_data.get(DRMSystem.FAIRPLAY, [])
         }

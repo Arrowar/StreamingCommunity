@@ -43,30 +43,41 @@ def title_search(query: str) -> int:
     # Create soup instance
     soup = BeautifulSoup(response.text, "html.parser")
 
-    # Collect data from new structure
+    # Collect data from search results
     try:
         dle_content = soup.find("div", id="dle-content")
-        movies = dle_content.find_all("div", class_="movie")
+        if not dle_content:
+            console.print("[yellow]Warning: dle-content div not found")
+            return 0
+            
+        # Find all movie boxes
+        boxes = dle_content.find_all("div", class_="box")
+        
+        if not boxes:
+            console.print("[yellow]Warning: No movie boxes found")
+            return 0
+            
     except Exception as e:
         console.print(f"[red]Site: {site_constants.SITE_NAME}, parsing search results error: {e}")
         return 0
 
-    for movie in movies:
+    for box in boxes:
         try:
-            # Title and URL
-            title_tag = movie.find("h2", class_="movie-title")
-            if not title_tag:
+            wrapper = box.find("div", class_="wrapperImage")
+            if not wrapper:
+                continue
+            
+            # Find the main link
+            main_link = wrapper.find("a")
+            if not main_link:
                 continue
                 
-            a_tag = title_tag.find("a")
-            if not a_tag:
+            url = main_link.get("href")
+            if not url:
                 continue
-                
-            title = a_tag.get_text(strip=True)
-            url = a_tag.get("href")
-
-            # Image
-            img_tag = movie.find("img", class_="layer-image")
+            
+            # Get image
+            img_tag = main_link.find("img")
             image_url = None
             if img_tag:
                 img_src = img_tag.get("src") or img_tag.get("data-src")
@@ -75,8 +86,23 @@ def title_search(query: str) -> int:
                         image_url = f"{site_constants.FULL_URL}{img_src}"
                     else:
                         image_url = img_src
-
-            # Type - check if URL contains "serie-tv"
+            
+            # Get title from info section
+            info_div = wrapper.find("div", class_="info")
+            if not info_div:
+                continue
+                
+            title_tag = info_div.find("h2", class_="titleFilm")
+            if not title_tag:
+                continue
+                
+            title_link = title_tag.find("a")
+            if not title_link:
+                continue
+                
+            title = title_link.get_text(strip=True)
+            
+            # Determine type based on URL
             tipo = "tv" if "/serie-tv/" in url else "film"
 
             media_dict = {
@@ -88,7 +114,7 @@ def title_search(query: str) -> int:
             media_search_manager.add_media(media_dict)
             
         except Exception as e:
-            console.print(f"[yellow]Warning: Error parsing movie item: {e}")
+            console.print(f"[yellow]Warning: Error parsing box item: {e}")
             continue
 
     # Return the number of titles found

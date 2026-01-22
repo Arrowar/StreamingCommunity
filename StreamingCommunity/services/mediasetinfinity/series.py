@@ -13,7 +13,8 @@ from rich.prompt import Prompt
 # Internal utilities
 from StreamingCommunity.utils import os_manager, config_manager, start_message
 from StreamingCommunity.services._base import site_constants, MediaItem
-from StreamingCommunity.services._base.episode_manager import (manage_selection, map_episode_title, validate_selection, validate_episode_selection, display_episodes_list, display_seasons_list)
+from StreamingCommunity.services._base.episode_manager import map_episode_title
+from StreamingCommunity.services._base.season_manager import process_season_selection, process_episode_download
 from StreamingCommunity.core.downloader import DASH_Downloader
 
 
@@ -59,91 +60,50 @@ def download_video(index_season_selected: int, index_episode_selected: int, scra
     if license_params:
         license_url = f"{license_url}?{urllib.parse.urlencode(license_params)}"
 
-    mpd_url = get_manifest(tracking_info['videos'][0]['url'])
-
     # Download the episode
-    dash_process = DASH_Downloader(
-        mpd_url=mpd_url,
+    return DASH_Downloader(
+        mpd_url=get_manifest(tracking_info['videos'][0]['url']),
         license_url=license_url,
         mpd_sub_list=tracking_info['subtitles'],
         output_path=os.path.join(mp4_path, mp4_name),
-    )
-    out_path, need_stop = dash_process.start()
-    return out_path, need_stop
+    ).start()
     
 
-def download_episode(index_season_selected: int, scrape_serie: GetSerieInfo, download_all: bool = False, episode_selection: str = None) -> None:
-    """
-    Handle downloading episodes for a specific season.
-
-    Parameters:
-        - index_season_selected (int): Season number
-        - scrape_serie (GetSerieInfo): Scraper object with series information
-        - download_all (bool): Whether to download all episodes
-        - episode_selection (str, optional): Pre-defined episode selection that bypasses manual input
-    """
-    # Get episodes for the selected season
-    episodes = scrape_serie.getEpisodeSeasons(index_season_selected)
-    episodes_count = len(episodes)
-
-    if episodes_count == 0:
-        console.print(f"[red]No episodes found for season {index_season_selected}")
-        return
-
-    if download_all:
-        for i_episode in range(1, episodes_count + 1):
-            path, stopped = download_video(index_season_selected, i_episode, scrape_serie)
-
-            if stopped:
-                break
-
-        console.print(f"\n[red]End downloaded [yellow]season: [red]{index_season_selected}.")
-
-    else:
-        if episode_selection is not None:
-            last_command = episode_selection
-            console.print(f"\n[cyan]Using provided episode selection: [yellow]{episode_selection}")
-
-        else:
-            last_command = display_episodes_list(episodes)
-        
-        # Prompt user for episode selection
-        list_episode_select = manage_selection(last_command, episodes_count)
-        list_episode_select = validate_episode_selection(list_episode_select, episodes_count)
-
-        # Download selected episodes if not stopped
-        for i_episode in list_episode_select:
-            path, stopped = download_video(index_season_selected, i_episode, scrape_serie)
-
-            if stopped:
-                break
-
-def download_series(select_season: MediaItem, season_selection: str = None, episode_selection: str = None) -> None:
+def download_series(dict_serie: MediaItem, season_selection: str = None, episode_selection: str = None) -> None:
     """
     Handle downloading a complete series.
 
     Parameters:
-        - select_season (MediaItem): Series metadata from search
+        - dict_serie (MediaItem): Series metadata from search
         - season_selection (str, optional): Pre-defined season selection that bypasses manual input
         - episode_selection (str, optional): Pre-defined episode selection that bypasses manual input
     """
-    scrape_serie = GetSerieInfo(select_season.url)
+    start_message()
+    scrape_serie = GetSerieInfo(dict_serie.url)
     seasons_count = scrape_serie.getNumberSeason()
 
-    # If season_selection is provided, use it instead of asking for input
-    if season_selection is None:
-        index_season_selected = display_seasons_list(scrape_serie.seasons_manager)
-    else:
-        index_season_selected = season_selection
-        console.print(f"\n[cyan]Using provided season selection: [yellow]{season_selection}")
+    # Create callback function for downloading episodes
+    def download_episode_callback(season_number: int, download_all: bool, episode_selection: str = None):
+        """Callback to handle episode downloads for a specific season"""
+        
+        # Create callback for downloading individual videos
+        def download_video_callback(season_idx: int, episode_idx: int):
+            return download_video(season_idx, episode_idx, scrape_serie)
+        
+        # Use the process_episode_download function
+        process_episode_download(
+            index_season_selected=season_number,
+            scrape_serie=scrape_serie,
+            download_video_callback=download_video_callback,
+            download_all=download_all,
+            episode_selection=episode_selection
+        )
 
-    # Validate the selection
-    list_season_select = manage_selection(index_season_selected, seasons_count)
-    list_season_select = validate_selection(list_season_select, seasons_count)
-    
-    # Loop through the selected seasons and download episodes
-    for i_season in list_season_select:
-        if len(list_season_select) > 1 or index_season_selected == "*":
-            download_episode(i_season, scrape_serie, download_all=True)
-        else:
-            download_episode(i_season, scrape_serie, download_all=False, episode_selection=episode_selection)
+    # Use the process_season_selection function with try-catch for season lookup
+    process_season_selection(
+        scrape_serie=scrape_serie,
+        seasons_count=seasons_count,
+        season_selection=season_selection,
+        episode_selection=episode_selection,
+        download_episode_callback=download_episode_callback
+    )

@@ -72,10 +72,8 @@ def download_film(select_title: MediaItem) -> Tuple[str, bool]:
     mp4_path = os.path.join(site_constants.MOVIE_FOLDER, mp4_name.replace(f".{extension_output}", ""))
 
     # HLS Download
-    hls_process = HLS_Downloader(
+    return HLS_Downloader(
         m3u8_url=master_playlist,
         output_path=os.path.join(mp4_path, mp4_name),
         license_url=license_url
-    )
-    out_path, need_stop = hls_process.start()
-    return out_path, need_stop
+    ).start()

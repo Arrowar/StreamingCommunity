@@ -1,6 +1,7 @@
 # 16.03.25
 
 import os
+import time
 from urllib.parse import urlparse, parse_qs
 
 
@@ -62,13 +63,15 @@ def download_film(select_title: MediaItem) -> str:
     })
 
     # Download the film
-    dash_process = DASH_Downloader(
+    out_path, need_stop = DASH_Downloader(
         mpd_url=mpd_url,
         mpd_headers=mpd_headers,
         license_url='https://www.crunchyroll.com/license/v1/license/widevine',
         license_headers=license_headers,
         mpd_sub_list=mpd_list_sub,
         output_path=os.path.join(mp4_path, mp4_name),
-    )
-    out_path, need_stop = dash_process.start()
+    ).start()
+
+    # Small delay
+    time.sleep(1)
     return out_path, need_stop

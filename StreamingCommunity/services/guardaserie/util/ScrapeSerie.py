@@ -97,7 +97,7 @@ class GetSerieInfo:
                 episode_number = data_num.split('x')[-1] if 'x' in data_num else data_num
                 
                 # Use data-title if available
-                episode_name = data_title if data_title else f"Episodio {episode_number}"
+                episode_name = f"Episodio {episode_number}"
 
                 obj_episode = {
                     'number': episode_number,

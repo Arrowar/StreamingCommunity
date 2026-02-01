@@ -243,7 +243,7 @@ def get_tracking_info(PLAYBACK_JSON):
         "format": "SMIL",
         "auth": class_mediaset_api.getBearerToken(),
         "formats": "MPEG-DASH",
-        "assetTypes": "HR,browser,widevine,geoIT|geoNo:HR,browser,geoIT|geoNo:SD,browser,widevine,geoIT|geoNo:SD,browser,geoIT|geoNo:SS,browser,widevine,geoIT|geoNo:SS,browser,geoIT|geoNo",
+        "assetTypes": "4K,browser,widevine,geoEU|geoNoLim:4K,browser,geoEU|geoNoLim:HD,browser,widevine,geoEU|geoNoLim:HD,browser,geoEU|geoNoLim:HD,widevine,geoEU|geoNoLim:HD,geoEU|geoNoLim:HR,browser,widevine,geoEU|geoNoLim:HR,browser,geoEU|geoNoLim:SD,browser,widevine,geoEU|geoNoLim:SD,browser,geoEU|geoNoLim:SS,browser,widevine,geoEU|geoNoLim:SS,browser,geoEU|geoNoLim",
         "balance": "true",
         "auto": "true",
         "tracking": "true",

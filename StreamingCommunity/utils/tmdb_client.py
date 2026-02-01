@@ -66,12 +66,12 @@ class TMDBClient:
         ratio = SequenceMatcher(None, slug1, slug2).ratio()
         return ratio >= threshold
 
-    def get_type_and_id_by_slug_year(self, slug: str, year: int, media_type: str = None):
+    def get_type_and_id_by_slug_year(self, slug: str, year: int, media_type: str = None, language_preference: str = "it"):
         """
         Get the type (movie or tv) and ID from TMDB based on slug and year.
         """
         if media_type == "movie":
-            movie_results = self._make_request("search/movie", {"query": slug.replace('-', ' ')}).get("results", [])
+            movie_results = self._make_request("search/movie", {"query": slug.replace('-', ' '), "language": language_preference}).get("results", [])
             
             # 1 result
             if len(movie_results) == 1:
@@ -96,7 +96,7 @@ class TMDBClient:
             return None
             
         elif media_type == "tv":
-            tv_results = self._make_request("search/tv", {"query": slug.replace('-', ' ')}).get("results", [])
+            tv_results = self._make_request("search/tv", {"query": slug.replace('-', ' '), "language": language_preference}).get("results", [])
             
             # 1 result
             if len(tv_results) == 1:
@@ -124,13 +124,13 @@ class TMDBClient:
             print("Media type not specified. Searching both movie and tv.")
             return None
 
-    def get_year_by_slug_and_type(self, slug: str, media_type: str):
+    def get_year_by_slug_and_type(self, slug: str, media_type: str, language_preference: str = "it"):
         """
         Get the year from TMDB based on slug and type (movie or tv).
         Returns the year from the first search result that matches the slug.
         """
         if media_type == "movie":
-            results = self._make_request("search/movie", {"query": slug.replace('-', ' ')}).get("results", [])
+            results = self._make_request("search/movie", {"query": slug.replace('-', ' '), "language": language_preference}).get("results", [])
             
             # 1 result
             if len(results) == 1:
@@ -151,7 +151,7 @@ class TMDBClient:
                     return int(release_date[:4])
                     
         elif media_type == "tv":
-            results = self._make_request("search/tv", {"query": slug.replace('-', ' ')}).get("results", [])
+            results = self._make_request("search/tv", {"query": slug.replace('-', ' '), "language": language_preference}).get("results", [])
             
             # 1 result
             if len(results) == 1:

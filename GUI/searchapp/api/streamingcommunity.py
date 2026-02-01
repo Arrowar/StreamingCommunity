@@ -84,7 +84,8 @@ class StreamingCommunityAPI(BaseStreamingAPI):
             url=f"{self.base_url}{media_item.provider_language}",
             media_id=media_item.id,
             series_name=media_item.slug,
-            year=media_item.year
+            year=media_item.year,
+            provider_language=media_item.provider_language
         )
         
         seasons_count = scraper.getNumberSeason()

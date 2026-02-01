@@ -9,5 +9,8 @@
     "tubi": {
         "email": "",
         "password": ""
+    },
+    "mediasetinfinity": {
+        "beToken": ""
     }
 }

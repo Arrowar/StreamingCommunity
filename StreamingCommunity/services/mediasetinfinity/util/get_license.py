@@ -12,6 +12,7 @@ from rich.console import Console
 
 # Internal utilities
 from StreamingCommunity.utils.http_client import create_client, create_client_curl, get_headers, get_userAgent
+from StreamingCommunity.utils import config_manager
 
 
 # Variable
@@ -24,7 +25,14 @@ class MediasetAPI:
         self.client_id = str(uuid.uuid4())
         self.headers = get_headers()
         self.app_name = self.get_app_name()
-        self.beToken = self.generate_betoken()
+        
+        # Check for token in login config
+        login_token = config_manager.login.get("mediasetinfinity", "beToken")
+        if isinstance(login_token, str) and login_token:
+             self.beToken = login_token
+        else:
+             self.beToken = self.generate_betoken()
+
         self.sha256Hash = self.getHash2c()
         
     def get_app_name(self):

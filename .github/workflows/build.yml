@@ -111,12 +111,6 @@ jobs:
             executable: StreamingCommunity_linux_22_04_x64
             separator: ':'
 
-          - os: ubuntu-slim
-            arch: x64
-            artifact_name: StreamingCommunity_linux_slim_x64
-            executable: StreamingCommunity_linux_slim_x64
-            separator: ':'
-
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -150,27 +144,29 @@ jobs:
       - name: Build executable with PyInstaller
         shell: bash
         run: |
-          pyinstaller --onefile --hidden-import=ua_generator \
-            --hidden-import=bs4 --hidden-import=httpx --hidden-import=rich \
-            --hidden-import=rich._unicode_data \
-            --collect-all rich \
-            --hidden-import=unidecode \
-            --hidden-import=jsbeautifier --hidden-import=jsbeautifier.core \
-            --hidden-import=jsbeautifier.javascript --hidden-import=jsbeautifier.javascript.beautifier \
-            --hidden-import=jsbeautifier.unpackers --hidden-import=jsbeautifier.unpackers.packer \
-            --hidden-import=jsbeautifier.unpackers.javascriptobfuscator \
-            --hidden-import=jsbeautifier.unpackers.myobfuscate \
-            --hidden-import=jsbeautifier.unpackers.urlencode \
-            --hidden-import=editorconfig \
-            --hidden-import=six --hidden-import=pathvalidate \
-            --hidden-import=xml.etree.ElementTree \
-            --hidden-import=pywidevine \
-            --hidden-import=pyplayready \
-            --hidden-import=curl_cffi --hidden-import=_cffi_backend \
-            --collect-all curl_cffi \
-            --additional-hooks-dir=pyinstaller/hooks \
-            --add-data "StreamingCommunity${{ matrix.separator }}StreamingCommunity" \
-            --name=${{ matrix.artifact_name }} test_run.py
+          pyinstaller --onefile \
+          --hidden-import=sqlite3 \
+          --collect-binaries sqlite3 \
+          --hidden-import=ua_generator \
+          --hidden-import=bs4 \
+          --hidden-import=httpx \
+          --hidden-import=rich \
+          --hidden-import=rich._unicode_data \
+          --collect-all rich \
+          --hidden-import=unidecode \
+          --hidden-import=jsbeautifier \
+          --hidden-import=editorconfig \
+          --hidden-import=six \
+          --hidden-import=pathvalidate \
+          --hidden-import=xml.etree.ElementTree \
+          --hidden-import=pywidevine \
+          --hidden-import=pyplayready \
+          --hidden-import=curl_cffi \
+          --hidden-import=_cffi_backend \
+          --collect-all curl_cffi \
+          --additional-hooks-dir=pyinstaller/hooks \
+          --add-data "StreamingCommunity${{ matrix.separator }}StreamingCommunity" \
+          --name=${{ matrix.artifact_name }} test_run.py
 
       - name: Upload executable
         uses: actions/upload-artifact@v4

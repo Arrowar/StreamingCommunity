@@ -1,7 +1,11 @@
 # 29.01.26
 
 import os
-import sqlite3
+try:
+    import sqlite3
+    SQLITE3_AVAILABLE = True
+except Exception:
+    SQLITE3_AVAILABLE = False
 from typing import List, Dict
 from urllib.parse import urlparse
 
@@ -287,4 +291,10 @@ class LocalDBVault:
 
 
 # Initialize
-obj_localDbValut = LocalDBVault(os.path.join(binary_paths.get_binary_directory(), 'drm_keys.db'))
+if SQLITE3_AVAILABLE:
+    try:
+        obj_localDbValut = LocalDBVault(os.path.join(binary_paths.get_binary_directory(), 'drm_keys.db'))
+    except Exception:
+        obj_localDbValut = None
+else:
+    obj_localDbValut = None

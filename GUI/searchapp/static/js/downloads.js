@@ -1,7 +1,7 @@
 import { formatTime, formatDate, fetchWithTimeout } from './utils.js';
 
 const expandedRows = new Set();
-const UPDATE_INTERVAL = 2000;
+const UPDATE_INTERVAL = 800;
 
 async function fetchDownloadData() {
   try {
@@ -82,6 +82,16 @@ function generateDownloadCardHTML(dl) {
               <span class="px-2.5 py-1 sm:px-3 bg-white/10 backdrop-blur-sm text-gray-300 text-[10px] sm:text-xs font-semibold rounded">
                 ${escapeHtml(dl.site)}
               </span>
+              <button 
+                onclick="window.killDownload('${dl.id}')"
+                class="ml-auto sm:ml-2 px-2 py-0.5 bg-red-600/10 hover:bg-red-600 text-red-500 hover:text-white border border-red-600/30 rounded text-[10px] font-bold transition-all flex items-center gap-1"
+                title="Smetti di scaricare e cancella il processo"
+              >
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+                KILL
+              </button>
             </div>
             <h3 class="text-lg sm:text-xl lg:text-2xl font-bold text-white mb-1 text-center sm:text-left">
               ${escapeHtml(dl.title)}
@@ -89,6 +99,11 @@ function generateDownloadCardHTML(dl) {
             <p class="text-xs sm:text-sm text-gray-400 text-center sm:text-left">
               ${escapeHtml(dl.status)} • ${timeStr} trascorsi
             </p>
+            ${dl.path ? `
+            <p class="text-[10px] sm:text-xs text-gray-400 mt-1 truncate opacity-60 text-center sm:text-left" title="${escapeHtml(dl.path)}">
+              ${escapeHtml(dl.path)}
+            </p>
+            ` : ''}
           </div>
 
           <!-- Progress Bar -->
@@ -220,6 +235,11 @@ function renderHistory(history) {
               <p class="text-[10px] sm:text-xs text-gray-500 uppercase tracking-wide">
                 ${escapeHtml(item.site)}
               </p>
+              ${item.path ? `
+              <p class="text-[10px] sm:text-xs text-gray-400 mt-1 truncate border-t border-gray-800 pt-1" title="${escapeHtml(item.path)}">
+                <span class="text-gray-600">Percorso:</span> ${escapeHtml(item.path)}
+              </p>
+              ` : ''}
             </div>
           </div>
         </td>
@@ -269,8 +289,32 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+async function killDownload(id) {
+  if (!confirm('Sei sicuro di voler annullare questo download?')) return;
+  
+  try {
+    const response = await fetch(window.KILL_DOWNLOAD_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ download_id: id })
+    });
+    
+    if (response.ok) {
+      console.log(`Download ${id} cancellation requested`);
+      updateProgress();
+    } else {
+      alert('Impossibile annullare il download.');
+    }
+  } catch (error) {
+    console.error('Error killing download:', error);
+  }
+}
+
 export function init() {
   window.toggleTasks = toggleTasks;
+  window.killDownload = killDownload;
   updateProgress();
   setInterval(updateProgress, UPDATE_INTERVAL);
 }

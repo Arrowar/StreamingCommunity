@@ -1,0 +1,213 @@
+# 01.10.25 
+
+from typing import Callable, Optional, Dict, Any
+
+
+# External imports
+from rich.console import Console
+from rich.prompt import Prompt
+
+
+# Internal utilities
+from StreamingCommunity.services._base import MediaItem, MediaManager
+from StreamingCommunity.utils import TVShowManager
+
+
+# Variable
+console = Console()
+msg = Prompt()
+available_colors = ['red', 'magenta', 'yellow', 'cyan', 'green', 'blue', 'white']
+column_to_hide = ['Slug', 'Sub_ita', 'First_air_date', 'Seasons_count', 'Url', 'Image', 'Path_id']
+
+
+def get_select_title(table_show_manager, media_search_manager): 
+    """
+    Display a selection of titles and prompt the user to choose one.
+
+    Parameters:
+        table_show_manager: Manager for console table display.
+        media_search_manager: Manager holding the list of media items.
+
+    Returns:
+        MediaItem: The selected media item, or None if no selection is made or an error occurs.
+    """
+    if not media_search_manager.media_list:
+        return None
+
+    if not media_search_manager.media_list:
+        console.print("\n[red]No media items available.")
+        return None
+    
+    first_media_item = media_search_manager.media_list[0]
+    column_info = {"Index": {'color': available_colors[0]}}
+
+    color_index = 1
+    for key in first_media_item.__dict__.keys():
+
+        if key.capitalize() in column_to_hide:
+            continue
+
+        if key in ('id', 'type', 'name', 'score'):
+            if key == 'type': 
+                column_info["Type"] = {'color': 'yellow'}
+
+            elif key == 'name': 
+                column_info["Name"] = {'color': 'magenta'}
+            elif key == 'score': 
+                column_info["Score"] = {'color': 'cyan'}
+                
+        else:
+            column_info[key.capitalize()] = {'color': available_colors[color_index % len(available_colors)]}
+            color_index += 1
+
+    table_show_manager.clear() 
+    table_show_manager.add_column(column_info)
+
+    for i, media in enumerate(media_search_manager.media_list):
+        media_dict = {'Index': str(i)}
+        for key in first_media_item.__dict__.keys():
+            if key.capitalize() in column_to_hide:
+                continue
+            media_dict[key.capitalize()] = str(getattr(media, key))
+        table_show_manager.add_tv_show(media_dict)
+
+    last_command_str = table_show_manager.run(force_int_input=True, max_int_input=len(media_search_manager.media_list))
+    table_show_manager.clear()
+
+    if last_command_str is None or last_command_str.lower() in ["q", "quit"]: 
+        console.print("\n[red]Selezione annullata o uscita.")
+        return None 
+
+    try:
+        
+        selected_index = int(last_command_str)
+        
+        if 0 <= selected_index < len(media_search_manager.media_list):
+            return media_search_manager.get(selected_index)
+            
+        else:
+            console.print("\n[red]Indice errato o non valido.")
+            return None
+            
+    except ValueError:
+        console.print("\n[red]Input non numerico ricevuto dalla tabella.")
+        return None
+    
+
+def base_process_search_result(select_title: Optional[MediaItem], download_film_func: Optional[Callable[[MediaItem], Any]] = None, download_series_func: Optional[Callable[[MediaItem, Optional[str], Optional[str]], Any]] = None,
+    media_search_manager: Optional[MediaManager] = None, table_show_manager: Optional[TVShowManager] = None, selections: Optional[Dict[str, str]] = None
+) -> bool:
+    """
+    Handles the search result and initiates the download for either a film or series.
+    
+    Parameters:
+        select_title (MediaItem): The selected media item. Can be None if selection fails.
+        download_film_func (callable, optional): Function to download a film
+        download_series_func (callable, optional): Function to download a series
+        media_search_manager (MediaManager, optional): Manager to clear after processing
+        table_show_manager (TVShowManager, optional): Manager to clear after processing
+        selections (dict, optional): Dictionary containing selection inputs that bypass manual input
+                                    e.g., {'season': season_selection, 'episode': episode_selection}
+    
+    Returns:
+        bool: True if processing was successful, False otherwise
+    """
+    if not select_title:
+        console.print("[yellow]No title selected or selection cancelled.")
+        return False
+    
+    # Handle TV series
+    if str(select_title.type).lower() == 'tv' or str(select_title.type).lower() == 'serie' or str(select_title.type).lower() == 'ova' or str(select_title.type).lower() == 'ona' or str(select_title.type).lower() == 'show':
+        if not download_series_func:
+            console.print("[red]Error: download_series_func not provided for TV series")
+            return False
+            
+        season_selection = None
+        episode_selection = None
+        
+        if selections:
+            season_selection = selections.get('season')
+            episode_selection = selections.get('episode')
+        
+        download_series_func(select_title, season_selection, episode_selection)
+        
+        # Clear managers if provided
+        if media_search_manager:
+            media_search_manager.clear()
+        if table_show_manager:
+            table_show_manager.clear()
+        
+        return True
+    
+    # Handle films
+    elif str(select_title.type).lower() == 'film' or str(select_title.type).lower() == 'movie':
+        if not download_film_func:
+            console.print("[red]Error: download_film_func not provided for films")
+            return False
+            
+        download_film_func(select_title)
+        
+        # Clear managers if provided
+        if table_show_manager:
+            table_show_manager.clear()
+        
+        return True
+    
+    else:
+        console.print(f"[red]Unknown media type: {select_title.type}")
+        return False
+
+
+def base_search(title_search_func: Callable[[str], int], process_result_func: Callable[[Optional[MediaItem], Optional[Dict[str, str]]], bool], media_search_manager: MediaManager, table_show_manager: TVShowManager,
+    site_name: str, string_to_search: Optional[str] = None, get_onlyDatabase: bool = False, direct_item: Optional[Dict[str, Any]] = None, selections: Optional[Dict[str, str]] = None
+) -> Any:
+    """
+    Generalized search function for streaming sites.
+    
+    Parameters:
+        title_search_func (callable): Function that performs the actual search and returns number of results
+        process_result_func (callable): Function that processes the selected result
+        media_search_manager (MediaManager): Manager for media search results
+        table_show_manager (TVShowManager): Manager for displaying results
+        site_name (str): Name of the site being searched
+        string_to_search (str, optional): String to search for. Can be passed from run.py.
+        get_onlyDatabase (bool, optional): If True, return only the database search manager object.
+        direct_item (dict, optional): Direct item to process (bypasses search).
+        selections (dict, optional): Dictionary containing selection inputs that bypass manual input
+                                     for series (season/episode).
+    
+    Returns:
+        MediaManager if get_onlyDatabase=True, bool otherwise
+    """
+    # Handle direct item processing
+    if direct_item:
+        select_title = MediaItem(**direct_item)
+        result = process_result_func(select_title, selections)
+        return result
+    
+    # Get the user input for the search term
+    actual_search_query = None
+    if string_to_search is not None:
+        actual_search_query = string_to_search.strip()
+    else:
+        actual_search_query = msg.ask(f"\n[purple]Insert a word to search in [green]{site_name}").strip()
+
+    # Search on database
+    len_database = title_search_func(actual_search_query)
+    
+    # Handle empty input
+    if not actual_search_query:
+        return False
+    
+    # If only the database is needed, return the manager
+    if get_onlyDatabase:
+        return media_search_manager
+    
+    # Process results
+    if len_database > 0:
+        select_title = get_select_title(table_show_manager, media_search_manager)
+        result = process_result_func(select_title, selections)
+        return result
+    else:
+        console.print(f"\n[red]Nothing matching was found for[white]: [purple]{actual_search_query}")
+        return False

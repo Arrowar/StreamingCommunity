@@ -168,7 +168,9 @@ class MediaDownloader:
         """Analyze playlist and display table of available streams"""
         analysis_path = self.output_dir / "analysis_temp"
         analysis_path.mkdir(exist_ok=True)
-        
+        if self.download_id:
+            download_tracker.update_status(self.download_id, "Parsing...")
+
         # Normalize filter values
         filters = getattr(self, 'custom_filters', None)
         norm_v = self._normalize_filter(filters['video'] if filters and filters.get('video') else video_filter)
@@ -358,8 +360,17 @@ class MediaDownloader:
                          SizeColumn(), TextColumn("[dim]@[/dim]"), TextColumn("[red]{task.fields[speed]}[/red]", justify="right"), console=console) as progress:
                 tasks = {}
                 proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors='replace', bufsize=1, universal_newlines=True)
+                
+                # Register process for potential termination
+                if self.download_id:
+                    download_tracker.register_process(self.download_id, proc)
+
                 with proc:
                     for line in proc.stdout:
+                        if self.download_id and download_tracker.is_stopped(self.download_id):
+                            proc.terminate()
+                            break
+
                         if not (line := line.rstrip()):
                             continue
 
@@ -372,14 +383,16 @@ class MediaDownloader:
                         if "Segment count check not pass" in line:
                             console.log(f"[red]Segment count mismatch detected: {line}[/red]")
                     
-                    proc.wait()
+                    if self.download_id and download_tracker.is_stopped(self.download_id):
+                        proc.wait()
+                    else:
+                        proc.wait()
         
-        self.status = self._get_download_status(subtitle_sizes, external_subs)
+        # Check if we were cancelled
+        if self.download_id and download_tracker.is_stopped(self.download_id):
+            return {"error": "cancelled"}
 
-        # Mark completion in tracker
-        if self.download_id:
-            success = self.status.get('video') is not None or len(self.status.get('audios', [])) > 0
-            download_tracker.complete_download(self.download_id, success=success)
+        self.status = self._get_download_status(subtitle_sizes, external_subs)
 
         return self.status
 

@@ -12,4 +12,5 @@ urlpatterns = [
     path("series-detail/", views.series_detail, name="series_detail"),
     path("downloads/", views.download_dashboard, name="download_dashboard"),
     path("api/get-downloads/", views.get_downloads_json, name="get_downloads_json"),
+    path("api/kill-download/", views.kill_download, name="kill_download"),
 ]

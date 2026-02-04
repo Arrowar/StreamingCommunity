@@ -6,12 +6,14 @@ from rich.prompt import Prompt
 
 
 # Internal utilities
-from StreamingCommunity.services._base import site_constants, MediaItem, get_select_title
-
+from StreamingCommunity.utils import TVShowManager
+from StreamingCommunity.utils.http_client import create_client
+from StreamingCommunity.services._base import site_constants, MediaManager
+from StreamingCommunity.services._base.site_search_manager import base_process_search_result, base_search
 
 # Logic
-from .site import title_search, table_show_manager, media_search_manager
-from .series import download_series
+from .downloader import download_series
+from .client import get_api
 
 
 # Variables
@@ -19,84 +21,103 @@ indice = 12
 _useFor = "Film_&_Serie"
 _region = "US"
 _deprecate = False
-_stream_type = "DASH"
-_maxResolution = "720p"
-_drm = True
 
 
 msg = Prompt()
 console = Console()
+media_search_manager = MediaManager()
+table_show_manager = TVShowManager()
 
 
-def process_search_result(select_title, selections=None):
+def title_search(query: str) -> int:
     """
-    Handles the search result and initiates download for film or series
+    Search for titles on Discovery+
     
     Parameters:
-        select_title (MediaItem): The selected media item
-        selections (dict, optional): Dictionary containing selection inputs
-                                    {'season': season_selection, 'episode': episode_selection}
-    
+        query (str): Search query
+        
     Returns:
-        bool: True if processing was successful, False otherwise
+        int: Number of results found
     """
-    if not select_title:
-        console.print("[yellow]No title selected or selection cancelled.")
-        return False
+    media_search_manager.clear()
+    table_show_manager.clear()
     
-    if select_title.type == 'tv':
-        season_selection = None
-        episode_selection = None
+    api = get_api()
+    search_url = 'https://us1-prod-direct.go.discovery.com/cms/routes/search/result'
+    console.print(f"[cyan]Search url: [yellow]{search_url}")
+    
+    params = {
+        'include': 'default',
+        'decorators': 'viewingHistory,isFavorite,playbackAllowed',
+        'contentFilter[query]': query
+    }
+    
+    try:
+        response = create_client(headers=api.get_request_headers()).get(
+            search_url,
+            params=params,
+            cookies=api.get_cookies()
+        )
+        response.raise_for_status()
         
-        if selections:
-            season_selection = selections.get('season')
-            episode_selection = selections.get('episode')
+    except Exception as e:
+        console.print(f"[red]Site: {site_constants.SITE_NAME}, request search error: {e}")
+        return 0
+    
+    # Parse response
+    data = response.json()
+    for element in data.get('included', []):
+        element_type = element.get('type')
         
-        download_series(select_title, season_selection, episode_selection)
-        media_search_manager.clear()
-        table_show_manager.clear()
-        return True
+        # Handle both shows and movies
+        if element_type in ['show', 'movie']:
+            attributes = element.get('attributes', {})
+            
+            if 'name' in attributes:
+                if element_type == 'show':
+                    date = attributes.get('newestEpisodeDate', '').split("T")[0]
+                else:
+                    date = attributes.get('airDate', '').split("T")[0]
+                
+                combined_id = f"{element.get('id')}|{attributes.get('alternateId')}"
+                media_search_manager.add_media({
+                    'id': combined_id,
+                    'name': attributes.get('name', 'No Title'),
+                    'type': 'tv' if element_type == 'show' else 'movie',
+                    'image': None,
+                    'year': date
+                })
+    
+    return media_search_manager.get_length()
 
+
+
+# WRAPPING FUNCTIONS
+def process_search_result(select_title, selections=None):
+    """
+    Wrapper for the generalized process_search_result function.
+    """
+    return base_process_search_result(
+        select_title=select_title,
+        download_film_func=None,
+        download_series_func=download_series,
+        media_search_manager=media_search_manager,
+        table_show_manager=table_show_manager,
+        selections=selections
+    )
 
 def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_item: dict = None, selections: dict = None):
     """
-    Main function for searching and downloading content
-    
-    Parameters:
-        string_to_search (str, optional): Search query string
-        get_onlyDatabase (bool, optional): If True, return only the database object
-        direct_item (dict, optional): Direct item to process (bypass search)
-        selections (dict, optional): Dictionary containing selection inputs
-                                    {'season': season_selection, 'episode': episode_selection}
+    Wrapper for the generalized search function.
     """
-    if direct_item:
-        select_title = MediaItem(**direct_item)
-        result = process_search_result(select_title, selections)
-        return result
-    
-    # Get search query from user
-    actual_search_query = None
-    if string_to_search is not None:
-        actual_search_query = string_to_search.strip()
-    else:
-        actual_search_query = msg.ask(f"\n[purple]Insert a word to search in [green]{site_constants.SITE_NAME}").strip()
-    
-    # Handle empty input
-    if not actual_search_query:
-        return False
-    
-    # Search on database
-    len_database = title_search(actual_search_query)
-    
-    # If only database is needed, return the manager
-    if get_onlyDatabase:
-        return media_search_manager
-    
-    if len_database > 0:
-        select_title = get_select_title(table_show_manager, media_search_manager, len_database)
-        result = process_search_result(select_title, selections)
-        return result
-    
-    else:
-        console.print(f"\n[red]Nothing matching was found for[white]: [purple]{actual_search_query}")
-        return False
+    return base_search(
+        title_search_func=title_search,
+        process_result_func=process_search_result,
+        media_search_manager=media_search_manager,
+        table_show_manager=table_show_manager,
+        site_name=site_constants.SITE_NAME,
+        string_to_search=string_to_search,
+        get_onlyDatabase=get_onlyDatabase,
+        direct_item=direct_item,
+        selections=selections
+    )

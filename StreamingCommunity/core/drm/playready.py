@@ -115,7 +115,7 @@ def _get_playready_keys_local_cdm(pssh_list: list[dict], license_url: str, cdm_d
                 req_headers['Content-Type'] = 'text/xml; charset=utf-8'
 
             if license_url is None:
-                console.print("[red]License URL is None.")
+                console.print("\n[red]License URL is None.")
                 continue
 
             # Make license request
@@ -173,9 +173,10 @@ def _get_playready_keys_local_cdm(pssh_list: list[dict], license_url: str, cdm_d
         if all_content_keys:
             for i, k in enumerate(all_content_keys):
                 kid, key_val = k.split(':')
+                masked_key = key_val[:-1] + "*"
                 label = kid_to_label.get(kid.lower()) if kid_to_label else None
                 label_str = f" [cyan]| [red]{label}" if label else ""
-                console.print(f"    - [red]{kid}[white]:[green]{key_val}{label_str}")
+                console.print(f"    - [red]{kid}[white]:[green]{masked_key}{label_str}")
         else:
             console.print("[yellow]No keys extracted")
         

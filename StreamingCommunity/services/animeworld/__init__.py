@@ -1,18 +1,20 @@
 # 21.03.25
 
 # External library
+from bs4 import BeautifulSoup
 from rich.console import Console
 from rich.prompt import Prompt
 
 
 # Internal utilities
-from StreamingCommunity.services._base import site_constants, MediaItem, get_select_title
+from StreamingCommunity.utils.http_client import create_client, get_headers
+from StreamingCommunity.utils import TVShowManager
+from StreamingCommunity.services._base import site_constants, MediaManager
+from StreamingCommunity.services._base.site_search_manager import base_process_search_result, base_search
 
 
 # Logic
-from .site import title_search, media_search_manager, table_show_manager
-from .serie import download_series
-from .film import download_film
+from .downloader import download_film, download_series
 
 
 # Variable
@@ -20,85 +22,97 @@ indice = 6
 _useFor = "Anime"
 _region = "IT"
 _deprecate = False
-_stream_type = "MP4"
-_maxResolution = "1080p"
-_drm = False
 
 
 msg = Prompt()
 console = Console()
+media_search_manager = MediaManager()
+table_show_manager = TVShowManager()
 
 
-def process_search_result(select_title, selections=None):
+def title_search(query: str) -> int:
     """
-    Handles the search result and initiates the download for either a film or series.
-    
+    Function to perform an anime search using a provided title.
+
     Parameters:
-        select_title (MediaItem): The selected media item
-        selections (dict, optional): Dictionary containing selection inputs that bypass manual input
-                                    {'season': season_selection, 'episode': episode_selection}
+        - query (str): The query to search for.
 
     Returns:
-        bool: True if processing was successful, False otherwise
+        - int: A number containing the length of media search manager.
     """
-    if not select_title:
-        return False
-    
-    if select_title.type == "FILM":
-        download_film(select_title)
-        table_show_manager.clear()
-        return True
-        
-    else:
-        episode_selection = None
-        if selections:
-            episode_selection = selections.get('episode')
+    search_url = f"{site_constants.FULL_URL}/search?keyword={query}"
+    console.print(f"[cyan]Search url: [yellow]{search_url}")
 
-        download_series(select_title, episode_selection)
-        media_search_manager.clear()
-        table_show_manager.clear()
-        return True
+    # Make the GET request
+    try:
+        response = create_client(headers=get_headers()).get(search_url)
+    except Exception as e:
+        console.print(f"[red]Site: {site_constants.SITE_NAME}, request search error: {e}")
+        return 0
 
+    # Create soup istance
+    soup = BeautifulSoup(response.text, 'html.parser')
+
+    # Collect data from soup
+    for element in soup.find_all('a', class_='poster'):
+        try:
+            title = element.find('img').get('alt')
+            url = f"{site_constants.FULL_URL}{element.get('href')}"
+            status_div = element.find('div', class_='status')
+            is_dubbed = False
+            anime_type = 'TV'
+
+            if status_div:
+                if status_div.find('div', class_='dub'):
+                    is_dubbed = True
+                
+                if status_div.find('div', class_='movie'):
+                    anime_type = 'Movie'
+                elif status_div.find('div', class_='ona'):
+                    anime_type = 'ONA'
+
+                media_search_manager.add_media({
+                    'name': title,
+                    'type': anime_type,
+                    'DUB': is_dubbed,
+                    'url': url,
+                    'image': element.find('img').get('src')
+                })
+
+        except Exception as e:
+            print(f"Error parsing a film entry: {e}")
+
+    # Return the length of media search manager
+    return media_search_manager.get_length()
+
+
+
+# WRAPPING FUNCTIONS
+def process_search_result(select_title, selections=None):
+    """
+    Wrapper for the generalized process_search_result function.
+    """
+    return base_process_search_result(
+        select_title=select_title,
+        download_film_func=download_film,
+        download_series_func=download_series,
+        media_search_manager=media_search_manager,
+        table_show_manager=table_show_manager,
+        selections=selections
+    )
 
 def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_item: dict = None, selections: dict = None):
     """
-    Main function of the application for search.
-
-    Parameters:
-        string_to_search (str, optional): String to search for
-        get_onlyDatabase (bool, optional): If True, return only the database object
-        direct_item (dict, optional): Direct item to process (bypass search)
-        selections (dict, optional): Dictionary containing selection inputs that bypass manual input
-                                    {'season': season_selection, 'episode': episode_selection}
+    Wrapper for the generalized search function.
     """
-    if direct_item:
-        select_title = MediaItem(**direct_item)
-        result = process_search_result(select_title, selections)
-        return result
-    
-    # Get the user input for the search term
-    actual_search_query = None
-    if string_to_search is not None:
-        actual_search_query = string_to_search.strip()
-    else:
-        actual_search_query = msg.ask(f"\n[purple]Insert a word to search in [green]{site_constants.SITE_NAME}").strip()
-
-    # Handle empty input
-    if not actual_search_query:
-        return False
-
-    # Search on database
-    len_database = title_search(actual_search_query)
-
-    # If only the database is needed, return the manager
-    if get_onlyDatabase:
-        return media_search_manager
-    
-    if len_database > 0:
-        select_title = get_select_title(table_show_manager, media_search_manager, len_database)
-        result = process_search_result(select_title, selections)
-        return result
-    
-    else:
-        console.print(f"\n[red]Nothing matching was found for[white]: [purple]{actual_search_query}")
-        return False
+    return base_search(
+        title_search_func=title_search,
+        process_result_func=process_search_result,
+        media_search_manager=media_search_manager,
+        table_show_manager=table_show_manager,
+        site_name=site_constants.SITE_NAME,
+        string_to_search=string_to_search,
+        get_onlyDatabase=get_onlyDatabase,
+        direct_item=direct_item,
+        selections=selections
+    )

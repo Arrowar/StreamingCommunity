@@ -9,20 +9,28 @@ from .base import BaseStreamingAPI
 from .altadefinizione import AltadefinzioneAPI
 from .animeunity import AnimeUnityAPI
 from .discoveryeu import DiscoveryEUAPI
+from .discoveryeuplus import DiscoveryEuPlusAPI
 from .mediasetinfinity import MediasetInfinityAPI
 from .raiplay import RaiPlayAPI
 from .realtime import RealtimeAPI
 from .streamingcommunity import StreamingCommunityAPI
+from .guardaserie import GuardaSerieAPI
+from .dmax import DmaxAPI
+from .crunchyroll import CrunchyrollAPI
 
 
 _API_REGISTRY: Dict[str, type] = {
     'streamingcommunity': StreamingCommunityAPI,
     'altadefinizione': AltadefinzioneAPI,
+    'guardaserie': GuardaSerieAPI,
     'animeunity': AnimeUnityAPI,
+    'crunchyroll': CrunchyrollAPI,
     'discoveryeu': DiscoveryEUAPI,
+    'discoveryeuplus': DiscoveryEuPlusAPI,
     'mediasetinfinity': MediasetInfinityAPI,
     'raiplay': RaiPlayAPI,
-    'realtime': RealtimeAPI
+    'realtime': RealtimeAPI,
+    'dmax': DmaxAPI,
 }
 
 

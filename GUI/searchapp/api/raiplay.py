@@ -10,8 +10,8 @@ from .base import BaseStreamingAPI, MediaItem, Season, Episode
 
 
 # External utilities
-from StreamingCommunity.services._base.loader import get_folder_name
-from StreamingCommunity.services.raiplay.util.ScrapeSerie import GetSerieInfo
+from StreamingCommunity.services._base.site_loader import get_folder_name
+from StreamingCommunity.services.raiplay.scrapper import GetSerieInfo
 
 
 class RaiPlayAPI(BaseStreamingAPI):
@@ -28,7 +28,7 @@ class RaiPlayAPI(BaseStreamingAPI):
     def _get_search_fn(self):
         """Lazy load the search function."""
         if self._search_fn is None:
-            module = importlib.import_module(f"StreamingCommunity.{get_folder_name()}.raiplay")
+            module = importlib.import_module(f"StreamingCommunity.{get_folder_name()}.{self.site_name}")
             self._search_fn = getattr(module, "search")
         return self._search_fn
     
@@ -85,7 +85,7 @@ class RaiPlayAPI(BaseStreamingAPI):
             return None
     
         seasons = []
-        for season_num in range(1, seasons_count + 1):
+        for season_num in [s.number for s in scraper.seasons_manager.seasons]:
             episodes_raw = scraper.getEpisodeSeasons(season_num)
             episodes = []
             

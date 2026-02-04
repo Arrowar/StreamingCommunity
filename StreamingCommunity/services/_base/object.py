@@ -15,7 +15,6 @@ TMDB_KEY = config_manager.login.get('TMDB', 'api_key')
 class Episode:
     def __init__(self, data: Dict[str, Any]):
         self.data = data
-
         self.id: int = data.get('id', 0)
         self.video_id : str = data.get('video_id', '')
         self.number: int = data.get('number', 1)
@@ -93,6 +92,7 @@ class SeasonManager:
         """
         season = Season(season_data)
         self.seasons.append(season)
+        self.seasons.sort(key=lambda x: x.number)
         return season
         
     def get_season_by_number(self, number: int) -> Optional[Season]:

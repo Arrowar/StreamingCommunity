@@ -7,12 +7,15 @@ from rich.prompt import Prompt
 
 
 # Internal utilities
-from StreamingCommunity.services._base import site_constants, MediaItem, get_select_title
+from StreamingCommunity.utils import TVShowManager
+from StreamingCommunity.utils.http_client import create_client, get_userAgent
+from StreamingCommunity.services._base import site_constants, MediaManager
+from StreamingCommunity.services._base.site_search_manager import base_process_search_result, base_search
+
 
 
 # Logic
-from .site import title_search, table_show_manager, media_search_manager
-from .series import download_series
+from .downloader import download_series
 
 
 # Variable
@@ -20,82 +23,92 @@ indice = 8
 _useFor = "Serie"
 _region = "IT"
 _deprecate = False
-_stream_type = "HLS"
-_maxResolution = "1080p"
-_drm = True
 
 
 msg = Prompt()
 console = Console()
+media_search_manager = MediaManager()
+table_show_manager = TVShowManager()
 
 
+def title_search(query: str) -> int:
+    """
+    Search for titles based on a search query.
+      
+    Parameters:
+        - query (str): The query to search for.
+
+    Returns:
+        int: The number of titles found.
+    """
+    media_search_manager.clear()
+    table_show_manager.clear()
+
+    search_url = f"https://public.aurora.enhanced.live/site/search/page/?include=default&filter[environment]=realtime&v=2&q={query}&page[number]=1&page[size]=20"
+    console.print(f"[cyan]Search url: [yellow]{search_url}")
+
+    try:
+        response = create_client(headers={'user-agent': get_userAgent()}).get(search_url)
+        response.raise_for_status()
+
+    except Exception as e:
+        console.print(f"[red]Site: {site_constants.SITE_NAME}, request search error: {e}")
+        return 0
+
+    # Collect json data
+    try:
+        data = response.json().get('data')
+    except Exception as e:
+        console.log(f"Error parsing JSON response: {e}")
+        return 0
+
+    for dict_title in data:
+        try:
+            if dict_title.get('type') != 'showpage':
+                continue
+            
+            media_search_manager.add_media({
+                'name': dict_title.get('title'),
+                'type': 'tv',
+                'year': dict_title.get('dateLastModified').split('-')[0],
+                'image': dict_title.get('image').get('url'),
+                'url': f'https://public.aurora.enhanced.live/site/page/{str(dict_title.get("slug")).lower().replace(" ", "-")}/?include=default&filter[environment]=realtime&v=2&parent_slug={dict_title.get("parentSlug")}',
+            })
+            
+        except Exception as e:
+            print(f"Error parsing a film entry: {e}")
+	
+    # Return the number of titles found
+    return media_search_manager.get_length()
+
+
+
+# WRAPPING FUNCTIONS
 def process_search_result(select_title, selections=None):
     """
-    Handles the search result and initiates the download for either a film or series.
-    
-    Parameters:
-        select_title (MediaItem): The selected media item. Can be None if selection fails.
-        selections (dict, optional): Dictionary containing selection inputs that bypass manual input
-                                    e.g., {'season': season_selection, 'episode': episode_selection}
-    Returns:
-        bool: True if processing was successful, False otherwise
+    Wrapper for the generalized process_search_result function.
     """
-    if not select_title:
-        return False
-
-    if select_title.type == 'tv':
-        season_selection = None
-        episode_selection = None
-        
-        if selections:
-            season_selection = selections.get('season')
-            episode_selection = selections.get('episode')
-
-        download_series(select_title, season_selection, episode_selection)
-        media_search_manager.clear()
-        table_show_manager.clear()
-        return True
-
+    return base_process_search_result(
+        select_title=select_title,
+        download_film_func=None,
+        download_series_func=download_series,
+        media_search_manager=media_search_manager,
+        table_show_manager=table_show_manager,
+        selections=selections
+    )
 
 def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_item: dict = None, selections: dict = None):
     """
-    Main function of the application for search.
-
-    Parameters:
-        string_to_search (str, optional): String to search for. Can be passed from run.py.
-        get_onlyDatabase (bool, optional): If True, return only the database search manager object.
-        direct_item (dict, optional): Direct item to process (bypasses search).
-        selections (dict, optional): Dictionary containing selection inputs that bypass manual input
-                                     for series (season/episode).
+    Wrapper for the generalized search function.
     """
-    if direct_item:
-        select_title = MediaItem(**direct_item)
-        result = process_search_result(select_title, selections)
-        return result
-    
-    # Get the user input for the search term
-    actual_search_query = None
-    if string_to_search is not None:
-        actual_search_query = string_to_search.strip()
-    else:
-        actual_search_query = msg.ask(f"\n[purple]Insert a word to search in [green]{site_constants.SITE_NAME}").strip()
-
-    # Handle empty input
-    if not actual_search_query:
-        return False
-
-    # Search on database
-    len_database = title_search(actual_search_query)
-
-    # If only the database is needed, return the manager
-    if get_onlyDatabase:
-        return media_search_manager
-    
-    if len_database > 0:
-        select_title = get_select_title(table_show_manager, media_search_manager, len_database)
-        result = process_search_result(select_title, selections)
-        return result
-    
-    else:
-        console.print(f"\n[red]Nothing matching was found for[white]: [purple]{actual_search_query}")
-        return False
+    return base_search(
+        title_search_func=title_search,
+        process_result_func=process_search_result,
+        media_search_manager=media_search_manager,
+        table_show_manager=table_show_manager,
+        site_name=site_constants.SITE_NAME,
+        string_to_search=string_to_search,
+        get_onlyDatabase=get_onlyDatabase,
+        direct_item=direct_item,
+        selections=selections
+    )

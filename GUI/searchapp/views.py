@@ -11,6 +11,7 @@ from typing import Any, Dict
 from django.shortcuts import render, redirect
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_exempt
 from django.contrib import messages
 
 
@@ -344,3 +345,19 @@ def get_downloads_json(request: HttpRequest) -> JsonResponse:
         "active": active_downloads,
         "history": history
     })
+
+@csrf_exempt
+def kill_download(request: HttpRequest) -> JsonResponse:
+    """API view to cancel a download."""
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            download_id = data.get("download_id")
+            if download_id:
+                download_tracker.request_stop(download_id)
+                return JsonResponse({"status": "success"})
+        
+        except Exception as e:
+            return JsonResponse({"status": "error", "message": str(e)}, status=400)
+    
+    return JsonResponse({"status": "error", "message": "Method not allowed", "status_code": 405}, status=405)

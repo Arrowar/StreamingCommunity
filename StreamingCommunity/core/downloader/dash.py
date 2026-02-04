@@ -15,7 +15,8 @@ from rich.console import Console
 # Internal utilities
 from StreamingCommunity.utils.http_client import get_headers
 from StreamingCommunity.core.processors import join_video, join_audios, join_subtitles
-from StreamingCommunity.source.utils.tracker import context_tracker
+from StreamingCommunity.core.processors.helper.nfo import create_nfo
+from StreamingCommunity.source.utils.tracker import download_tracker, context_tracker
 from StreamingCommunity.source.utils.media_players import MediaPlayers
 from StreamingCommunity.utils import config_manager, os_manager, internet_manager
 
@@ -32,6 +33,7 @@ console = Console()
 CLEANUP_TMP = config_manager.config.get_bool('M3U8_DOWNLOAD', 'cleanup_tmp_folder')
 EXTENSION_OUTPUT = config_manager.config.get("M3U8_CONVERSION", "extension")
 SKIP_DOWNLOAD = config_manager.config.get_bool('M3U8_DOWNLOAD', 'skip_download')
+CREATE_NFO_FILES = config_manager.config.get_bool('M3U8_CONVERSION', 'generate_nfo', default=False)
 
 
 class DASH_Downloader:
@@ -55,7 +57,7 @@ class DASH_Downloader:
         self.key = key
         self.cookies = cookies or {}
         self.decrypt_preference = decrypt_preference.lower()
-        self.drm_manager = DRMManager(get_wvd_path(), get_prd_path(), config_manager.remote_cdm.get('remote', 'widevine_l3'), config_manager.remote_cdm.get('remote', 'playready_l3'))
+        self.drm_manager = DRMManager(get_wvd_path(), get_prd_path(), config_manager.remote_cdm.get('remote', 'widevine'), config_manager.remote_cdm.get('remote', 'playready'))
         
         # Tracking IDs - check context if not provided
         self.download_id = context_tracker.download_id
@@ -141,14 +143,13 @@ class DASH_Downloader:
     
     def _fetch_decryption_keys(self):
         """Fetch decryption keys based on DRM type."""
-        if not self.license_url or not self.drm_info:
+        if not self.license_url and self.key is None:
             console.print("[yellow]No DRM protection or missing license info")
             return True
         
         drm_type = self.drm_info['selected_drm_type']
-        
         try:
-            time.sleep(0.25)
+            time.sleep(0.2)
             
             if drm_type == DRMSystem.WIDEVINE:
                 keys = self.drm_manager.get_wv_keys(self.drm_info.get('widevine_pssh', []), self.license_url, self.license_headers, self.key, self.kid_to_label)
@@ -164,7 +165,6 @@ class DASH_Downloader:
                 return True
             
             else:
-                console.print("[red]Failed to fetch decryption keys")
                 self.error = "Failed to fetch decryption keys"
                 return False
                 
@@ -310,6 +310,9 @@ class DASH_Downloader:
         if self.mpd_sub_list:
             self.media_downloader.external_subtitles = self.mpd_sub_list
         
+        if self.download_id:
+            download_tracker.update_status(self.download_id, "Parsing...")
+            
         self.media_downloader.parser_stream()
         
         # Get metadata
@@ -321,12 +324,16 @@ class DASH_Downloader:
         # Fetch DRM info
         if not self._setup_drm_info(*selected_info):
             logging.error("Failed to fetch DRM info")
+            if self.download_id:
+                download_tracker.complete_download(self.download_id, success=False, error="DRM parsing failed")
             return None, True
         
         # Fetch decryption keys if DRM protected
         if self.drm_info and self.drm_info['available_drm_types']:
             if not self._fetch_decryption_keys():
                 logging.error(f"Failed to fetch decryption keys: {self.error}")
+                if self.download_id:
+                    download_tracker.complete_download(self.download_id, success=False, error=self.error)
                 return None, True
             
         if SKIP_DOWNLOAD:
@@ -334,18 +341,38 @@ class DASH_Downloader:
             return self.output_path, False
         
         # Set keys and start download
+        if self.download_id:
+            download_tracker.update_status(self.download_id, "downloading")
+            
         self.media_downloader.set_key(self.decryption_keys if self.decryption_keys else None)
         status = self.media_downloader.start_download()
         
+        # Check for cancellation
+        if status.get('error') == 'cancelled':
+            if self.download_id:
+                download_tracker.complete_download(self.download_id, success=False, error="cancelled")
+            return None, True
+
         # Check if any media was downloaded
         if self._no_media_downloaded(status):
             logging.error("No media downloaded")
+            if self.download_id:
+                download_tracker.complete_download(self.download_id, success=False, error="No media downloaded")
             return None, True
         
         # Merge files
+        if self.download_id:
+            download_tracker.update_status(self.download_id, "Muxing...")
+            
         final_file = self._merge_files(status)
         if not final_file or not os.path.exists(final_file):
+            if self.download_id and download_tracker.is_stopped(self.download_id):
+                download_tracker.complete_download(self.download_id, success=False, error="cancelled")
+                return None, True
+                
             logging.error("Merge operation failed")
+            if self.download_id:
+                download_tracker.complete_download(self.download_id, success=False, error="Merge failed")
             return None, True
         
         # Move to final location if needed
@@ -353,6 +380,12 @@ class DASH_Downloader:
         
         # Print summary and cleanup
         self._print_summary()
+        
+        if CREATE_NFO_FILES:
+            create_nfo(self.output_path)
+        if self.download_id:
+            download_tracker.complete_download(self.download_id, success=True, path=os.path.abspath(self.output_path))
+            
         if CLEANUP_TMP:
             shutil.rmtree(self.output_dir, ignore_errors=True)
         return self.output_path, False

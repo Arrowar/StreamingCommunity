@@ -1,18 +1,22 @@
 # 16.03.25
 
 # External library
+from bs4 import BeautifulSoup
 from rich.console import Console
 from rich.prompt import Prompt
 
 
 # Internal utilities
-from StreamingCommunity.services._base import site_constants, MediaItem, get_select_title
+from StreamingCommunity.utils import TVShowManager
+from StreamingCommunity.utils.http_client import create_client, get_userAgent
+from StreamingCommunity.services._base import site_constants, MediaManager
+from StreamingCommunity.services._base.site_search_manager import base_process_search_result, base_search
 
 
 # Logic
-from .site import title_search, table_show_manager, media_search_manager
-from .film import download_film
-from .series import download_series
+from .downloader import download_film, download_series
+media_search_manager = MediaManager()
+table_show_manager = TVShowManager()
 
 
 # Variable
@@ -20,90 +24,210 @@ indice = 2
 _useFor = "Film_&_Serie"
 _region = "IT"
 _deprecate = False
-_stream_type = "HLS"
-_maxResolution = "1080p"
-_drm = False
 
 
 msg = Prompt()
 console = Console()
+media_search_manager = MediaManager()
+table_show_manager = TVShowManager()
 
 
-def process_search_result(select_title, selections=None):
+def title_search(query: str) -> int:
     """
-    Handles the search result and initiates the download for either a film or series.
-    
+    Search for titles based on a search query.
+      
     Parameters:
-        select_title (MediaItem): The selected media item
-        selections (dict, optional): Dictionary containing selection inputs that bypass manual input
-                                    {'season': season_selection, 'episode': episode_selection}
+        - query (str): The query to search for.
 
     Returns:
-        bool: True if processing was successful, False otherwise
+        int: The number of titles found.
     """
-    if not select_title:
-        console.print("[yellow]No title selected or selection cancelled.")
-        return False
-    
-    if select_title.type == 'tv':
-        season_selection = None
-        episode_selection = None
+    media_search_manager.clear()
+    table_show_manager.clear()
 
-        if selections:
-            season_selection = selections.get('season')
-            episode_selection = selections.get('episode')
+    search_url = f"{site_constants.FULL_URL}/?story={query}&do=search&subaction=search"
+    console.print(f"[cyan]Search url: [yellow]{search_url}")
+
+    try:
+        response = create_client(headers={'user-agent': get_userAgent()}).get(search_url)
+        response.raise_for_status()
+    except Exception as e:
+        console.print(f"[red]Site: {site_constants.SITE_NAME}, request search error: {e}")
+        return 0
+
+    # Create soup instance
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    # Collect data from search results
+    try:
+        dle_content = soup.find("div", id="dle-content")
+        if not dle_content:
+            console.print("[yellow]Warning: dle-content div not found")
+            return 0
+        
+        # Try new structure first (movie cards in col divs)
+        cols = dle_content.find_all("div", class_="col")
+        
+        if cols:
+            # New structure with movie cards
+            for col in cols:
+                try:
+                    movie_div = col.find("div", class_="movie")
+                    if not movie_div:
+                        continue
+                    
+                    # Find movie poster with link
+                    poster_div = movie_div.find("div", class_="movie-poster")
+                    if not poster_div:
+                        continue
+                    
+                    main_link = poster_div.find("a")
+                    if not main_link:
+                        continue
+                    
+                    url = main_link.get("href")
+                    if not url:
+                        continue
+                    
+                    # Get image
+                    img_tag = main_link.find("img")
+                    image_url = None
+                    if img_tag:
+                        img_src = img_tag.get("src") or img_tag.get("data-src")
+                        if img_src:
+                            if img_src.startswith("/"):
+                                image_url = f"{site_constants.FULL_URL}{img_src}"
+                            else:
+                                image_url = img_src
+                    
+                    # Get title from movie-info section
+                    info_div = movie_div.find("div", class_="movie-info")
+                    if not info_div:
+                        continue
+                    
+                    title_tag = info_div.find("h2", class_="movie-title")
+                    if not title_tag:
+                        continue
+                    
+                    title_link = title_tag.find("a")
+                    if not title_link:
+                        continue
+                    
+                    title = title_link.get_text(strip=True)
+                    
+                    # Determine type based on URL
+                    tipo = "tv" if "/serie-tv/" in url else "film"
+
+                    media_dict = {
+                        'url': url,
+                        'name': title,
+                        'type': tipo,
+                        'image': image_url
+                    }
+                    media_search_manager.add_media(media_dict)
+                    
+                except Exception as e:
+                    console.print(f"[yellow]Warning: Error parsing col item: {e}")
+                    continue
+        else:
+            # Fallback to old structure (box divs)
+            boxes = dle_content.find_all("div", class_="box")
             
-        download_series(select_title, season_selection, episode_selection)
-        media_search_manager.clear()
-        table_show_manager.clear()
-        return True
-    
-    else:
-        download_film(select_title)
-        table_show_manager.clear()
-        return True
+            if not boxes:
+                console.print("[yellow]Warning: No movie boxes found")
+                return 0
+                
+            for box in boxes:
+                try:
+                    wrapper = box.find("div", class_="wrapperImage")
+                    if not wrapper:
+                        continue
+                    
+                    # Find the main link
+                    main_link = wrapper.find("a")
+                    if not main_link:
+                        continue
+                        
+                    url = main_link.get("href")
+                    if not url:
+                        continue
+                    
+                    # Get image
+                    img_tag = main_link.find("img")
+                    image_url = None
+                    if img_tag:
+                        img_src = img_tag.get("src") or img_tag.get("data-src")
+                        if img_src:
+                            if img_src.startswith("/"):
+                                image_url = f"{site_constants.FULL_URL}{img_src}"
+                            else:
+                                image_url = img_src
+                    
+                    # Get title from info section
+                    info_div = wrapper.find("div", class_="info")
+                    if not info_div:
+                        continue
+                        
+                    title_tag = info_div.find("h2", class_="titleFilm")
+                    if not title_tag:
+                        continue
+                        
+                    title_link = title_tag.find("a")
+                    if not title_link:
+                        continue
+                        
+                    title = title_link.get_text(strip=True)
+                    
+                    # Determine type based on URL
+                    tipo = "tv" if "/serie-tv/" in url else "film"
+
+                    media_dict = {
+                        'url': url,
+                        'name': title,
+                        'type': tipo,
+                        'image': image_url
+                    }
+                    media_search_manager.add_media(media_dict)
+                    
+                except Exception as e:
+                    console.print(f"[yellow]Warning: Error parsing box item: {e}")
+                    continue
+            
+    except Exception as e:
+        console.print(f"[red]Site: {site_constants.SITE_NAME}, parsing search results error: {e}")
+        return 0
+
+    # Return the number of titles found
+    return media_search_manager.get_length()
 
 
-# search("Game of Thrones", selections={"season": "1", "episode": "1-3"})
+
+# WRAPPING FUNCTIONS
+def process_search_result(select_title, selections=None):
+    """
+    Wrapper for the generalized process_search_result function.
+    """
+    return base_process_search_result(
+        select_title=select_title,
+        download_film_func=download_film,
+        download_series_func=download_series,
+        media_search_manager=media_search_manager,
+        table_show_manager=table_show_manager,
+        selections=selections
+    )
+
 def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_item: dict = None, selections: dict = None):
     """
-    Main function of the application for search.
-
-    Parameters:
-        string_to_search (str, optional): String to search for
-        get_onlyDatabase (bool, optional): If True, return only the database object
-        direct_item (dict, optional): Direct item to process (bypass search)
-        selections (dict, optional): Dictionary containing selection inputs that bypass manual input
-                                    {'season': season_selection, 'episode': episode_selection}
+    Wrapper for the generalized search function.
     """
-    if direct_item:
-        select_title = MediaItem(**direct_item)
-        result = process_search_result(select_title, selections)
-        return result
-    
-    # Get the user input for the search term
-    actual_search_query = None
-    if string_to_search is not None:
-        actual_search_query = string_to_search.strip()
-    else:
-        actual_search_query = msg.ask(f"\n[purple]Insert a word to search in [green]{site_constants.SITE_NAME}").strip()
-
-    # Handle empty input
-    if not actual_search_query:
-        return False
-
-    # Search on database
-    len_database = title_search(actual_search_query)
-
-    # If only the database is needed, return the manager
-    if get_onlyDatabase:
-        return media_search_manager
-    
-    if len_database > 0:
-        select_title = get_select_title(table_show_manager, media_search_manager, len_database)
-        result = process_search_result(select_title, selections)
-        return result
-    
-    else:
-        console.print(f"\n[red]Nothing matching was found for[white]: [purple]{actual_search_query}")
-        return False
+    return base_search(
+        title_search_func=title_search,
+        process_result_func=process_search_result,
+        media_search_manager=media_search_manager,
+        table_show_manager=table_show_manager,
+        site_name=site_constants.SITE_NAME,
+        string_to_search=string_to_search,
+        get_onlyDatabase=get_onlyDatabase,
+        direct_item=direct_item,
+        selections=selections
+    )

@@ -13,7 +13,8 @@ from rich.console import Console
 # Internal utilities
 from StreamingCommunity.utils.http_client import get_headers
 from StreamingCommunity.core.processors import join_video, join_audios, join_subtitles
-from StreamingCommunity.source.utils.tracker import context_tracker
+from StreamingCommunity.core.processors.helper.nfo import create_nfo
+from StreamingCommunity.source.utils.tracker import download_tracker, context_tracker
 from StreamingCommunity.source.utils.media_players import MediaPlayers
 from StreamingCommunity.utils import config_manager, os_manager, internet_manager
 
@@ -27,6 +28,7 @@ console = Console()
 CLEANUP_TMP = config_manager.config.get_bool('M3U8_DOWNLOAD', 'cleanup_tmp_folder')
 EXTENSION_OUTPUT = config_manager.config.get("M3U8_CONVERSION", "extension")
 SKIP_DOWNLOAD = config_manager.config.get_bool('M3U8_DOWNLOAD', 'skip_download')
+CREATE_NFO_FILES = config_manager.config.get_bool('M3U8_CONVERSION', 'generate_nfo', default=False)
 
 
 class HLS_Downloader:
@@ -96,18 +98,38 @@ class HLS_Downloader:
             self.media_players.create()
         except Exception:
             pass
+        
+        if self.download_id:
+            download_tracker.update_status(self.download_id, "downloading")
+            
         status = self.media_downloader.start_download()
+
+        # Check for cancellation
+        if status.get('error') == 'cancelled':
+            if self.download_id:
+                download_tracker.complete_download(self.download_id, success=False, error="cancelled")
+            return None, True
 
         # Check if any media was downloaded
         if self._no_media_downloaded(status):
             logging.error("No media downloaded")
+            if self.download_id:
+                download_tracker.complete_download(self.download_id, success=False, error="No media downloaded")
             return None, True
 
         # Merge files using FFmpeg
+        if self.download_id:
+            download_tracker.update_status(self.download_id, "Muxing...")
         final_file = self._merge_files(status)
         
         if not final_file or not os.path.exists(final_file):
+            if self.download_id and download_tracker.is_stopped(self.download_id):
+                download_tracker.complete_download(self.download_id, success=False, error="cancelled")
+                return None, True
+                
             logging.error("Merge operation failed")
+            if self.download_id:
+                download_tracker.complete_download(self.download_id, success=False, error="Merge failed")
             return None, True
         
         # Move to final location if needed
@@ -122,6 +144,12 @@ class HLS_Downloader:
         
         # Print summary and cleanup
         self._print_summary()
+
+        if CREATE_NFO_FILES:
+            create_nfo(self.output_path)
+        if self.download_id:
+            download_tracker.complete_download(self.download_id, success=True, path=os.path.abspath(self.output_path))
+            
         if CLEANUP_TMP:
             shutil.rmtree(self.output_dir, ignore_errors=True)
         return self.output_path, False

@@ -126,6 +126,7 @@
 <script>
   // Pass Django URL to JavaScript
   window.DOWNLOADS_JSON_URL = "{% url 'get_downloads_json' %}";
+  window.KILL_DOWNLOAD_URL = "{% url 'kill_download' %}";
 </script>
 <script type="module">
   import { init } from '{% static "js/downloads.js" %}';

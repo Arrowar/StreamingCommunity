@@ -1,15 +1,11 @@
 # 29.01.26
 
-import os
-
-
 # External libraries
 from rich.console import Console
 
 
 # Internal utilities
-from StreamingCommunity.utils.db_vault import DBVault
-from StreamingCommunity.setup.binary_paths import binary_paths
+from StreamingCommunity.utils.vault import obj_localDbValut, obj_externalSupaDbVault
 
 
 # Logic
@@ -26,11 +22,15 @@ class DRMManager:
         """
         Initialize DRM Manager with configuration file paths and database.
         """
-        self.db = DBVault(os.path.join(binary_paths.get_binary_directory(), 'drm_keys.db'))
+        # CDM paths
         self.widevine_device_path = widevine_device_path
         self.playready_device_path = playready_device_path
         self.widevine_remote_cdm_api = widevine_remote_cdm_api
         self.playready_remote_cdm_api = playready_remote_cdm_api
+        
+        # Check database connections
+        self.is_local_db_connected = obj_localDbValut is not None
+        self.is_supa_db_connected = obj_externalSupaDbVault is not None
     
     def get_wv_keys(self, pssh_list: list[dict], license_url: str, headers: dict = None, key: str = None, kid_to_label: dict = None) -> list[str]:
         """
@@ -41,13 +41,16 @@ class DRMManager:
                 1) If .wvd file provided, use it
                 2) Else, use remote CDM API if provided
         """
-        # Handle pre-existing key
+        # Step 0: Handle pre-existing key
         if key:
             k_split = key.split(':')
             if len(k_split) == 2:
-                result = [f"{k_split[0].replace('-', '').strip()}:{k_split[1].replace('-', '').strip()}"]
-                console.print("[green] Using provided key")
-                return result
+                kid = k_split[0].replace('-', '').strip()
+                key_val = k_split[1].replace('-', '').strip()
+                masked_key = key_val[:-1] + "*"
+                console.print("[cyan]Using Manual Key.")
+                console.print(f"    - [red]{kid}[white]:[green]{masked_key} [cyan]| [red]Manual")
+                return [f"{kid}:{key_val}"]
         
         # Extract PSSH from first entry for database lookup
         pssh_val = pssh_list[0].get('pssh') if pssh_list else None
@@ -55,19 +58,16 @@ class DRMManager:
         if not pssh_val:
             console.print("[yellow]Warning: No PSSH provided for database lookup")
         
-        # Step 1: Check database by license URL and PSSH
-        if license_url and pssh_val:
-            found_keys = self.db.get_keys_by_license_and_pssh(license_url, pssh_val, 'widevine')
+        # Step 1: Check local database by license URL and PSSH
+        if self.is_local_db_connected and license_url and pssh_val:
+            found_keys = obj_localDbValut.get_keys_by_pssh(license_url, pssh_val, 'widevine')
             
             if found_keys:
                 return found_keys
-        
-        # Step 2: Try fallback search by KIDs only
-        kids = [item.get('kid', '').replace('-', '').strip().lower() for item in pssh_list if item.get('kid')]
-        valid_kids = [k for k in kids if k and k != 'n/a']
-        
-        if valid_kids:
-            found_keys = self.db.get_keys_for_kids(valid_kids, 'widevine')
+            
+        # Setp 1.1: Check external Supabase database if connected
+        if self.is_supa_db_connected and license_url and pssh_val:
+            found_keys = obj_externalSupaDbVault.get_keys_by_pssh(license_url, pssh_val, 'widevine')
             
             if found_keys:
                 return found_keys
@@ -77,8 +77,14 @@ class DRMManager:
             keys = get_widevine_keys(pssh_list, license_url, self.widevine_device_path, self.widevine_remote_cdm_api, headers, key, kid_to_label)
                 
             if keys:
-                if license_url and pssh_val:
-                    self.db.add_keys(keys, 'widevine', license_url, pssh_val, kid_to_label)
+                if self.is_local_db_connected and license_url and pssh_val:
+                    console.print(f"Storing {len(keys)} key(s) to local database...")
+                    obj_localDbValut.set_keys(keys, 'widevine', license_url, pssh_val, kid_to_label)
+
+                if self.is_supa_db_connected and license_url and pssh_val:
+                    console.print(f"Storing {len(keys)} key(s) to Supabase database...")
+                    obj_externalSupaDbVault.set_keys(keys, 'widevine', license_url, pssh_val, kid_to_label)
+
                 return keys
             
             else:
@@ -103,9 +109,13 @@ class DRMManager:
         if key:
             k_split = key.split(':')
             if len(k_split) == 2:
-                result = [f"{k_split[0].replace('-', '').strip()}:{k_split[1].replace('-', '').strip()}"]
-                console.print("[green] Using provided key")
-                return result
+                kid = k_split[0].replace('-', '').strip()
+                key_val = k_split[1].replace('-', '').strip()
+                masked_key = key_val[:-1] + "*"
+                
+                console.print("[cyan]Using Manual Key.")
+                console.print(f"    - [red]{kid}[white]:[green]{masked_key} [cyan]| [red]Manual")
+                return [f"{kid}:{key_val}"]
         
         # Extract PSSH from first entry for database lookup
         pssh_val = pssh_list[0].get('pssh') if pssh_list else None
@@ -114,18 +124,15 @@ class DRMManager:
             console.print("[yellow]Warning: No PSSH provided for database lookup")
         
         # Step 1: Check database by license URL and PSSH
-        if license_url and pssh_val:
-            found_keys = self.db.get_keys_by_license_and_pssh(license_url, pssh_val, 'playready')
+        if self.is_local_db_connected and license_url and pssh_val:
+            found_keys = obj_localDbValut.get_keys_by_pssh(license_url, pssh_val, 'playready')
             
             if found_keys:
                 return found_keys
-        
-        # Step 2: Try fallback search by KIDs only
-        kids = [item.get('kid', '').replace('-', '').strip().lower() for item in pssh_list if item.get('kid')]
-        valid_kids = [k for k in kids if k and k != 'n/a']
-        
-        if valid_kids:
-            found_keys = self.db.get_keys_for_kids(valid_kids, 'playready')
+            
+        # Setp 1.1: Check external Supabase database if connected
+        if self.is_supa_db_connected and license_url and pssh_val:
+            found_keys = obj_externalSupaDbVault.get_keys_by_pssh(license_url, pssh_val, 'playready')
             
             if found_keys:
                 return found_keys
@@ -135,8 +142,14 @@ class DRMManager:
             keys = get_playready_keys(pssh_list, license_url, self.playready_device_path, self.playready_remote_cdm_api, headers, key, kid_to_label)
             
             if keys:
-                if license_url and pssh_val:
-                    self.db.add_keys(keys, 'playready', license_url, pssh_val, kid_to_label)
+                if self.is_local_db_connected and license_url and pssh_val:
+                    console.print(f"Storing {len(keys)} key(s) to local database...")
+                    obj_localDbValut.set_keys(keys, 'playready', license_url, pssh_val, kid_to_label)
+
+                if self.is_supa_db_connected and license_url and pssh_val:
+                    console.print(f"Storing {len(keys)} key(s) to Supabase database...")
+                    obj_externalSupaDbVault.set_keys(keys, 'playready', license_url, pssh_val, kid_to_label)
+
                 return keys
             else:
                 console.print("[yellow]CDM extraction returned no keys")

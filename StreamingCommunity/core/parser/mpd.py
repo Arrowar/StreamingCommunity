@@ -167,7 +167,7 @@ class MPDParser:
     def _get_content_info(self, adapt_set: ET.Element) -> Tuple[str, str]:
         """Extract content type and language from adaptation set."""
         c_type = (adapt_set.get('contentType') or adapt_set.get('mimeType') or '').lower()
-        content_type = 'video' if 'video' in c_type else 'audio' if 'audio' in c_type else 'unknown'
+        content_type = 'video' if 'video' in c_type else 'audio' if 'audio' in c_type else 'image' if 'image' in c_type else 'text' if 'text' in c_type else 'N/A'
         lang = adapt_set.get('lang', 'N/A')
         return content_type, lang
     

@@ -1,18 +1,22 @@
 # 21.05.24
 
+from datetime import datetime
+
 # External library
 from rich.console import Console
 from rich.prompt import Prompt
 
 
 # Internal utilities
-from StreamingCommunity.services._base import site_constants, MediaItem, get_select_title
+from StreamingCommunity.utils import TVShowManager
+from StreamingCommunity.utils.http_client import create_client
+from StreamingCommunity.services._base import site_constants, MediaManager
+from StreamingCommunity.services._base.site_search_manager import base_process_search_result, base_search
 
 
 # Logic
-from .site import title_search, table_show_manager, media_search_manager
-from .series import download_series
-from .film import download_film
+from .downloader import download_series, download_film
+from .client import get_bearer_token
 
 
 # Variable
@@ -20,89 +24,117 @@ indice = 3
 _useFor = "Film_&_Serie"
 _region = "IT"
 _deprecate = False
-_stream_type = "DASH"
-_maxResolution = "1080p"
-_drm = True
 
 
 msg = Prompt()
 console = Console()
+media_search_manager = MediaManager()
+table_show_manager = TVShowManager()
 
 
-def process_search_result(select_title, selections=None):
+def title_search(query: str) -> int:
     """
-    Handles the search result and initiates the download for either a film or series.
-    
+    Search for titles based on a search query.
+      
     Parameters:
-        select_title (MediaItem): The selected media item
-        selections (dict, optional): Dictionary containing selection inputs that bypass manual input
-                                    {'season': season_selection, 'episode': episode_selection}
+        - query (str): The query to search for.
 
     Returns:
-        bool: True if processing was successful, False otherwise
+        int: The number of titles found.
     """
-    if not select_title:
-        console.print("[yellow]No title selected or selection cancelled.")
-        return False
+    media_search_manager.clear()
+    table_show_manager.clear()
+    class_mediaset_api = get_bearer_token()
+    search_url = 'https://mediasetplay.api-graph.mediaset.it/'
+    console.print(f"[cyan]Search url: [yellow]{search_url}")
+
+    params = {
+        'extensions': f'{{"persistedQuery":{{"version":1,"sha256Hash":"{class_mediaset_api.getHash256()}"}}}}',
+        'variables': f'{{"first":10,"property":"search","query":"{query}","uxReference":"filteredSearch"}}',
+    }
     
-    if select_title.type == 'tv':
-        season_selection = None
-        episode_selection = None
+    try:
+        response = create_client(headers=class_mediaset_api.generate_request_headers()).get(search_url, params=params)
+        response.raise_for_status()
+    except Exception as e:
+        console.print(f"[red]Site: {site_constants.SITE_NAME}, request search error: {e}")
+        return 0
+
+    # Parse response
+    resp_json = response.json()
+    items = resp_json.get("data", {}).get("getSearchPage", {}).get("areaContainersConnection", {}).get("areaContainers", [])[0].get("areas", [])[0].get("sections", [])[0].get("collections", [])[0].get("itemsConnection", {}).get("items", [])
+
+    # Process items
+    for item in items:
+        try:
+            is_series = (item.get("__typename") == "SeriesItem" or item.get("cardLink", {}).get("referenceType") == "series"or bool(item.get("seasons")))
+            item_type = "tv" if is_series else "film"
+        except Exception:
+            break
+
+        # Get date
+        date = item.get("year") or ''
+        if not date:
+            updated = item.get("updated") or item.get("r") or ''
+            if updated:
+                try:
+                    date = datetime.fromisoformat(str(updated).replace("Z", "+00:00")).year
+                except Exception:
+                    date = ''
         
-        if selections:
-            season_selection = selections.get('season')
-            episode_selection = selections.get('episode')
+        # Get poster image
+        images = item.get("cardImages", [])
+        vertical_image = None
 
-        download_series(select_title, season_selection, episode_selection)
-        media_search_manager.clear()
-        table_show_manager.clear()
-        return True
+        for img in images:
+            if img.get("sourceType") == "image_vertical" or img.get("type") == "image_vertical":
+                vertical_image = img
+                break
+    
+        image_base_url = "https://img-prod-api2.mediasetplay.mediaset.it/api/images"
+        image_url = f"{image_base_url}/{vertical_image.get('engine', 'mse')}/v5/ita/{vertical_image.get('id', '')}/image_vertical/300/450"
+        if vertical_image.get("r", ""):
+            image_url += f"?r={vertical_image.get('r', '')}"
+        
+        media_search_manager.add_media({
+            "id": item.get("guid", ""),
+            "name": item.get("cardTitle", "No Title"),
+            "type": item_type,
+            "image": image_url,
+            "year": date if date not in ("", None) else "9999",
+            "url": item.get("cardLink", {}).get("value", "")
+        })
 
-    else:
-        download_film(select_title)
-        table_show_manager.clear()
-        return True
+    return media_search_manager.get_length()
 
+
+
+# WRAPPING FUNCTIONS
+def process_search_result(select_title, selections=None):
+    """
+    Wrapper for the generalized process_search_result function.
+    """
+    return base_process_search_result(
+        select_title=select_title,
+        download_film_func=download_film,
+        download_series_func=download_series,
+        media_search_manager=media_search_manager,
+        table_show_manager=table_show_manager,
+        selections=selections
+    )
 
 def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_item: dict = None, selections: dict = None):
     """
-    Main function of the application for search.
-
-    Parameters:
-        string_to_search (str, optional): String to search for
-        get_onlyDatabase (bool, optional): If True, return only the database object
-        direct_item (dict, optional): Direct item to process (bypass search)
-        selections (dict, optional): Dictionary containing selection inputs that bypass manual input
-                                    {'season': season_selection, 'episode': episode_selection}
+    Wrapper for the generalized search function.
     """
-    if direct_item:
-        select_title = MediaItem(**direct_item)
-        result = process_search_result(select_title, selections)
-        return result
-    
-    # Get the user input for the search term
-    actual_search_query = None
-    if string_to_search is not None:
-        actual_search_query = string_to_search.strip()
-    else:
-        actual_search_query = msg.ask(f"\n[purple]Insert a word to search in [green]{site_constants.SITE_NAME}").strip()
-
-    # Handle empty input
-    if not actual_search_query:
-        return False
-
-    # Search on database
-    len_database = title_search(actual_search_query)
-
-    # If only the database is needed, return the manager
-    if get_onlyDatabase:
-        return media_search_manager
-    
-    if len_database > 0:
-        select_title = get_select_title(table_show_manager, media_search_manager, len_database)
-        result = process_search_result(select_title, selections)
-        return result
-    
-    else:
-        console.print(f"\n[red]Nothing matching was found for[white]: [purple]{actual_search_query}")
-        return False
+    return base_search(
+        title_search_func=title_search,
+        process_result_func=process_search_result,
+        media_search_manager=media_search_manager,
+        table_show_manager=table_show_manager,
+        site_name=site_constants.SITE_NAME,
+        string_to_search=string_to_search,
+        get_onlyDatabase=get_onlyDatabase,
+        direct_item=direct_item,
+        selections=selections
+    )

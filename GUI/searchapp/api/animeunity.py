@@ -11,9 +11,8 @@ from .base import BaseStreamingAPI, MediaItem, Season, Episode
 
 # External utilities
 from StreamingCommunity.utils import config_manager
-from StreamingCommunity.services._base.loader import get_folder_name
-from StreamingCommunity.services.animeunity.util.ScrapeSerie import ScrapeSerieAnime
-
+from StreamingCommunity.services._base.site_loader import get_folder_name
+from StreamingCommunity.services.animeunity.scrapper import ScrapeSerieAnime
 
 
 class AnimeUnityAPI(BaseStreamingAPI):
@@ -25,12 +24,12 @@ class AnimeUnityAPI(BaseStreamingAPI):
     
     def _load_config(self):
         """Load site configuration."""
-        self.base_url = config_manager.domain.get("animeunity", "full_url").rstrip("/")
+        self.base_url = config_manager.domain.get(self.site_name, "full_url").rstrip("/")
     
     def _get_search_fn(self):
         """Lazy load the search function."""
         if self._search_fn is None:
-            module = importlib.import_module(f"StreamingCommunity.{get_folder_name()}.animeunity")
+            module = importlib.import_module(f"StreamingCommunity.{get_folder_name()}.{self.site_name}")
             self._search_fn = getattr(module, "search")
         return self._search_fn
     

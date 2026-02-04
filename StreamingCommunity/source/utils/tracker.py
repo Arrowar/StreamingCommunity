@@ -19,16 +19,21 @@ class DownloadTracker:
     def _init_tracker(self):
         self.downloads: Dict[str, Dict[str, Any]] = {}
         self.history: List[Dict[str, Any]] = []
+        self.stop_events: Dict[str, threading.Event] = {}
+        self.active_processes: Dict[str, List[any]] = {} 
         self._lock = threading.Lock()
         
-    def start_download(self, download_id: str, title: str, site: str, media_type: str = "Film"):
+    def start_download(self, download_id: str, title: str, site: str, media_type: str = "Film", path: str = None):
         with self._lock:
+            self.stop_events[download_id] = threading.Event()
+            self.active_processes[download_id] = []
             self.downloads[download_id] = {
                 "id": download_id,
                 "title": title,
                 "site": site,
                 "type": media_type,
                 "status": "starting",
+                "path": path,
                 "progress": 0,
                 "speed": "0B/s",
                 "size": "0B/0B",
@@ -38,11 +43,11 @@ class DownloadTracker:
                 "tasks": {} # For multi-stream downloads (video, audio, etc)
             }
             
-    def update_progress(self, download_id: str, task_key: str, progress: float = None, speed: str = None, size: str = None, segments: str = None):
+    def update_progress(self, download_id: str, task_key: str, progress: float = None, speed: str = None, size: str = None, segments: str = None, status: str = None):
         with self._lock:
             if download_id in self.downloads:
                 dl = self.downloads[download_id]
-                dl["status"] = "downloading"
+                dl["status"] = status or "downloading"
                 dl["last_update"] = time.time()
                 
                 # Get or create task state
@@ -85,13 +90,60 @@ class DownloadTracker:
                     dl["size"] = task["size"]
                     dl["segments"] = task["segments"]
 
-    def complete_download(self, download_id: str, success: bool = True, error: str = None):
+    def update_status(self, download_id: str, status: str):
+        with self._lock:
+            if download_id in self.downloads:
+                self.downloads[download_id]["status"] = status
+                self.downloads[download_id]["last_update"] = time.time()
+
+    def request_stop(self, download_id: str):
+        """Signal a download to stop and terminate its processes."""
+        with self._lock:
+            if download_id in self.stop_events:
+                self.stop_events[download_id].set()
+            
+            if download_id in self.downloads:
+                self.downloads[download_id]["status"] = "cancelling..."
+
+            # Terminate registered processes
+            if download_id in self.active_processes:
+                for proc in self.active_processes[download_id]:
+                    try:
+                        if hasattr(proc, 'terminate'):
+                            proc.terminate()
+                        elif hasattr(proc, 'cancel'):
+                            proc.cancel()
+                    except Exception:
+                        pass
+
+    def is_stopped(self, download_id: str) -> bool:
+        """Check if a stop has been requested for this download."""
+        with self._lock:
+            event = self.stop_events.get(download_id)
+            return event.is_set() if event else False
+
+    def register_process(self, download_id: str, process: Any):
+        """Register a subprocess or task to be terminated if download is cancelled."""
+        with self._lock:
+            if download_id and download_id in self.active_processes:
+                self.active_processes[download_id].append(process)
+
+    def complete_download(self, download_id: str, success: bool = True, error: str = None, path: str = None):
         with self._lock:
             if download_id in self.downloads:
                 dl = self.downloads.pop(download_id)
+                
+                # Cleanup signals and processes
+                self.stop_events.pop(download_id, None)
+                self.active_processes.pop(download_id, None)
+
                 dl["status"] = "completed" if success else "failed"
+                if error == "cancelled":
+                    dl["status"] = "cancelled"
+                
                 dl["end_time"] = time.time()
                 dl["error"] = error
+                dl["path"] = path
                 dl["progress"] = 100 if success else dl["progress"]
                 self.history.append(dl)
 

@@ -5,7 +5,6 @@ import sys
 import logging
 import platform
 import argparse
-import importlib
 import subprocess
 from typing import Callable, Tuple
 
@@ -17,11 +16,9 @@ from rich.prompt import Prompt
 
 # Internal utilities
 from . import call_global_search
-from StreamingCommunity.setup import get_prd_path, get_wvd_path, get_info_wvd, get_info_prd, binary_paths
+from StreamingCommunity.setup import get_prd_path, get_wvd_path, get_info_wvd, get_info_prd
 from StreamingCommunity.services._base import load_search_functions
-from StreamingCommunity.services._base.loader import folder_name as lazy_loader_folder
 from StreamingCommunity.utils import config_manager, os_manager, start_message
-from StreamingCommunity.utils.db_vault import DBVault
 from StreamingCommunity.upload import git_update, binary_update
 
 
@@ -36,7 +33,6 @@ COLOR_MAP = {
 CATEGORY_MAP = {1: "anime", 2: "film_&_serie", 3: "serie"}
 SHOW_DEVICE_INFO = config_manager.config.get_bool('DEFAULT', 'show_device_info')
 NOT_CLOSE = config_manager.config.get_bool('DEFAULT', 'close_console')
-vault_db = DBVault(os.path.join(binary_paths.get_binary_directory(), 'drm_keys.db'))
 
 
 def run_function(func: Callable[..., None], search_terms: str = None) -> None:
@@ -67,7 +63,6 @@ def initialize():
         sys.exit(0)
 
     # Attempt GitHub update
-    console.print(f"[cyan]Load KEY [LOCAL_DB]: [red]{vault_db.get_db_stats()['total_keys']}")
     try:
         git_update()
     except Exception as e:
@@ -151,8 +146,7 @@ def _build_command_for_hook(hook: dict) -> Tuple[list, dict]:
 def _iter_hooks(stage: str):
     """Yield hook dicts for a given stage ('pre_run' | 'post_run')."""
     try:
-        hooks_section = config_manager.config.get('HOOKS')
-        hooks_list = hooks_section.get(stage, []) or []
+        hooks_list = config_manager.config.get_list('HOOKS', stage)
         if not isinstance(hooks_list, list):
             return
         for hook in hooks_list:
@@ -170,6 +164,7 @@ def execute_hooks(stage: str) -> None:
         return
 
     for hook in _iter_hooks(stage):
+        console.print(f"\n[green]Executing hook for stage '{stage}'...")
         name = hook.get('name') or f"{stage}_hook"
         enabled = hook.get('enabled', True)
         continue_on_error = hook.get('continue_on_error', True)
@@ -192,16 +187,10 @@ def execute_hooks(stage: str) -> None:
             stdout = (result.stdout or '').strip()
             stderr = (result.stderr or '').strip()
             if stdout:
-                try:
-                    console.print(f"[cyan][hook:{name} stdout]\n{stdout}")
-                except Exception:
-                    pass
+                console.print(f"[cyan][hook:{name} stdout]\n{stdout}")
             if stderr:
                 logging.warning(f"Hook '{name}' stderr: {stderr}")
-                try:
-                    console.print(f"[yellow][hook:{name} stderr]\n{stderr}")
-                except Exception:
-                    pass
+                console.print(f"[yellow][hook:{name} stderr]\n{stderr}")
 
             if result.returncode != 0:
                 message = f"Hook '{name}' exited with code {result.returncode}"
@@ -212,14 +201,6 @@ def execute_hooks(stage: str) -> None:
                     logging.error(message + " (stopping)")
                     raise SystemExit(result.returncode)
 
-        except subprocess.TimeoutExpired:
-            message = f"Hook '{name}' timed out"
-            if continue_on_error:
-                logging.error(message + " (continuing)")
-                continue
-            else:
-                logging.error(message + " (stopping)")
-                raise SystemExit(124)
         except Exception as e:
             message = f"Hook '{name}' failed: {str(e)}"
             if continue_on_error:
@@ -233,19 +214,14 @@ def execute_hooks(stage: str) -> None:
 def force_exit():
     """Force script termination in any context."""
     console.print("\n[red]Closing the application...")
-    os._exit(0)
+    sys.exit(0)
 
 
 def setup_argument_parser(search_functions):
     """Setup and return configured argument parser."""
     module_info = {}
-    for alias, (_func, _use_for) in search_functions.items():
-        module_name = alias.split("_")[0].lower()
-        try:
-            mod = importlib.import_module(f'StreamingCommunity.{lazy_loader_folder}.{module_name}')
-            module_info[module_name] = int(getattr(mod, 'indice'))
-        except Exception:
-            continue
+    for func in search_functions.values():
+        module_info[func.module_name] = func.indice
     
     available_names = ", ".join(sorted(module_info.keys()))
     available_indices = ", ".join([f"{idx}={name.capitalize()}" for name, idx in sorted(module_info.items(), key=lambda x: x[1])])
@@ -301,16 +277,12 @@ def build_function_mappings(search_functions):
     choice_labels = {}
     module_name_to_function = {}
     
-    for alias, (func, use_for) in search_functions.items():
-        module_name = alias.split("_")[0]
-        try:
-            mod = importlib.import_module(f'StreamingCommunity.{lazy_loader_folder}.{module_name}')
-            site_index = str(getattr(mod, 'indice'))
-            input_to_function[site_index] = func
-            choice_labels[site_index] = (module_name.capitalize(), use_for.lower())
-            module_name_to_function[module_name.lower()] = func
-        except Exception as e:
-            console.print(f"[red]Error mapping module {module_name}: {str(e)}")
+    for func in search_functions.values():
+        module_name = func.module_name
+        site_index = str(func.indice)
+        input_to_function[site_index] = func
+        choice_labels[site_index] = (module_name.capitalize(), func.use_for.lower())
+        module_name_to_function[module_name.lower()] = func
     
     return input_to_function, choice_labels, module_name_to_function
 

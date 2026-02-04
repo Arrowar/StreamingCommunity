@@ -6,13 +6,14 @@ from rich.prompt import Prompt
 
 
 # Internal utilities
-from StreamingCommunity.services._base import site_constants, MediaItem, get_select_title
+from StreamingCommunity.utils import TVShowManager
+from StreamingCommunity.utils.http_client import create_client, get_headers
+from StreamingCommunity.services._base import site_constants, MediaManager
+from StreamingCommunity.services._base.site_search_manager import base_process_search_result, base_search
 
 
 # Logic
-from .site import title_search, table_show_manager, media_search_manager
-from .series import download_series
-from .film import download_film
+from .downloader import download_film, download_series
 
 
 # Variable
@@ -20,89 +21,124 @@ indice = 5
 _useFor = "Film_&_Serie"
 _region = "IT"
 _deprecate = False
-_stream_type = "DASH"
-_maxResolution = "1080p"
-_drm = True
 
 
 msg = Prompt()
 console = Console()
+media_search_manager = MediaManager()
+table_show_manager = TVShowManager()
 
 
-def process_search_result(select_title, selections=None):
+def title_search(query: str) -> int:
     """
-    Handles the search result and initiates the download for either a film or series.
-    
+    Search for titles based on a search query.
+      
     Parameters:
-        select_title (MediaItem): The selected media item
-        selections (dict, optional): Dictionary containing selection inputs that bypass manual input
-                                    {'season': season_selection, 'episode': episode_selection}
+        - query (str): The query to search for.
 
     Returns:
-        bool: True if processing was successful, False otherwise
+        int: The number of titles found.
     """
-    if not select_title:
-        console.print("[yellow]No title selected or selection cancelled.")
-        return False
-    
-    if select_title.type == 'tv':
-        season_selection = None
-        episode_selection = None
+    media_search_manager.clear()
+    table_show_manager.clear()
+
+    search_url = "https://www.raiplay.it/atomatic/raiplay-search-service/api/v1/msearch"
+    console.print(f"[cyan]Search url: [yellow]{search_url}")
+
+    json_data = {
+        'templateIn': '6470a982e4e0301afe1f81f1',
+        'templateOut': '6516ac5d40da6c377b151642',
+        'params': {
+            'param': query,
+            'from': None,
+            'sort': 'relevance',
+            'onlyVideoQuery': False,
+        },
+    }
+
+    try:
+        response = create_client(headers=get_headers()).post(search_url, json=json_data)
+        response.raise_for_status()
+
+    except Exception as e:
+        console.print(f"[red]Site: {site_constants.SITE_NAME}, request search error: {e}")
+        return 0
+
+    try:
+        response_data = response.json()
+        cards = response_data.get('agg', {}).get('titoli', {}).get('cards', [])
         
-        if selections:
-            season_selection = selections.get('season')
-            episode_selection = selections.get('episode')
+        # Limit to only 15 results for performance
+        data = cards[:15]
+        console.print(f"[cyan]Found {len(cards)} results, processing first {len(data)}...")
+        
+    except Exception as e:
+        console.print(f"[red]Error parsing search results: {e}")
+        return 0
+    
+    # Process each item and add to media manager
+    for idx, item in enumerate(data, 1):
+        try:
+            # Get path_id
+            path_id = item.get('path_id', '')
+            if not path_id:
+                console.print("[yellow]Skipping item due to missing path_id")
+                continue
 
-        download_series(select_title, season_selection, episode_selection)
-        media_search_manager.clear()
-        table_show_manager.clear()
-        return True
+            # Get image URL - handle both relative and absolute URLs
+            image = item.get('immagine', '')
+            if image and not image.startswith('http'):
+                image = f"https://www.raiplay.it{image}"
+            
+            # Get URL - handle both relative and absolute URLs
+            url = item.get('url', '')
+            if url and not url.startswith('http'):
+                url = f"https://www.raiplay.it{url}"
 
-    else:
-        download_film(select_title)
-        table_show_manager.clear()
-        return True
+            media_search_manager.add_media({
+                'id': item.get('id', ''),
+                'path_id': path_id,
+                'name': item.get('titolo', 'Unknown'),
+                'type': 'tv',
+                'url': url,
+                'image': image,
+                'year': image.split("/")[-4]
+            })
+    
+        except Exception as e:
+            console.print(f"[red]Error processing item '{item.get('titolo', 'Unknown')}': {e}")
+            continue
+    
+    return media_search_manager.get_length()
 
+
+
+# WRAPPING FUNCTIONS
+def process_search_result(select_title, selections=None):
+    """
+    Wrapper for the generalized process_search_result function.
+    """
+    return base_process_search_result(
+        select_title=select_title,
+        download_film_func=download_film,
+        download_series_func=download_series,
+        media_search_manager=media_search_manager,
+        table_show_manager=table_show_manager,
+        selections=selections
+    )
 
 def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_item: dict = None, selections: dict = None):
     """
-    Main function of the application for search.
-
-    Parameters:
-        string_to_search (str, optional): String to search for
-        get_onlyDatabase (bool, optional): If True, return only the database object
-        direct_item (dict, optional): Direct item to process (bypass search)
-        selections (dict, optional): Dictionary containing selection inputs that bypass manual input
-                                    {'season': season_selection, 'episode': episode_selection}
+    Wrapper for the generalized search function.
     """
-    if direct_item:
-        select_title = MediaItem(**direct_item)
-        result = process_search_result(select_title, selections)
-        return result
-    
-    # Get the user input for the search term
-    actual_search_query = None
-    if string_to_search is not None:
-        actual_search_query = string_to_search.strip()
-    else:
-        actual_search_query = msg.ask(f"\n[purple]Insert a word to search in [green]{site_constants.SITE_NAME}").strip()
-
-    # Handle empty input
-    if not actual_search_query:
-        return False
-
-    # Search on database
-    len_database = title_search(actual_search_query)
-
-    # If only the database is needed, return the manager
-    if get_onlyDatabase:
-        return media_search_manager
-    
-    if len_database > 0:
-        select_title = get_select_title(table_show_manager, media_search_manager, len_database)
-        result = process_search_result(select_title, selections)
-        return result
-    
-    else:
-        console.print(f"\n[red]Nothing matching was found for[white]: [purple]{actual_search_query}")
-        return False
+    return base_search(
+        title_search_func=title_search,
+        process_result_func=process_search_result,
+        media_search_manager=media_search_manager,
+        table_show_manager=table_show_manager,
+        site_name=site_constants.SITE_NAME,
+        string_to_search=string_to_search,
+        get_onlyDatabase=get_onlyDatabase,
+        direct_item=direct_item,
+        selections=selections
+    )

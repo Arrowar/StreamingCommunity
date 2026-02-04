@@ -19,11 +19,11 @@
         "thread_count": 8,
         "retry_count": 30,
         "concurrent_download": true,
-        "max_speed": "30MB",
+        "max_speed": "50MB",
         "real_time_decryption": false,
         "check_segments_count": true,
         "select_video": "res=1920:for=best",
-        "select_audio": "lang='ita|Ita|it'",
+        "select_audio": "lang='ita|Ita|it':for=best",
         "select_subtitle": "lang='ita|eng|Ita|Eng|it|en':for=all",
         "cleanup_tmp_folder": true
     },
@@ -34,7 +34,8 @@
         "subtitle_disposition": false,
         "subtitle_disposition_language": ["forced-ita", "ita-forced"],
         "param_final": ["-c", "copy"],
-        "extension": "mkv"
+        "extension": "mkv",
+        "generate_nfo": false
     },
     "REQUESTS": {
         "verify": false,

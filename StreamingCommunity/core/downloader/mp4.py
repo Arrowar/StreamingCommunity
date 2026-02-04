@@ -18,12 +18,16 @@ from rich.progress import Progress, TextColumn
 from StreamingCommunity.utils.http_client import create_client, get_userAgent
 from StreamingCommunity.utils import config_manager, os_manager, internet_manager
 from StreamingCommunity.source.N_m3u8 import CustomBarColumn
+from StreamingCommunity.core.processors.helper.nfo import create_nfo
+from StreamingCommunity.source.utils.tracker import download_tracker, context_tracker
 
 
 # Config
 msg = Prompt()
 console = Console()
 REQUEST_VERIFY = config_manager.config.get_bool('REQUESTS', 'verify')
+CREATE_NFO_FILES = config_manager.config.get_bool('M3U8_CONVERSION', 'generate_nfo', default=False)
+SKIP_DOWNLOAD = config_manager.config.get_bool('M3U8_DOWNLOAD', 'skip_download')
 
 
 class InterruptHandler:
@@ -55,7 +59,7 @@ def signal_handler(signum, frame, interrupt_handler, original_handler):
         signal.signal(signum, original_handler)
 
 
-def MP4_Downloader(url: str, path: str, referer: str = None, headers_: dict = None, show_final_info: bool = True):
+def MP4_Downloader(url: str, path: str, referer: str = None, headers_: dict = None, show_final_info: bool = True, download_id: str = None, site_name: str = None):
     """
     Downloads an MP4 video with enhanced interrupt handling.
     - Single Ctrl+C: Completes download gracefully
@@ -63,14 +67,30 @@ def MP4_Downloader(url: str, path: str, referer: str = None, headers_: dict = No
     """
     url = str(url).strip()
     path = os_manager.get_sanitize_path(path)
+    
+    # Get tracking IDs from context if not provided
+    download_id = download_id or context_tracker.download_id
+    site_name = site_name or context_tracker.site_name
+    media_type = context_tracker.media_type or "Film"
+
+    if SKIP_DOWNLOAD:
+        console.print("[yellow]Download skipped due to configuration. Returning intended file path.")
+        return path, False
+
     if os.path.exists(path):
         console.print("[yellow]File already exists.")
-        return None, False
+        return path, False
 
     if not (url.lower().startswith('http://') or url.lower().startswith('https://')):
         logging.error(f"Invalid URL: {url}")
         console.print(f"[red]Invalid URL: {url}")
         return None, False
+
+    # Start tracking in GUI
+    if download_id:
+        filename = os.path.basename(path)
+        download_tracker.start_download(download_id, filename, site_name or "Unknown", media_type, path=os.path.abspath(path))
+        download_tracker.update_status(download_id, "downloading")
 
     # Set headers
     headers = {}
@@ -177,8 +197,10 @@ def MP4_Downloader(url: str, path: str, referer: str = None, headers_: dict = No
                 with open(temp_path, 'wb') as file:
                     try:
                         for chunk in response.iter_bytes(chunk_size=65536):
-                            if interrupt_handler.force_quit:
+                            if interrupt_handler.force_quit or (download_id and download_tracker.is_stopped(download_id)):
                                 console.print("\n[red]Force quitting... Saving partial download.")
+                                if download_id and download_tracker.is_stopped(download_id):
+                                    incomplete_error = "cancelled"
                                 break
 
                             if chunk:
@@ -205,6 +227,18 @@ def MP4_Downloader(url: str, path: str, referer: str = None, headers_: dict = No
 
                                 # Format downloaded size
                                 downloaded_value, downloaded_unit = internet_manager.format_file_size(downloaded).split(" ")
+                                
+                                # GUI Update
+                                if download_id:
+                                    percent = (downloaded / total * 100) if total else 0
+                                    total_size_str = f"{(total / 1024 / 1024):.2f}MB" if total else "Unknown"
+                                    download_tracker.update_progress(
+                                        download_id, 
+                                        "video", 
+                                        progress=percent, 
+                                        speed=speed_str, 
+                                        size=f"{downloaded_value}{downloaded_unit}/{total_size_str if total else '??'}"
+                                    )
 
                                 # Update progress
                                 progress_bars.update(
@@ -234,6 +268,11 @@ def MP4_Downloader(url: str, path: str, referer: str = None, headers_: dict = No
                             pass
                 
     if os.path.exists(temp_path):
+        if incomplete_error == "cancelled":
+            if download_id:
+                download_tracker.complete_download(download_id, success=False, error="cancelled")
+            return None, True
+
         last_exc = None
         for attempt in range(10):
             try:
@@ -262,8 +301,17 @@ def MP4_Downloader(url: str, path: str, referer: str = None, headers_: dict = No
             if incomplete_error or (total and os.path.getsize(path) < total):
                 console.print("[yellow]Warning: download was incomplete (partial file saved).")
 
+        if CREATE_NFO_FILES:
+            create_nfo(path)
+
+        if download_id:
+            abs_path = os.path.abspath(path)
+            download_tracker.complete_download(download_id, success=True, path=abs_path)
+
         return path, interrupt_handler.kill_download
     
     else:
         console.print("[red]Download failed or file is empty.")
+        if download_id:
+            download_tracker.complete_download(download_id, success=False, error="File missing or empty")
         return None, interrupt_handler.kill_download

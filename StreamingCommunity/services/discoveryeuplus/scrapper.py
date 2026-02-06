@@ -5,7 +5,7 @@ import logging
 
 # Internal utilities
 from StreamingCommunity.utils.http_client import create_client_curl
-from StreamingCommunity.services._base.object import SeasonManager
+from StreamingCommunity.services._base.object import SeasonManager, Episode, Season
 
 
 # Logic
@@ -85,9 +85,9 @@ class GetSerieInfo:
                         episode = {
                             'id': edit_id,
                             'show': show_name,
-                            'season': attrs.get('seasonNumber', 0),
-                            'episode': attrs.get('episodeNumber', 0),
-                            'title': attrs.get('name', 'Unknown'),
+                            'season': attrs.get('seasonNumber'),
+                            'episode': attrs.get('episodeNumber'),
+                            'title': attrs.get('name'),
                         }
                         all_episodes.append(episode)
             
@@ -164,15 +164,21 @@ class GetSerieInfo:
                 episodes = self._get_season_episodes(season_num)
                 
                 if episodes:
-                    season_obj = self.seasons_manager.add_season({
-                        'number': season_num,
-                        'name': f"Season {season_num}",
-                        'id': f"season_{season_num}"
-                    })
+                    season_obj = self.seasons_manager.add(Season(
+                        number=season_num,
+                        name=f"Season {season_num}",
+                        id=f"season_{season_num}"
+                    ))
                     
                     if season_obj:
-                        for episode in episodes:
-                            season_obj.episodes.add(episode)
+                        for ep in episodes:
+                            season_obj.episodes.add(Episode(
+                                id=ep.get('id'),
+                                video_id=ep.get('video_id'),
+                                name=ep.get('name'),
+                                number=ep.get('episode_number'),
+                                duration=ep.get('duration')
+                            ))
                             
         except Exception as e:
             logging.error(f"Error in collect_season: {e}")
@@ -190,14 +196,13 @@ class GetSerieInfo:
         if not self.seasons_manager.seasons:
             self.collect_season()
         
-        # Find the season by number
-        for season in self.seasons_manager.seasons:
-            if season.number == season_number:
-                return season.episodes.episodes
+        season = self.seasons_manager.get_season_by_number(season_number)
+        if season:
+            return season.episodes.episodes
         
         return []
     
-    def selectEpisode(self, season_number: int, episode_index: int) -> dict:
+    def selectEpisode(self, season_number: int, episode_index: int) -> Episode:
         """Get information for a specific episode"""
         episodes = self.getEpisodeSeasons(season_number)
         if not episodes or episode_index < 0 or episode_index >= len(episodes):

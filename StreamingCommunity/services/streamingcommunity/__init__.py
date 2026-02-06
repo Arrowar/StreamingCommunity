@@ -12,7 +12,7 @@ from rich.prompt import Prompt
 # Internal utilities
 from StreamingCommunity.utils import TVShowManager
 from StreamingCommunity.utils.http_client import create_client, get_userAgent
-from StreamingCommunity.services._base import site_constants, MediaManager
+from StreamingCommunity.services._base import site_constants, MediaManager, MediaItem
 from StreamingCommunity.services._base.site_search_manager import base_process_search_result, base_search
 
 
@@ -23,8 +23,6 @@ from .downloader import download_series, download_film
 # Variable
 indice = 0
 _useFor = "Film_&_Serie"
-_region = "IT"
-_deprecate = False
 
 
 msg = Prompt()
@@ -128,15 +126,15 @@ def title_search(query: str) -> int:
                 if not year:
                     year = dict_title.get('last_air_date') or dict_title.get('release_date')
 
-                media_search_manager.add_media({
-                    'id': title_id,
-                    'slug': dict_title.get('slug'),
-                    'name': dict_title.get('name'),
-                    'type': dict_title.get('type'),
-                    'image': image_url,
-                    'year': year.split("-")[0] if year and "-" in year else "9999",
-                    'provider_language': lang
-                })
+                media_search_manager.add(MediaItem(
+                    id=title_id,
+                    slug=dict_title.get('slug'),
+                    name=dict_title.get('name'),
+                    type=dict_title.get('type'),
+                    image=image_url,
+                    year=year.split("-")[0] if year and "-" in year else "9999",
+                    provider_language=lang
+                ))
 
             except Exception as e:
                 print(f"[red]Error parsing a film entry ({lang}): {e}")

@@ -5,7 +5,7 @@ import logging
 
 # Internal utilities
 from StreamingCommunity.utils.http_client import create_client, get_headers
-from StreamingCommunity.services._base.object import SeasonManager
+from StreamingCommunity.services._base.object import SeasonManager, Episode, Season
 
 
 class GetSerieInfo:
@@ -94,15 +94,15 @@ class GetSerieInfo:
         # Store block_id mapping
         self.season_block_mapping[season_number] = {
             'block_id': block_id,
-            'set_id': season_set.get('id', '')
+            'set_id': season_set.get('id')
         }
         
-        self.seasons_manager.add_season({
-            'id': season_set.get('id', ''),
-            'number': int(season_number),
-            'name': set_name,
-            'type': block_name
-        })
+        self.seasons_manager.add(Season(
+            id=season_set.get('id'),
+            number=int(season_number),
+            name=set_name,
+            type=block_name
+        ))
 
     def collect_info_season(self, number_season: int) -> None:
         """Get episodes for a specific season using episodes.json endpoint."""
@@ -144,15 +144,14 @@ class GetSerieInfo:
                 weblink = ep.get('weblink', '') or ep.get('url', '')
                 episode_url = f"{self.base_url}{weblink}" if weblink else ''
                 
-                episode = {
-                    'id': ep.get('id', ''),
-                    'number': ep.get('episode', ''),
-                    'name': ep.get('episode_title', '') or ep.get('name', '') or ep.get('toptitle', ''),
-                    'duration': ep.get('duration', '') or ep.get('duration_in_minutes', ''),
-                    'url': episode_url,
-                    'mpd_id': mpd_id
-                }
-                season.episodes.add(episode)
+                season.episodes.add(Episode(
+                    id=ep.get('id'),
+                    number=ep.get('episode'),
+                    name=ep.get('episode_title') or ep.get('name') or ep.get('toptitle'),
+                    duration=ep.get('duration') or ep.get('duration_in_minutes'),
+                    url=episode_url,
+                    mpd_id=mpd_id
+                ))
 
         except Exception as e:
             logging.error(f"Error collecting episodes for season {number_season}: {e}")
@@ -184,7 +183,7 @@ class GetSerieInfo:
             
         return season.episodes.episodes
         
-    def selectEpisode(self, season_number: int, episode_index: int) -> dict:
+    def selectEpisode(self, season_number: int, episode_index: int) -> Episode:
         """
         Get information for a specific episode in a specific season.
         """

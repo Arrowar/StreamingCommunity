@@ -5,7 +5,7 @@ import logging
 
 # Internal utilities
 from StreamingCommunity.utils.http_client import create_client
-from StreamingCommunity.services._base.object import SeasonManager
+from StreamingCommunity.services._base.object import SeasonManager, Episode, Season
 
 
 # Logic
@@ -96,10 +96,10 @@ class GetSerieInfo:
                     attributes = element.get('attributes', {})
                     if 'episodeNumber' in attributes:
                         episodes.append({
-                            'id': attributes.get('alternateId', ''),
-                            'video_id': element.get('id', ''),
-                            'name': attributes.get('name', ''),
-                            'episode_number': attributes.get('episodeNumber', 0),
+                            'id': attributes.get('alternateId'),
+                            'video_id': element.get('id'),
+                            'name': attributes.get('name'),
+                            'episode_number': attributes.get('episodeNumber'),
                             'duration': attributes.get('videoDuration', 0) // 60000
                         })
             
@@ -119,15 +119,21 @@ class GetSerieInfo:
                 episodes = self._get_season_episodes(season_num)
                 
                 if episodes:
-                    season_obj = self.seasons_manager.add_season({
-                        'number': season_num,
-                        'name': f"Season {season_num}",
-                        'id': f"season_{season_num}"
-                    })
+                    season_obj = self.seasons_manager.add(Season(
+                        number=season_num,
+                        name=f"Season {season_num}",
+                        id=f"season_{season_num}"
+                    ))
                     
                     if season_obj:
-                        for episode in episodes:
-                            season_obj.episodes.add(episode)
+                        for ep in episodes:
+                            season_obj.episodes.add(Episode(
+                                id=ep.get('id'),
+                                video_id=ep.get('video_id'),
+                                name=ep.get('name'),
+                                number=ep.get('episode_number'),
+                                duration=ep.get('duration')
+                            ))
         
         except Exception as e:
             logging.error(f"Error in collect_season: {e}")
@@ -139,49 +145,19 @@ class GetSerieInfo:
         if not self.seasons_manager.seasons:
             self.collect_season()
         return len(self.seasons_manager.seasons)
-        
-    def getRealNumberSeason(self, index_season:int) -> int:
-        """Get the real number of season, not the index"""
-        seasons = self.seasons_manager.seasons
-        if not seasons:
-            self.collect_season()
-
-        # Treat as display index if within range
-        if 1 <= index_season <= len(seasons):
-            season = seasons[index_season - 1]
-            return getattr(season, 'number', None)
-
-        # Otherwise, if a season with that number exists, return it (it's already the real number)
-        for season in seasons:
-            if getattr(season, 'number', None) == index_season:
-                return index_season
-
-        return None
 
     def getEpisodeSeasons(self, season_number: int) -> list:
         """Get all episodes for a specific season"""
         if not self.seasons_manager.seasons:
             self.collect_season()
 
-        seasons = self.seasons_manager.seasons
-
-        # Find by season.number
-        for season in seasons:
-            if getattr(season, 'number', None) == season_number:
-                return season.episodes.episodes
-
-        # Fallback: treat as 1-based index
-        try:
-            season_index = int(season_number) - 1
-        except Exception:
-            return []
-
-        if 0 <= season_index < len(seasons):
-            return seasons[season_index].episodes.episodes
+        season = self.seasons_manager.get_season_by_number(season_number)
+        if season:
+            return season.episodes.episodes
 
         return []
     
-    def selectEpisode(self, season_number: int, episode_index: int) -> dict:
+    def selectEpisode(self, season_number: int, episode_index: int) -> Episode:
         """Get information for a specific episode"""
         episodes = self.getEpisodeSeasons(season_number)
         if not episodes or episode_index < 0 or episode_index >= len(episodes):

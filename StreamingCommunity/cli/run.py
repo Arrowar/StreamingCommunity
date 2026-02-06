@@ -227,23 +227,24 @@ def setup_argument_parser(search_functions):
     available_indices = ", ".join([f"{idx}={name.capitalize()}" for name, idx in sorted(module_info.items(), key=lambda x: x[1])])
     
     parser = argparse.ArgumentParser(
-        description='Script to download movies and series from the internet.',
+        description='Script to download movies, series and anime.',
         formatter_class=argparse.RawTextHelpFormatter,
         epilog=f"Available sites by name: {available_names}\nAvailable sites by index: {available_indices}"
     )
     
     # Add arguments
     parser.add_argument('-s', '--search', default=None, help='Search terms')
-    parser.add_argument('--global', action='store_true', help='Global search across sites')
-    parser.add_argument('--not_close', type=bool, help='Keep console open after execution')
-    parser.add_argument('--s_video', type=str)
-    parser.add_argument('--s_audio', type=str)
-    parser.add_argument('--s_subtitle', type=str)
-    parser.add_argument('--category', type=int, help='Category (1: anime, 2: film_&_serie, 3: serie, 4: torrent)')
+    parser.add_argument('--category', type=int, help='Category (1: anime, 2: film_&_serie, 3: serie)')
     parser.add_argument('--auto-first', action='store_true', help='Auto-download first result (use with --site and --search)')
     parser.add_argument('--site', type=str, help='Site by name or index')
+    parser.add_argument('--global', action='store_true', help='Global search across sites')
+    parser.add_argument('--not_close', type=bool, help='Keep console open after last download')
+    parser.add_argument('-sv', '--s_video', type=str, help='''Select video tracks. Example:  1. select best video (best) 2. Select 4K+HEVC video (res="3840*":codecs=hvc1:for=best)''')
+    parser.add_argument('-sa', '--s_audio', type=str, help='''Select audio tracks. Example:  1. Select all (all) 2. Select best eng audio (lang=en:for=best) 3. Select best 2, and language is ja or en (lang="ja|en":for=best2)''')
+    parser.add_argument('-ss', '--s_subtitle', type=str, help='''Select subtitle tracks. Example:  1. Select all subs (all) 2. Select all subs containing "English" (name="English":for=all)''')
+    parser.add_argument('--use_proxy', action='store_true', help='Enable proxy for requests')
+    parser.add_argument('--extension', type=str, help='Output file extension (mkv, mp4)')
     parser.add_argument('-UP', '--update', action='store_true', help='Auto-update to latest version (binary only)')
-    
     return parser
 
 
@@ -255,7 +256,9 @@ def apply_config_updates(args):
         's_video': 'M3U8_DOWNLOAD.select_video',
         's_audio': 'M3U8_DOWNLOAD.select_audio',
         's_subtitle': 'M3U8_DOWNLOAD.select_subtitle',
-        'not_close': 'DEFAULT.not_close'
+        'not_close': 'DEFAULT.not_close',
+        'use_proxy': 'REQUESTS.use_proxy',
+        'extension': 'M3U8_CONVERSION.extension'
     }
     
     for arg_name, config_key in arg_mappings.items():

@@ -6,7 +6,7 @@ import logging
 
 # Internal utilities
 from StreamingCommunity.utils.http_client import create_client, get_headers
-from StreamingCommunity.services._base.object import SeasonManager
+from StreamingCommunity.services._base.object import SeasonManager, Episode, Season
 
 
 def extract_content_id(url: str) -> str:
@@ -62,13 +62,12 @@ class GetSerieInfo:
             
             # Create seasons in SeasonManager
             for season_num in sorted(episodes_by_season.keys(), key=int):
-                season_data = {
-                    'id': f"season-{season_num}",
-                    'number': int(season_num),
-                    'name': f"Season {season_num}",
-                    'slug': f"season-{season_num}",
-                }
-                self.seasons_manager.add_season(season_data)
+                self.seasons_manager.add(Season(
+                    id=f"season-{season_num}",
+                    number=int(season_num),
+                    name=f"Season {season_num}",
+                    slug=f"season-{season_num}"
+                ))
 
         except Exception as e:
             logging.error(f"Error collecting series info: {e}")
@@ -127,18 +126,17 @@ class GetSerieInfo:
                 duration_seconds = episode.get('duration', 0)
                 duration_minutes = round(duration_seconds / 60) if duration_seconds else 0
                 
-                episode_data = {
-                    'id': episode.get('id'),
-                    'name': episode.get('title', f"Episode {episode.get('episode_number')}"),
-                    'number': episode.get('episode_number'),
-                    'image': thumbnail,
-                    'year': episode.get('year'),
-                    'duration': duration_minutes,
-                    'needs_login': episode.get('needs_login', False),
-                    'country': episode.get('country'),
-                    'imdb_id': episode.get('imdb_id'),
-                }
-                season.episodes.add(episode_data)
+                season.episodes.add(Episode(
+                    id=episode.get('id'),
+                    name=episode.get('title', f"Episode {episode.get('episode_number')}"),
+                    number=episode.get('episode_number'),
+                    image=thumbnail,
+                    year=episode.get('year'),
+                    duration=duration_minutes,
+                    needs_login=episode.get('needs_login'),
+                    country=episode.get('country'),
+                    imdb_id=episode.get('imdb_id')
+                ))
 
         except Exception as e:
             logging.error(f"Error collecting episodes for season {number_season}: {e}")
@@ -166,7 +164,7 @@ class GetSerieInfo:
             
         return season.episodes.episodes
         
-    def selectEpisode(self, season_number: int, episode_index: int) -> dict:
+    def selectEpisode(self, season_number: int, episode_index: int) -> Episode:
         """Get information for a specific episode in a specific season."""
         episodes = self.getEpisodeSeasons(season_number)
         if not episodes or episode_index < 0 or episode_index >= len(episodes):

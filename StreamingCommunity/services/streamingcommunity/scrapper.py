@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup
 
 # Internal utilities
 from StreamingCommunity.utils.http_client import create_client, get_headers
-from StreamingCommunity.services._base.object import SeasonManager
+from StreamingCommunity.services._base.object import SeasonManager, Episode, Season
 
 
 class GetSerieInfo:
@@ -60,12 +60,12 @@ class GetSerieInfo:
             # Extract available seasons and add them to SeasonManager
             seasons_data = title_data.get("seasons", [])
             for season_data in seasons_data:
-                self.seasons_manager.add_season({
-                    'id': season_data.get('id', 0),
-                    'number': season_data.get('number', 0),
-                    'name': f"Season {season_data.get('number', 0)}",
-                    'slug': season_data.get('slug', '')
-                })
+                self.seasons_manager.add(Season(
+                    id=season_data.get('id'),
+                    number=season_data.get('number'),
+                    name=f"Season {season_data.get('number')}",
+                    slug=season_data.get('slug')
+                ))
 
         except Exception as e:
             logging.error(f"Error collecting series info: {e}")
@@ -99,8 +99,14 @@ class GetSerieInfo:
             json_response = response.json().get('props', {}).get('loadedSeason', {}).get('episodes', [])
                 
             # Add each episode to the corresponding season's episode manager
-            for dict_episode in json_response:
-                season.episodes.add(dict_episode)
+            for ep in json_response:
+                season.episodes.add(Episode(
+                    id=ep.get('id'),
+                    video_id=ep.get('id'),
+                    number=ep.get('number'),
+                    name=ep.get('name'),
+                    duration=ep.get('duration')
+                ))
 
         except Exception as e:
             logging.error(f"Error collecting episodes for season {number_season}: {e}")
@@ -132,7 +138,7 @@ class GetSerieInfo:
             
         return season.episodes.episodes
         
-    def selectEpisode(self, season_number: int, episode_index: int) -> dict:
+    def selectEpisode(self, season_number: int, episode_index: int) -> Episode:
         """
         Get information for a specific episode in a specific season.
         """

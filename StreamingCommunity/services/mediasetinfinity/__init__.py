@@ -9,21 +9,20 @@ from rich.prompt import Prompt
 
 # Internal utilities
 from StreamingCommunity.utils import TVShowManager
-from StreamingCommunity.utils.http_client import create_client
-from StreamingCommunity.services._base import site_constants, MediaManager
+from StreamingCommunity.utils.http_client import create_client, check_region_availability
+from StreamingCommunity.services._base import site_constants, MediaManager, MediaItem
 from StreamingCommunity.services._base.site_search_manager import base_process_search_result, base_search
 
 
 # Logic
 from .downloader import download_series, download_film
-from .client import get_bearer_token
+from .client import get_client
 
 
 # Variable
 indice = 3
 _useFor = "Film_&_Serie"
-_region = "IT"
-_deprecate = False
+_region = ["IT"]
 
 
 msg = Prompt()
@@ -44,7 +43,11 @@ def title_search(query: str) -> int:
     """
     media_search_manager.clear()
     table_show_manager.clear()
-    class_mediaset_api = get_bearer_token()
+
+    if not check_region_availability(_region, site_constants.SITE_NAME):
+        return 0
+
+    class_mediaset_api = get_client()
     search_url = 'https://mediasetplay.api-graph.mediaset.it/'
     console.print(f"[cyan]Search url: [yellow]{search_url}")
 
@@ -96,14 +99,14 @@ def title_search(query: str) -> int:
         if vertical_image.get("r", ""):
             image_url += f"?r={vertical_image.get('r', '')}"
         
-        media_search_manager.add_media({
-            "id": item.get("guid", ""),
-            "name": item.get("cardTitle", "No Title"),
-            "type": item_type,
-            "image": image_url,
-            "year": date if date not in ("", None) else "9999",
-            "url": item.get("cardLink", {}).get("value", "")
-        })
+        media_search_manager.add(MediaItem(
+            id=item.get("guid", ""),
+            name=item.get("cardTitle", "No Title"),
+            type=item_type,
+            image=image_url,
+            year=date if date not in ("", None) else "9999",
+            url=item.get("cardLink", {}).get("value", "")
+        ))
 
     return media_search_manager.get_length()
 

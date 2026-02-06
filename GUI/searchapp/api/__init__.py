@@ -17,6 +17,10 @@ from .streamingcommunity import StreamingCommunityAPI
 from .guardaserie import GuardaSerieAPI
 from .dmax import DmaxAPI
 from .crunchyroll import CrunchyrollAPI
+from .nove import NoveAPI
+from .homegardentv import HomeGardenTVAPI
+from .foodnetwork import FoodNetworkAPI
+from .animeworld import AnimeWorldAPI
 
 
 _API_REGISTRY: Dict[str, type] = {
@@ -24,13 +28,17 @@ _API_REGISTRY: Dict[str, type] = {
     'altadefinizione': AltadefinzioneAPI,
     'guardaserie': GuardaSerieAPI,
     'animeunity': AnimeUnityAPI,
+    'animeworld': AnimeWorldAPI,
     'crunchyroll': CrunchyrollAPI,
-    'discoveryeu': DiscoveryEUAPI,
-    'discoveryeuplus': DiscoveryEuPlusAPI,
     'mediasetinfinity': MediasetInfinityAPI,
     'raiplay': RaiPlayAPI,
-    'realtime': RealtimeAPI,
+    'discoveryeu': DiscoveryEUAPI,
+    'discoveryeuplus': DiscoveryEuPlusAPI,
     'dmax': DmaxAPI,
+    'nove': NoveAPI,
+    'realtime': RealtimeAPI,
+    'homegardentv': HomeGardenTVAPI,
+    'foodnetwork': FoodNetworkAPI
 }
 
 

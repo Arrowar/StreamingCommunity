@@ -27,9 +27,11 @@ class MediasetAPI:
         self.app_name = self.get_app_name()
         
         # Check for token in login config
+        self.beToken = None
         self.is_anonymous = True
         login_token = config_manager.login.get("mediasetinfinity", "beToken")
-        if isinstance(login_token, str) and login_token:
+
+        if login_token is not None and login_token != "":
             self.beToken = login_token
             self.is_anonymous = False
         else:
@@ -93,7 +95,7 @@ class MediasetAPI:
         }
 
 
-def get_bearer_token():
+def get_client():
     """
     Gets the BEARER_TOKEN for authentication.
     Anche i manifestanti per strada dio bellissimo.
@@ -102,8 +104,7 @@ def get_bearer_token():
     if class_mediaset_api is None:
         class_mediaset_api = MediasetAPI()
     return class_mediaset_api
-            
-
+       
 
 def get_playback_url(CONTENT_ID):
     """
@@ -141,7 +142,7 @@ def get_playback_url(CONTENT_ID):
         return playback_json
     
     except Exception as e:
-        raise RuntimeError(f"Failed to get playback URL: {e}, {resp_json if 'resp_json' in locals() else 'No response'}")
+        raise RuntimeError(f"Failed to get playback URL error: {e}")
 
 def parse_smil_for_media_info(smil_xml):
     """
@@ -289,4 +290,4 @@ def generate_license_url(tracking_info):
         'token': class_mediaset_api.getBearerToken(),
     }
     
-    return f"{'https://widevine.entitlement.theplatform.eu/wv/web/ModularDrm/getRawWidevineLicense'}", params
+    return 'https://widevine.entitlement.theplatform.eu/wv/web/ModularDrm/getRawWidevineLicense', params

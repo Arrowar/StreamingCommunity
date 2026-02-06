@@ -6,8 +6,8 @@ from rich.prompt import Prompt
 
 
 # Internal utilities
-from StreamingCommunity.services._base import site_constants, MediaManager
-from StreamingCommunity.utils.http_client import create_client, get_userAgent
+from StreamingCommunity.services._base import site_constants, MediaManager, MediaItem
+from StreamingCommunity.utils.http_client import create_client, get_userAgent, check_region_availability
 from StreamingCommunity.utils import TVShowManager
 from StreamingCommunity.services._base.site_search_manager import base_process_search_result, base_search
 
@@ -18,8 +18,7 @@ from .downloader import download_series
 # Variable
 indice = 15
 _useFor = "Serie"
-_region = "IT"
-_deprecate = False
+_region = ["IT"]
 
 
 msg = Prompt()
@@ -40,6 +39,9 @@ def title_search(query: str) -> int:
     """
     media_search_manager.clear()
     table_show_manager.clear()
+
+    if not check_region_availability(_region, site_constants.SITE_NAME):
+        return 0
 
     search_url = "https://public.aurora.enhanced.live/site/search/page/"
     console.print(f"[cyan]Search url: [yellow]{search_url}")
@@ -67,13 +69,13 @@ def title_search(query: str) -> int:
         data = response.json()
 
     for dict_title in data:
-        media_search_manager.add_media({
-            'name': dict_title.get('title'),
-            'type': 'tv',
-            'year': dict_title.get('dateLastModified').split('-')[0],
-            'image': dict_title.get('image').get('url'),
-            'url': f'https://public.aurora.enhanced.live/site/page/{str(dict_title.get("slug")).lower().replace(" ", "-")}/?include=default&filter[environment]=foodnetwork&v=2&parent_slug={dict_title.get("parentSlug")}',
-        })
+        media_search_manager.add(MediaItem(
+            name=dict_title.get('title'),
+            type='tv',
+            year=dict_title.get('dateLastModified').split('-')[0],
+            image=dict_title.get('image').get('url'),
+            url=f'https://public.aurora.enhanced.live/site/page/{str(dict_title.get("slug")).lower().replace(" ", "-")}/?include=default&filter[environment]=foodnetwork&v=2&parent_slug={dict_title.get("parentSlug")}',
+        ))
 	
     # Return the number of titles found
     return media_search_manager.get_length()

@@ -30,6 +30,7 @@ dash_process = DASH_Downloader(
     license_url=license_url,
     license_headers=license_headers,
     output_path=fr".\Video\Prova.{conf_extension}",
+    key=license_key,
     drm_preference="widevine"
 )
 

@@ -25,6 +25,7 @@ class AnimeUnityAPI(BaseStreamingAPI):
     def _load_config(self):
         """Load site configuration."""
         self.base_url = config_manager.domain.get(self.site_name, "full_url").rstrip("/")
+        print(f"[{self.site_name}] Configuration loaded: base_url={self.base_url}")
     
     def _get_search_fn(self):
         """Lazy load the search function."""
@@ -96,7 +97,7 @@ class AnimeUnityAPI(BaseStreamingAPI):
             )
             episodes.append(episode)
         
-        season = Season(number=1, episodes=episodes)
+        season = Season(number=1, episodes=episodes, name="Stagione 1")
         return [season]
             
     def start_download(self, media_item: MediaItem, season: Optional[str] = None, episodes: Optional[str] = None) -> bool:

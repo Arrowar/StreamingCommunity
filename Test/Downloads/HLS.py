@@ -19,7 +19,6 @@ conf_extension = config_manager.config.get("M3U8_CONVERSION", "extension")
 hls_process =  HLS_Downloader(
     m3u8_url="",
     headers={},
-    license_url=None,
     output_path=fr".\Video\Prova.{conf_extension}",
 )
 out_path, need_stop = hls_process.start()

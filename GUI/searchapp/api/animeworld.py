@@ -1,4 +1,4 @@
-# 27-01-26
+# 27.01.26
 
 
 import importlib
@@ -10,20 +10,23 @@ from .base import BaseStreamingAPI, MediaItem, Season, Episode
 
 
 # External utilities
+from StreamingCommunity.utils import config_manager
 from StreamingCommunity.services._base.site_loader import get_folder_name
-from StreamingCommunity.services.discoveryeu.scrapper import GetSerieInfo
+from StreamingCommunity.services.animeworld.scrapper import ScrapSerie
 
 
-class DiscoveryEUAPI(BaseStreamingAPI):
+class AnimeWorldAPI(BaseStreamingAPI):
     def __init__(self):
         super().__init__()
-        self.site_name = "discoveryeu"
+        self.site_name = "animeworld"
         self._load_config()
         self._search_fn = None
+        self._scrapper = None
     
     def _load_config(self):
         """Load site configuration."""
-        self.base_url = "https://eu1-prod-direct.discoveryplus.com"
+        self.base_url = config_manager.domain.get(self.site_name, "full_url")
+        print(f"[{self.site_name}] Configuration loaded: base_url={self.base_url}")
     
     def _get_search_fn(self):
         """Lazy load the search function."""
@@ -34,7 +37,7 @@ class DiscoveryEUAPI(BaseStreamingAPI):
     
     def search(self, query: str) -> List[MediaItem]:
         """
-        Search for content on Discovery+.
+        Search for anime content on AnimeWorld.
         
         Args:
             query: Search term
@@ -51,9 +54,9 @@ class DiscoveryEUAPI(BaseStreamingAPI):
                 item_dict = element.__dict__.copy() if hasattr(element, '__dict__') else {}
                 
                 media_item = MediaItem(
-                    id=item_dict.get('id'),
                     name=item_dict.get('name'),
-                    type=item_dict.get('type'),
+                    type=item_dict.get('type', 'TV'),
+                    url=item_dict.get('url'),
                     poster=item_dict.get('image'),
                     year=item_dict.get('year'),
                     raw_data=item_dict
@@ -64,58 +67,46 @@ class DiscoveryEUAPI(BaseStreamingAPI):
     
     def get_series_metadata(self, media_item: MediaItem) -> Optional[List[Season]]:
         """
-        Get seasons and episodes for a Discovery+ series.
+        Get episodes for an AnimeWorld series.
         
         Args:
             media_item: MediaItem to get metadata for
             
         Returns:
-            List of Season objects, or None if not a series
+            List with a single Season containing all episodes, or None if it's a movie
         """
-        if media_item.is_movie:
+        if media_item.type == 'Movie':
             return None
         
-        # Split combined ID (format: "id|alternateId")
-        id_parts = media_item.id.split('|')
-        if len(id_parts) != 2:
-            raise Exception(f"Invalid ID format: {media_item.id}")
+        scrape_serie = ScrapSerie(media_item.url, self.base_url)
+        episodes_data = scrape_serie.get_episodes()
         
-        scrape_serie = GetSerieInfo(id_parts[1], id_parts[0])
-        seasons_count = scrape_serie.getNumberSeason()
-        
-        if not seasons_count:
-            print(f"[Discovery+] No seasons found for: {media_item.name}")
+        if not episodes_data:
+            print(f"[AnimeWorld] No episodes found for: {media_item.name}")
             return None
-    
-        seasons = []
-        for s in scrape_serie.seasons_manager.seasons:
-            season_num = s.number
-            season_name = getattr(s, 'name', None)
-            
-            episodes_raw = scrape_serie.getEpisodeSeasons(s.number)
-            episodes = []
-            
-            for idx, ep in enumerate(episodes_raw or [], 1):
-                episode = Episode(
-                    number=getattr(ep, "number", idx),
-                    name=getattr(ep, 'name', f"Episodio {idx}"),
-                    id=getattr(ep, 'id', idx)
-                )
-                episodes.append(episode)
-            
-            season = Season(number=season_num, episodes=episodes, name=season_name)
-            seasons.append(season)
-            print(f"[Discovery+] Season {season_num} ({season_name or f'Season {season_num}'}): {len(episodes)} episodes")
         
-        return seasons if seasons else None
+        # Create episodes list
+        episodes = []
+        for idx, ep_data in enumerate(episodes_data, 1):
+            episode = Episode(
+                number=idx,
+                name=getattr(ep_data, 'name', f"Episode {idx}"),
+                id=getattr(ep_data, 'id', idx)
+            )
+            episodes.append(episode)
+        
+        season = Season(number=1, episodes=episodes, name="Episodes")
+        print(f"[AnimeWorld] Found {len(episodes)} episodes for: {media_item.name}")
+        
+        return [season]
     
     def start_download(self, media_item: MediaItem, season: Optional[str] = None, episodes: Optional[str] = None) -> bool:
         """
-        Start downloading from Discovery+.
+        Start downloading from AnimeWorld.
         
         Args:
             media_item: MediaItem to download
-            season: Season number (for series)
+            season: Season number (typically not used for anime, defaults to None)
             episodes: Episode selection
             
         Returns:
@@ -128,9 +119,8 @@ class DiscoveryEUAPI(BaseStreamingAPI):
         
         # Prepare selections
         selections = None
-        if season or episodes:
+        if episodes:
             selections = {
-                'season': season,
                 'episode': episodes
             }
         

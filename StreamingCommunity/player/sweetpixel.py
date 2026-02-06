@@ -13,8 +13,8 @@ class VideoSource:
         self.session_id = session_id
         self.csrf_token = csrf_token
         self.episode_data = episode_data
-        self.number = episode_data['number']
-        self.link = site_url + episode_data['link']
+        self.number = episode_data.number
+        self.link = site_url + episode_data.url
         
         # Create an HTTP client with session cookies, headers, and base URL.
         self.client = create_client(

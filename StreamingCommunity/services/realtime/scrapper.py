@@ -5,7 +5,7 @@ import logging
 
 # Internal utilities
 from StreamingCommunity.utils.http_client import create_client, get_headers
-from StreamingCommunity.services._base.object import SeasonManager
+from StreamingCommunity.services._base.object import SeasonManager, Episode, Season
 
 
 class GetSerieInfo:
@@ -80,7 +80,13 @@ class GetSerieInfo:
             
             # Add seasons to SeasonManager (sorted by season number)
             for season_num in sorted(seasons_dict.keys()):
-                self.seasons_manager.add_season(seasons_dict[season_num])
+                s_data = seasons_dict[season_num]
+                self.seasons_manager.add(Season(
+                    id=s_data.get('id'),
+                    number=s_data.get('number'),
+                    name=s_data.get('name'),
+                    slug=s_data.get('slug')
+                ))
                 
             logging.info(f"Found {len(seasons_dict)} seasons")
 
@@ -131,18 +137,16 @@ class GetSerieInfo:
                 duration_ms = episode.get('videoDuration', 0)
                 duration_minutes = round(duration_ms / 1000 / 60) if duration_ms else 0
                 
-                episode_data = {
-                    'id': episode.get('id'),
-                    'number': episode.get('episodeNumber'),
-                    'name': episode.get('title', f"Episode {episode.get('episodeNumber')}"),
-                    'description': episode.get('description', ''),
-                    'duration': duration_minutes,
-                    'poster': episode.get('poster', {}).get('src', ''),
-                    'channel': "X-REALM-IT" if episode.get('channel') is None else "X-REALM-DPLAY"
-                }
-                
                 # Add episode to the season's episode manager
-                season.episodes.add(episode_data)
+                season.episodes.add(Episode(
+                    id=episode.get('id'),
+                    number=episode.get('episodeNumber'),
+                    name=episode.get('title', f"Episode {episode.get('episodeNumber')}"),
+                    description=episode.get('description'),
+                    duration=duration_minutes,
+                    poster=episode.get('poster', {}).get('src'),
+                    channel="X-REALM-IT" if episode.get('channel') is None else "X-REALM-DPLAY"
+                ))
                 
             logging.info(f"Added {len(season_episodes)} episodes to season {number_season}")
 
@@ -180,7 +184,7 @@ class GetSerieInfo:
             
         return season.episodes.episodes
         
-    def selectEpisode(self, season_number: int, episode_index: int) -> dict:
+    def selectEpisode(self, season_number: int, episode_index: int) -> Episode:
         """
         Get information for a specific episode in a specific season.
         
@@ -189,7 +193,7 @@ class GetSerieInfo:
             episode_index: The index of the episode in the season (0-based)
             
         Returns:
-            Episode dictionary or None if not found
+            Episode object or None if not found
         """
         episodes = self.getEpisodeSeasons(season_number)
         if not episodes or episode_index < 0 or episode_index >= len(episodes):

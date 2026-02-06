@@ -59,6 +59,7 @@ class Season:
     """Season information."""
     number: int
     episodes: List[Episode]
+    name: Optional[str] = None
     
     @property
     def episode_count(self) -> int:
@@ -67,6 +68,7 @@ class Season:
     def to_dict(self) -> Dict[str, Any]:
         return {
             'number': self.number,
+            'name': self.name,
             'episodes': [ep.to_dict() for ep in self.episodes],
             'episode_count': self.episode_count
         }

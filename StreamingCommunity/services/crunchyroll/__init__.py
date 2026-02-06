@@ -7,7 +7,7 @@ from rich.prompt import Prompt
 
 # Internal utilities
 from StreamingCommunity.utils import TVShowManager, config_manager
-from StreamingCommunity.services._base import site_constants, MediaManager
+from StreamingCommunity.services._base import site_constants, MediaManager, MediaItem
 from StreamingCommunity.services._base.site_search_manager import base_process_search_result, base_search
 
 
@@ -19,8 +19,7 @@ from .client import CrunchyrollClient
 # Variable
 indice = 7
 _useFor = "Anime"
-_region = "IT"
-_deprecate = False
+
 
 
 msg = Prompt()
@@ -73,13 +72,20 @@ def title_search(query: str) -> int:
 
     data = response.json()
     found = 0
+    seen_ids = set()
 
     # Parse results
     for block in data.get("data", []):
-        if block.get("type") not in ("series", "movie_listing", "top_results"):
+        block_type = block.get("type")
+        if block_type not in ("series", "movie_listing", "top_results"):
             continue
 
         for item in block.get("items", []):
+            item_id = item.get('id')
+            if not item_id or item_id in seen_ids:
+                continue
+            
+            seen_ids.add(item_id)
             tipo = None
 
             if item.get("type") == "movie_listing":
@@ -99,26 +105,24 @@ def title_search(query: str) -> int:
             else:
                 continue
 
-            url = ""
-            if tipo in ("tv", "film"):
-                url = f"https://www.crunchyroll.com/series/{item.get('id')}"
-            else:
-                continue
-
+            url = f"https://www.crunchyroll.com/series/{item_id}"
             title = item.get("title", "")
 
             # Get image
             poster_image = None
             list_image = item.get('images', {})
             if list_image:
-                poster_image = list_image.get('poster_wide')[0][-1].get("source")
+                poster_wide = list_image.get('poster_wide')
+                if poster_wide and len(poster_wide) > 0:
+                    poster_image = poster_wide[0][-1].get("source")
 
-            media_search_manager.add_media({
-                'name': title,
-                'type': tipo,
-                'url': url,
-                'image': poster_image
-            })
+            media_search_manager.add(MediaItem(
+                id=item_id,
+                name=title,
+                type=tipo,
+                url=url,
+                image=poster_image
+            ))
             found += 1
 
     return media_search_manager.get_length()

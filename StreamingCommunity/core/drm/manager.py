@@ -1,10 +1,13 @@
 # 29.01.26
 
+import time
+
 # External libraries
 from rich.console import Console
 
 
 # Internal utilities
+from StreamingCommunity.utils import config_manager
 from StreamingCommunity.utils.vault import obj_localDbValut, obj_externalSupaDbVault
 
 
@@ -15,6 +18,7 @@ from .widevine import get_widevine_keys
 
 # Variable
 console = Console()
+DELAY = config_manager.remote_cdm.get_int('config', 'delay_after_request')
 
 
 class DRMManager:
@@ -43,15 +47,21 @@ class DRMManager:
         """
         # Step 0: Handle pre-existing key
         if key:
-            k_split = key.split(':')
-            if len(k_split) == 2:
-                kid = k_split[0].replace('-', '').strip()
-                key_val = k_split[1].replace('-', '').strip()
-                masked_key = key_val[:-1] + "*"
-                console.print("[cyan]Using Manual Key.")
-                console.print(f"    - [red]{kid}[white]:[green]{masked_key} [cyan]| [red]Manual")
-                return [f"{kid}:{key_val}"]
-        
+            manual_keys = []
+            for keys in key.split('|'):
+                k_split = keys.split(':')
+                if len(k_split) == 2:
+                    kid = k_split[0].replace('-', '').strip()
+                    key_val = k_split[1].replace('-', '').strip()
+                    masked_key = key_val[:-1] + "*"
+                    
+                    if not manual_keys:
+                        console.print("[cyan]Using Manual Key.")
+                    console.print(f"    - [red]{kid}[white]:[green]{masked_key} [cyan]| [red]Manual")
+                    manual_keys.append(f"{kid}:{key_val}")
+            if manual_keys:
+                return manual_keys
+            
         # Extract PSSH from first entry for database lookup
         pssh_val = pssh_list[0].get('pssh') if pssh_list else None
         
@@ -75,6 +85,7 @@ class DRMManager:
         # Step 3: Try CDM extraction
         try:
             keys = get_widevine_keys(pssh_list, license_url, self.widevine_device_path, self.widevine_remote_cdm_api, headers, key, kid_to_label)
+            time.sleep(DELAY)
                 
             if keys:
                 if self.is_local_db_connected and license_url and pssh_val:
@@ -107,15 +118,20 @@ class DRMManager:
         """
         # Handle pre-existing key
         if key:
-            k_split = key.split(':')
-            if len(k_split) == 2:
-                kid = k_split[0].replace('-', '').strip()
-                key_val = k_split[1].replace('-', '').strip()
-                masked_key = key_val[:-1] + "*"
-                
-                console.print("[cyan]Using Manual Key.")
-                console.print(f"    - [red]{kid}[white]:[green]{masked_key} [cyan]| [red]Manual")
-                return [f"{kid}:{key_val}"]
+            manual_keys = []
+            for keys in key.split('|'):
+                k_split = keys.split(':')
+                if len(k_split) == 2:
+                    kid = k_split[0].replace('-', '').strip()
+                    key_val = k_split[1].replace('-', '').strip()
+                    masked_key = key_val[:-1] + "*"
+                    
+                    if not manual_keys:
+                        console.print("[cyan]Using Manual Key.")
+                    console.print(f"    - [red]{kid}[white]:[green]{masked_key} [cyan]| [red]Manual")
+                    manual_keys.append(f"{kid}:{key_val}")
+            if manual_keys:
+                return manual_keys
         
         # Extract PSSH from first entry for database lookup
         pssh_val = pssh_list[0].get('pssh') if pssh_list else None
@@ -140,6 +156,7 @@ class DRMManager:
         # Step 3: Try CDM extraction
         try:
             keys = get_playready_keys(pssh_list, license_url, self.playready_device_path, self.playready_remote_cdm_api, headers, key, kid_to_label)
+            time.sleep(DELAY)
             
             if keys:
                 if self.is_local_db_connected and license_url and pssh_val:

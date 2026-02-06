@@ -160,22 +160,20 @@ def display_consolidated_results(all_media_items, search_terms):
     table.add_column("#", style="dim", width=4)
     table.add_column("Title", min_width=20)
     table.add_column("Type", width=15)
+    has_year = any('year' in item and item['year'] for item in all_media_items)
+    if has_year:
+        table.add_column("Year", width=8)
     table.add_column("Source", width=25)
-    
-    for i, item in enumerate(all_media_items, 1):
 
-        # Extract values from item dict, with fallbacks if keys don't exist
+    for i, item in enumerate(all_media_items, 1):
         title = item.get('title', item.get('name', 'Unknown'))
         media_type = item.get('type', item.get('media_type', 'Unknown'))
         source = item.get('source', 'Unknown')
-        
-        table.add_row(
-            str(i),
-            str(title),
-            str(media_type),
-            str(source),
-        )
-    
+        year = str(item.get('year', '')) if has_year else None
+        if has_year:
+            table.add_row(str(i), str(title), str(media_type), year, str(source))
+        else:
+            table.add_row(str(i), str(title), str(media_type), str(source))
     console.print(table)
 
 def select_from_consolidated_results(all_media_items):

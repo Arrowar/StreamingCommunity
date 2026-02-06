@@ -1,7 +1,7 @@
 # 13.06.24
 
 import logging
-from typing import List, Dict
+from typing import List
 
 
 # External libraries
@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup
 
 # Internal utilities
 from StreamingCommunity.utils.http_client import create_client, get_userAgent
-from StreamingCommunity.services._base.object import SeasonManager, MediaItem
+from StreamingCommunity.services._base.object import SeasonManager, Season, Episode, MediaItem
 
 
 class GetSerieInfo:
@@ -48,12 +48,12 @@ class GetSerieInfo:
             # Clear existing seasons and add new ones to SeasonManager
             self.seasons_manager.seasons = []
             for idx, season_element in enumerate(season_elements, start=1):
-                self.seasons_manager.add_season({
-                    'id': idx,
-                    'number': idx,
-                    'name': f"Season {idx}",
-                    'slug': f"season-{idx}",
-                })
+                self.seasons_manager.add(Season(
+                    id=idx,
+                    number=idx,
+                    name=f"Season {idx}",
+                    slug=f"season-{idx}"
+                ))
 
             return len(season_elements)
 
@@ -61,7 +61,7 @@ class GetSerieInfo:
             logging.error(f"Error parsing HTML page: {str(e)}")
             return -1
 
-    def get_episode_number(self, n_season: int) -> List[Dict[str, str]]:
+    def get_episode_number(self, n_season: int) -> List[Episode]:
         """
         Retrieves the episodes for a specific season.
 
@@ -69,7 +69,7 @@ class GetSerieInfo:
             n_season (int): The season number.
 
         Returns:
-            List[Dict[str, str]]: List of dictionaries containing episode information.
+            List[Episode]: List of Episode objects containing episode information.
         """
         try:
             response = create_client(headers=self.headers).get(self.url)
@@ -81,7 +81,7 @@ class GetSerieInfo:
             # Find the container of episodes for the specified season
             table_content = soup.find('div', class_="tab-pane", id=f"season-{n_season}")
             episode_content = table_content.find_all("li")
-            list_dict_episode = []
+            list_episodes = []
 
             for episode_div in episode_content:
                 episode_link = episode_div.find("a")
@@ -98,16 +98,14 @@ class GetSerieInfo:
                 
                 # Use data-title if available
                 episode_name = f"Episodio {episode_number}"
+                list_episodes.append(Episode(
+                    number=episode_number,
+                    name=episode_name,
+                    url=data_link,
+                    id=episode_number
+                ))
 
-                obj_episode = {
-                    'number': episode_number,
-                    'name': episode_name,
-                    'url': data_link,
-                    'id': episode_number
-                }
-                list_dict_episode.append(obj_episode)
-
-            return list_dict_episode
+            return list_episodes
         
         except Exception as e:
             logging.error(f"Error parsing HTML page: {e}")
@@ -136,7 +134,7 @@ class GetSerieInfo:
         
         return episodes
         
-    def selectEpisode(self, season_number: int, episode_index: int) -> dict:
+    def selectEpisode(self, season_number: int, episode_index: int) -> Episode:
         """
         Get information for a specific episode in a specific season.
         """

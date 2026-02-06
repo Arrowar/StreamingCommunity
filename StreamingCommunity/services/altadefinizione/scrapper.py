@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 
 # Internal utilities
 from StreamingCommunity.utils.http_client import create_client, get_userAgent
-from StreamingCommunity.services._base.object import SeasonManager
+from StreamingCommunity.services._base.object import SeasonManager, Episode, Season
 
 
 class GetSerieInfo:
@@ -64,10 +64,10 @@ class GetSerieInfo:
                 season_name = season_item.get_text(strip=True)
                 
                 # Create a new season
-                current_season = self.seasons_manager.add_season({
-                    'number': season_num,
-                    'name': season_name
-                })
+                current_season = self.seasons_manager.add(Season(
+                    number=season_num,
+                    name=season_name
+                ))
                 
                 # Find episode dropdown for this season
                 episode_dropdown = series_select.find('div', class_='dropdown episodes', attrs={'data-season': str(season_num)})
@@ -105,11 +105,11 @@ class GetSerieInfo:
                         
                         # Add episode if supervideo link is available
                         if supervideo_url and current_season:
-                            current_season.episodes.add({
-                                'number': ep_num,
-                                'name': ep_title,
-                                'url': supervideo_url
-                            })
+                            current_season.episodes.add(Episode(
+                                number=ep_num,
+                                name=ep_title,
+                                url=supervideo_url
+                            ))
                         else:
                             logging.warning(f"Supervideo link not available for Season {season_num}, Episode {ep_num}")
                             
@@ -150,10 +150,10 @@ class GetSerieInfo:
                 season_name = f"Stagione {season_num}"
 
                 # Create a new season
-                current_season = self.seasons_manager.add_season({
-                    'number': season_num,
-                    'name': season_name
-                })
+                current_season = self.seasons_manager.add(Season(
+                    number=season_num,
+                    name=season_name
+                ))
 
                 # Find the corresponding tab pane
                 tab_pane = tabs_holder.find('div', id=f'season-{season_num}')
@@ -210,11 +210,11 @@ class GetSerieInfo:
                         
                         # Only add episode if supervideo link is available and valid
                         if supervideo_url and supervideo_url != '#' and 'supervideo' in supervideo_url and current_season:
-                            current_season.episodes.add({
-                                'number': ep_num,
-                                'name': ep_title,
-                                'url': supervideo_url
-                            })
+                            current_season.episodes.add(Episode(
+                                number=ep_num,
+                                name=ep_title,
+                                url=supervideo_url
+                            ))
                         else:
                             logging.warning(f"Supervideo link not available for Season {season_num}, Episode {ep_num}")
                             
@@ -248,7 +248,7 @@ class GetSerieInfo:
         season = self.seasons_manager.get_season_by_number(season_number)
         return season.episodes.episodes if season else []
         
-    def selectEpisode(self, season_number: int, episode_index: int) -> dict:
+    def selectEpisode(self, season_number: int, episode_index: int) -> Episode:
         """
         Get information for a specific episode in a specific season.
         """

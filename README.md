@@ -351,9 +351,30 @@ docker build -t streaming-community-api .
 docker run -d --name streaming-community --dns 1.1.1.1 -p 8000:8000 streaming-community-api
 ```
 
-### Custom Storage Location
+### Volumes and Permissions
+When mounting a local folder as a volume, you might encounter permission issues. Using `-u root` ensures the container has the necessary rights to write to your host machine:
+
 ```bash
-docker run -d --dns 9.9.9.9 -p 8000:8000 -v /your/path:/app/Video streaming-community-api
+docker run -d --name streaming-community --dns 1.1.1.1 -p 8000:8000 -u root -v D:\Download:/app/Video streaming-community-api
+```
+
+### Docker Compose Example
+Recommended for stability and easy DNS configuration:
+
+```yaml
+services:
+  streaming-community:
+    build: .
+    container_name: streaming-community
+    user: root
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./Video:/app/Video
+    restart: unless-stopped
 ```
 
 ---

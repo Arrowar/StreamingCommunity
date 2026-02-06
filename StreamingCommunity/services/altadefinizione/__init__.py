@@ -9,21 +9,17 @@ from rich.prompt import Prompt
 # Internal utilities
 from StreamingCommunity.utils import TVShowManager
 from StreamingCommunity.utils.http_client import create_client, get_userAgent
-from StreamingCommunity.services._base import site_constants, MediaManager
+from StreamingCommunity.services._base import site_constants, MediaManager, MediaItem
 from StreamingCommunity.services._base.site_search_manager import base_process_search_result, base_search
 
 
 # Logic
 from .downloader import download_film, download_series
-media_search_manager = MediaManager()
-table_show_manager = TVShowManager()
 
 
 # Variable
 indice = 2
 _useFor = "Film_&_Serie"
-_region = "IT"
-_deprecate = False
 
 
 msg = Prompt()
@@ -118,13 +114,7 @@ def title_search(query: str) -> int:
                     # Determine type based on URL
                     tipo = "tv" if "/serie-tv/" in url else "film"
 
-                    media_dict = {
-                        'url': url,
-                        'name': title,
-                        'type': tipo,
-                        'image': image_url
-                    }
-                    media_search_manager.add_media(media_dict)
+                    media_search_manager.add(MediaItem(url=url, name=title, type=tipo, image=image_url))
                     
                 except Exception as e:
                     console.print(f"[yellow]Warning: Error parsing col item: {e}")
@@ -181,13 +171,7 @@ def title_search(query: str) -> int:
                     # Determine type based on URL
                     tipo = "tv" if "/serie-tv/" in url else "film"
 
-                    media_dict = {
-                        'url': url,
-                        'name': title,
-                        'type': tipo,
-                        'image': image_url
-                    }
-                    media_search_manager.add_media(media_dict)
+                    media_search_manager.add(MediaItem(url=url, name=title, type=tipo, image=image_url))
                     
                 except Exception as e:
                     console.print(f"[yellow]Warning: Error parsing box item: {e}")

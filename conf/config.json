@@ -29,11 +29,29 @@
     },
     "M3U8_CONVERSION": {
         "use_gpu": false,
-        "param_video": ["-c:v", "libx265", "-crf", "28", "-preset", "medium"],
-        "param_audio": ["-c:a", "libopus", "-b:a", "128k"],
+        "param_video": [
+            "-c:v",
+            "libx265",
+            "-crf",
+            "28",
+            "-preset",
+            "medium"
+        ],
+        "param_audio": [
+            "-c:a",
+            "libopus",
+            "-b:a",
+            "128k"
+        ],
         "subtitle_disposition": false,
-        "subtitle_disposition_language": ["forced-ita", "ita-forced"],
-        "param_final": ["-c", "copy"],
+        "subtitle_disposition_language": [
+            "forced-ita",
+            "ita-forced"
+        ],
+        "param_final": [
+            "-c",
+            "copy"
+        ],
         "extension": "mkv",
         "generate_nfo": false
     },
@@ -42,7 +60,10 @@
         "timeout": 30,
         "max_retry": 8,
         "use_proxy": false,
-        "proxy": {"http": "http://localhost:8888", "https": "http://localhost:8888"}
+        "proxy": {
+            "http": "http://localhost:8888",
+            "https": "http://localhost:8888"
+        }
     },
     "HOOKS": {
         "pre_run": [],

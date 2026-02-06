@@ -6,7 +6,7 @@ from typing import Dict, List, Optional, Tuple
 
 
 # Internal utilities
-from StreamingCommunity.services._base.object import SeasonManager
+from StreamingCommunity.services._base.object import SeasonManager, Episode, Season
 
 
 # Logic
@@ -20,6 +20,12 @@ _EP_NUM_RE = re.compile(r"^\d+(\.\d+)?$")
 def _fetch_api_seasons(series_id: str, client: CrunchyrollClient, params: Dict):
     """Fetch seasons from API."""
     url = f'{client.api_base_url}/content/v2/cms/series/{series_id}/seasons'
+    return client.request('GET', url, params=params)
+
+
+def _fetch_api_series_metadata(series_id: str, client: CrunchyrollClient, params: Dict):
+    """Fetch series metadata from API."""
+    url = f'{client.api_base_url}/content/v2/cms/series/{series_id}'
     return client.request('GET', url, params=params)
 
 
@@ -89,6 +95,15 @@ class GetSerieInfo:
 
     def collect_season(self) -> None:
         """Collect all seasons for the series - SINGLE API CALL."""
+        try:
+            series_resp = _fetch_api_series_metadata(self.series_id, self.client, self.params)
+            if series_resp.status_code == 200:
+                series_data = series_resp.json().get("data", [])
+                if series_data:
+                    self.series_name = series_data[0].get("title")
+        except Exception as e:
+            logging.debug(f"Failed to fetch series title: {e}")
+
         response = _fetch_api_seasons(self.series_id, self.client, self.params)
         
         if response.status_code != 200:
@@ -98,8 +113,8 @@ class GetSerieInfo:
         data = response.json()
         seasons = data.get("data", [])
         
-        # Extract basic series name from first season
-        if seasons:
+        # fallback title if metadata failed
+        if seasons and not getattr(self, 'series_name', None):
             self.series_name = seasons[0].get("title")
         
         # Process seasons
@@ -118,16 +133,23 @@ class GetSerieInfo:
         
         # Add to manager
         for idx, row in enumerate(season_rows):
-            self.seasons_manager.add_season({
-                'number': row["raw_number"],
-                'name': row["title"],
-                'id': row["id"],
-                'slug': row["slug"],
-            })
+            display_name = row["title"]
+            if display_name == self.series_name:
+                display_name = f"Season {row['raw_number']}"
 
-    def _fetch_episodes_for_season(self, season_index: int) -> List[Dict]:
+            self.seasons_manager.add(Season(
+                number=idx + 1,
+                name=display_name,
+                id=row["id"],
+                slug=row["slug"],
+            ))
+
+    def _fetch_episodes_for_season(self, season_number: int) -> List[Dict]:
         """Fetch and cache episodes for a season - SINGLE API CALL per season."""
-        season = self.seasons_manager.seasons[season_index-1]
+        season = self.seasons_manager.get_season_by_number(season_number)
+        if not season:
+            return []
+            
         response = _fetch_api_episodes(season.id, self.client, self.params)
         
         # Get response json
@@ -162,8 +184,21 @@ class GetSerieInfo:
         # Assign display numbers
         episodes = _assign_display_numbers(episodes)
         
+        # Add to season manager
+        season.episodes.clear()
+        for ep_dict in episodes:
+            season.episodes.add(Episode(
+                id=ep_dict.get('id'),
+                number=ep_dict.get('number'),
+                is_special=ep_dict.get('is_special'),
+                name=ep_dict.get('name'),
+                url=ep_dict.get('url'),
+                duration=ep_dict.get('duration'),
+                main_guid=ep_dict.get('main_guid')
+            ))
+        
         # Cache and return
-        self._episodes_cache[season_index] = episodes
+        self._episodes_cache[season_number] = episodes
         return episodes
 
     def _get_episode_audio_locales(self, episode_id: str) -> Tuple[List[str], Dict[str, str], Optional[str]]:
@@ -216,19 +251,22 @@ class GetSerieInfo:
             self.collect_season()
         return len(self.seasons_manager.seasons)
 
-    def getEpisodeSeasons(self, season_index: int) -> List[Dict]:
+    def getEpisodeSeasons(self, season_number: int) -> List[Dict]:
         """Get all episodes for a season."""
         if not self.seasons_manager.seasons:
             self.collect_season()
         
-        if season_index not in self._episodes_cache:
-            self._fetch_episodes_for_season(season_index)
+        if season_number not in self._episodes_cache:
+            self._fetch_episodes_for_season(season_number)
         
-        return self._episodes_cache.get(season_index, [])
+        return self._episodes_cache.get(season_number, [])
 
-    def selectEpisode(self, season_index: int, episode_index: int) -> Optional[Dict]:
+    def selectEpisode(self, season_number: int, episode_index: int) -> Episode:
         """Get specific episode with audio information."""
-        episodes = self.getEpisodeSeasons(season_index)
+        episodes = self.getEpisodeSeasons(season_number)
+        if not episodes or episode_index < 0 or episode_index >= len(episodes):
+            return None
+            
         episode = episodes[episode_index]
         episode_id = episode.get("url", "").split("/")[-1] if episode.get("url") else None
         

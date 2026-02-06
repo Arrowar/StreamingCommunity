@@ -2,7 +2,6 @@
 
 import os
 import json
-import time
 import shutil
 import logging
 from typing import Dict
@@ -57,7 +56,7 @@ class DASH_Downloader:
         self.key = key
         self.cookies = cookies or {}
         self.decrypt_preference = decrypt_preference.lower()
-        self.drm_manager = DRMManager(get_wvd_path(), get_prd_path(), config_manager.remote_cdm.get('remote', 'widevine'), config_manager.remote_cdm.get('remote', 'playready'))
+        self.drm_manager = DRMManager(get_wvd_path(), get_prd_path(), config_manager.remote_cdm.get('remote_cdm', 'widevine'), config_manager.remote_cdm.get('remote_cdm', 'playready'))
         
         # Tracking IDs - check context if not provided
         self.download_id = context_tracker.download_id
@@ -143,14 +142,14 @@ class DASH_Downloader:
     
     def _fetch_decryption_keys(self):
         """Fetch decryption keys based on DRM type."""
-        if not self.license_url and self.key is None:
-            console.print("[yellow]No DRM protection or missing license info")
-            return True
-        
+        if len(self.drm_info.get('available_drm_types', [])) > 0 and (self.license_url is None or self.license_url == "") or len(self.drm_info.get('available_drm_types', [])) > 0 and (self.key is None or self.key == ""):
+            if (len(self.drm_info.get('available_drm_types', [])) > 0 and (not self.license_url or self.license_url == "") and (not self.key or self.key == "")):
+                console.print("[yellow]DRM detected but missing both license_url and key. Cannot proceed.")
+                self.error = "Missing license_url and key for DRM-protected content"
+                return False
+            
         drm_type = self.drm_info['selected_drm_type']
         try:
-            time.sleep(0.2)
-            
             if drm_type == DRMSystem.WIDEVINE:
                 keys = self.drm_manager.get_wv_keys(self.drm_info.get('widevine_pssh', []), self.license_url, self.license_headers, self.key, self.kid_to_label)
             elif drm_type == DRMSystem.PLAYREADY:
@@ -159,15 +158,15 @@ class DASH_Downloader:
                 console.print(f"[red]Unsupported DRM type: {drm_type}")
                 self.error = f"Unsupported DRM type: {drm_type}"
                 return False
-            
+        
             if keys:
                 self.decryption_keys = keys
                 return True
-            
+        
             else:
                 self.error = "Failed to fetch decryption keys"
                 return False
-                
+            
         except Exception as e:
             console.print(f"[red]Error fetching keys: {e}")
             self.error = f"Key fetch error: {e}"

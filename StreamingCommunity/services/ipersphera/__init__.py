@@ -10,7 +10,7 @@ from rich.prompt import Prompt
 # Internal utilities
 from StreamingCommunity.utils import TVShowManager
 from StreamingCommunity.utils.http_client import create_client_curl, get_userAgent
-from StreamingCommunity.services._base import site_constants, MediaManager
+from StreamingCommunity.services._base import site_constants, MediaManager, MediaItem
 from StreamingCommunity.services._base.site_search_manager import base_process_search_result, base_search
 
 
@@ -21,8 +21,6 @@ from .downloader import download_film
 # Variable
 indice = 11
 _useFor = "Film_&_Serie"
-_region = "IT"
-_deprecate = False
 
 
 msg = Prompt()
@@ -81,12 +79,11 @@ def title_search(query: str) -> int:
             if "serie" in categs_text or "tv" in categs_text:
                 tipo = "tv"
 
-        media_dict = {
-            'url': url,
-            'name': title,
-            'type': tipo
-        }
-        media_search_manager.add_media(media_dict)
+        media_search_manager.add(MediaItem(
+            url=url,
+            name=title,
+            type=tipo
+        ))
 
     # Return the number of titles found
     return media_search_manager.get_length()

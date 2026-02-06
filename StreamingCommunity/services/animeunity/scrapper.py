@@ -87,7 +87,12 @@ class ScrapeSerieAnime:
             self._fetch_all_episodes()
             
         if self.episodes_cache and 0 <= index_ep < len(self.episodes_cache):
-            return Episode(self.episodes_cache[index_ep])
+            ep = self.episodes_cache[index_ep]
+            return Episode(
+                id=ep.get('id'),
+                number=ep.get('number'),
+                name=f"Episode {ep.get('number')}"
+            )
         return None
 
 

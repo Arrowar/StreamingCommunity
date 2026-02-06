@@ -16,10 +16,12 @@ from rich.console import Console
 
 # Internal utilities
 from StreamingCommunity.setup import binary_paths
+from StreamingCommunity.utils import config_manager
 
 
 # Variable
 console = Console()
+CREATE_DB_ON_STARTUP = config_manager.remote_cdm.get('config', 'create_local_db', default=False)
 
 
 class LocalDBVault:
@@ -293,7 +295,10 @@ class LocalDBVault:
 # Initialize
 if SQLITE3_AVAILABLE:
     try:
-        obj_localDbValut = LocalDBVault(os.path.join(binary_paths.get_binary_directory(), 'drm_keys.db'))
+        if CREATE_DB_ON_STARTUP:
+            obj_localDbValut = LocalDBVault(os.path.join(binary_paths.get_binary_directory(), 'drm_keys.db'))
+        else:
+            obj_localDbValut = None
     except Exception:
         obj_localDbValut = None
 else:

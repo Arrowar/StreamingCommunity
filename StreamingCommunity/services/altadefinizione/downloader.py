@@ -2,7 +2,6 @@
 
 import os
 import re
-from typing import Tuple
 
 
 # External library
@@ -88,12 +87,11 @@ def download_film(select_title: MediaItem) -> str:
     ).start()
 
 
-def download_episode(index_season_selected: int, index_episode_selected: int, scrape_serie: GetSerieInfo) -> Tuple[str,bool]:
+def download_episode(obj_episode, index_season_selected, index_episode_selected, scrape_serie):
     """
     Downloads a specific episode from the specified season.
     """
     start_message()
-    obj_episode = scrape_serie.selectEpisode(index_season_selected, index_episode_selected-1)
     console.print(f"\n[yellow]Download: [red]{site_constants.SITE_NAME} → [cyan]{scrape_serie.series_name} [white]\\ [magenta]{obj_episode.name} ([cyan]S{index_season_selected}E{index_episode_selected}) \n")
 
     # Define filename and path for the downloaded video
@@ -129,8 +127,8 @@ def download_series(select_season: MediaItem, season_selection: str = None, epis
         """Callback to handle episode downloads for a specific season"""
         
         # Create callback for downloading individual videos
-        def download_video_callback(season_idx: int, episode_idx: int):
-            return download_episode(season_idx, episode_idx, scrape_serie)
+        def download_video_callback(obj_episode, season_idx, episode_idx):
+            return download_episode(obj_episode, season_idx, episode_idx, scrape_serie)
         
         # Use the process_episode_download function
         process_episode_download(

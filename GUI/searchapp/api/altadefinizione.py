@@ -25,6 +25,7 @@ class AltadefinzioneAPI(BaseStreamingAPI):
     def _load_config(self):
         """Load site configuration."""
         self.base_url = config_manager.domain.get(self.site_name, "full_url")
+        print(f"[{self.site_name}] Configuration loaded: base_url={self.base_url}")
     
     def _get_search_fn(self):
         """Lazy load the search function."""
@@ -84,21 +85,24 @@ class AltadefinzioneAPI(BaseStreamingAPI):
             return None
     
         seasons = []
-        for season_num in [s.number for s in scrape_serie.seasons_manager.seasons]:
+        for s in scrape_serie.seasons_manager.seasons:
+            season_num = s.number
+            season_name = getattr(s, 'name', None)
+            
             episodes_raw = scrape_serie.getEpisodeSeasons(season_num)
             episodes = []
             
             for idx, ep in enumerate(episodes_raw or [], 1):
                 episode = Episode(
-                    number=idx,
+                    number=getattr(ep, "number", idx),
                     name=getattr(ep, 'name', f"Episodio {idx}"),
-                    id=getattr(ep, 'url', None)  # URL is used as ID for Altadefinizione
+                    id=getattr(ep, 'url', None)
                 )
                 episodes.append(episode)
             
-            season = Season(number=season_num, episodes=episodes)
+            season = Season(number=season_num, episodes=episodes, name=season_name)
             seasons.append(season)
-            print(f"[Altadefinizione] Season {season_num}: {len(episodes)} episodes")
+            print(f"[Altadefinizione] Season {season_num} ({season_name}): {len(episodes)} episodes")
         
         return seasons if seasons else None
     

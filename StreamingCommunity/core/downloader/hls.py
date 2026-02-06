@@ -32,16 +32,14 @@ CREATE_NFO_FILES = config_manager.config.get_bool('M3U8_CONVERSION', 'generate_n
 
 
 class HLS_Downloader:
-    def __init__(self, m3u8_url: str, license_url: Optional[str] = None, output_path: Optional[str] = None, headers: Optional[Dict[str, str]] = None):
+    def __init__(self, m3u8_url: str, output_path: Optional[str] = None, headers: Optional[Dict[str, str]] = None):
         """
         Args:
             m3u8_url: Source M3U8 playlist URL
-            license_url: License URL for DRM content (unused with MediaDownloader)
             output_path: Full path including filename and extension (e.g., /path/to/video.mp4)
             headers: Custom headers for requests
         """
         self.m3u8_url = str(m3u8_url).strip()
-        self.license_url = str(license_url).strip() if license_url else None
         self.custom_headers = headers
         if self.custom_headers is None:
             self.custom_headers = get_headers()

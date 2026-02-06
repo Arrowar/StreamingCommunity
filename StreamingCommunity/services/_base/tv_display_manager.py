@@ -127,13 +127,13 @@ def map_episode_title(tv_name: str, number_season: int, episode_number: int, epi
     return map_episode_temp
 
 
-def validate_selection(list_season_select: List[int], seasons_count: int) -> List[int]:
+def validate_selection(list_season_select: List[int], available_seasons: List[int]) -> List[int]:
     """
     Validates and adjusts the selected seasons based on the available seasons.
 
     Parameters:
         - list_season_select (List[int]): List of seasons selected by the user.
-        - seasons_count (int): Total number of available seasons.
+        - available_seasons (List[int]): List of available season numbers.
 
     Returns:
         - List[int]: Adjusted list of valid season numbers.
@@ -141,12 +141,12 @@ def validate_selection(list_season_select: List[int], seasons_count: int) -> Lis
     while True:
         try:
             
-            # Remove any seasons greater than the available seasons
-            valid_seasons = [season for season in list_season_select if 1 <= season <= seasons_count]
+            # Remove any seasons not in the available seasons
+            valid_seasons = [season for season in list_season_select if season in available_seasons]
 
             # If the list is empty, the input was completely invalid
             if not valid_seasons:
-                input_seasons = msg.ask(f"[red]Enter valid season numbers (1-{seasons_count})")
+                input_seasons = msg.ask(f"[red]Enter valid season numbers ({', '.join(map(str, available_seasons))})")
                 list_season_select = list(map(int, input_seasons.split(',')))
                 continue
             
@@ -156,41 +156,8 @@ def validate_selection(list_season_select: List[int], seasons_count: int) -> Lis
             logging.error("Error: Please enter valid integers separated by commas.")
 
             # Prompt the user for valid input again
-            input_seasons = input(f"Enter valid season numbers (1-{seasons_count}): ")
+            input_seasons = input(f"Enter valid season numbers ({', '.join(map(str, available_seasons))}): ")
             list_season_select = list(map(int, input_seasons.split(',')))
-
-
-def validate_episode_selection(list_episode_select: List[int], episodes_count: int) -> List[int]:
-    """
-    Validates and adjusts the selected episodes based on the available episodes.
-
-    Parameters:
-        - list_episode_select (List[int]): List of episodes selected by the user.
-        - episodes_count (int): Total number of available episodes in the season.
-
-    Returns:
-        - List[int]: Adjusted list of valid episode numbers.
-    """
-    while True:
-        try:
-
-            # Remove any episodes greater than the available episodes
-            valid_episodes = [episode for episode in list_episode_select if 1 <= episode <= episodes_count]
-
-            # If the list is empty, the input was completely invalid
-            if not valid_episodes:
-                input_episodes = input(f"Enter valid episode numbers (1-{episodes_count}): ")
-                list_episode_select = list(map(int, input_episodes.split(',')))
-                continue  # Re-prompt the user if the selection is invalid
-            
-            return valid_episodes
-        
-        except ValueError:
-            logging.error("Error: Please enter valid integers separated by commas.")
-            
-            # Prompt the user for valid input again
-            input_episodes = input(f"Enter valid episode numbers (1-{episodes_count}): ")
-            list_episode_select = list(map(int, input_episodes.split(',')))
 
 
 def display_seasons_list(seasons_manager) -> str:

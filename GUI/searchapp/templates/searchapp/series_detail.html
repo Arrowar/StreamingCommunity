@@ -70,7 +70,7 @@
             </div>
             <div class="flex-1 min-w-0">
               <h2 class="text-xl sm:text-2xl lg:text-3xl font-bold text-white mb-1 sm:mb-2 truncate">
-                Stagione {{ season.number }}
+                Stagione {{ season.number }}{% if season.name and season.name|slugify != season.number|slugify and 'season' not in season.name|lower and 'stagione' not in season.name|lower %} - {{ season.name }}{% endif %}
               </h2>
               <p class="text-gray-400 text-xs sm:text-sm lg:text-base">
                 {{ season.episodes|length }} episodi disponibili
@@ -143,14 +143,15 @@
               >
               <div class="episode-card relative bg-gray-800/50 hover:bg-gray-700/50 border-2 border-gray-700 rounded-lg p-2.5 sm:p-3 lg:p-4 transition-all text-center overflow-hidden aspect-square flex flex-col items-center justify-center">
                 <!-- Episode Number -->
-                <div class="episode-number text-lg sm:text-xl lg:text-2xl font-black text-gray-500 mb-1 transition-colors">
-                  {{ episode.number }}
+                <div class="episode-number text-lg sm:text-xl lg:text-2xl font-black text-gray-500 mb-0.5 transition-colors">
+                  Ep {{ episode.number }}
                 </div>
-                
-                <!-- Episode Name (hidden on mobile for cleaner look) -->
-                <div class="hidden sm:block text-[9px] lg:text-[10px] text-gray-600 uppercase font-semibold truncate w-full transition-colors" title="{{ episode.name|default:'Episodio' }}">
-                  {% if episode.name %}EP{% else %}—{% endif %}
-                </div>
+                <!-- Episode Name -->
+                {% if episode.name %}
+                  <div class="episode-title w-full text-[10px] sm:text-xs lg:text-sm text-gray-400 font-semibold truncate mt-0.5" style="max-width: 100%;" title="{{ episode.name }}">
+                    {{ episode.name }}
+                  </div>
+                {% endif %}
 
                 <!-- Selected Indicator -->
                 <div class="check-overlay absolute inset-0 bg-red-600 opacity-0 transition-opacity flex items-center justify-center rounded-lg">

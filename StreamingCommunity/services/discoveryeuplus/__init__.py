@@ -7,8 +7,8 @@ from rich.prompt import Prompt
 
 # Internal utilities
 from StreamingCommunity.utils import TVShowManager
-from StreamingCommunity.utils.http_client import create_client_curl
-from StreamingCommunity.services._base import site_constants, MediaManager
+from StreamingCommunity.utils.http_client import create_client_curl, check_region_availability
+from StreamingCommunity.services._base import site_constants, MediaManager, MediaItem
 from StreamingCommunity.services._base.site_search_manager import base_process_search_result, base_search
 
 
@@ -20,8 +20,7 @@ from .client import get_client
 # Variables
 indice = 17
 _useFor = "Film_&_Serie"
-_region = "EU"
-_deprecate = False
+_region = ["IT"]
 
 
 msg = Prompt()
@@ -42,6 +41,9 @@ def title_search(query: str) -> int:
     """
     media_search_manager.clear()
     table_show_manager.clear()
+
+    if not check_region_availability(_region, site_constants.SITE_NAME):
+        return 0
     
     client = get_client()
     url = f"{client.base_url}/cms/routes/search/result"
@@ -94,13 +96,13 @@ def title_search(query: str) -> int:
             if premiere_date:
                 year = premiere_date.split('-')[0] if '-' in premiere_date else None
             
-            media_search_manager.add_media({
-                'id': attrs.get('alternateId'),
-                'name': attrs.get('name'),
-                'type': 'tv',
-                'image': image_url,
-                'year': year
-            })
+            media_search_manager.add(MediaItem(
+                id=attrs.get('alternateId'),
+                name=attrs.get('name'),
+                type='tv',
+                image=image_url,
+                year=year
+            ))
         
         elif element.get('type') == 'video':
             attrs = element.get('attributes', {})
@@ -123,13 +125,13 @@ def title_search(query: str) -> int:
             if air_date:
                 year = air_date[:4] if len(air_date) >= 4 else None
             
-            media_search_manager.add_media({
-                'id': element.get('id'),
-                'name': attrs.get('name'),
-                'type': 'movie',
-                'image': image_url,
-                'year': year
-            })
+            media_search_manager.add(MediaItem(
+                id=element.get('id'),
+                name=attrs.get('name'),
+                type='movie',
+                image=image_url,
+                year=year
+            ))
     
     return media_search_manager.get_length()
 

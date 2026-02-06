@@ -1,6 +1,5 @@
 # 29.01.26
 
-import time
 import base64
 
 
@@ -120,13 +119,12 @@ def _get_widevine_keys(pssh_list: list[dict], license_url: str, cdm_device_path:
             # Make license request
             try:
                 response = create_client_curl(headers=req_headers).post(license_url, data=challenge)
-                time.sleep(0.25)
             except Exception as e:
                 console.print(f"[red]License request error: {e}")
                 continue
 
             if response.status_code != 200:
-                console.print(f"[red]License error: {response.status_code}, {response.text[:200]}")
+                console.print(f"[red]License error: {response.status_code}\nResponse: {response.text[:200]}\nUrl: {license_url}\nHeaders: {req_headers}")
                 continue
 
             # Parse license response

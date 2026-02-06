@@ -51,7 +51,9 @@ class CrunchyrollAPI(BaseStreamingAPI):
                 item_dict = element.__dict__.copy() if hasattr(element, '__dict__') else {}
                 
                 media_item = MediaItem(
+                    id=item_dict.get('id'),
                     name=item_dict.get('name'),
+                    slug=item_dict.get('id'),
                     type=item_dict.get('type'),
                     url=item_dict.get('url'),
                     poster=item_dict.get('image'),
@@ -88,21 +90,24 @@ class CrunchyrollAPI(BaseStreamingAPI):
             return None
         
         seasons = []
-        for season_num in [s.number for s in scraper.seasons_manager.seasons]:
-            episodes_raw = scraper.getEpisodeSeasons(season_num)
+        for s in scraper.seasons_manager.seasons:
+            season_num = s.number
+            season_name = getattr(s, 'name', None)
+            
+            episodes_raw = scraper.getEpisodeSeasons(s.number)
             episodes = []
             
             for idx, ep in enumerate(episodes_raw or [], 1):
                 episode = Episode(
-                    number=idx,
+                    number=getattr(ep, "number", idx),
                     name=getattr(ep, 'name', f"Episode {idx}"),
                     id=getattr(ep, 'id', idx)
                 )
                 episodes.append(episode)
             
-            season = Season(number=season_num, episodes=episodes)
+            season = Season(number=season_num, episodes=episodes, name=season_name)
             seasons.append(season)
-            print(f"[Crunchyroll] Season {season_num}: {len(episodes)} episodes")
+            print(f"[Crunchyroll] Season {season_num} ({season_name or f'Season {season_num}'}): {len(episodes)} episodes")
         
         return seasons if seasons else None
     

@@ -1,7 +1,6 @@
 # 11.03.24
 
 import os
-from typing import Tuple
 
 
 
@@ -66,12 +65,11 @@ def download_film(select_title: MediaItem):
     return path, kill_handler
 
 
-def download_episode(index_select: int, scrape_serie: ScrapSerie) -> Tuple[str,bool]:
+def download_episode(episode_data, index_select, scrape_serie):
     """
     Downloads a specific episode from the specified season.
     """
     start_message()
-    episode_data = scrape_serie.selectEpisode(1, index_select)
     console.print(f"\n[yellow]Download: [red]{site_constants.SITE_NAME} → [cyan]{scrape_serie.get_name()} ([cyan]E{str(index_select+1)}) \n")
 
     # Define filename and path for the downloaded video
@@ -122,13 +120,15 @@ def download_series(select_title: MediaItem, season_selection: str = None, episo
 
     # Download selected episodes
     if len(list_episode_select) == 1 and last_command != "*":
-        path, _ = download_episode(list_episode_select[0]-1, scrape_serie)
+        obj_episode = episodes[list_episode_select[0]-1]
+        path, _ = download_episode(obj_episode, list_episode_select[0]-1, scrape_serie)
         return path
 
-    # Download all selected episodes
+    # Download all other episodes selected
     else:
         kill_handler = False
         for i_episode in list_episode_select:
             if kill_handler:
                 break
-            _, kill_handler = download_episode(i_episode-1, scrape_serie)
+            obj_episode = episodes[i_episode-1]
+            _, kill_handler = download_episode(obj_episode, i_episode-1, scrape_serie)

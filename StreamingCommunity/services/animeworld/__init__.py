@@ -9,7 +9,7 @@ from rich.prompt import Prompt
 # Internal utilities
 from StreamingCommunity.utils.http_client import create_client, get_headers
 from StreamingCommunity.utils import TVShowManager
-from StreamingCommunity.services._base import site_constants, MediaManager
+from StreamingCommunity.services._base import site_constants, MediaManager, MediaItem
 from StreamingCommunity.services._base.site_search_manager import base_process_search_result, base_search
 
 
@@ -20,8 +20,7 @@ from .downloader import download_film, download_series
 # Variable
 indice = 6
 _useFor = "Anime"
-_region = "IT"
-_deprecate = False
+
 
 
 msg = Prompt()
@@ -71,13 +70,13 @@ def title_search(query: str) -> int:
                 elif status_div.find('div', class_='ona'):
                     anime_type = 'ONA'
 
-                media_search_manager.add_media({
-                    'name': title,
-                    'type': anime_type,
-                    'DUB': is_dubbed,
-                    'url': url,
-                    'image': element.find('img').get('src')
-                })
+                media_search_manager.add(MediaItem(
+                    name=title,
+                    type=anime_type,
+                    DUB=is_dubbed,
+                    url=url,
+                    image=element.find('img').get('src')
+                ))
 
         except Exception as e:
             print(f"Error parsing a film entry: {e}")

@@ -1,6 +1,7 @@
 # 16.03.25
 
 import re
+import time
 import json
 import logging
 from urllib.parse import urlparse, quote
@@ -12,15 +13,12 @@ from bs4 import BeautifulSoup
 
 # Internal utilities
 from StreamingCommunity.utils.http_client import create_client, get_userAgent, get_headers
-from StreamingCommunity.services._base.object import SeasonManager
+from StreamingCommunity.services._base.object import SeasonManager, Episode, Season
 
 
 class GetSerieInfo:
     BAD_WORDS = [
-        'Trailer', 'Promo', 'Teaser', 'Clip', 'Backstage', 'Le interviste', 'BALLETTI', 'Anteprime web', 'Prossimi appuntamenti tv',
-        'Galleria', 'Scene', 'Dietro le quinte', 'Recap', 'Estratto', 'Extra', 'I servizi', 'Inediti', 'INTERVISTE', 'Gli speciali',
-        'I SERVIZI', 'EXTRA', 'ANTEPRIME WEB', 'DIETRO LE QUINTE', 'LE INTERVISTE', 'SCENE', 'BACKSTAGE', 'CLIP', 'TEASER', 'PROMO', 'TRAILER',
-        'Gli scherzi', 'I servizi'
+        'Trailer', 'Promo', 'Teaser', 'Clip', 'Backstage', 'Le interviste', 'BALLETTI', 'Anteprime web', 'I servizi', 'Video trend', 'Extra', 'Le trame della settimana'
     ]
 
     def __init__(self, url):
@@ -114,7 +112,8 @@ class GetSerieInfo:
         for season in stagioni_disponibili:
             response_page = self.client.get(season['page_url'], headers={'User-Agent': get_userAgent()})
             
-            print("Response for _extract_season_sb_ids:", response_page.status_code, " season index:", season['tvSeasonNumber'])
+            print("Response for _extract_season_sb_ids:", response_page.status_code, " Season:", season['tvSeasonNumber'])
+            time.sleep(0.5)
             soup = BeautifulSoup(response_page.text, 'html.parser')
             
             # Check for titleCarousel links (multiple categories)
@@ -145,25 +144,46 @@ class GetSerieInfo:
                 logging.warning(f"No titleCarousel categories found for season {season['tvSeasonNumber']}")
 
     def _get_season_episodes(self, season, sb_id, category_name):
-        """Get episodes for a specific season"""
+        """Get episodes for a specific season, escludendo quelli con durata < 5 minuti e correggendo il numero episodio"""
+        print("Getting episodes for season", season['tvSeasonNumber'], "category:", category_name, "sb_id:", sb_id, " v1")
+        time.sleep(0.5)
+
         if any(w in category_name.lower() for w in self.BAD_WORDS):
             return []
-            
+
         episode_headers = {
             'user-agent': get_userAgent(),
         }
-        
+
+        def extract_episode_number(entry, fallback_title=None):
+            num = entry.get('tvSeasonEpisodeNumber') or entry.get('mediasetprogram$episodeNumber')
+            if num:
+                try:
+                    return int(num)
+                except Exception:
+                    pass
+            
+            # Fallback: estrai dal titolo (es. "Episodio 554")
+            title = fallback_title or entry.get('title', '')
+            m = re.search(r'(?:[Ee]pisodio|Ep\.?|EP\.?|E\.?|ep\.?|ep\.?)[\s#:]*([0-9]{1,4})', title)
+            if m:
+                try:
+                    return int(m.group(1))
+                except Exception:
+                    pass
+            return 0
+
         # Check if sb_id is numeric (with sb prefix) or alphanumeric
         if sb_id.startswith('sb'):
             clean_sb_id = sb_id[2:]
-            
+
             params = {
                 'byCustomValue': "{subBrandId}{" + str(clean_sb_id) + "}",
                 'sort': ':publishInfo_lastPublished|asc,tvSeasonEpisodeNumber|asc',
-                'range': '0-100',
+                'range': '0-699',
             }
             episode_url = f"https://feed.entertainment.tv.theplatform.eu/f/{self.public_id}/mediaset-prod-all-programs-v2"
-            
+
             try:
                 episode_response = self.client.get(episode_url, params=params, headers=episode_headers)
                 status = getattr(episode_response, 'status_code', None)
@@ -174,12 +194,14 @@ class GetSerieInfo:
                     episode_data = episode_response.json()
                 except Exception:
                     episode_data = json.loads(episode_response.text)
-                
+
                 episodes = []
-                
                 for entry in episode_data.get('entries', []):
                     duration = int(entry.get('mediasetprogram$duration', 0) / 60) if entry.get('mediasetprogram$duration') else 0
+                    if duration < 5:
+                        continue
                     
+                    episode_number = extract_episode_number(entry)
                     episode_info = {
                         'id': entry.get('guid'),
                         'title': entry.get('title'),
@@ -187,17 +209,18 @@ class GetSerieInfo:
                         'url': entry.get('media', [{}])[0].get('publicUrl') if entry.get('media') else None,
                         'name': entry.get('title'),
                         'category': category_name,
-                        'tvSeasonEpisodeNumber': entry.get('tvSeasonEpisodeNumber') or entry.get('mediasetprogram$episodeNumber')
+                        'tvSeasonEpisodeNumber': episode_number,
+                        'number': episode_number
                     }
                     episodes.append(episode_info)
-                
+
                 print(f"Found {len(episodes)} episodes for season {season['tvSeasonNumber']} ({category_name})")
                 return episodes
-                
+
             except Exception as e:
                 logging.error(f"Failed to get episodes for season {season['tvSeasonNumber']} with error: {e}")
                 return []
-        
+
         else:
             # Non-sb categories: fallback to browse/rsc parsing
             category_slug = category_name.lower().replace(' ', '-').replace("'", "")
@@ -231,11 +254,14 @@ class GetSerieInfo:
 
     def _get_all_season_episodes(self, season):
         """Fetch the full programs feed for the season and return cleaned episode list."""
+        print("Getting all episodes for season", season['tvSeasonNumber'], " v2")
+        time.sleep(0.5)
+        
         try:
             programs_url = f"https://feed.entertainment.tv.theplatform.eu/f/{self.public_id}/mediaset-prod-all-programs-v2"
             params = {
                 'byTvSeasonId': season.get('url') or season.get('id'),
-                'range': '0-99',
+                'range': '0-699',
                 'sort': ':publishInfo_lastPublished|asc,tvSeasonEpisodeNumber|asc'
             }
             data = self.client.get(programs_url, params=params, headers={'user-agent': get_userAgent()}).json()
@@ -245,41 +271,29 @@ class GetSerieInfo:
             episodes = []
             for entry in data.get('entries', []):
                 duration = int(entry.get('mediasetprogram$duration', 0) / 60) if entry.get('mediasetprogram$duration') else 0
+                if duration < 5:
+                    continue
+
+                ep_num = entry.get('tvSeasonEpisodeNumber') or entry.get('mediasetprogram$episodeNumber')
+                try:
+                    ep_num = int(ep_num) if ep_num else 0
+                except Exception:
+                    ep_num = 0
+
                 episodes.append({
                     'id': entry.get('guid'),
                     'title': entry.get('title'),
                     'duration': duration,
                     'url': entry.get('media', [{}])[0].get('publicUrl') if entry.get('media') else None,
                     'name': entry.get('title'),
-                    'tvSeasonEpisodeNumber': entry.get('tvSeasonEpisodeNumber') or entry.get('mediasetprogram$episodeNumber'),
+                    'tvSeasonEpisodeNumber': ep_num,
+                    'number': ep_num,
                     'category': entry.get('mediasetprogram$category', 'programs_feed'),
-                    'description': entry.get('description', '')
+                    'description': entry.get('description', ''),
+                    'series': ''
                 })
 
-            # Filter out obvious non-episode items
-            filtered = []
-            seen = set()
-            for ep in episodes:
-                gid = ep.get('id') or ep.get('url') or ep.get('title')
-                if not gid or gid in seen:
-                    continue
-
-                title = (ep.get('title') or '').lower()
-                dur = ep.get('duration') or 0
-                has_num = bool(ep.get('tvSeasonEpisodeNumber'))
-
-                # Keep if it has an explicit episode number, or looks like an episode
-                if has_num or 'episod' in title or dur >= 15:
-                    filtered.append(ep)
-                    seen.add(gid)
-
-            # Sort by episode number when available
-            try:
-                filtered.sort(key=lambda e: int(e.get('tvSeasonEpisodeNumber') or 0))
-            except Exception:
-                pass
-
-            return filtered
+            return episodes
         except Exception as e:
             logging.warning(f"_get_all_season_episodes failed for season {season.get('tvSeasonNumber')}: {e}")
             return []
@@ -306,10 +320,14 @@ class GetSerieInfo:
                     ep[key] = int(m.group(1)) if key == 'duration' else m.group(1)
             
             if ep:
+                duration = int(ep.get('duration', 0) / 60) if ep.get('duration') else 0
+                if duration < 5:
+                    continue
+
                 episode_info = {
                     'id': ep.get('guid', ''),
                     'title': ep.get('title', ''),
-                    'duration': int(ep.get('duration', 0) / 60) if ep.get('duration') else 0,
+                    'duration': duration,
                     'url': ep.get('url', ''),
                     'name': ep.get('title', ''),
                     'category': category_name,
@@ -351,48 +369,30 @@ class GetSerieInfo:
             # Step 6: Extract sb IDs from season pages
             self._extract_season_sb_ids(self.stagioni_disponibili)
 
-            # Step 7: Prefer a single full-season programs feed per season
+            # Step 7: Collect episodes from categories
             for season in self.stagioni_disponibili:
                 season['episodes'] = []
                 
-                # Try full-season programs feed once
-                full = self._get_all_season_episodes(season)
-                if full:
-                    season['episodes'] = full
-
-                    # Map episodes to carousel categories
-                    ep_map = {}
-                    for ep in season['episodes']:
-                        gid = ep.get('id') or ep.get('url') or ep.get('title')
-                        if gid:
-                            ep_map[gid] = ep
-
-                    if 'categories' in season:
-                        for category in season['categories']:
-                            try:
-                                cat_eps = self._get_season_episodes(season, category['sb'], category['name'])
-                                for cep in cat_eps:
-                                    gid = cep.get('id') or cep.get('url') or cep.get('title')
-                                    if not gid:
-                                        continue
-                                    if gid in ep_map:
-                                        e = ep_map[gid]
-                                        cats = e.get('categories') or []
-                                        if category['name'] not in cats:
-                                            cats.append(category['name'])
-                                        e['categories'] = cats
-                                        e['category'] = cats[0] if cats else e.get('category', 'programs_feed')
-                            except Exception:
-                                continue
-                else:
-                    # Fallback: collect per-category
-                    if 'categories' in season:
-                        for category in season['categories']:
+                if 'categories' in season:
+                    episode_keywords = ['episodi', 'intere puntate', 'puntate intere', 'tutti gli episodi', 'tutte le puntate', 'puntate', 'stagione']
+                    
+                    for category in season['categories']:
+                        cat_name_lower = category['name'].lower()
+                        is_episode_cat = any(word in cat_name_lower for word in episode_keywords)
+                        
+                        # Also include categories that match the series name (sometimes the only category is named after the series)
+                        if not is_episode_cat and self.series_name.lower() in cat_name_lower:
+                            is_episode_cat = True
+                        
+                        if is_episode_cat:
+                            print(f"Processing episodes category: {category['name']} for season {season['tvSeasonNumber']}")
                             episodes = self._get_season_episodes(season, category['sb'], category['name'])
-                            if episodes:
-                                for ep in episodes:
-                                    if ep.get('id') not in [x.get('id') for x in season['episodes']]:
-                                        season['episodes'].append(ep)
+                            
+                            existing_ids = {ep.get('id') for ep in season['episodes']}
+                            for ep in episodes:
+                                if ep.get('id') not in existing_ids:
+                                    season['episodes'].append(ep)
+                                    existing_ids.add(ep.get('id'))
             
             # Step 8: Populate seasons manager
             self._populate_seasons_manager()
@@ -408,15 +408,22 @@ class GetSerieInfo:
             
             # Add season to manager ONLY if it has episodes
             if season_data.get('episodes') and len(season_data['episodes']) > 0:
-                season_obj = self.seasons_manager.add_season({
-                    'number': season_data['tvSeasonNumber'],
-                    'name': f"Season {season_data['tvSeasonNumber']}",
-                    'id': season_data.get('title', '')
-                })
+                season_obj = self.seasons_manager.add(Season(
+                    number=season_data['tvSeasonNumber'],
+                    name=f"Season {season_data['tvSeasonNumber']}",
+                    id=season_data.get('id')
+                ))
                 
                 if season_obj:
-                    for episode in season_data['episodes']:
-                        season_obj.episodes.add(episode)
+                    for ep in season_data['episodes']:
+                        season_obj.episodes.add(Episode(
+                            id=ep.get('id'),
+                            name=ep.get('name'),
+                            duration=ep.get('duration'),
+                            url=ep.get('url'),
+                            category=ep.get('category'),
+                            description=ep.get('description')
+                        ))
                     seasons_with_episodes += 1
     
     
@@ -436,24 +443,16 @@ class GetSerieInfo:
         """
         if not self.seasons_manager.seasons:
             self.collect_season()
-            
-        # Try to find a season object whose `.number` matches the requested season_number
+
+        season = self.seasons_manager.get_season_by_number(season_number)
+        if season:
+            return season.episodes.episodes
+
         available_numbers = [s.number for s in self.seasons_manager.seasons]
-
-        for s in self.seasons_manager.seasons:
-            if s.number == season_number:
-                return s.episodes.episodes
-
-        # Fallback: treat the input as a 1-based index into the seasons list (legacy behavior)
-        idx = season_number - 1
-        if 0 <= idx < len(self.seasons_manager.seasons):
-            return self.seasons_manager.seasons[idx].episodes.episodes
-
-        # If we still can't find it, log and return empty list instead of raising
         logging.error(f"Season {season_number} not found. Available seasons: {available_numbers}")
         return []
         
-    def selectEpisode(self, season_number: int, episode_index: int) -> dict:
+    def selectEpisode(self, season_number: int, episode_index: int) -> Episode:
         """
         Get information for a specific episode in a specific season.
         """

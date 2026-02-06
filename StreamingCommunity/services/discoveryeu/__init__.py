@@ -7,8 +7,8 @@ from rich.prompt import Prompt
 
 # Internal utilities
 from StreamingCommunity.utils import TVShowManager
-from StreamingCommunity.utils.http_client import create_client
-from StreamingCommunity.services._base import site_constants, MediaManager
+from StreamingCommunity.utils.http_client import create_client, check_region_availability
+from StreamingCommunity.services._base import site_constants, MediaManager, MediaItem
 from StreamingCommunity.services._base.site_search_manager import base_process_search_result, base_search
 
 
@@ -20,8 +20,7 @@ from .downloader import download_series
 # Variables
 indice = 14
 _useFor = "Film_&_Serie"
-_region = "EU"
-_deprecate = False
+_region = ["IT"]
 
 
 msg = Prompt()
@@ -63,6 +62,9 @@ def title_search(query: str) -> int:
     """
     media_search_manager.clear()
     table_show_manager.clear()
+
+    if not check_region_availability(_region, site_constants.SITE_NAME):
+        return 0
     
     api = get_api()
     search_url = 'https://eu1-prod-direct.discoveryplus.com/cms/routes/search/result'
@@ -105,13 +107,13 @@ def title_search(query: str) -> int:
                     date = attributes.get('airDate', '').split("T")[0]
                 
                 combined_id = f"{element.get('id')}|{attributes.get('alternateId')}"
-                media_search_manager.add_media({
-                    'id': combined_id,
-                    'name': attributes.get('name', 'No Title'),
-                    'type': 'tv' if element_type == 'show' else 'movie',
-                    'image': None,
-                    'year': date
-                })
+                media_search_manager.add(MediaItem(
+                    id=combined_id,
+                    name=attributes.get('name', 'No Title'),
+                    type='tv' if element_type == 'show' else 'movie',
+                    image=None,
+                    year=date
+                ))
                 
     return media_search_manager.get_length()
 

@@ -154,3 +154,37 @@ def get_userAgent() -> str:
 
 def get_headers() -> dict:
     return ua.headers.get()
+
+
+def get_my_location():
+    try:
+        url = 'http://ip-api.com/json/?fields=status,country,countryCode,city,query'
+        response = create_client(headers=get_headers()).get(url, timeout=4)
+        data = response.json()
+        
+        if data.get('status') == 'success':
+            return {
+                'country': data['country'],
+                'country_code': data['countryCode'],
+                'city': data['city'],
+                'ip': data['query']
+            }
+        return {'status': 'fail', 'country_code': 'XX'}
+    except Exception as e:
+        return {'status': 'fail', 'country_code': 'XX', 'error': str(e)}
+
+
+def check_region_availability(allowed_regions: list, site_name: str) -> bool:
+    try:
+        location = get_my_location()
+        if location.get('status') == 'fail' or 'error' in location:
+            return True
+            
+        current_country = location.get('country_code')
+        if current_country and current_country not in allowed_regions:
+            print(f"Site: {site_name}, unavailable outside {', '.join(allowed_regions)}.")
+            return False    
+    except Exception:
+        pass
+        
+    return True

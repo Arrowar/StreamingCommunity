@@ -10,6 +10,7 @@ from bs4 import BeautifulSoup
 # Internal utilities
 from StreamingCommunity.utils.os import os_manager
 from StreamingCommunity.utils.http_client import create_client, get_userAgent
+from StreamingCommunity.services._base.object import Episode
 
 
 # Player
@@ -51,10 +52,11 @@ class ScrapSerie:
                 continue
 
             if epID not in raw_eps:
-                raw_eps[epID] = {
-                    'number': epNum,
-                    'link': f"/api/download/{epID}"
-                }
+                raw_eps[epID] = Episode(
+                    number=epNum,
+                    url=f"/api/download/{epID}",
+                    id=epID
+                )
 
         episodes = [episode_data for episode_data in raw_eps.values()]
         return episodes
@@ -75,7 +77,7 @@ class ScrapSerie:
         """
         return self.get_episodes()
         
-    def selectEpisode(self, season_number: int = 1, episode_index: int = 0) -> dict:
+    def selectEpisode(self, season_number: int = 1, episode_index: int = 0) -> Episode:
         """
         Get information for a specific episode.
         """

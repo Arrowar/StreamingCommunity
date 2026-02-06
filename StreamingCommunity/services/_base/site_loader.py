@@ -114,10 +114,6 @@ def load_search_functions() -> Dict[str, LazySearchModule]:
             with open(init_file, 'r', encoding='utf-8') as f:
                 content = f.read()
                 
-            # Quick check for deprecation without importing
-            if '_deprecate = True' in content or '_deprecate=True' in content:
-                continue
-            
             # Extract indice and _useFor using simple string search (faster than regex)
             indice = None
             use_for = None

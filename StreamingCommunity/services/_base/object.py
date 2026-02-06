@@ -1,7 +1,7 @@
 # 23.11.24
 
 from datetime import datetime
-from typing import Dict, Any, List, Optional
+from typing import Any, List, Optional
 
 
 # Internal utilities
@@ -13,17 +13,28 @@ TMDB_KEY = config_manager.login.get('TMDB', 'api_key')
 
 
 class Episode:
-    def __init__(self, data: Dict[str, Any]):
-        self.data = data
-        self.id: int = data.get('id', 0)
-        self.video_id : str = data.get('video_id', '')
-        self.number: int = data.get('number', 1)
-        self.name: str = data.get('name', '')
-        self.duration: int = data.get('duration', 0)
-        self.url: str = data.get('url', '')
-        self.mpd_id: str = data.get('mpd_id', '')
-        self.channel: str = data.get('channel', '')
-        self.category: str = data.get('category', '')
+    def __init__(self, id: Optional[Any] = None, video_id: Optional[str] = None, number: Optional[Any] = None, name: Optional[str] = None, 
+        duration: Optional[Any] = None, url: Optional[str] = None, mpd_id: Optional[str] = None, channel: Optional[str] = None, category: Optional[str] = None,
+        description: Optional[str] = None, image: Optional[str] = None, poster: Optional[str] = None, year: Optional[Any] = None, is_special: Optional[bool] = None,
+        **kwargs
+    ):
+        self.id = id
+        self.video_id = video_id
+        self.number = number
+        self.name = name
+        self.duration = duration
+        self.url = url
+        self.mpd_id = mpd_id
+        self.channel = channel
+        self.category = category
+        self.description = description
+        self.image = image
+        self.poster = poster
+        self.year = year
+        self.is_special = is_special
+        
+        for key, value in kwargs.items():
+            setattr(self, key, value)
 
     def __str__(self):
         return f"Episode(id={self.id}, number={self.number}, name='{self.name}', duration={self.duration} sec)"
@@ -32,22 +43,15 @@ class EpisodeManager:
     def __init__(self):
         self.episodes: List[Episode] = []
 
-    def add(self, episode_data: Dict[str, Any]):
+    def add(self, episode: Episode):
         """
         Add a new episode to the manager.
-
-        Parameters:
-            - episode_data (Dict[str, Any]): A dictionary containing data for the new episode.
         """
-        episode = Episode(episode_data)
         self.episodes.append(episode)
 
     def get(self, index: int) -> Episode:
         """
         Retrieve an episode by its index in the episodes list.
-
-        Parameters:
-            - index (int): The zero-based index of the episode to retrieve.
         """
         return self.episodes[index]
     
@@ -68,13 +72,16 @@ class EpisodeManager:
 
 
 class Season:
-    def __init__(self, data: Dict[str, Any]):
-        self.id: int = data.get('id', 0)
-        self.number: int = data.get('number', 0)
-        self.name: str = data.get('name', '')
-        self.slug: str = data.get('slug', '')
-        self.type: str = data.get('type', '')
+    def __init__(self, id: Optional[int] = None, number: Optional[int] = None, name: Optional[str] = None, slug: Optional[str] = None, type: Optional[str] = None, **kwargs):
+        self.id = id
+        self.number = number
+        self.name = name
+        self.slug = slug
+        self.type = type
         self.episodes: EpisodeManager = EpisodeManager()
+        
+        for key, value in kwargs.items():
+            setattr(self, key, value)
 
     def __str__(self):
         return f"Season(id={self.id}, number={self.number}, name='{self.name}', episodes={self.episodes.__len__()})"
@@ -83,14 +90,10 @@ class SeasonManager:
     def __init__(self):
         self.seasons: List[Season] = []
     
-    def add_season(self, season_data: Dict[str, Any]) -> Season:
+    def add(self, season: Season) -> Season:
         """
         Add a new season to the manager and return it.
-        
-        Parameters:
-            - season_data (Dict[str, Any]): A dictionary containing data for the new season.
         """
-        season = Season(season_data)
         self.seasons.append(season)
         self.seasons.sort(key=lambda x: x.number)
         return season
@@ -98,9 +101,6 @@ class SeasonManager:
     def get_season_by_number(self, number: int) -> Optional[Season]:
         """
         Get a season by its number.
-        
-        Parameters:
-            - number (int): The season number (1-based index)
         """
         if len(self.seasons) == 1:
             return self.seasons[0]
@@ -154,49 +154,41 @@ class MediaManager:
     def __init__(self):
         self.media_list: List[MediaItem] = []
 
-    def add_media(self, data: dict) -> None:
+    def add(self, media: MediaItem) -> None:
         """
         Add media to the list.
 
         Args:
-            data (dict): Media data to add.
+            media (MediaItem): Media item to add.
         """
-        if ('year' in data):
-            if (TMDB_KEY != '' and TMDB_KEY is not None) and not (data['year'] != "9999" ):
-                if ('slug' in data and data['slug'] != ''):
-                    print(f"Fetching year for slug: {data['slug']}, type: {data['type']}")
-                    data['year'] = str(tmdb_client.get_year_by_slug_and_type(data['slug'], data['type']) or "9999")
-                    if data['year'] == "9999":
+        # Logic to fetch year if 9999
+        if media.year == "9999":
+            if (TMDB_KEY != '' and TMDB_KEY is not None):
+                if (media.slug and media.slug != ''):
+                    print(f"Fetching year for slug: {media.slug}, type: {media.type}")
+                    media.year = str(tmdb_client.get_year_by_slug_and_type(media.slug, media.type) or "9999")
+                    if media.year == "9999":
                         print("Cant fetch year setting current year.")
-                        data['year'] = str(datetime.now().year)
+                        media.year = str(datetime.now().year)
 
-                elif ('name' in data and data['name'] != ''):
-                    print(f"Fetching year for name: {data['name']}, type: {data['type']}")
-                    data['year'] = str(tmdb_client.get_year_by_slug_and_type(data['name'].replace(' ', '-').lower(), data['type']) or "9999")
-                    if data['year'] == "9999":
+                elif (media.name and media.name != ''):
+                    print(f"Fetching year for name: {media.name}, type: {media.type}")
+                    media.year = str(tmdb_client.get_year_by_slug_and_type(media.name.replace(' ', '-').lower(), media.type) or "9999")
+                    if media.year == "9999":
                         print("Cant fetch year setting current year.")
-                        data['year'] = str(datetime.now().year)
+                        media.year = str(datetime.now().year)
 
-        self.media_list.append(MediaItem(**data))
+        self.media_list.append(media)
 
     def get(self, index: int) -> MediaItem:
         """
         Get a media item from the list by index.
-
-        Args:
-            index (int): The index of the media item to retrieve.
-
-        Returns:
-            MediaItem: The media item at the specified index.
         """
         return self.media_list[index]
 
     def get_length(self) -> int:
         """
         Get the number of media items in the list.
-
-        Returns:
-            int: Number of media items.
         """
         return len(self.media_list)
 

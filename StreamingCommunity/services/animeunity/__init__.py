@@ -10,7 +10,7 @@ from rich.prompt import Prompt
 # Internal utilities
 from StreamingCommunity.utils.http_client import create_client_curl, get_userAgent
 from StreamingCommunity.utils import TVShowManager
-from StreamingCommunity.services._base import site_constants, MediaManager
+from StreamingCommunity.services._base import site_constants, MediaManager, MediaItem
 from StreamingCommunity.services._base.site_search_manager import base_process_search_result, base_search
 
 
@@ -21,8 +21,6 @@ from .downloader import download_film, download_series
 # Variable
 indice = 1
 _useFor = "Anime"
-_region = "IT"
-_deprecate = False
 
 
 msg = Prompt()
@@ -120,15 +118,15 @@ def process_results(records: list, seen_titles: set, media_manager: MediaManager
             seen_titles.add(title_id)
             dict_title['name'] = get_real_title(dict_title)
 
-            media_manager.add_media({
-                'id': title_id,
-                'slug': dict_title.get('slug'),
-                'name': dict_title.get('name'),
-                'type': dict_title.get('type'),
-                'status': dict_title.get('status'),
-                'episodes_count': dict_title.get('episodes_count'),
-                'image': dict_title.get('imageurl')
-            })
+            media_manager.add(MediaItem(
+                id=title_id,
+                slug=dict_title.get('slug'),
+                name=dict_title.get('name'),
+                type=dict_title.get('type'),
+                status=dict_title.get('status'),
+                episodes_count=dict_title.get('episodes_count'),
+                image=dict_title.get('imageurl')
+            ))
             
         except Exception as e:
             print(f"Error parsing a title entry: {e}")

@@ -1,4 +1,4 @@
-# 27-01-26
+# 27.01.26
 
 
 import importlib
@@ -11,19 +11,19 @@ from .base import BaseStreamingAPI, MediaItem, Season, Episode
 
 # External utilities
 from StreamingCommunity.services._base.site_loader import get_folder_name
-from StreamingCommunity.services.discoveryeu.scrapper import GetSerieInfo
+from StreamingCommunity.services.realtime.scrapper import GetSerieInfo
 
 
-class DiscoveryEUAPI(BaseStreamingAPI):
+class FoodNetworkAPI(BaseStreamingAPI):
     def __init__(self):
         super().__init__()
-        self.site_name = "discoveryeu"
+        self.site_name = "foodnetwork"
         self._load_config()
         self._search_fn = None
     
     def _load_config(self):
         """Load site configuration."""
-        self.base_url = "https://eu1-prod-direct.discoveryplus.com"
+        self.base_url = "https://public.aurora.enhanced.live"
     
     def _get_search_fn(self):
         """Lazy load the search function."""
@@ -34,7 +34,7 @@ class DiscoveryEUAPI(BaseStreamingAPI):
     
     def search(self, query: str) -> List[MediaItem]:
         """
-        Search for content on Discovery+.
+        Search for content on Food Network.
         
         Args:
             query: Search term
@@ -51,9 +51,9 @@ class DiscoveryEUAPI(BaseStreamingAPI):
                 item_dict = element.__dict__.copy() if hasattr(element, '__dict__') else {}
                 
                 media_item = MediaItem(
-                    id=item_dict.get('id'),
                     name=item_dict.get('name'),
-                    type=item_dict.get('type'),
+                    type=item_dict.get('type', 'tv'),
+                    url=item_dict.get('url'),
                     poster=item_dict.get('image'),
                     year=item_dict.get('year'),
                     raw_data=item_dict
@@ -64,7 +64,7 @@ class DiscoveryEUAPI(BaseStreamingAPI):
     
     def get_series_metadata(self, media_item: MediaItem) -> Optional[List[Season]]:
         """
-        Get seasons and episodes for a Discovery+ series.
+        Get seasons and episodes for a Food Network series.
         
         Args:
             media_item: MediaItem to get metadata for
@@ -75,16 +75,12 @@ class DiscoveryEUAPI(BaseStreamingAPI):
         if media_item.is_movie:
             return None
         
-        # Split combined ID (format: "id|alternateId")
-        id_parts = media_item.id.split('|')
-        if len(id_parts) != 2:
-            raise Exception(f"Invalid ID format: {media_item.id}")
-        
-        scrape_serie = GetSerieInfo(id_parts[1], id_parts[0])
-        seasons_count = scrape_serie.getNumberSeason()
+        scrape_serie = GetSerieInfo(media_item.url)
+        scrape_serie.getNumberSeason()
+        seasons_count = len(scrape_serie.seasons_manager)
         
         if not seasons_count:
-            print(f"[Discovery+] No seasons found for: {media_item.name}")
+            print(f"[FoodNetwork] No seasons found for: {media_item.name}")
             return None
     
         seasons = []
@@ -105,13 +101,13 @@ class DiscoveryEUAPI(BaseStreamingAPI):
             
             season = Season(number=season_num, episodes=episodes, name=season_name)
             seasons.append(season)
-            print(f"[Discovery+] Season {season_num} ({season_name or f'Season {season_num}'}): {len(episodes)} episodes")
+            print(f"[FoodNetwork] Season {season_num} ({season_name or f'Season {season_num}'}): {len(episodes)} episodes")
         
         return seasons if seasons else None
     
     def start_download(self, media_item: MediaItem, season: Optional[str] = None, episodes: Optional[str] = None) -> bool:
         """
-        Start downloading from Discovery+.
+        Start downloading from Food Network.
         
         Args:
             media_item: MediaItem to download

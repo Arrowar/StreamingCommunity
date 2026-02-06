@@ -1,5 +1,7 @@
 # 16.03.25
 
+import json
+
 
 # Internal utilities
 from StreamingCommunity.utils.http_client import create_client, get_headers
@@ -21,10 +23,10 @@ def generate_license_url(mpd_id: str):
     }
     
     response = create_client(headers=get_headers()).get('https://mediapolisvod.rai.it/relinker/relinkerServlet.htm', params=params)
-    response.raise_for_status() 
+    response.raise_for_status()
 
     # Extract the license URL from the response in two lines
-    json_data = response.json()
+    json_data = json.loads(response.content.decode('latin-1'))
     license_url = json_data.get('licence_server_map').get('drmLicenseUrlValues')[0].get('licenceUrl')
 
     return license_url

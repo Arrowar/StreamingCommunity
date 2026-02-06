@@ -1,5 +1,12 @@
 {
-    "remote": {
+    "config": {
+        "delay_after_request": 5,
+        "create_local_db": false
+    },
+    "external_supa_db": {
+        "url": "https://hxutwmklahyeisuvmnli.supabase.co"
+    },
+    "remote_cdm": {
         "widevine": {
             "device_type": "ANDROID",
             "system_id": 22590,
@@ -14,8 +21,5 @@
             "host": "https://cdrm-project.com/remotecdm/playready",
             "secret": "CDRM"
         }
-    },
-    "external_supa_db": {
-        "url": "https://hxutwmklahyeisuvmnli.supabase.co"
     }
 }

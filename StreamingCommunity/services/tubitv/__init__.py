@@ -10,8 +10,8 @@ from rich.prompt import Prompt
 
 # Internal utilities
 from StreamingCommunity.utils import TVShowManager
-from StreamingCommunity.utils.http_client import create_client, get_userAgent
-from StreamingCommunity.services._base import site_constants, MediaManager
+from StreamingCommunity.utils.http_client import create_client, get_userAgent, check_region_availability
+from StreamingCommunity.services._base import site_constants, MediaManager, MediaItem
 from StreamingCommunity.services._base.site_search_manager import base_process_search_result, base_search
 
 
@@ -23,8 +23,7 @@ from .client import get_bearer_token
 # Variable
 indice = 10
 _useFor = "Serie"
-_region = "US"
-_deprecate = False
+_region = ["US"]
 
 
 msg = Prompt()
@@ -69,6 +68,9 @@ def title_search(query: str) -> int:
     """
     media_search_manager.clear()
     table_show_manager.clear()
+
+    if not check_region_availability(_region, site_constants.SITE_NAME):
+        return 0
 
     try:
         headers = {
@@ -122,13 +124,13 @@ def title_search(query: str) -> int:
             if "thumbnails" in element and element["thumbnails"]:
                 thumbnail = element["thumbnails"][0]
             
-            media_search_manager.add_media({
-                'name': title,
-                'type': type_content,
-                'year': str(year) if year else "9999",
-                'image': thumbnail,
-                'url': url,
-            })
+            media_search_manager.add(MediaItem(
+                name=title,
+                type=type_content,
+                year=str(year) if year else "9999",
+                image=thumbnail,
+                url=url,
+            ))
             
         except Exception as e:
             console.print(f"[yellow]Error parsing a title entry: {e}")

@@ -10,7 +10,7 @@ from rich.prompt import Prompt
 # Internal utilities
 from StreamingCommunity.utils import TVShowManager
 from StreamingCommunity.utils.http_client import create_client_curl, get_userAgent
-from StreamingCommunity.services._base import site_constants, MediaManager
+from StreamingCommunity.services._base import site_constants, MediaManager, MediaItem
 from StreamingCommunity.services._base.site_search_manager import base_process_search_result, base_search
 
 
@@ -21,8 +21,6 @@ from .downloader import download_series
 # Variable
 indice = 4
 _useFor = "Serie"
-_region = "IT"
-_deprecate = False
 
 
 msg = Prompt()
@@ -59,13 +57,12 @@ def title_search(query: str) -> int:
 
     for serie_div in soup.find_all('div', class_='mlnew'):
         try:
-            serie_info = {
-                'name': serie_div.find('a').get("title").replace("streaming guardaserie", ""),
-                'type': 'tv',
-                'url': serie_div.find('a').get("href"),
-                'image': f"{site_constants.FULL_URL}/{serie_div.find('img').get('src')}"
-            }
-            media_search_manager.add_media(serie_info)
+            media_search_manager.add(MediaItem(
+                name=serie_div.find('a').get("title").replace("streaming guardaserie", ""),
+                type='tv',
+                url=serie_div.find('a').get("href"),
+                image=f"{site_constants.FULL_URL}/{serie_div.find('img').get('src')}"
+            ))
 
         except Exception as e:
             print(f"Error parsing a film entry: {e}")

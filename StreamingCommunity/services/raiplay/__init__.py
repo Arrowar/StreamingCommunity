@@ -7,8 +7,8 @@ from rich.prompt import Prompt
 
 # Internal utilities
 from StreamingCommunity.utils import TVShowManager
-from StreamingCommunity.utils.http_client import create_client, get_headers
-from StreamingCommunity.services._base import site_constants, MediaManager
+from StreamingCommunity.utils.http_client import create_client, get_headers, check_region_availability
+from StreamingCommunity.services._base import site_constants, MediaManager, MediaItem
 from StreamingCommunity.services._base.site_search_manager import base_process_search_result, base_search
 
 
@@ -19,8 +19,7 @@ from .downloader import download_film, download_series
 # Variable
 indice = 5
 _useFor = "Film_&_Serie"
-_region = "IT"
-_deprecate = False
+_region = ["IT"]
 
 
 msg = Prompt()
@@ -41,6 +40,9 @@ def title_search(query: str) -> int:
     """
     media_search_manager.clear()
     table_show_manager.clear()
+
+    if not check_region_availability(_region, site_constants.SITE_NAME):
+        return 0
 
     search_url = "https://www.raiplay.it/atomatic/raiplay-search-service/api/v1/msearch"
     console.print(f"[cyan]Search url: [yellow]{search_url}")
@@ -95,15 +97,15 @@ def title_search(query: str) -> int:
             if url and not url.startswith('http'):
                 url = f"https://www.raiplay.it{url}"
 
-            media_search_manager.add_media({
-                'id': item.get('id', ''),
-                'path_id': path_id,
-                'name': item.get('titolo', 'Unknown'),
-                'type': 'tv',
-                'url': url,
-                'image': image,
-                'year': image.split("/")[-4]
-            })
+            media_search_manager.add(MediaItem(
+                id=item.get('id', ''),
+                path_id=path_id,
+                name=item.get('titolo', 'Unknown'),
+                type='tv',
+                url=url,
+                image=image,
+                year=image.split("/")[-4]
+            ))
     
         except Exception as e:
             console.print(f"[red]Error processing item '{item.get('titolo', 'Unknown')}': {e}")

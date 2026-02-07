@@ -1,4 +1,4 @@
-﻿# 06-06-25 By @FrancescoGrazioso -> "https://github.com/FrancescoGrazioso"
+# 06-06-25 By @FrancescoGrazioso -> "https://github.com/FrancescoGrazioso"
 
 
 import time
@@ -276,16 +276,18 @@ def series_detail(request: HttpRequest) -> HttpResponse:
             messages.error(request, f"Errore nel caricamento dei dettagli: {str(e)}")
             return redirect("search_home")
     
-    # POST: download season or selected episodes
+    # POST: download season, full series or selected episodes
     elif request.method == "POST":
         source_alias = request.POST.get("source_alias")
         item_payload_raw = request.POST.get("item_payload")
-        season_number = request.POST.get("season_number")
         download_type = request.POST.get("download_type")
+        
+        # Parametri opzionali a seconda del tipo
+        season_number = request.POST.get("season_number")
         selected_episodes = request.POST.get("selected_episodes", "")
         
-        if not all([source_alias, item_payload_raw, season_number]):
-            messages.error(request, "Parametri mancanti per il download.")
+        if not all([source_alias, item_payload_raw]):
+            messages.error(request, "Parametri base mancanti per il download.")
             return redirect("search_home")
         
         try:
@@ -295,21 +297,84 @@ def series_detail(request: HttpRequest) -> HttpResponse:
             return redirect("search_home")
         
         name = item_payload.get("name")
+        media_type = (item_payload.get("type") or "tv").lower() 
         
-        # Prepare download parameters
-        if download_type == "full_season":
-            episode_selection = "*"
+        # --- NUOVA LOGICA: SCARICARE INTERA SERIE (SEQUENZIALE) ---
+        if download_type == "full_series":
+            # Definiamo la funzione che verrà eseguita nel thread separato
+            def _download_entire_series_task():
+                try:
+                    # 1. Recuperiamo API e stagioni fresche
+                    api = get_api(source_alias)
+                    media_item = api.ensure_complete_item(item_payload)
+                    seasons = api.get_series_metadata(media_item)
+
+                    if not seasons:
+                        return
+
+                    # 2. Ciclo SEQUENZIALE: aspetta che una finisca prima di iniziare l'altra
+                    for season in seasons:
+                        season_num = str(season.number)
+                        # Genera ID univoco per la dashboard
+                        download_id = f"{source_alias}_{int(time.time())}_{hash(name + season_num) % 10000}"
+                        
+                        try:
+                            # Imposta il contesto per il tracker
+                            context_tracker.download_id = download_id
+                            context_tracker.site_name = source_alias
+                            context_tracker.media_type = media_type
+                            
+                            # Avvia download bloccante (attende fine)
+                            api.start_download(media_item, season=season_num, episodes="*")
+                            
+                        except Exception as e:
+                            print(f"Errore download stagione {season_num}: {e}")
+                            # Continua con la prossima stagione anche se questa fallisce
+                            continue
+                            
+                except Exception as e:
+                    print(f"Errore critico task serie: {e}")
+
+            # Avvia il thread "Master" che gestisce la coda
+            threading.Thread(target=_download_entire_series_task, daemon=True).start()
+            
+            messages.success(
+                request,
+                f"Download avviato per l'intera serie '{name}'. "
+                f"Le stagioni verranno scaricate una dopo l'altra automaticamente."
+            )
+            return redirect("search_home")
+            
+        # --- LOGICA STANDARD: STAGIONE SINGOLA O EPISODI ---
+        elif download_type == "full_season":
+            if not season_number:
+                messages.error(request, "Numero stagione mancante.")
+                return redirect("search_home")
+            episode_param = "*"
             msg_detail = f"stagione {season_number} completa"
             
         else:
-            episode_selection = selected_episodes.strip() if selected_episodes else None
-            if not episode_selection:
+            # Episodi singoli
+            if not season_number:
+                messages.error(request, "Numero stagione mancante.")
+                return redirect("search_home")
+                
+            episode_param = selected_episodes.strip() if selected_episodes else None
+            if not episode_param:
                 messages.error(request, "Nessun episodio selezionato.")
-                return redirect("series_detail") + f"?source_alias={source_alias}&item_payload={item_payload_raw}"
-            msg_detail = f"S{season_number}:E{episode_selection}"
+                from django.urls import reverse
+                url = reverse('series_detail') + f"?source_alias={source_alias}&item_payload={item_payload_raw}"
+                return redirect(url)
+            msg_detail = f"S{season_number}:E{episode_param}"
         
-        # Start download
-        _run_download_in_thread(source_alias, item_payload, season_number, episode_selection)
+        # Avvia il download singolo
+        _run_download_in_thread(
+            site=source_alias, 
+            item_payload=item_payload, 
+            season=season_number, 
+            episodes=episode_param,
+            media_type=media_type
+        )
         
         messages.success(
             request,
@@ -318,8 +383,7 @@ def series_detail(request: HttpRequest) -> HttpResponse:
         )
         
         return redirect("search_home")
-
-
+    
 @require_http_methods(["GET"])
 def download_dashboard(request: HttpRequest) -> HttpResponse:
     """Dashboard to view all active and completed downloads."""

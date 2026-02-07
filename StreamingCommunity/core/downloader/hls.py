@@ -249,7 +249,6 @@ class HLS_Downloader:
         
         output_dir = os.path.dirname(self.output_path)
         filename_base = os.path.splitext(os.path.basename(self.output_path))[0]
-        
         console.print("[cyan]Copy the subtitles to the final path.")
         
         for sub_info in self.copied_subtitles:

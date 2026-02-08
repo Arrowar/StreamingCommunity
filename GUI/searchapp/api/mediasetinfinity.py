@@ -20,7 +20,6 @@ class MediasetInfinityAPI(BaseStreamingAPI):
         self.site_name = "mediasetinfinity"
         self._load_config()
         self._search_fn = None
-        self.scrape_serie = None
     
     def _load_config(self):
         """Load site configuration."""

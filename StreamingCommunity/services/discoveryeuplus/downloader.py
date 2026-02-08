@@ -54,7 +54,7 @@ def download_episode(obj_episode, index_season_selected, index_episode_selected,
         drm_preference="playready"
     ).start()
 
-def download_series(select_season: Entries, season_selection: str = None, episode_selection: str = None) -> None:
+def download_series(select_season: Entries, season_selection: str = None, episode_selection: str = None, scrape_serie = None) -> None:
     """
     Handle downloading a complete series
     
@@ -62,11 +62,15 @@ def download_series(select_season: Entries, season_selection: str = None, episod
         select_season (Entries): Series metadata from search
         season_selection (str, optional): Pre-defined season selection
         episode_selection (str, optional): Pre-defined episode selection
+        scrape_serie (Any, optional): Pre-existing scraper instance to avoid recreation
     """
     start_message()
     
     # Initialize the series scraper with just the show ID
-    scrape_serie = GetSerieInfo(select_season.id)
+    if not scrape_serie:
+        scrape_serie = GetSerieInfo(select_season.id)
+        scrape_serie.getNumberSeason()
+    seasons_count = len(scrape_serie.seasons_manager)
     
     # Create callback function for downloading episodes
     def download_episode_callback(season_number: int, download_all: bool, episode_selection: str = None):
@@ -85,9 +89,6 @@ def download_series(select_season: Entries, season_selection: str = None, episod
             episode_selection=episode_selection
         )
 
-    # Get total number of seasons
-    seasons_count = scrape_serie.getNumberSeason()
-    
     # Use the process_season_selection function
     process_season_selection(
         scrape_serie=scrape_serie,

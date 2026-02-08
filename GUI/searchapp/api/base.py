@@ -76,23 +76,23 @@ class Season:
 
 
 class BaseStreamingAPI(ABC):
-    """Base class for all streaming site APIs."""
+    _scraper_cache: Dict[str, Any] = {}  # Global cache to persist scrapers across instances
+
     def __init__(self):
         self.site_name: str = ""
         self.base_url: str = ""
-        self._scraper_cache = {}  # Cache scrapers for the duration of this API instance
 
     def _get_cache_key(self, media_item: Entries) -> str:
         """Generate a unique key for the scraper cache."""
         return f"{self.site_name}_{media_item.url or media_item.path_id or media_item.id or media_item.slug}"
 
     def get_cached_scraper(self, media_item: Entries) -> Optional[Any]:
-        """Retrieve a cached scraper instance."""
+        """Retrieve a cached scraper instance from the global cache."""
         key = self._get_cache_key(media_item)
         return self._scraper_cache.get(key)
 
     def set_cached_scraper(self, media_item: Entries, scraper: Any):
-        """Store a scraper instance in the cache."""
+        """Store a scraper instance in the global cache."""
         key = self._get_cache_key(media_item)
         self._scraper_cache[key] = scraper
 

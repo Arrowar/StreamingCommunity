@@ -178,6 +178,14 @@ class DASH_Downloader:
         """Extract selected track information from metadata files."""
         selected_ids, selected_kids, selected_langs, selected_periods = [], [], [], []
         has_video_in_selected = False
+
+        # For Manual SHIT downloader, extract from raw MPD if available
+        if hasattr(self.media_downloader, 'get_selected_ids_from_mpd') and self.raw_mpd:
+            selected_ids, selected_kids, selected_langs, selected_periods = self.media_downloader.get_selected_ids_from_mpd(self.raw_mpd)
+            for sid in selected_ids:
+                has_video_in_selected = True
+                break
+            return (selected_ids, selected_kids, selected_langs, selected_periods)
         
         # 1. Process meta_selected first if it exists
         if os.path.exists(self.meta_selected):

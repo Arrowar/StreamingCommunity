@@ -111,7 +111,7 @@ def process_episode_download(index_season_selected: int, scrape_serie: Any, down
     
     if download_all:
         for i_episode in range(1, episodes_count + 1):
-            path, stopped = download_video_callback(index_season_selected, i_episode)
+            path, stopped = download_video_callback(episodes[i_episode-1], index_season_selected, i_episode)
             
             if stopped:
                 break

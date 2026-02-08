@@ -90,7 +90,7 @@ def title_search(query: str) -> int:
 
 
 # WRAPPING FUNCTIONS
-def process_search_result(select_title, selections=None):
+def process_search_result(select_title, selections=None, scrape_serie=None):
     """
     Wrapper for the generalized process_search_result function.
     """
@@ -100,10 +100,11 @@ def process_search_result(select_title, selections=None):
         download_series_func=None,
         media_search_manager=entries_manager,
         table_show_manager=table_show_manager,
-        selections=selections
+        selections=selections,
+        scrape_serie=scrape_serie
     )
 
-def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_item: dict = None, selections: dict = None):
+def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_item: dict = None, selections: dict = None, scrape_serie=None):
     """
     Wrapper for the generalized search function.
     """
@@ -116,5 +117,6 @@ def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_
         string_to_search=string_to_search,
         get_onlyDatabase=get_onlyDatabase,
         direct_item=direct_item,
-        selections=selections
+        selections=selections,
+        scrape_serie=scrape_serie
     )

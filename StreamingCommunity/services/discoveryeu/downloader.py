@@ -74,7 +74,7 @@ def download_episode(obj_episode, index_season_selected, index_episode_selected,
             output_path=os.path.join(mp4_path, mp4_name),
         ).start()
 
-def download_series(select_season: Entries, season_selection: str = None, episode_selection: str = None) -> None:
+def download_series(select_season: Entries, season_selection: str = None, episode_selection: str = None, scrape_serie = None) -> None:
     """
     Handle downloading a complete series
     
@@ -82,11 +82,14 @@ def download_series(select_season: Entries, season_selection: str = None, episod
         select_season (Entries): Series metadata from search
         season_selection (str, optional): Pre-defined season selection
         episode_selection (str, optional): Pre-defined episode selection
+        scrape_serie (Any, optional): Pre-existing scraper instance to avoid recreation
     """
     start_message()
-    id_parts = select_season.id.split('|')
-    scrape_serie = GetSerieInfo(id_parts[1], id_parts[0])
-    seasons_count = scrape_serie.getNumberSeason()
+    if not scrape_serie:
+        id_parts = select_season.id.split('|')
+        scrape_serie = GetSerieInfo(id_parts[1], id_parts[0])
+        scrape_serie.getNumberSeason()
+    seasons_count = len(scrape_serie.seasons_manager)
 
     # Create callback function for downloading episodes
     def download_episode_callback(season_number: int, download_all: bool, episode_selection: str = None):

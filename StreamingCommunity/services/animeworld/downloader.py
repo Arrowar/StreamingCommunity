@@ -91,7 +91,7 @@ def download_episode(episode_data, index_select, scrape_serie):
 
     return path, kill_handler
 
-def download_series(select_title: Entries, season_selection: str = None, episode_selection: str = None):
+def download_series(select_title: Entries, season_selection: str = None, episode_selection: str = None, scrape_serie = None):
     """
     Handle downloading a complete series.
 
@@ -99,11 +99,13 @@ def download_series(select_title: Entries, season_selection: str = None, episode
         - select_season (Entries): Series metadata from search
         - season_selection (str, optional): Pre-defined season selection that bypasses manual input
         - episode_selection (str, optional): Pre-defined episode selection that bypasses manual input
+        - scrape_serie (Any, optional): Pre-existing scraper instance to avoid recreation
     """
     start_message()
 
     # Create scrap instance
-    scrape_serie = ScrapSerie(select_title.url, site_constants.FULL_URL)
+    if not scrape_serie:
+        scrape_serie = ScrapSerie(select_title.url, site_constants.FULL_URL)
     episodes = scrape_serie.get_episodes() 
 
     # Get episode count

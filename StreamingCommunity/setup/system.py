@@ -4,7 +4,7 @@ import sys
 
 
 # Logic
-from .checker import check_bento4, check_ffmpeg, check_megatools, check_n_m3u8dl_re, check_shaka_packager
+from .checker import check_bento4, check_mp4dump, check_ffmpeg, check_megatools, check_n_m3u8dl_re, check_shaka_packager
 from .device_install import check_device_wvd_path, check_device_prd_path
 
 
@@ -12,6 +12,7 @@ from .device_install import check_device_wvd_path, check_device_prd_path
 is_binary_installation = getattr(sys, 'frozen', False)
 ffmpeg_path, ffprobe_path = check_ffmpeg()
 bento4_decrypt_path = check_bento4()
+mp4dump_path = check_mp4dump()
 wvd_path = check_device_wvd_path()
 prd_path = check_device_prd_path()
 megatools_path = check_megatools()
@@ -30,6 +31,9 @@ def get_ffprobe_path() -> str:
 
 def get_bento4_decrypt_path() -> str:
     return bento4_decrypt_path
+
+def get_mp4dump_path() -> str:
+    return mp4dump_path
 
 def get_wvd_path() -> str:
     return wvd_path

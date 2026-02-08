@@ -29,6 +29,7 @@ CLEANUP_TMP = config_manager.config.get_bool('M3U8_DOWNLOAD', 'cleanup_tmp_folde
 EXTENSION_OUTPUT = config_manager.config.get("M3U8_CONVERSION", "extension")
 SKIP_DOWNLOAD = config_manager.config.get_bool('M3U8_DOWNLOAD', 'skip_download')
 CREATE_NFO_FILES = config_manager.config.get_bool('M3U8_CONVERSION', 'generate_nfo', default=False)
+MERGE_SUBTITLES = config_manager.config.get_bool('M3U8_CONVERSION', 'merge_subtitle', default=True)
 
 
 class HLS_Downloader:
@@ -65,6 +66,7 @@ class HLS_Downloader:
         self.error = None
         self.last_merge_result = None
         self.media_players = None
+        self.copied_subtitles = []
 
     def start(self) -> Dict[str, Any]:
         """Main execution flow for downloading HLS content"""
@@ -140,6 +142,9 @@ class HLS_Downloader:
                 console.print(f"[yellow]Warning: Could not move file: {e}")
                 self.output_path = final_file
         
+        # Move subtitle files if any were copied without merging
+        self._move_copied_subtitles()
+        
         # Print summary and cleanup
         self._print_summary()
 
@@ -203,22 +208,64 @@ class HLS_Downloader:
         
         # Merge subtitles if enabled and present
         if status['subtitles']:
-            console.print(f"[cyan]\nMerging [red]{len(status['subtitles'])} [cyan]subtitle track(s)...")
-            sub_output = os.path.join(self.output_dir, f"{self.filename_base}_final.{EXTENSION_OUTPUT}")
-            
-            merged_file, result_json = join_subtitles(
-                video_path=current_file,
-                subtitles_list=status['subtitles'],
-                out_path=sub_output
-            )
-            self.last_merge_result = result_json
-            
-            if os.path.exists(merged_file):
-                current_file = merged_file
+            if MERGE_SUBTITLES:
+                console.print(f"[cyan]\nMerging [red]{len(status['subtitles'])} [cyan]subtitle track(s)...")
+                sub_output = os.path.join(self.output_dir, f"{self.filename_base}_final.{EXTENSION_OUTPUT}")
+                
+                merged_file, result_json = join_subtitles(
+                    video_path=current_file,
+                    subtitles_list=status['subtitles'],
+                    out_path=sub_output
+                )
+                self.last_merge_result = result_json
+                
+                if os.path.exists(merged_file):
+                    current_file = merged_file
+                else:
+                    console.print("[yellow]Subtitle merge failed, continuing without subtitles")
             else:
-                console.print("[yellow]Subtitle merge failed, continuing without subtitles")
-    
+                console.print("[cyan]Track subtitles.")
+                self._track_subtitles_for_copy(status['subtitles'])
+
         return current_file
+    
+    def _track_subtitles_for_copy(self, subtitles_list):
+        """Track subtitle paths for later copying to final location."""
+        for idx, subtitle in enumerate(subtitles_list):
+            sub_path = subtitle.get('path')
+            if sub_path and os.path.exists(sub_path):
+                language = subtitle.get('language', f'sub{idx}')
+                extension = os.path.splitext(sub_path)[1]
+                self.copied_subtitles.append({
+                    'src': sub_path,
+                    'language': language,
+                    'extension': extension
+                })
+
+    def _move_copied_subtitles(self):
+        """Move tracked subtitle files to final output directory if copied_subtitles exits."""
+        if not self.copied_subtitles:
+            return
+        
+        output_dir = os.path.dirname(self.output_path)
+        filename_base = os.path.splitext(os.path.basename(self.output_path))[0]
+        console.print("[cyan]Copy the subtitles to the final path.")
+        
+        for sub_info in self.copied_subtitles:
+            src_path = sub_info['src']
+            language = sub_info['language']
+            extension = sub_info['extension']
+            
+            if not os.path.exists(src_path):
+                continue
+            
+            # final name
+            dst_path = os.path.join(output_dir, f"{filename_base}.{language}{extension}")
+            
+            try:
+                shutil.copy2(src_path, dst_path)
+            except Exception as e:
+                console.print(f"[yellow]Warning: Could not move subtitle {language}: {e}")
 
     def _print_summary(self):
         """Print download summary"""

@@ -53,7 +53,8 @@
             "copy"
         ],
         "extension": "mkv",
-        "generate_nfo": false
+        "generate_nfo": false,
+        "merge_subtitle": true
     },
     "REQUESTS": {
         "verify": false,

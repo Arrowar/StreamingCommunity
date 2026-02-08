@@ -83,7 +83,8 @@
             {% csrf_token %}
             <input type="hidden" name="source_alias" value="{{ source_alias }}">
             <input type="hidden" name="item_payload" value="{{ item_payload }}">
-            <input type="hidden" name="season_number" value="{{ season.number }}">
+            <input type="hidden" name="season" value="{{ season.number }}">
+            <input type="hidden" name="episode" value="*">
             <input type="hidden" name="download_type" value="full_season">
             <button 
               type="submit" 
@@ -104,9 +105,9 @@
           {% csrf_token %}
           <input type="hidden" name="source_alias" value="{{ source_alias }}">
           <input type="hidden" name="item_payload" value="{{ item_payload }}">
-          <input type="hidden" name="season_number" value="{{ season.number }}">
+          <input type="hidden" name="season" value="{{ season.number }}">
+          <input type="hidden" name="episode" id="selected_episodes_{{ season.number }}" value="">
           <input type="hidden" name="download_type" value="episodes">
-          <input type="hidden" name="selected_episodes" id="selected_episodes_{{ season.number }}" value="">
 
           <!-- Controls Header -->
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
@@ -139,12 +140,12 @@
                 type="checkbox" 
                 class="episode-checkbox hidden" 
                 data-season="{{ season.number }}" 
-                value="{{ episode.number }}"
+                value="{{ episode.number|default:forloop.counter }}"
               >
               <div class="episode-card relative bg-gray-800/50 hover:bg-gray-700/50 border-2 border-gray-700 rounded-lg p-2.5 sm:p-3 lg:p-4 transition-all text-center overflow-hidden aspect-square flex flex-col items-center justify-center">
                 <!-- Episode Number -->
                 <div class="episode-number text-lg sm:text-xl lg:text-2xl font-black text-gray-500 mb-0.5 transition-colors">
-                  Ep {{ episode.number }}
+                  Ep {{ episode.number|default:forloop.counter }}
                 </div>
                 <!-- Episode Name -->
                 {% if episode.name %}

@@ -10,16 +10,16 @@ from bs4 import BeautifulSoup
 
 # Internal utilities
 from StreamingCommunity.utils.http_client import create_client, get_userAgent
-from StreamingCommunity.services._base.object import SeasonManager, Season, Episode, MediaItem
+from StreamingCommunity.services._base.object import SeasonManager, Season, Episode, Entries
 
 
 class GetSerieInfo:
-    def __init__(self, dict_serie: MediaItem) -> None:
+    def __init__(self, dict_serie: Entries) -> None:
         """
         Initializes the GetSerieInfo object with default values.
 
         Parameters:
-            dict_serie (MediaItem): Dictionary containing series information.
+            dict_serie (Entries): Dictionary containing series information.
         """
         self.headers = {'user-agent': get_userAgent()}
         self.url = dict_serie.url

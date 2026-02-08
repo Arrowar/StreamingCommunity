@@ -10,7 +10,7 @@ from rich.prompt import Prompt
 
 # Internal utilities
 from StreamingCommunity.utils import os_manager, config_manager, start_message
-from StreamingCommunity.services._base import site_constants, MediaItem
+from StreamingCommunity.services._base import site_constants, Entries
 from StreamingCommunity.services._base.tv_display_manager import manage_selection, dynamic_format_number
 
 
@@ -34,9 +34,9 @@ KILL_HANDLER = False
 DOWNOAD_HLS = True
 
 
-def download_film(select_title: MediaItem):
+def download_film(select_title: Entries):
     """
-    Downloads a film using the provided MediaItem information.
+    Downloads a film using the provided Entries information.
     """
     scrape_serie = ScrapeSerieAnime(site_constants.FULL_URL)
     video_source = VideoSourceAnime(site_constants.FULL_URL)
@@ -83,21 +83,22 @@ def download_episode(obj_episode, index_select, scrape_serie, video_source):
         ).start()
         return path, kill_handler
 
-def download_series(select_title: MediaItem, season_selection: str = None, episode_selection: str = None):
+def download_series(select_title: Entries, season_selection: str = None, episode_selection: str = None, scrape_serie = None):
     """
     Handle downloading a complete series.
 
     Parameters:
-        - select_season (MediaItem): Series metadata from search
+        - select_season (Entries): Series metadata from search
         - season_selection (str, optional): Pre-defined season selection that bypasses manual input
         - episode_selection (str, optional): Pre-defined episode selection that bypasses manual input
+        - scrape_serie (Any, optional): Pre-existing scraper instance to avoid recreation
     """
     start_message()
-    scrape_serie = ScrapeSerieAnime(site_constants.FULL_URL)
-    video_source = VideoSourceAnime(site_constants.FULL_URL)
+    if scrape_serie is None:
+        scrape_serie = ScrapeSerieAnime(site_constants.FULL_URL)
+        scrape_serie.setup(None, select_title.id, select_title.slug)
 
-    # Set up video source (only configure scrape_serie now)
-    scrape_serie.setup(None, select_title.id, select_title.slug)
+    video_source = VideoSourceAnime(site_constants.FULL_URL)
 
     # Get episode information
     episoded_count = scrape_serie.get_count_episodes()

@@ -8,7 +8,7 @@ from rich.prompt import Prompt
 # Internal utilities
 from StreamingCommunity.utils import TVShowManager
 from StreamingCommunity.utils.http_client import create_client, check_region_availability
-from StreamingCommunity.services._base import site_constants, MediaManager, MediaItem
+from StreamingCommunity.services._base import site_constants, EntriesManager, Entries
 from StreamingCommunity.services._base.site_search_manager import base_process_search_result, base_search
 
 # Logic
@@ -24,7 +24,7 @@ _region = ["US"]
 
 msg = Prompt()
 console = Console()
-media_search_manager = MediaManager()
+entries_manager = EntriesManager()
 table_show_manager = TVShowManager()
 
 
@@ -38,7 +38,7 @@ def title_search(query: str) -> int:
     Returns:
         int: Number of results found
     """
-    media_search_manager.clear()
+    entries_manager.clear()
     table_show_manager.clear()
 
     if not check_region_availability(_region, site_constants.SITE_NAME):
@@ -82,7 +82,7 @@ def title_search(query: str) -> int:
                     date = attributes.get('airDate', '').split("T")[0]
                 
                 combined_id = f"{element.get('id')}|{attributes.get('alternateId')}"
-                media_search_manager.add(MediaItem(
+                entries_manager.add(Entries(
                     id=combined_id,
                     name=attributes.get('name', 'No Title'),
                     type='tv' if element_type == 'show' else 'movie',
@@ -90,7 +90,7 @@ def title_search(query: str) -> int:
                     year=date
                 ))
     
-    return media_search_manager.get_length()
+    return len(entries_manager)
 
 
 
@@ -103,7 +103,7 @@ def process_search_result(select_title, selections=None):
         select_title=select_title,
         download_film_func=None,
         download_series_func=download_series,
-        media_search_manager=media_search_manager,
+        media_search_manager=entries_manager,
         table_show_manager=table_show_manager,
         selections=selections
     )
@@ -115,7 +115,7 @@ def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_
     return base_search(
         title_search_func=title_search,
         process_result_func=process_search_result,
-        media_search_manager=media_search_manager,
+        media_search_manager=entries_manager,
         table_show_manager=table_show_manager,
         site_name=site_constants.SITE_NAME,
         string_to_search=string_to_search,

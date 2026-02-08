@@ -9,7 +9,7 @@ from rich.prompt import Prompt
 # Internal utilities
 from StreamingCommunity.utils import TVShowManager
 from StreamingCommunity.utils.http_client import create_client, get_userAgent
-from StreamingCommunity.services._base import site_constants, MediaManager, MediaItem
+from StreamingCommunity.services._base import site_constants, EntriesManager, Entries
 from StreamingCommunity.services._base.site_search_manager import base_process_search_result, base_search
 
 
@@ -24,7 +24,7 @@ _useFor = "Film_&_Serie"
 
 msg = Prompt()
 console = Console()
-media_search_manager = MediaManager()
+entries_manager = EntriesManager()
 table_show_manager = TVShowManager()
 
 
@@ -38,7 +38,7 @@ def title_search(query: str) -> int:
     Returns:
         int: The number of titles found.
     """
-    media_search_manager.clear()
+    entries_manager.clear()
     table_show_manager.clear()
 
     search_url = f"{site_constants.FULL_URL}/?story={query}&do=search&subaction=search"
@@ -114,7 +114,7 @@ def title_search(query: str) -> int:
                     # Determine type based on URL
                     tipo = "tv" if "/serie-tv/" in url else "film"
 
-                    media_search_manager.add(MediaItem(url=url, name=title, type=tipo, image=image_url))
+                    entries_manager.add(Entries(url=url, name=title, type=tipo, image=image_url))
                     
                 except Exception as e:
                     console.print(f"[yellow]Warning: Error parsing col item: {e}")
@@ -171,7 +171,7 @@ def title_search(query: str) -> int:
                     # Determine type based on URL
                     tipo = "tv" if "/serie-tv/" in url else "film"
 
-                    media_search_manager.add(MediaItem(url=url, name=title, type=tipo, image=image_url))
+                    entries_manager.add(Entries(url=url, name=title, type=tipo, image=image_url))
                     
                 except Exception as e:
                     console.print(f"[yellow]Warning: Error parsing box item: {e}")
@@ -182,12 +182,12 @@ def title_search(query: str) -> int:
         return 0
 
     # Return the number of titles found
-    return media_search_manager.get_length()
+    return len(entries_manager)
 
 
 
 # WRAPPING FUNCTIONS
-def process_search_result(select_title, selections=None):
+def process_search_result(select_title, selections=None, scrape_serie=None):
     """
     Wrapper for the generalized process_search_result function.
     """
@@ -195,23 +195,25 @@ def process_search_result(select_title, selections=None):
         select_title=select_title,
         download_film_func=download_film,
         download_series_func=download_series,
-        media_search_manager=media_search_manager,
+        media_search_manager=entries_manager,
         table_show_manager=table_show_manager,
-        selections=selections
+        selections=selections,
+        scrape_serie=scrape_serie
     )
 
-def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_item: dict = None, selections: dict = None):
+def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_item: dict = None, selections: dict = None, scrape_serie=None):
     """
     Wrapper for the generalized search function.
     """
     return base_search(
         title_search_func=title_search,
         process_result_func=process_search_result,
-        media_search_manager=media_search_manager,
+        media_search_manager=entries_manager,
         table_show_manager=table_show_manager,
         site_name=site_constants.SITE_NAME,
         string_to_search=string_to_search,
         get_onlyDatabase=get_onlyDatabase,
         direct_item=direct_item,
-        selections=selections
+        selections=selections,
+        scrape_serie=scrape_serie
     )

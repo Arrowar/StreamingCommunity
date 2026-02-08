@@ -38,6 +38,6 @@ class SearchForm(forms.Form):
 
 class DownloadForm(forms.Form):
     source_alias = forms.CharField(widget=forms.HiddenInput)
-    item_payload = forms.CharField(widget=forms.HiddenInput)
-    season = forms.CharField(max_length=10, required=False, label="Stagione")
-    episode = forms.CharField(max_length=20, required=False, label="Episodio (es: 1-3)")
+    item_payload = forms.CharField(widget=forms.HiddenInput, required=False)
+    season = forms.CharField(max_length=100, required=False, label="Stagione")
+    episode = forms.CharField(max_length=1000, required=False, label="Episodio (es: 1-3)")

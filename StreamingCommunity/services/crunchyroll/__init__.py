@@ -7,7 +7,7 @@ from rich.prompt import Prompt
 
 # Internal utilities
 from StreamingCommunity.utils import TVShowManager, config_manager
-from StreamingCommunity.services._base import site_constants, MediaManager, MediaItem
+from StreamingCommunity.services._base import site_constants, EntriesManager, Entries
 from StreamingCommunity.services._base.site_search_manager import base_process_search_result, base_search
 
 
@@ -24,7 +24,7 @@ _useFor = "Anime"
 
 msg = Prompt()
 console = Console()
-media_search_manager = MediaManager()
+entries_manager = EntriesManager()
 table_show_manager = TVShowManager()
 
 
@@ -38,7 +38,7 @@ def title_search(query: str) -> int:
     Returns:
         int: The number of titles found.
     """
-    media_search_manager.clear()
+    entries_manager.clear()
     table_show_manager.clear()
 
     if not config_manager.login.get('crunchyroll','device_id') or not config_manager.login.get('crunchyroll','etp_rt'):
@@ -71,7 +71,6 @@ def title_search(query: str) -> int:
         return 0
 
     data = response.json()
-    found = 0
     seen_ids = set()
 
     # Parse results
@@ -116,16 +115,15 @@ def title_search(query: str) -> int:
                 if poster_wide and len(poster_wide) > 0:
                     poster_image = poster_wide[0][-1].get("source")
 
-            media_search_manager.add(MediaItem(
+            entries_manager.add(Entries(
                 id=item_id,
                 name=title,
                 type=tipo,
                 url=url,
                 image=poster_image
             ))
-            found += 1
 
-    return media_search_manager.get_length()
+    return len(entries_manager)
 
 
 
@@ -138,7 +136,7 @@ def process_search_result(select_title, selections=None):
         select_title=select_title,
         download_film_func=download_film,
         download_series_func=download_series,
-        media_search_manager=media_search_manager,
+        media_search_manager=entries_manager,
         table_show_manager=table_show_manager,
         selections=selections
     )
@@ -150,7 +148,7 @@ def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_
     return base_search(
         title_search_func=title_search,
         process_result_func=process_search_result,
-        media_search_manager=media_search_manager,
+        media_search_manager=entries_manager,
         table_show_manager=table_show_manager,
         site_name=site_constants.SITE_NAME,
         string_to_search=string_to_search,

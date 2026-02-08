@@ -12,7 +12,7 @@ from rich.prompt import Prompt
 # Internal utilities
 from StreamingCommunity.utils import config_manager, start_message
 from StreamingCommunity.utils.http_client import create_client_curl, get_headers
-from StreamingCommunity.services._base import site_constants, MediaItem
+from StreamingCommunity.services._base import site_constants, Entries
 
 
 # Downloader
@@ -25,9 +25,9 @@ msg = Prompt()
 extension_output = config_manager.config.get("M3U8_CONVERSION", "extension")
 
 
-def download_film(select_title: MediaItem) -> str:
+def download_film(select_title: Entries) -> str:
     """
-    Downloads a film using the provided MediaItem information.
+    Downloads a film using the provided Entries information.
     """
     start_message()
     console.print(f"\n[yellow]Download: [red]{site_constants.SITE_NAME} → [cyan]{select_title.name} \n")

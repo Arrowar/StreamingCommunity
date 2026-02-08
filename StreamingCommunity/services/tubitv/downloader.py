@@ -12,7 +12,7 @@ from rich.prompt import Prompt
 
 # Internal utilities
 from StreamingCommunity.utils import os_manager, config_manager, start_message
-from StreamingCommunity.services._base import site_constants, MediaItem
+from StreamingCommunity.services._base import site_constants, Entries
 from StreamingCommunity.services._base.tv_display_manager import map_episode_title
 from StreamingCommunity.services._base.tv_download_manager import process_season_selection, process_episode_download
 
@@ -41,9 +41,9 @@ def extract_content_id(url: str) -> str:
     return None
 
 
-def download_film(select_title: MediaItem) -> Tuple[str, bool]:
+def download_film(select_title: Entries) -> Tuple[str, bool]:
     """
-    Downloads a film using the provided MediaItem information.
+    Downloads a film using the provided Entries information.
     """
     start_message()
     console.print(f"\n[yellow]Download: [red]{site_constants.SITE_NAME} → [cyan]{select_title.name} \n")
@@ -106,20 +106,21 @@ def download_episode(obj_episode, index_season_selected, index_episode_selected,
     ).start()
 
 
-def download_series(select_season: MediaItem, season_selection: str = None, episode_selection: str = None) -> None:
+def download_series(select_season: Entries, season_selection: str = None, episode_selection: str = None, scrape_serie = None) -> None:
     """
     Handle downloading a complete series.
 
     Parameters:
-        - select_season (MediaItem): Series metadata from search
+        - select_season (Entries): Series metadata from search
         - season_selection (str, optional): Pre-defined season selection that bypasses manual input
         - episode_selection (str, optional): Pre-defined episode selection that bypasses manual input
+        - scrape_serie (Any, optional): Pre-existing scraper instance to avoid recreation
     """
     start_message()
-    bearer_token = get_bearer_token()
-    scrape_serie = GetSerieInfo(select_season.url, bearer_token, select_season.name)
-    
-    scrape_serie.getNumberSeason()
+    if scrape_serie is None:
+        bearer_token = get_bearer_token()
+        scrape_serie = GetSerieInfo(select_season.url, bearer_token, select_season.name)
+        scrape_serie.getNumberSeason()
     seasons_count = len(scrape_serie.seasons_manager)
 
     # Create callback function for downloading episodes

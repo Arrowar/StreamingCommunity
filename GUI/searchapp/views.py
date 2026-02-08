@@ -18,15 +18,15 @@ from django.contrib import messages
 # Internal utilities
 from .forms import SearchForm, DownloadForm
 from GUI.searchapp.api import get_api
-from GUI.searchapp.api.base import MediaItem
+from GUI.searchapp.api.base import Entries
 
 
 # CLI utilities
 from StreamingCommunity.source.utils.tracker import download_tracker, context_tracker
 
 
-def _media_item_to_display_dict(item: MediaItem, source_alias: str) -> Dict[str, Any]:
-    """Convert MediaItem to template-friendly dictionary."""
+def _media_item_to_display_dict(item: Entries, source_alias: str) -> Dict[str, Any]:
+    """Convert Entries to template-friendly dictionary."""
     result = {
         'display_title': item.name,
         'display_type': item.type.capitalize(),
@@ -105,8 +105,10 @@ def _run_download_in_thread(site: str, item_payload: Dict[str, Any], season: str
             
             # Start download
             api.start_download(media_item, season=season, episodes=episodes)
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[Error] Download thread failed: {e}")
+            import traceback
+            traceback.print_exc()
 
     threading.Thread(target=_task, daemon=True).start()
 
@@ -134,8 +136,8 @@ def series_metadata(request: HttpRequest) -> JsonResponse:
         # Get API instance
         api = get_api(source_alias)
         
-        # Convert to MediaItem
-        media_item = api._dict_to_media_item(item_payload)
+        # Convert to Entries
+        media_item = api._dict_to_entries(item_payload)
         
         # Check if it's a movie
         if media_item.is_movie:
@@ -176,7 +178,9 @@ def start_download(request: HttpRequest) -> HttpResponse:
     """Handle download requests for movies or individual series selections."""
     form = DownloadForm(request.POST)
     if not form.is_valid():
-        messages.error(request, "Dati non validi")
+        error_msg = f"Dati non validi: {form.errors.as_text()}"
+        print(f"[Error] {error_msg}")
+        messages.error(request, error_msg)
         return redirect("search_home")
 
     source_alias = form.cleaned_data["source_alias"]
@@ -280,11 +284,11 @@ def series_detail(request: HttpRequest) -> HttpResponse:
     elif request.method == "POST":
         source_alias = request.POST.get("source_alias")
         item_payload_raw = request.POST.get("item_payload")
-        season_number = request.POST.get("season_number")
+        season = request.POST.get("season")
         download_type = request.POST.get("download_type")
-        selected_episodes = request.POST.get("selected_episodes", "")
+        episode = request.POST.get("episode", "")
         
-        if not all([source_alias, item_payload_raw, season_number]):
+        if not all([source_alias, item_payload_raw, season]):
             messages.error(request, "Parametri mancanti per il download.")
             return redirect("search_home")
         
@@ -299,17 +303,14 @@ def series_detail(request: HttpRequest) -> HttpResponse:
         # Prepare download parameters
         if download_type == "full_season":
             episode_selection = "*"
-            msg_detail = f"stagione {season_number} completa"
+            msg_detail = f"stagione {season} completa"
             
         else:
-            episode_selection = selected_episodes.strip() if selected_episodes else None
-            if not episode_selection:
-                messages.error(request, "Nessun episodio selezionato.")
-                return redirect("series_detail") + f"?source_alias={source_alias}&item_payload={item_payload_raw}"
-            msg_detail = f"S{season_number}:E{episode_selection}"
+            episode_selection = episode.strip() if episode else None
+            msg_detail = f"S{season}:E{episode_selection}"
         
         # Start download
-        _run_download_in_thread(source_alias, item_payload, season_number, episode_selection)
+        _run_download_in_thread(source_alias, item_payload, season, episode_selection)
         
         messages.success(
             request,

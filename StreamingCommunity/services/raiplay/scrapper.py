@@ -23,7 +23,8 @@ class GetSerieInfo:
     def collect_info_title(self) -> None:
         """Get series info including seasons from all multimedia blocks."""
         try:
-            program_url = f"{self.base_url}/{self.path_id}"
+            path = self.path_id.lstrip('/')
+            program_url = f"{self.base_url}/{path}"
             response = create_client(headers=get_headers()).get(program_url)
             
             # If 404, content is not yet available
@@ -113,7 +114,7 @@ class GetSerieInfo:
             set_id = block_info['set_id']
             
             # Build episodes endpoint URL
-            base_path = self.path_id.replace('.json', '')
+            base_path = self.path_id.lstrip('/').replace('.json', '')
             url = f"{self.base_url}/{base_path}/{block_id}/{set_id}/episodes.json"
             
             response = create_client(headers=get_headers()).get(url)

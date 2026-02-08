@@ -61,3 +61,4 @@ console.log
 /.cache
 .planning/phases/01-fastapi-backend-foundation
 .serena
+.planning

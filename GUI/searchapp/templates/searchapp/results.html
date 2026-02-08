@@ -81,7 +81,7 @@
             <form action="{% url 'start_download' %}" method="post" class="flex-1">
               {% csrf_token %}
               <input type="hidden" name="source_alias" value="{{ result.source_alias }}">
-              <input type="hidden" name="item_payload" value='{{ result.payload_json|safe }}'>
+              <input type="hidden" name="item_payload" value="{{ result.payload_json }}">
               <button 
                 type="submit" 
                 class="w-full py-2.5 bg-white hover:bg-gray-200 text-black font-bold text-xs rounded-md transition-all flex items-center justify-center gap-2 shadow-xl"

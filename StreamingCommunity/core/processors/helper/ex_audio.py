@@ -17,6 +17,29 @@ from StreamingCommunity.setup import get_ffprobe_path
 console = Console()
 
 
+def has_audio(file_path: str) -> bool:
+    """Check if a media file has an audio stream using FFprobe."""
+    try:
+        ffprobe_cmd = [get_ffprobe_path(), '-v', 'error', '-show_streams', '-print_format', 'json', file_path]
+        with subprocess.Popen(ffprobe_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) as proc:
+            stdout, stderr = proc.communicate()
+
+            if proc.returncode != 0:
+                logging.error(f"Error has_audio: {stderr}")
+                return False
+
+            probe_result = json.loads(stdout)
+            streams = probe_result.get('streams', [])
+            for stream in streams:
+                if stream.get('codec_type') == 'audio':
+                    return True
+            return False
+        
+    except Exception as e:
+        logging.error(f"Exception in has_audio: {e}")
+        return False
+
+
 def get_video_duration(file_path: str, file_type: str = "file") -> float:
     """Get the duration of a media file (video or audio)."""
     ffprobe_cmd = [get_ffprobe_path(), '-v', 'error', '-show_format', '-print_format', 'json', file_path]

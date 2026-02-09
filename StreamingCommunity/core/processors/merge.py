@@ -2,7 +2,7 @@
 
 import os
 import subprocess
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 
 # External library
@@ -16,7 +16,7 @@ from StreamingCommunity.setup import binary_paths, get_ffmpeg_path
 
 # Logic class
 from .helper.ex_video import need_to_force_to_ts
-from .helper.ex_audio import check_duration_v_a
+from .helper.ex_audio import check_duration_v_a, has_audio
 from .helper.ex_sub import fix_subtitle_extension
 from .capture import capture_ffmpeg_real_time
 
@@ -89,7 +89,7 @@ def detect_gpu_device_type() -> str:
         return 'none'
 
 
-def join_video(video_path: str, out_path: str):
+def join_video(video_path: str, out_path: str, log_path: Optional[str] = None):
     """
     Mux video file using FFmpeg.
     
@@ -119,13 +119,13 @@ def join_video(video_path: str, out_path: str):
     ffmpeg_cmd.extend([out_path, '-y'])
 
     # Run join
-    result_json = capture_ffmpeg_real_time(ffmpeg_cmd, "[yellow]FFMPEG [cyan]Join video")
+    result_json = capture_ffmpeg_real_time(ffmpeg_cmd, "[yellow]FFMPEG [cyan]Join video", log_path)
     print()
 
     return out_path, result_json
 
 
-def join_audios(video_path: str, audio_tracks: List[Dict[str, str]], out_path: str, limit_duration_diff: float = 3):
+def join_audios(video_path: str, audio_tracks: List[Dict[str, str]], out_path: str, limit_duration_diff: float = 3, log_path: Optional[str] = None):
     """
     Joins audio tracks with a video file using FFmpeg.
     
@@ -188,13 +188,13 @@ def join_audios(video_path: str, audio_tracks: List[Dict[str, str]], out_path: s
     ffmpeg_cmd.extend([out_path, '-y'])
 
     # Run join
-    result_json = capture_ffmpeg_real_time(ffmpeg_cmd, "[yellow]FFMPEG [cyan]Join audio")
+    result_json = capture_ffmpeg_real_time(ffmpeg_cmd, "[yellow]FFMPEG [cyan]Join audio", log_path)
     print()
 
     return out_path, use_shortest, result_json
 
 
-def join_subtitles(video_path: str, subtitles_list: List[Dict[str, str]], out_path: str):
+def join_subtitles(video_path: str, subtitles_list: List[Dict[str, str]], out_path: str, log_path: Optional[str] = None):
     """
     Joins subtitles with a video file using FFmpeg.
 
@@ -226,7 +226,9 @@ def join_subtitles(video_path: str, subtitles_list: List[Dict[str, str]], out_pa
         ffmpeg_cmd += ["-i", subtitle['path']]
     
     # Add maps for video and audio streams
-    ffmpeg_cmd += ["-map", "0:v", "-map", "0:a"]
+    ffmpeg_cmd += ["-map", "0:v"]
+    if has_audio(video_path):
+        ffmpeg_cmd += ["-map", "0:a"]
     
     # Add subtitle maps and metadata
     for idx, subtitle in enumerate(subtitles_list):
@@ -268,7 +270,7 @@ def join_subtitles(video_path: str, subtitles_list: List[Dict[str, str]], out_pa
     ffmpeg_cmd += [out_path, "-y"]
     
     # Run join
-    result_json = capture_ffmpeg_real_time(ffmpeg_cmd, "[yellow]FFMPEG [cyan]Join subtitle")
+    result_json = capture_ffmpeg_real_time(ffmpeg_cmd, "[yellow]FFMPEG [cyan]Join subtitle", log_path)
     print()
     
     return out_path, result_json

@@ -19,7 +19,7 @@
         "thread_count": 8,
         "retry_count": 30,
         "concurrent_download": true,
-        "max_speed": "50MB",
+        "max_speed": "",
         "real_time_decryption": false,
         "check_segments_count": true,
         "select_video": "res=1920:for=best",
@@ -29,29 +29,11 @@
     },
     "M3U8_CONVERSION": {
         "use_gpu": false,
-        "param_video": [
-            "-c:v",
-            "libx265",
-            "-crf",
-            "28",
-            "-preset",
-            "medium"
-        ],
-        "param_audio": [
-            "-c:a",
-            "libopus",
-            "-b:a",
-            "128k"
-        ],
+        "param_video": ["-c:v","libx265","-crf","28","-preset","medium"],
+        "param_audio": ["-c:a","libopus","-b:a","128k"],
         "subtitle_disposition": false,
-        "subtitle_disposition_language": [
-            "forced-ita",
-            "ita-forced"
-        ],
-        "param_final": [
-            "-c",
-            "copy"
-        ],
+        "subtitle_disposition_language": ["forced-ita","ita-forced"],
+        "param_final": ["-c","copy"],
         "extension": "mkv",
         "generate_nfo": false,
         "merge_subtitle": true

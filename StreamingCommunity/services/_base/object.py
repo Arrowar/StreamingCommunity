@@ -33,6 +33,7 @@ class Episode:
         self.year = year
         self.is_special = is_special
         
+        # [SERVICE-SPECIFIC] Allow additional attributes from different services (e.g., main_guid for Crunchyroll)
         for key, value in kwargs.items():
             setattr(self, key, value)
 

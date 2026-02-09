@@ -116,18 +116,11 @@ class DASH_Downloader:
                 continue
             groups.setdefault(s['content_type'], []).append(s)
         
-        has_filter = any([selected_ids, selected_kids, selected_langs])
-        
         for c_type, items in groups.items():
-            is_uni = len({i['default_kid'] for i in items}) == 1 and not has_filter
-            
             for item in items:
-                if not item['default_kid']:
+                # Text/Subtitle streams might not have KIDs but we want to label them
+                if not item['default_kid'] and c_type != 'text':
                     continue
-                
-                norm_kid = item['default_kid'].lower().replace('-', '')
-                label = self._generate_label(item, c_type, is_uni)
-                self.kid_to_label[norm_kid] = label
     
     def _generate_label(self, item, content_type, is_uniform):
         """Generate label for a stream."""
@@ -436,7 +429,8 @@ class DASH_Downloader:
             console.print("[cyan]\nNo additional tracks to merge, muxing video...")
             merged_file, result_json = join_video(
                 video_path=video_path,
-                out_path=self.output_path
+                out_path=self.output_path,
+                log_path=os.path.join(self.output_dir, "video_mux.log")
             )
             self.last_merge_result = result_json
             return merged_file if os.path.exists(merged_file) else None
@@ -465,7 +459,8 @@ class DASH_Downloader:
         merged_file, _, result_json = join_audios(
             video_path=current_file,
             audio_tracks=audio_tracks,
-            out_path=audio_output
+            out_path=audio_output,
+            log_path=os.path.join(self.output_dir, "audio_merge.log")
         )
         self.last_merge_result = result_json
         
@@ -483,7 +478,8 @@ class DASH_Downloader:
         merged_file, result_json = join_subtitles(
             video_path=current_file,
             subtitles_list=subtitle_tracks,
-            out_path=sub_output
+            out_path=sub_output,
+            log_path=os.path.join(self.output_dir, "sub_merge.log")
         )
         self.last_merge_result = result_json
         
@@ -519,9 +515,6 @@ class DASH_Downloader:
             src_path = sub_info['src']
             language = sub_info['language']
             extension = sub_info['extension']
-            
-            if not os.path.exists(src_path):
-                continue
             
             # final name
             dst_path = os.path.join(output_dir, f"{filename_base}.{language}{extension}")

@@ -381,7 +381,7 @@ def _extract_subtitles(data: Dict) -> List[Dict]:
         subtitles.append({
             'language': lang,
             'url': info['url'],
-            'format': info.get('format'),
+            'format': info.get('format') or 'ass',
             'type': info.get('type'),
             'closed_caption': bool(info.get('closed_caption')),
             'label': info.get('display') or info.get('title') or info.get('language')
@@ -396,7 +396,7 @@ def _extract_subtitles(data: Dict) -> List[Dict]:
         subtitles.append({
             'language': lang,
             'url': info['url'],
-            'format': info.get('format'),
+            'format': info.get('format') or 'vtt',
             'type': info.get('type') or 'captions',
             'closed_caption': True if info.get('closed_caption') is None else bool(info.get('closed_caption')),
             'label': info.get('display') or info.get('title') or info.get('language')

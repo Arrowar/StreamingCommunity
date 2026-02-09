@@ -90,7 +90,6 @@ class GetSerieInfo:
             'preferred_audio_language': preferred_audio_language,
             'locale': locale,
         }
-        self._episodes_cache = {}
         self._metadata_cache = {}
 
     def collect_season(self) -> None:
@@ -144,7 +143,7 @@ class GetSerieInfo:
                 slug=row["slug"],
             ))
 
-    def _fetch_episodes_for_season(self, season_number: int) -> List[Dict]:
+    def _fetch_episodes_for_season(self, season_number: int) -> List[Episode]:
         """Fetch and cache episodes for a season - SINGLE API CALL per season."""
         season = self.seasons_manager.get_season_by_number(season_number)
         if not season:
@@ -157,7 +156,7 @@ class GetSerieInfo:
         episodes_data = data.get("data", [])
         
         # Build episode list
-        episodes = []
+        episodes_raw = []
         for ep_data in episodes_data:
             ep_number = _extract_episode_number(ep_data)
             is_special = _is_special_episode(ep_number)
@@ -167,7 +166,7 @@ class GetSerieInfo:
             if ep_id:
                 self._metadata_cache[ep_id] = ep_data
             
-            episodes.append({
+            episodes_raw.append({
                 'id': ep_id,
                 'number': ep_number,
                 'is_special': is_special,
@@ -177,16 +176,16 @@ class GetSerieInfo:
             })
         
         # Sort: normal episodes first, then specials
-        normal = [e for e in episodes if not e.get("is_special")]
-        specials = [e for e in episodes if e.get("is_special")]
-        episodes = normal + specials
+        normal = [e for e in episodes_raw if not e.get("is_special")]
+        specials = [e for e in episodes_raw if e.get("is_special")]
+        episodes_raw = normal + specials
         
         # Assign display numbers
-        episodes = _assign_display_numbers(episodes)
+        episodes_raw = _assign_display_numbers(episodes_raw)
         
         # Add to season manager
         season.episodes.clear()
-        for ep_dict in episodes:
+        for ep_dict in episodes_raw:
             season.episodes.add(Episode(
                 id=ep_dict.get('id'),
                 number=ep_dict.get('number'),
@@ -194,12 +193,10 @@ class GetSerieInfo:
                 name=ep_dict.get('name'),
                 url=ep_dict.get('url'),
                 duration=ep_dict.get('duration'),
-                main_guid=ep_dict.get('main_guid')
+                main_guid=ep_dict.get('main_guid')  # [CRUNCHYROLL] Used for complete subtitles (CLI/GUI)
             ))
         
-        # Cache and return
-        self._episodes_cache[season_number] = episodes
-        return episodes
+        return season.episodes.episodes
 
     def _get_episode_audio_locales(self, episode_id: str) -> Tuple[List[str], Dict[str, str], Optional[str]]:
         """
@@ -251,15 +248,19 @@ class GetSerieInfo:
             self.collect_season()
         return len(self.seasons_manager.seasons)
 
-    def getEpisodeSeasons(self, season_number: int) -> List[Dict]:
+    def getEpisodeSeasons(self, season_number: int) -> List[Episode]:
         """Get all episodes for a season."""
         if not self.seasons_manager.seasons:
             self.collect_season()
         
-        if season_number not in self._episodes_cache:
+        season = self.seasons_manager.get_season_by_number(season_number)
+        if not season:
+            return []
+
+        if not season.episodes.episodes:
             self._fetch_episodes_for_season(season_number)
         
-        return self._episodes_cache.get(season_number, [])
+        return season.episodes.episodes
 
     def selectEpisode(self, season_number: int, episode_index: int) -> Episode:
         """Get specific episode with audio information."""
@@ -267,8 +268,8 @@ class GetSerieInfo:
         if not episodes or episode_index < 0 or episode_index >= len(episodes):
             return None
             
-        episode = episodes[episode_index]
-        episode_id = episode.get("url", "").split("/")[-1] if episode.get("url") else None
+        episode: Episode = episodes[episode_index]
+        episode_id = episode.url.split("/")[-1] if episode.url else None
         
         if not episode_id:
             return episode
@@ -278,14 +279,14 @@ class GetSerieInfo:
         
         # Store main_guid for complete subtitles access
         if main_guid:
-            episode["main_guid"] = main_guid
-            episode["main_url"] = f"{self.client.web_base_url}/watch/{main_guid}"
+            episode.main_guid = main_guid                                       # [CRUNCHYROLL] Primary ID for full subtitle tracks
+            episode.main_url = f"{self.client.web_base_url}/watch/{main_guid}"  # [CRUNCHYROLL] Full URL for fallback
         
         # Continue with normal audio preference logic
         if urls_by_locale:
             preferred_lang = self.params.get("preferred_audio_language", "it-IT")
             new_url = urls_by_locale.get(preferred_lang) or urls_by_locale.get("en-US") or list(urls_by_locale.values())[0]
             if new_url:
-                episode["url"] = new_url
+                episode.url = new_url
         
         return episode

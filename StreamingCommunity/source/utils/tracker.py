@@ -5,17 +5,23 @@ import threading
 from typing import Dict, Any, List
 
 
-class DownloadTracker:
-    _instance = None
+class SingletonMeta(type):
+    _instances = {}
     _lock = threading.Lock()
-    
-    def __new__(cls):
+
+    def __call__(cls, *args, **kwargs):
         with cls._lock:
-            if cls._instance is None:
-                cls._instance = super(DownloadTracker, cls).__new__(cls)
-                cls._instance._init_tracker()
-            return cls._instance
-            
+            if cls not in cls._instances:
+                cls._instances[cls] = super().__call__(*args, **kwargs)
+            return cls._instances[cls]
+
+
+class DownloadTracker(metaclass=SingletonMeta):
+    def __init__(self):
+        if not hasattr(self, '_initialized'):
+            self._initialized = True
+            self._init_tracker()
+    
     def _init_tracker(self):
         self.downloads: Dict[str, Dict[str, Any]] = {}
         self.history: List[Dict[str, Any]] = []

@@ -178,7 +178,8 @@ class HLS_Downloader:
             console.print("[cyan]\nNo additional tracks to merge, muxing video...")
             merged_file, result_json = join_video(
                 video_path=video_path,
-                out_path=self.output_path
+                out_path=self.output_path,
+                log_path=os.path.join(self.output_dir, "video_mux.log")
             )
             self.last_merge_result = result_json
             if os.path.exists(merged_file):
@@ -197,7 +198,8 @@ class HLS_Downloader:
             merged_file, use_shortest, result_json = join_audios(
                 video_path=current_file,
                 audio_tracks=status['audios'],
-                out_path=audio_output
+                out_path=audio_output,
+                log_path=os.path.join(self.output_dir, "audio_merge.log")
             )
             self.last_merge_result = result_json
             
@@ -215,7 +217,8 @@ class HLS_Downloader:
                 merged_file, result_json = join_subtitles(
                     video_path=current_file,
                     subtitles_list=status['subtitles'],
-                    out_path=sub_output
+                    out_path=sub_output,
+                    log_path=os.path.join(self.output_dir, "sub_merge.log")
                 )
                 self.last_merge_result = result_json
                 
@@ -255,9 +258,6 @@ class HLS_Downloader:
             src_path = sub_info['src']
             language = sub_info['language']
             extension = sub_info['extension']
-            
-            if not os.path.exists(src_path):
-                continue
             
             # final name
             dst_path = os.path.join(output_dir, f"{filename_base}.{language}{extension}")

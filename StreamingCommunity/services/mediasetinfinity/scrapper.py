@@ -22,7 +22,6 @@ class GetSerieInfo:
     ]
 
     def __init__(self, url):
-        print("Initializing GetSerieInfo with URL:", url)
         """
         Initialize the GetSerieInfo class for scraping TV series information.
         
@@ -307,7 +306,7 @@ class GetSerieInfo:
                     ep_num = entry.get('tvSeasonEpisodeNumber') or entry.get('mediasetprogram$episodeNumber', 0)
                     try:
                         ep_num = int(ep_num)
-                    except:
+                    except Exception:
                         ep_num = 0
                     
                     episode = Episode(
@@ -362,8 +361,6 @@ class GetSerieInfo:
                 season['episodes'] = []
                 
                 if 'categories' in season:
-                    episode_keywords = ['episodi', 'intere puntate', 'puntate intere', 'tutti gli episodi', 'tutte le puntate', 'puntate', 'stagione']
-                    
                     for category in season['categories']:
                         if any(w.lower() in category['name'].lower() for w in self.BAD_WORDS):
                             continue

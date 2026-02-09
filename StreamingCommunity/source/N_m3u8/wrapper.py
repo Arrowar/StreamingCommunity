@@ -274,23 +274,54 @@ class MediaDownloader:
         
         downloaded = []
         async with create_async_client(headers=self.headers) as client:
-            for sub in self.external_subtitles:
+            for idx, sub in enumerate(self.external_subtitles):
                 try:
                     if not sub.get('_selected', True):
                         continue
 
                     url, lang = sub['url'], sub.get('language', 'unknown')
                     sub_type = sub.get('_ext') or sub.get('type') or sub.get('format') or 'srt'
-                    sub_path = self.output_dir / f"{self.filename}.{lang}.{sub_type}"
+                    original_type = sub.get('type')
+
+                    # Handle 'captions' type getting mapped to wrong extension
+                    if sub_type == 'captions':
+                        sub_type = 'vtt'
+                    
+                    # Determine filename suffix
+                    fname_suffix = lang
+                    if original_type == 'captions' or original_type == 'closed_captions':
+                        fname_suffix = f"{lang}_captions"
+                    
+                    sub_path = self.output_dir / f"{self.filename}.{fname_suffix}.{sub_type}"
                     response = await client.get(url)
                     response.raise_for_status()
 
                     with open(sub_path, 'wb') as f:
                         f.write(response.content)
                     downloaded.append({'path': str(sub_path), 'language': lang, 'type': sub_type, 'size': len(response.content)})
+                    
+                    # Update download progress for external subtitle
+                    if self.download_id and download_tracker:
+                        track_key = f"subtitle_{fname_suffix}"
+                        download_tracker.update_status(self.download_id, "downloading")
+                        download_tracker.update_progress(
+                            self.download_id, 
+                            track_key, 
+                            progress=100.0,
+                            size=f"{len(response.content) / 1024:.2f}KB",
+                            speed="N/A",  # Too fast/small to calculate meaningful speed
+                            segments="1/1",
+                            status="completed"
+                        )
 
                 except Exception as e:
                     console.log(f"[red]Failed to download external subtitle: {e}[/red]")
+                    if self.download_id and download_tracker:
+                        download_tracker.update_progress(
+                            self.download_id,
+                            f"subtitle_{lang}_{idx}",
+                            status="failed"
+                        )
         return downloaded
 
     def start_download(self) -> Dict[str, Any]:
@@ -335,7 +366,7 @@ class MediaDownloader:
             cmd.extend(["--http-request-timeout", str(request_timeout)])
         if retry_count > 0:
             cmd.extend(["--download-retry-count", str(retry_count)])
-        if max_speed:
+        if max_speed and str(max_speed).lower() != "false":
             cmd.extend(["--max-speed", max_speed])
         if self.key:
             for single_key in ([self.key] if isinstance(self.key, str) else self.key):
@@ -345,8 +376,11 @@ class MediaDownloader:
         
         # Download external subtitles
         loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        external_subs = loop.run_until_complete(self._download_external_subtitles())
+        try:
+            asyncio.set_event_loop(loop)
+            external_subs = loop.run_until_complete(self._download_external_subtitles())
+        finally:
+            loop.close()
         
         log_parser = LogParser(show_warnings=False)
         log_path = self.output_dir / f"{self.filename}_download.log"

@@ -151,7 +151,9 @@ def process_episode_download(index_season_selected: int, scrape_serie: Any, down
                     found = False
                     for idx, ep in enumerate(episodes, 1):
                         ep_num = ep.get('number') if isinstance(ep, dict) else getattr(ep, 'number', None)
-                        if ep_num == val:
+                        
+                        # Compare as strings to handle numeric-like strings from API GUI
+                        if str(ep_num) == str(val):
                             list_episode_select.append(idx)
                             found = True
                             break

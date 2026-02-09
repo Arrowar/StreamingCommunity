@@ -194,8 +194,8 @@ class MPDParser:
             for adapt_set in self._findall(period, 'mpd:AdaptationSet'):
                 content_type, lang = self._get_content_info(adapt_set)
                 
-                # Skip non-media types
-                if content_type in ('image', 'text'):
+                # Skip non-media types (keep text for external sub support if present)
+                if content_type == 'image':
                     continue
                 
                 # Apply filters

@@ -23,11 +23,12 @@ from StreamingCommunity.utils.http_client import create_async_client
 
 # Logic
 from ..utils.object import StreamInfo
+from StreamingCommunity.source.utils.trans_codec import get_subtitle_codec_name
 from .pattern import VIDEO_LINE_RE, AUDIO_LINE_RE, SUBTITLE_LINE_RE, SEGMENT_RE, PERCENT_RE, SPEED_RE, SIZE_RE, SUBTITLE_FINAL_SIZE_RE
 from .progress_bar import CustomBarColumn, ColoredSegmentColumn, CompactTimeColumn, CompactTimeRemainingColumn, SizeColumn
 from .parser import parse_meta_json, LogParser
-from .trackSelector import TrackSelector
 from .ui import build_table
+from StreamingCommunity.source.Manual.decrypt.decrypt import Decryptor
 
 
 # Variable
@@ -76,7 +77,7 @@ class MediaDownloader:
         if not filter_value:
             return filter_value
         
-        parts, normalized_parts, special_chars = filter_value.split(':'), [], '|.*+?[]{}()^$'
+        parts, normalized_parts, special_chars = filter_value.split(':'), [], '|=.*+?[]{}()^$'
         for part in parts:
             if '=' in part:
                 key, val = part.split('=', 1)
@@ -120,49 +121,6 @@ class MediaDownloader:
             return any(t.lower() in ext_lang.lower() for t in re.findall(r"[A-Za-z]{2,}", subtitle_filter))
         except Exception:
             return False
-
-    def _build_custom_filters(self, selected):
-        """Build custom filters from selected tracks"""
-        video = next((s for s in selected if s.type.lower().startswith('video')), None)
-        audios = [s for s in selected if s.type.lower().startswith('audio')]
-        subs = [s for s in selected if s.type.lower().startswith('subtitle')]
-
-        def build_video(s):
-            f = [f"res={s.resolution}"] if getattr(s, 'resolution', None) else []
-            f += [f"codecs={s.codec}"] if getattr(s, 'codec', None) else []
-            if getattr(s, 'raw_bandwidth', None):
-                bw_kbps = s.raw_bandwidth // 1000
-                f += [f"bwMin={bw_kbps - 10}"]
-                f += [f"bwMax={bw_kbps + 10}"]
-
-            return ':'.join(f + ["for=best"])
-
-        def build_audio(tracks):
-            filters = []
-            for s in tracks:
-                f = [f"lang={s.language}"] if getattr(s, 'language', None) else []
-                f += [f"codecs={s.codec}"] if getattr(s, 'codec', None) else []
-                if getattr(s, 'raw_bandwidth', None):
-                    bw_kbps = s.raw_bandwidth // 1000
-                    f += [f"bwMin={bw_kbps - 10}"]
-                    f += [f"bwMax={bw_kbps + 10}"]
-
-                if f:
-                    filters.append(':'.join(f))
-            return ':'.join(filters) + ':for=all' if filters else "for=all"
-
-        def build_subtitle(tracks):
-            langs = [s.language for s in tracks if getattr(s, 'language', None)]
-            return f"lang='{'|'.join(langs)}':for=all" if langs else "for=all"
-
-        custom = {}
-        if video:
-            custom['video'] = build_video(video)
-        if audios:
-            custom['audio'] = build_audio(audios)
-        if subs:
-            custom['subtitle'] = build_subtitle(subs)
-        return custom if custom else None
 
     def parser_stream(self) -> List[StreamInfo]:
         """Analyze playlist and display table of available streams"""
@@ -236,25 +194,9 @@ class MediaDownloader:
                 ext_sub['_ext'] = ext_type
                 self.streams.append(StreamInfo(type_="Subtitle [red]*EXT", language=ext_sub.get('language', ''), name=ext_sub.get('name', ''), selected=selected, extension=ext_type))
 
-            # Interactive track selection
-            if not auto_select_cfg and self.streams:
-                try:
-                    self.suppress_display = True
-                    selector = TrackSelector(self.streams)
-                    selector.window_size = min(10, len(self.streams)) or 1
-                    if selected := selector.run():
-                        self.custom_filters = self._build_custom_filters(selected)
-                except Exception as e:
-                    console.log(f"[yellow]Interactive selector failed: {e}[/yellow]")
-
-            # Show table unless suppressed
-            if not getattr(self, 'suppress_display', False):
-                try:
-                    selected_set = {i for i, s in enumerate(self.streams) if getattr(s, 'selected', False)}
-                    console.print(build_table(self.streams, selected_set, 0, window_size=len(self.streams), highlight_cursor=False))
-                except Exception:
-                    for idx, s in enumerate(self.streams):
-                        console.print(f"{idx+1}. {getattr(s,'type','')} {getattr(s,'language','')} {getattr(s,'resolution','')} {getattr(s,'codec','')}")
+            # Show table
+            selected_set = {i for i, s in enumerate(self.streams) if getattr(s, 'selected', False)}
+            console.print(build_table(self.streams, selected_set, 0, window_size=len(self.streams), highlight_cursor=False))
             return self.streams
         
         return []
@@ -428,7 +370,58 @@ class MediaDownloader:
 
         self.status = self._get_download_status(subtitle_sizes, external_subs)
 
+        if self.key:
+            # IL 99% delle volte n3u8dl riesce a fare tutto ma in quel 1% sti cazzi meglio fare double check anche se si perde tempo, fortuna è scritto tutto in C
+            self._manual_decrypt_check(self.status)
+            print("")
+
         return self.status
+
+    def _manual_decrypt_check(self, status: Dict[str, Any]):
+        """Check and manually decrypt files if they are still encrypted after download"""
+        print("")
+        decryptor = Decryptor(preference=self.decrypt_preference)
+        
+        # Prepare targets with their respective stream types
+        targets = []
+        if status.get('video'):
+            targets.append((status['video'], "video"))
+        if status.get('audios'):
+            for audio in status['audios']:
+                targets.append((audio, "audio"))
+            
+        keys = [self.key] if isinstance(self.key, str) else self.key
+        for target, stream_type in targets:
+            file_path = Path(target['path'])
+            if not file_path.exists():
+                continue
+                
+            # Check if still encrypted
+            console.print(f"[cyan]Checking if file [red]{file_path.name} [cyan]is still encrypted...")
+            if decryptor.detect_encryption(str(file_path)):
+                
+                # Decrypt to a temporary file
+                temp_output = file_path.with_suffix(file_path.suffix + ".decrypted")
+                
+                if decryptor.decrypt(str(file_path), keys, str(temp_output), stream_type=stream_type):
+                    try:
+                        # Replace the old file with the decrypted one
+                        file_path.unlink()
+                        temp_output.rename(file_path)
+                        
+                        # Update status with new size
+                        target['size'] = file_path.stat().st_size
+                    except Exception as e:
+                        console.print(f"[red]Failed to replace encrypted file: {e}[/red]")
+                        if temp_output.exists():
+                            temp_output.unlink()
+                else:
+                    if temp_output.exists():
+                        temp_output.unlink()
+                    console.print(f"[red]Manual decryption failed for: {file_path.name}[/red]")
+
+            else:
+                console.print("[dim]Not encrypted, copied")
 
     def _update_task(self, progress, tasks: dict, key: str, label: str, line: str):
         """Generic task update helper"""
@@ -475,17 +468,34 @@ class MediaDownloader:
 
         elif line.startswith("Sub"):
             if m := SUBTITLE_LINE_RE.search(line):
-                lang, name = m.group(1).strip(), m.group(2).strip()
-                task = self._update_task(progress, tasks, f"sub_{lang}_{name}", f"[cyan]Sub [red]{name}", line)
+                lang, codec = m.group(1).strip(), m.group(2).strip()
+                
+                # SHIT Attempt to fix find actual language from streams if codec seems to be a tech type | TO REWRITE
+                display_lang = lang
+                if any(x in lang.lower() for x in ['stpp', 'ttml', 'vtt', 'srt']) or any(x in codec.lower() for x in ['stpp', 'ttml', 'vtt', 'srt']):
+                    for s in self.streams:
+
+                        # Check if codec matches and lang matches (as sub-string)
+                        if s.type.lower().startswith('subtitle') and s.codec and (any(x in s.codec.lower() for x in ['stpp', 'ttml', 'vtt', 'srt'])):
+                            s_lang = (s.language or "").lower()
+                            p_lang = lang.lower()
+                            if s_lang == p_lang or s_lang in p_lang or p_lang in s_lang:
+                                if s.language:
+                                    display_lang = s.language
+                                    break
+                
+                # If still using tech name for display_lang, try to clean it
+                display_lang = get_subtitle_codec_name(display_lang)
+                task = self._update_task(progress, tasks, f"sub_{lang}_{codec}", f"[cyan]Sub [red]{display_lang}", line)
 
                 if fm := SUBTITLE_FINAL_SIZE_RE.search(line):
                     final_size = fm.group(1)
                     progress.update(task, size=final_size, completed=100)
-                    subtitle_sizes[f"{lang}: {name}"] = final_size
+                    subtitle_sizes[f"{lang}: {codec}"] = final_size
                 
                 elif not SIZE_RE.search(line):
                     if sm := re.search(r"(\d+\.\d+(?:B|KB|MB|GB))\s*$", line):
-                        subtitle_sizes[f"{lang}: {name}"] = sm.group(1)
+                        subtitle_sizes[f"{lang}: {codec}"] = sm.group(1)
 
     def _extract_language_from_filename(self, filename: str, base_name: str) -> str:
         """Extract language from filename"""
@@ -498,7 +508,7 @@ class MediaDownloader:
         exts = {
             'video': ['.mp4', '.mkv', '.m4v', '.ts', '.mov', '.webm'], 
             'audio': ['.m4a', '.aac', '.mp3', '.ts', '.mp4', '.wav', '.webm'], 
-            'subtitle': ['.srt', '.vtt', '.ass', '.sub', '.ssa']
+            'subtitle': ['.srt', '.vtt', '.ass', '.sub', '.ssa', '.m4s', '.ttml', '.xml']
         }
         
         # Find video

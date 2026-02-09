@@ -108,7 +108,6 @@ StreamingCommunity/
 │       ├── config.py            # ConfigManager, ConfigAccessor
 │       ├── http_client.py       # HTTP session management
 │       ├── os.py                # OS utilities, OsManager
-│       ├── keyboards.py         # Keyboard input handling
 │       ├── tmdb_client.py       # TMDB metadata integration
 │       ├── console/             # Console UI utilities
 │       │   ├── __init__.py

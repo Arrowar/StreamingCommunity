@@ -21,7 +21,7 @@ except ImportError:
     
 
 # Internal import
-from StreamingCommunity.setup import get_bento4_decrypt_path, get_mp4dump_path
+from StreamingCommunity.setup import get_bento4_decrypt_path, get_mp4dump_path, get_shaka_packager_path
 
 
 # Variable
@@ -30,11 +30,14 @@ console = Console()
 
 
 class Decryptor:
-    def __init__(self):
+    def __init__(self, preference: str = "bento4"):
+        self.preference = preference.lower()
         self.mp4decrypt_path = get_bento4_decrypt_path()
         self.mp4dump_path = get_mp4dump_path()
+        self.shaka_packager_path = get_shaka_packager_path()
     
     def detect_encryption(self, file_path):
+        """Detect encryption scheme using mp4dump. Returns 'ctr', 'cbc', or None if not encrypted."""
         logger.info(f"Detecting encryption: {os.path.basename(file_path)}")
         
         try:
@@ -65,8 +68,9 @@ class Decryptor:
             logger.warning(f"Encryption detection failed: {e}")
             return None
     
-    def decrypt(self, encrypted_path, kid, key, output_path):
-        logger.info(f"Decrypting: {os.path.basename(encrypted_path)}")
+    def decrypt(self, encrypted_path, keys, output_path, stream_type: str = "video"):
+        """Decrypt a file using the preferred method. Returns True on success."""
+        logger.info(f"Decrypting: {os.path.basename(encrypted_path)} using {self.preference}")
         
         try:
             encryption = self.detect_encryption(encrypted_path)
@@ -75,25 +79,80 @@ class Decryptor:
                 console.print("[dim]Not encrypted, copied")
                 return True
             
-            # FIX: ADD LIST OF KID:KEY
-            console.print(f"[dim]Decrypting ({encryption.upper()})...[/dim]")
-            kid_clean = kid.lower()
-            key_lower = key.lower()
-            
-            cmd = [self.mp4decrypt_path, "--key", f"{kid_clean}:{key_lower}", encrypted_path, output_path]
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
-            
-            if result.returncode == 0 and os.path.exists(output_path) and os.path.getsize(output_path) > 1000:
-                return True
+            console.print(f"[dim]Decrypting ({encryption.upper()}) with {self.preference}...")
+            if isinstance(keys, str):
+                keys = [keys]
+
+            if self.preference == "shaka" and self.shaka_packager_path:
+                return self._decrypt_shaka(encrypted_path, keys, output_path, stream_type)
             else:
-                console.print(f"[red]Decryption failed: {result.stderr.strip()}.")
-                return False
+                return self._decrypt_bento4(encrypted_path, keys, output_path)
                 
         except Exception as e:
             console.print(f"[red]Decryption error: {e}.")
             return False
+
+    def _decrypt_bento4(self, encrypted_path, keys, output_path):
+        """Decrypt a file using Bento4. Returns True on success."""
+        cmd = [self.mp4decrypt_path]
+        for single_key in keys:
+            if ":" in single_key:
+                kid, key_val = single_key.split(":", 1)
+                cmd.extend(["--key", f"{kid.lower()}:{key_val.lower()}"])
+            else:
+                cmd.extend(["--key", single_key.lower()])
+
+        cmd.extend([encrypted_path, output_path])
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        
+        if result.returncode == 0 and os.path.exists(output_path) and os.path.getsize(output_path) > 1000:
+            return True
+        else:
+            console.print(f"[red]Bento4 Decryption failed: {result.stderr.strip()}.")
+            return False
+
+    def _decrypt_shaka(self, encrypted_path, keys, output_path, stream_type):
+        """Decrypt a file using Shaka Packager. Returns True on success."""
+        cmd = [self.shaka_packager_path]
+        
+        # Build stream specifier
+        stream_spec = f"input='{encrypted_path}',stream={stream_type},output='{output_path}'"
+        cmd.append(stream_spec)
+        
+        cmd.append("--enable_fixed_key_decryption")
+        
+        keys_arg = []
+        for single_key in keys:
+            if ":" in single_key:
+                kid, key_val = single_key.split(":", 1)
+                keys_arg.append(f"key_id={kid.lower()}:key={key_val.lower()}")
+            else:
+                keys_arg.append(f"key={single_key.lower()}")
+        
+        if keys_arg:
+            cmd.extend(["--keys", ",".join(keys_arg)])
+        
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        
+        if result.returncode == 0 and os.path.exists(output_path) and os.path.getsize(output_path) > 1000:
+            return True
+        else:
+            # If failed, try without stream_type as a fallback (some versions might auto-detect)
+            if "stream=" in stream_spec:
+                logger.debug("Shaka decryption failed with stream type, retrying without it...")
+                cmd_retry = [self.shaka_packager_path, f"input='{encrypted_path}',output='{output_path}'", "--enable_fixed_key_decryption"]
+                if keys_arg: 
+                    cmd_retry.extend(["--keys", ",".join(keys_arg)])
+                
+                result_retry = subprocess.run(cmd_retry, capture_output=True, text=True, timeout=300)
+                if result_retry.returncode == 0 and os.path.exists(output_path):
+                    return True
+
+            console.print(f"[red]Shaka Decryption failed: {result.stderr.strip()}.")
+            return False
     
     def decrypt_hls_segment(self, encrypted_path, key_data, iv, output_path):
+        """Decrypt an HLS segment using AES-128-CBC. Returns True on success."""
         logger.info(f"Decrypting HLS segment: {os.path.basename(encrypted_path)}")
         
         try:

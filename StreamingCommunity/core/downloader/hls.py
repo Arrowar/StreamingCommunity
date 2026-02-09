@@ -30,6 +30,7 @@ EXTENSION_OUTPUT = config_manager.config.get("M3U8_CONVERSION", "extension")
 SKIP_DOWNLOAD = config_manager.config.get_bool('M3U8_DOWNLOAD', 'skip_download')
 CREATE_NFO_FILES = config_manager.config.get_bool('M3U8_CONVERSION', 'generate_nfo', default=False)
 MERGE_SUBTITLES = config_manager.config.get_bool('M3U8_CONVERSION', 'merge_subtitle', default=True)
+MERGE_AUDIO = config_manager.config.get_bool('M3U8_CONVERSION', 'merge_audio', default=True)
 
 
 class HLS_Downloader:
@@ -67,6 +68,7 @@ class HLS_Downloader:
         self.last_merge_result = None
         self.media_players = None
         self.copied_subtitles = []
+        self.copied_audios = []
 
     def start(self) -> Dict[str, Any]:
         """Main execution flow for downloading HLS content"""
@@ -145,6 +147,9 @@ class HLS_Downloader:
         # Move subtitle files if any were copied without merging
         self._move_copied_subtitles()
         
+        # Move audio files if any were copied without merging
+        self._move_copied_audios()
+        
         # Print summary and cleanup
         self._print_summary()
 
@@ -190,23 +195,27 @@ class HLS_Downloader:
         
         current_file = video_path
         
-        # Merge audio tracks if present
+        # Merge or track audio tracks
         if status['audios']:
-            console.print(f"[cyan]\nMerging [red]{len(status['audios'])} [cyan]audio track(s)...")
-            audio_output = os.path.join(self.output_dir, f"{self.filename_base}_with_audio.{EXTENSION_OUTPUT}")
-            
-            merged_file, use_shortest, result_json = join_audios(
-                video_path=current_file,
-                audio_tracks=status['audios'],
-                out_path=audio_output,
-                log_path=os.path.join(self.output_dir, "audio_merge.log")
-            )
-            self.last_merge_result = result_json
-            
-            if os.path.exists(merged_file):
-                current_file = merged_file
+            if MERGE_AUDIO:
+                console.print(f"[cyan]\nMerging [red]{len(status['audios'])} [cyan]audio track(s)...")
+                audio_output = os.path.join(self.output_dir, f"{self.filename_base}_with_audio.{EXTENSION_OUTPUT}")
+                
+                merged_file, use_shortest, result_json = join_audios(
+                    video_path=current_file,
+                    audio_tracks=status['audios'],
+                    out_path=audio_output,
+                    log_path=os.path.join(self.output_dir, "audio_merge.log")
+                )
+                self.last_merge_result = result_json
+                
+                if os.path.exists(merged_file):
+                    current_file = merged_file
+                else:
+                    console.print("[yellow]Audio merge failed, continuing with video only")
             else:
-                console.print("[yellow]Audio merge failed, continuing with video only")
+                console.print("[cyan]Track audio tracks.")
+                self._track_audios_for_copy(status['audios'])
         
         # Merge subtitles if enabled and present
         if status['subtitles']:
@@ -227,7 +236,6 @@ class HLS_Downloader:
                 else:
                     console.print("[yellow]Subtitle merge failed, continuing without subtitles")
             else:
-                console.print("[cyan]Track subtitles.")
                 self._track_subtitles_for_copy(status['subtitles'])
 
         return current_file
@@ -241,6 +249,19 @@ class HLS_Downloader:
                 extension = os.path.splitext(sub_path)[1]
                 self.copied_subtitles.append({
                     'src': sub_path,
+                    'language': language,
+                    'extension': extension
+                })
+
+    def _track_audios_for_copy(self, audios_list):
+        """Track audio paths for later copying to final location."""
+        for idx, audio in enumerate(audios_list):
+            audio_path = audio.get('path')
+            if audio_path and os.path.exists(audio_path):
+                language = audio.get('language', f'audio{idx}')
+                extension = os.path.splitext(audio_path)[1]
+                self.copied_audios.append({
+                    'src': audio_path,
                     'language': language,
                     'extension': extension
                 })
@@ -266,6 +287,28 @@ class HLS_Downloader:
                 shutil.copy2(src_path, dst_path)
             except Exception as e:
                 console.print(f"[yellow]Warning: Could not move subtitle {language}: {e}")
+
+    def _move_copied_audios(self):
+        """Move tracked audio files to final output directory if copied_audios exists."""
+        if not self.copied_audios:
+            return
+        
+        output_dir = os.path.dirname(self.output_path)
+        filename_base = os.path.splitext(os.path.basename(self.output_path))[0]
+        console.print("[cyan]Copy the audios to the final path.")
+        
+        for audio_info in self.copied_audios:
+            src_path = audio_info['src']
+            language = audio_info['language']
+            extension = audio_info['extension']
+            
+            # final name
+            dst_path = os.path.join(output_dir, f"{filename_base}.{language}{extension}")
+            
+            try:
+                shutil.copy2(src_path, dst_path)
+            except Exception as e:
+                console.print(f"[yellow]Warning: Could not move audio {language}: {e}")
 
     def _print_summary(self):
         """Print download summary"""

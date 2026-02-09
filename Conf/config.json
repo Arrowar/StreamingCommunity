@@ -14,12 +14,11 @@
         "add_siteName": false
     },
     "M3U8_DOWNLOAD": {
-        "auto_select": true,
         "skip_download": false,
         "thread_count": 8,
         "retry_count": 30,
         "concurrent_download": true,
-        "max_speed": "50MB",
+        "max_speed": "",
         "real_time_decryption": false,
         "check_segments_count": true,
         "select_video": "res=1920:for=best",
@@ -36,6 +35,7 @@
         "subtitle_disposition": false,
         "subtitle_disposition_language": ["forced-ita","ita-forced"],
         "merge_subtitle": true,
+        "merge_audio": true,
         "extension": "mkv"
     },
     "REQUESTS": {

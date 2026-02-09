@@ -97,11 +97,22 @@ def process_subtitle_fonts(subtitle_path: str):
 def detect_subtitle_format(subtitle_path: str) -> Optional[str]:
     """Detects the actual format of a subtitle file by examining its content."""
     try:
+        # Check binary signatures first for formats like stpp in mp4/m4s
+        with open(subtitle_path, 'rb') as f:
+            header = f.read(32)
+
+            # Check for MP4/M4S signatures (styp, ftyp, moof)
+            if any(sig in header for sig in [b'styp', b'ftyp', b'moof']):
+                return 'ttml'
+                
         with open(subtitle_path, 'r', encoding='utf-8', errors='ignore') as f:
             first_lines = ''.join([f.readline() for _ in range(20)]).lower()
             
             if re.search(r'webvtt', first_lines, re.IGNORECASE):
                 return 'vtt'
+            
+            if re.search(r'<tt\s', first_lines, re.IGNORECASE):
+                return 'ttml'
             
             if re.search(r'\[script info\]', first_lines, re.IGNORECASE) or re.search(r'\[v4\+ styles\]', first_lines, re.IGNORECASE) or re.search(r'\[v4 styles\]', first_lines, re.IGNORECASE):
                 if re.search(r'format:\s*name', first_lines, re.IGNORECASE) or re.search(r'format:\s*marked', first_lines, re.IGNORECASE):
@@ -137,7 +148,8 @@ def fix_subtitle_extension(subtitle_path: str) -> str:
     
     # If extension is already correct, just process fonts for ASS/SSA
     if current_ext == detected_format:
-        process_subtitle_fonts(subtitle_path)
+        if detected_format in ['ass', 'ssa']:
+            process_subtitle_fonts(subtitle_path)
         return subtitle_path
     
     # Create new path with correct extension
@@ -151,5 +163,6 @@ def fix_subtitle_extension(subtitle_path: str) -> str:
         console.print(f"[red]    Error renaming subtitle: {str(e)}")
         return_path = subtitle_path
     
-    process_subtitle_fonts(return_path)
+    if detected_format in ['ass', 'ssa']:
+        process_subtitle_fonts(return_path)
     return return_path

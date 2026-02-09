@@ -19,6 +19,7 @@ from .helper.ex_video import need_to_force_to_ts
 from .helper.ex_audio import check_duration_v_a, has_audio
 from .helper.ex_sub import fix_subtitle_extension
 from .capture import capture_ffmpeg_real_time
+from .conversion.ttml_to_srt import convert_ttml_to_srt
 
 
 # Config
@@ -208,6 +209,14 @@ def join_subtitles(video_path: str, subtitles_list: List[Dict[str, str]], out_pa
     for subtitle in subtitles_list:
         original_path = subtitle['path']
         corrected_path = fix_subtitle_extension(original_path)
+        
+        # TTML to SRT conversion if needed
+        if corrected_path.lower().endswith(('.ttml', '.xml')) or 'ttml' in corrected_path.lower():
+            srt_path = os.path.splitext(corrected_path)[0] + '.srt'
+            if convert_ttml_to_srt(corrected_path, srt_path):
+                console.print(f"[yellow]    - [green]Converted TTML to SRT: [red]{os.path.basename(srt_path)}")
+                corrected_path = srt_path
+        
         subtitle['path'] = corrected_path
     
     ffmpeg_cmd = [get_ffmpeg_path(), "-i", video_path]
@@ -217,7 +226,8 @@ def join_subtitles(video_path: str, subtitles_list: List[Dict[str, str]], out_pa
     if output_ext == '.mp4':
         subtitle_codec = 'mov_text'
     elif output_ext == '.mkv':
-        subtitle_codec = 'copy'
+        # Now that we convert TTML manually, we don't need to force srt via ffmpeg unless they are still not srt
+        subtitle_codec = 'srt'
     else:
         subtitle_codec = 'copy'
     

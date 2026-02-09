@@ -71,8 +71,7 @@
    - Results wrapped in `MediaItem` objects
    - `MediaManager` accumulates results
 5. `TVShowManager` displays results in console table
-6. User selects media via keyboard/number input
-7. Metadata cached in `MediaManager` for download phase
+6. Metadata cached in `MediaManager` for download phase
 
 **Download Flow:**
 

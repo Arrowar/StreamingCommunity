@@ -111,6 +111,19 @@ AUDIO_CODEC_MAP = {
     'speex': 'Speex',
 }
 
+SUBTITLE_CODEC_MAP = {
+    'stpp.ttml.im1t': 'TTML',
+    'stpp': 'TTML',
+    'ttml': 'TTML',
+    'wvtt': 'VTT',
+    'vtt': 'VTT',
+    'webvtt': 'VTT',
+    'srt': 'SRT',
+    'tx3g': 'SRT',
+    'ass': 'ASS',
+    'ssa': 'SSA'
+}
+
 
 def get_video_codec_name(codec_string):
     """Get the human-readable name of a video codec."""
@@ -134,8 +147,19 @@ def get_audio_codec_name(codec_string):
     
     return codec_string
 
+def get_subtitle_codec_name(codec_string):
+    """Get the human-readable name of a subtitle codec."""
+    if codec_string in SUBTITLE_CODEC_MAP:
+        return SUBTITLE_CODEC_MAP[codec_string]
+    
+    for key, value in SUBTITLE_CODEC_MAP.items():
+        if codec_string.startswith(key):
+            return value
+    
+    return codec_string
+
 def get_codec_type(codec_string):
-    """Get the type of codec: 'Video', 'Audio', or 'Unknown'."""
+    """Get the type of codec: 'Video', 'Audio', 'Subtitle' or 'Unknown'."""
     for key in VIDEO_CODEC_MAP.keys():
         if codec_string.startswith(key):
             return 'Video'
@@ -143,5 +167,9 @@ def get_codec_type(codec_string):
     for key in AUDIO_CODEC_MAP.keys():
         if codec_string.startswith(key):
             return 'Audio'
+
+    for key in SUBTITLE_CODEC_MAP.keys():
+        if codec_string.startswith(key):
+            return 'Subtitle'
     
     return 'Unknown'

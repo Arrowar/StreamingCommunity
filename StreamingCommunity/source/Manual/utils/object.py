@@ -30,6 +30,7 @@ class Stream:
         self.fps = 'unknown'
         self.codecs = 'unknown'
         self.name = 'unknown'
+        self.role = 'main'
         self.drm = DRMInfo()
         self.encryption_method = None
         self.key_uri = None
@@ -47,6 +48,8 @@ class Stream:
             return f"video_{self.resolution}"
         elif self.type == 'audio':
             return f"audio_{self.language}"
+        elif self.type == 'image':
+            return f"thumbnail_{self.resolution}"
         else:
             return f"subtitle_{self.language}"
     
@@ -56,6 +59,8 @@ class Stream:
             return 'Video'
         elif self.type == 'audio':
             return 'Audio'
+        elif self.type == 'image':
+            return 'Thumbnail'
         else:
             return 'Subtitle'
     

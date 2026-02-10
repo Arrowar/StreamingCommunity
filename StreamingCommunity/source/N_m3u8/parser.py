@@ -49,7 +49,7 @@ def create_key(s):
     if s.get("MediaType") == "AUDIO": 
         return f"AUDIO|{s.get('Language','')}|{s.get('Name','')}|{s.get('Bandwidth',0)}|{s.get('Codecs','')}|{s.get('Channels','')}"
 
-    return f"SUBTITLE|{s.get('Language','')}|{s.get('Name','')}"
+    return f"SUBTITLE|{s.get('Language','')}|{s.get('Name','')}|{s.get('Role','')}"
 
 
 def get_track_protection(s) -> str:
@@ -84,6 +84,29 @@ def get_track_protection(s) -> str:
         return f"{main}*"
     
     return non_none[0]
+
+
+def classify_stream(s):
+    """Classify stream type based on meta.json data"""
+    group_id = s.get("GroupId", "")
+    if isinstance(group_id, str) and group_id.startswith("thumb_"):
+        return "Thumbnail"
+    
+    # Check MediaType
+    media_type = s.get("MediaType", "").upper()
+    if media_type == "AUDIO":
+        return "Audio"
+    elif media_type == "SUBTITLES":
+        return "Subtitle"
+    elif media_type == "VIDEO":
+        return "Video"
+    
+    # Fallback: if has Resolution, it's Video
+    if "Resolution" in s and s.get("Resolution"):
+        return "Video"
+    
+    # Default to Video for unknown types
+    return "Video"
 
 
 def parse_meta_json(json_path: str, selected_json_path: str) -> List[StreamInfo]:
@@ -136,10 +159,7 @@ def parse_meta_json(json_path: str, selected_json_path: str) -> List[StreamInfo]
         
         sel = key in selected_map
         det = selected_map.get(key, {})
-        
-        st_type = "Video" if ("Resolution" in s and s.get("Resolution")) else s.get("MediaType", "Video").title()
-        if st_type == "Subtitles": 
-            st_type = "Subtitle"
+        st_type = classify_stream(s)
         
         streams.append(StreamInfo(
             type_=st_type,

@@ -45,6 +45,10 @@ VIDEO_CODEC_MAP = {
     'av01.0.08M.08': 'AV1',
     'av01.0.12M.10': 'AV1',
     
+    # Dolby Vision
+    'dvhe': 'Dolby Vision',
+    'dvh1': 'Dolby Vision',
+    
     # Altri codec video
     'mpeg4': 'MPEG-4',
     'mp4v': 'MPEG-4',

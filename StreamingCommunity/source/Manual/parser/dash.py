@@ -70,6 +70,8 @@ class DashParser:
                 stream_type = 'audio'
             elif 'text' in content_type or 'subtitle' in content_type:
                 stream_type = 'subtitle'
+            elif 'image' in content_type:
+                stream_type = 'image'
             else:
                 continue
             
@@ -78,6 +80,10 @@ class DashParser:
             for rep in adapt_set.findall('.//mpd:Representation', self.ns):
                 stream = self._parse_representation(rep, adapt_set, stream_type)
                 if stream:
+                    role_elem = adapt_set.find('.//mpd:Role', self.ns)
+                    if role_elem is not None:
+                        stream.role = role_elem.get('value', 'main')
+                    
                     stream.duration = media_duration
                     
                     rep_drm = self._extract_drm_from_element(rep)
@@ -151,6 +157,7 @@ class DashParser:
 
         elif stream_type == 'subtitle':
             stream.language = adapt_set.get('lang', 'und')
+            stream.codecs = rep.get('codecs') or adapt_set.get('codecs', 'vtt')
         
         segment_template = rep.find('.//mpd:SegmentTemplate', self.ns)
         if segment_template is None:

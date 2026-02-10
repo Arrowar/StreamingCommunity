@@ -147,6 +147,7 @@ jobs:
           pyinstaller --onefile \
           --hidden-import=sqlite3 \
           --collect-binaries sqlite3 \
+          --hidden-import=pycryptodomex \
           --hidden-import=ua_generator \
           --hidden-import=bs4 \
           --hidden-import=httpx \

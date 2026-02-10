@@ -1,45 +1,57 @@
 # 06-06-25 By @FrancescoGrazioso -> "https://github.com/FrancescoGrazioso"
 
 
+import os
+import importlib
 from typing import Dict, List
 from .base import BaseStreamingAPI
 
 
-# Import APi
-from .altadefinizione import AltadefinzioneAPI
-from .animeunity import AnimeUnityAPI
-from .discoveryeu import DiscoveryEUAPI
-from .discoveryeuplus import DiscoveryEuPlusAPI
-from .mediasetinfinity import MediasetInfinityAPI
-from .raiplay import RaiPlayAPI
-from .realtime import RealtimeAPI
-from .streamingcommunity import StreamingCommunityAPI
-from .guardaserie import GuardaSerieAPI
-from .dmax import DmaxAPI
-from .crunchyroll import CrunchyrollAPI
-from .nove import NoveAPI
-from .homegardentv import HomeGardenTVAPI
-from .foodnetwork import FoodNetworkAPI
-from .animeworld import AnimeWorldAPI
+_API_REGISTRY: Dict[str, type] = {}
+_INITIALIZED = False
+_PREFERRED_ORDER = [
+    'streamingcommunity', 'altadefinizione', 'guardaserie', 'animeunity',
+    'animeworld', 'crunchyroll', 'mediasetinfinity', 'raiplay',
+    'discoveryeu', 'discoveryeuplus', 'dmax', 'nove', 'realtime',
+    'homegardentv', 'foodnetwork'
+]
 
 
-_API_REGISTRY: Dict[str, type] = {
-    'streamingcommunity': StreamingCommunityAPI,
-    'altadefinizione': AltadefinzioneAPI,
-    'guardaserie': GuardaSerieAPI,
-    'animeunity': AnimeUnityAPI,
-    'animeworld': AnimeWorldAPI,
-    'crunchyroll': CrunchyrollAPI,
-    'mediasetinfinity': MediasetInfinityAPI,
-    'raiplay': RaiPlayAPI,
-    'discoveryeu': DiscoveryEUAPI,
-    'discoveryeuplus': DiscoveryEuPlusAPI,
-    'dmax': DmaxAPI,
-    'nove': NoveAPI,
-    'realtime': RealtimeAPI,
-    'homegardentv': HomeGardenTVAPI,
-    'foodnetwork': FoodNetworkAPI
-}
+def _initialize_registry():
+    global _INITIALIZED
+    if _INITIALIZED:
+        return
+        
+    package_dir = os.path.dirname(__file__)
+    api_files = [
+        f[:-3] for f in os.listdir(package_dir) 
+        if f.endswith('.py') and f not in ('base.py', '__init__.py')
+    ]
+    
+    # Use preferred order first, then any remaining files
+    sorted_files = [f for f in _PREFERRED_ORDER if f in api_files]
+    sorted_files.extend([f for f in api_files if f not in _PREFERRED_ORDER])
+    
+    for idx, module_name in enumerate(sorted_files):
+        try:
+            module = importlib.import_module(f'.{module_name}', package=__package__)
+            
+            # Find the API class in the module
+            for name, obj in module.__dict__.items():
+                if (isinstance(obj, type) and 
+                    issubclass(obj, BaseStreamingAPI) and 
+                    obj is not BaseStreamingAPI):
+                    
+                    # Add _indice to the class
+                    obj._indice = idx
+                    _API_REGISTRY[module_name] = obj
+                    break
+        except Exception as e:
+            print(f"Error loading API {module_name}: {e}")
+    
+    _INITIALIZED = True
+
+_initialize_registry()
 
 
 def get_available_sites() -> List[str]:

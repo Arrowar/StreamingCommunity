@@ -290,8 +290,6 @@ function escapeHtml(str) {
 }
 
 async function killDownload(id) {
-  if (!confirm('Sei sicuro di voler annullare questo download?')) return;
-  
   try {
     const response = await fetch(window.KILL_DOWNLOAD_URL, {
       method: 'POST',

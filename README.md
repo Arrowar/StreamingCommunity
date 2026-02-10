@@ -386,6 +386,7 @@ services:
 - [ ] Add images for each episode: Display a dedicated image or thumbnail for every episode.
 - [ ] Improve season selection: Populate the season selector using the actual extracted seasons (real data), instead of assuming a range from 1 to N.
 - [ ] Add login for discovery, dmax ...
+- [ ] Use asyncio for manual downloader
 
 ---
 

@@ -372,17 +372,16 @@ class Downloader:
             key_pair = stream.drm.get_key_pair()
             if not key_pair and self.kid_key:
                 logger.info("No key pair in stream, using fallback kid_key")
-                kid_key_parts = self.kid_key.split(':')
-
-                if len(kid_key_parts) == 2:
-                    kid, key = kid_key_parts
+                
+                # Find key by KID
+                key_pair = self.kid_key.find_key_by_kid(stream.drm.kid)
+                if key_pair:
+                    kid, key = key_pair.split(':', 1)
                     stream.drm.set_kid(kid)
                     stream.drm.key = key
                     key_pair = stream.drm.get_key_pair()
             
             if key_pair:
-                kid, key = key_pair.split(':')
-                
                 # Determine final output path
                 if stream.type == 'video':
                     final_file = self.output_path
@@ -390,7 +389,7 @@ class Downloader:
                     base_name = os.path.splitext(os.path.basename(self.output_path))[0]
                     final_file = os.path.join(self.output_dir, f"{base_name}_{stream.language}.mp4")
                 
-                if self.decryptor.decrypt(encrypted_path, kid, key, final_file):
+                if self.decryptor.decrypt(encrypted_path, [key_pair], final_file):
                     logger.info(f"Decryption successful: {final_file}")
                     for i, (path, s) in enumerate(self.downloaded_results):
                         if path == encrypted_path:

@@ -38,7 +38,6 @@ def convert_ttml_to_srt(ttml_path: str, srt_path: Optional[str] = None) -> bool:
         srt_path = str(Path(ttml_path).with_suffix('.srt'))
 
     try:
-        # Read the file
         with open(ttml_path, 'rb') as f:
             data = f.read()
 
@@ -50,11 +49,10 @@ def convert_ttml_to_srt(ttml_path: str, srt_path: Optional[str] = None) -> bool:
             try:
                 text_content = data.decode('utf-8')
                 if '<tt' in text_content and '</tt>' in text_content:
-                    # Capture the content between <tt and </tt> including tags
                     match = re.search(r'<tt.*?</tt>', text_content, re.DOTALL)
                     if match:
                         ttml_blocks = [match.group(0).encode('utf-8')]
-            except:
+            except Exception:
                 pass
 
         if not ttml_blocks:
@@ -67,6 +65,7 @@ def convert_ttml_to_srt(ttml_path: str, srt_path: Optional[str] = None) -> bool:
 
         for block in ttml_blocks:
             try:
+
                 # Decode the TTML block
                 ttml_str = block.decode('utf-8')
 
@@ -78,7 +77,6 @@ def convert_ttml_to_srt(ttml_path: str, srt_path: Optional[str] = None) -> bool:
                 model = to_model(tree)
 
                 if model is not None:
-                    # Convert model to SRT
                     srt_content = from_model(model)
                     if srt_content.strip():
                         all_captions.append(srt_content.strip())
@@ -86,7 +84,7 @@ def convert_ttml_to_srt(ttml_path: str, srt_path: Optional[str] = None) -> bool:
                 else:
                     skipped_blocks += 1
 
-            except Exception as e:
+            except Exception:
                 skipped_blocks += 1
                 continue
 

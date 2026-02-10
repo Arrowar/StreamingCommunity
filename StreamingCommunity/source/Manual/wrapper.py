@@ -17,7 +17,7 @@ from StreamingCommunity.utils import config_manager
 from StreamingCommunity.utils.http_client import get_headers
 from StreamingCommunity.source.utils.tracker import download_tracker
 from StreamingCommunity.source.utils.media_players import MediaPlayers
-from StreamingCommunity.source.utils.object import StreamInfo
+from StreamingCommunity.source.utils.object import StreamInfo, KeysManager
 
 
 # Internal logic
@@ -41,7 +41,7 @@ cleanup_enabled = config_manager.config.get_bool('M3U8_DOWNLOAD', 'cleanup_tmp_f
 
 class MediaDownloader:
     def __init__(self, url: str, output_dir: str, filename: str, headers: Optional[Dict] = None, key: Optional[str] = None, cookies: Optional[Dict] = None, decrypt_preference: str = "bento4", download_id: str = None, site_name: str = None):
-        console.print("[red]You are using the Manual MediaDownloader wrapper. This is intended for testing and may not have all features of the N_m3u8DL-RE wrapper. Please use N_m3u8DL-RE for best performance and compatibility. \n")
+        console.print("[red]You are using the Manual MediaDownloader wrapper. This is intended for testing and may not have all features of the N_m3u8DL-RE wrapper. Please use N_m3u8DL-RE for best performance and compatibility.")
         self.url = url
         self.output_dir = Path(output_dir)
         self.filename = filename
@@ -162,49 +162,19 @@ class MediaDownloader:
         if not keys:
             return
         
-        # If single string, set as kid_key
-        if isinstance(keys, str):
+        # If KeysManager, store it
+        if isinstance(keys, KeysManager):
             self.key = keys
             self.manual_downloader.kid_key = keys
-            logger.info(f"Decryption key updated: {keys}")
+            logger.info(f"Decryption keys updated: {len(keys)} keys")
             return
         
-        # If list of keys, assign to DRM streams
-        if isinstance(keys, list):
-            for key_info in keys:
-                if isinstance(key_info, dict):
-                    kid = key_info.get('kid', '').lower().replace('-', '')
-                    key = key_info.get('key', '')
-                    
-                    if not kid or not key:
-                        continue
-                    
-                    for stream in self.manual_downloader.streams:
-                        if stream.drm and stream.drm.is_encrypted():
-                            stream_kid = stream.drm.kid.lower().replace('-', '') if stream.drm.kid else ''
-                            if stream_kid == kid:
-                                stream.drm.key = key
-
-                elif isinstance(key_info, str) and ':' in key_info:
-                    kid, key = key_info.split(':', 1)
-                    kid = kid.lower().replace('-', '')
-                    
-                    for stream in self.manual_downloader.streams:
-                        if stream.drm and stream.drm.is_encrypted():
-                            stream_kid = stream.drm.kid.lower().replace('-', '') if stream.drm.kid else ''
-                            if stream_kid == kid:
-                                stream.drm.key = key
-                                logger.info(f"Assigned key to stream {stream.get_description()}: KID={kid}")
-            
-            # Store first key as fallback
-            if keys and isinstance(keys[0], dict):
-                first_kid = keys[0].get('kid', '')
-                first_key = keys[0].get('key', '')
-                if first_kid and first_key:
-                    self.manual_downloader.kid_key = f"{first_kid}:{first_key}"
-
-            elif keys and isinstance(keys[0], str) and ':' in keys[0]:
-                self.manual_downloader.kid_key = keys[0]
+        # If list or string, create KeysManager
+        if isinstance(keys, (list, str)):
+            self.key = KeysManager(keys)
+            self.manual_downloader.kid_key = self.key
+            logger.info(f"Decryption keys updated: {len(self.key)} keys")
+            return
     
     def start_download(self) -> Dict[str, Any]:
         """

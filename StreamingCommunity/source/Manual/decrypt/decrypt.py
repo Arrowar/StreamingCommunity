@@ -9,16 +9,9 @@ import logging
 
 # External import 
 from rich.console import Console
-try:
-    from Crypto.Cipher import AES
-    from Crypto.Util.Padding import unpad
-except ImportError:
-    try:
-        from Cryptodome.Cipher import AES
-        from Cryptodome.Util.Padding import unpad
-    except ImportError:
-        raise ImportError("pycryptodomex or pycrypto is required for AES decryption")
-    
+from Cryptodome.Cipher import AES
+from Cryptodome.Util.Padding import unpad
+
 
 # Internal import
 from StreamingCommunity.setup import get_bento4_decrypt_path, get_mp4dump_path, get_shaka_packager_path
@@ -70,8 +63,6 @@ class Decryptor:
     
     def decrypt(self, encrypted_path, keys, output_path, stream_type: str = "video"):
         """Decrypt a file using the preferred method. Returns True on success."""
-        logger.info(f"Decrypting: {os.path.basename(encrypted_path)} using {self.preference}")
-        
         try:
             encryption = self.detect_encryption(encrypted_path)
             if encryption is None:
@@ -118,7 +109,6 @@ class Decryptor:
         # Build stream specifier
         stream_spec = f"input='{encrypted_path}',stream={stream_type},output='{output_path}'"
         cmd.append(stream_spec)
-        
         cmd.append("--enable_fixed_key_decryption")
         
         keys_arg = []
@@ -133,11 +123,9 @@ class Decryptor:
             cmd.extend(["--keys", ",".join(keys_arg)])
         
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
-        
         if result.returncode == 0 and os.path.exists(output_path) and os.path.getsize(output_path) > 1000:
             return True
         else:
-            # If failed, try without stream_type as a fallback (some versions might auto-detect)
             if "stream=" in stream_spec:
                 logger.debug("Shaka decryption failed with stream type, retrying without it...")
                 cmd_retry = [self.shaka_packager_path, f"input='{encrypted_path}',output='{output_path}'", "--enable_fixed_key_decryption"]

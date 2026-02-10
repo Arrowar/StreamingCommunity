@@ -1,7 +1,7 @@
 {% extends "searchapp/base.html" %}
 {% load static %}
 
-{% block title %}I Miei Download{% endblock %}
+{% block title %}My Downloads{% endblock %}
 
 {% block content %}
 <div class="py-6 sm:py-8 lg:py-12 animate-fade-in">
@@ -18,12 +18,9 @@
         </svg>
       </button>
       <h1 class="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-white leading-tight">
-        I Miei Download
+        My Downloads
       </h1>
     </div>
-    <p class="text-gray-400 text-sm sm:text-base lg:text-lg ml-11 sm:ml-14">
-      Monitora lo stato dei tuoi download in tempo reale
-    </p>
   </div>
 
   <!-- Active Downloads Section -->
@@ -51,9 +48,6 @@
         <p class="text-gray-500 font-semibold text-base sm:text-lg">
           Nessun download in corso
         </p>
-        <p class="text-gray-600 text-xs sm:text-sm mt-2">
-          I tuoi download appariranno qui
-        </p>
       </div>
     </div>
   </div>
@@ -65,12 +59,6 @@
       <h2 class="text-lg sm:text-xl lg:text-2xl font-bold text-white">
         Cronologia
       </h2>
-      <button class="text-xs sm:text-sm text-gray-400 hover:text-white transition-colors flex items-center gap-2">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path>
-        </svg>
-        <span class="hidden sm:inline">Filtri</span>
-      </button>
     </div>
 
     <!-- History Table -->
@@ -105,19 +93,6 @@
         </table>
       </div>
     </div>
-  </div>
-
-  <!-- Quick Actions -->
-  <div class="mt-8 sm:mt-12 flex flex-col sm:flex-row gap-3 sm:gap-4">
-    <a 
-      href="{% url 'search_home' %}" 
-      class="flex-1 px-5 py-3.5 sm:px-6 sm:py-4 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-bold text-sm sm:text-base rounded-lg sm:rounded-xl transition-all transform hover:scale-[1.02] shadow-xl text-center flex items-center justify-center gap-2 sm:gap-3"
-    >
-      <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-      </svg>
-      Cerca Nuovi Contenuti
-    </a>
   </div>
 </div>
 {% endblock %}

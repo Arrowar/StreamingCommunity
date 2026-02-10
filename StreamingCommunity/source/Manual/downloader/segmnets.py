@@ -108,15 +108,20 @@ class SegmentDownloader:
         self.max_workers = max_workers
         self.max_retries = max_retries
         self.download_id = download_id
-        signal.signal(signal.SIGINT, self._signal_handler)
+        if threading.current_thread() is threading.main_thread():
+            signal.signal(signal.SIGINT, self._signal_handler)
     
     def _signal_handler(self, signum, frame):
         """Handle Ctrl+C gracefully"""
         shutdown_flag.set()
         raise KeyboardInterrupt("Download cancelled by user")
     
+    def is_cancelled(self):
+        """Check if download should be cancelled (signal or GUI stop)"""
+        return shutdown_flag.is_set() or (self.download_id and download_tracker.is_stopped(self.download_id))
+    
     def download_segment(self, segment):
-        if shutdown_flag.is_set():
+        if self.is_cancelled():
             return False
         
         with failed_segments_lock:
@@ -125,7 +130,7 @@ class SegmentDownloader:
                 return False
         
         for attempt in range(1, self.max_retries + 1):
-            if shutdown_flag.is_set():
+            if self.is_cancelled():
                 return False
             
             try:
@@ -200,7 +205,7 @@ class SegmentDownloader:
                 futures = {executor.submit(self.download_segment, seg): seg for seg in segments}
                 
                 for future in as_completed(futures):
-                    if shutdown_flag.is_set():
+                    if self.is_cancelled():
                         logger.info("Download interrupted by user")
                         executor.shutdown(wait=False, cancel_futures=True)
                         return False
@@ -239,7 +244,7 @@ class SegmentDownloader:
                             speed = total_size / elapsed if elapsed > 0 else 0
                             progress_percent = (downloaded_count / total_segments * 100) if total_segments > 0 else 0
                             speed_str = f"{format_size(speed)}/s"
-                            size_str = f"{format_size(total_size)} / ~{format_size(total_size * total_segments / max(downloaded_count, 1))}"
+                            size_str = f"{format_size(total_size)} / {format_size(total_size * total_segments / max(downloaded_count, 1))}"
                             segments_str = f"{downloaded_count}/{total_segments}"
                             
                             progress.update(task, completed=downloaded_count + failed_count, progress=segments_str, speed=speed_str, size=size_str)

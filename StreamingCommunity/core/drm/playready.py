@@ -10,6 +10,7 @@ from pyplayready.system.pssh import PSSH
 
 # Internal utilities
 from StreamingCommunity.utils.http_client import create_client_curl
+from StreamingCommunity.source.utils.object import KeysManager
 
 
 # Variable
@@ -36,7 +37,7 @@ def get_playready_keys(pssh_list: list[dict], license_url: str, cdm_device_path:
     if key:
         k_split = key.split(':')
         if len(k_split) == 2:
-            return [f"{k_split[0].replace('-', '').strip()}:{k_split[1].replace('-', '').strip()}"]
+            return KeysManager([f"{k_split[0].replace('-', '').strip()}:{k_split[1].replace('-', '').strip()}"])
         return None
 
     # Check if we have either local or remote CDM
@@ -176,7 +177,7 @@ def _get_playready_keys_local_cdm(pssh_list: list[dict], license_url: str, cdm_d
         else:
             console.print("[yellow]No keys extracted")
         
-        return all_content_keys if all_content_keys else None
+        return KeysManager(all_content_keys) if all_content_keys else None
     
     except Exception as e:
         console.print(f"[red]Unexpected error during key extraction: {e}")

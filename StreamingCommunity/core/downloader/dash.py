@@ -12,19 +12,22 @@ from rich.console import Console
 
 
 # Internal utilities
+from StreamingCommunity.utils import config_manager, os_manager, internet_manager
 from StreamingCommunity.utils.http_client import get_headers
+from StreamingCommunity.setup import get_wvd_path, get_prd_path
 from StreamingCommunity.core.processors import join_video, join_audios, join_subtitles
 from StreamingCommunity.core.processors.helper.nfo import create_nfo
 from StreamingCommunity.source.utils.tracker import download_tracker, context_tracker
 from StreamingCommunity.source.utils.media_players import MediaPlayers
-from StreamingCommunity.utils import config_manager, os_manager, internet_manager
 
 
 # DRM Utilities
-from StreamingCommunity.source.N_m3u8 import MediaDownloader
-from StreamingCommunity.setup import get_wvd_path, get_prd_path
 from ..parser import MPDParser, DRMSystem
 from ..drm import DRMManager
+
+
+# Downloader
+from StreamingCommunity.source.N_m3u8 import MediaDownloader
 
 
 # Config
@@ -348,7 +351,7 @@ class DASH_Downloader:
         if self.download_id:
             download_tracker.update_status(self.download_id, "downloading")
             
-        self.media_downloader.set_key(self.decryption_keys if self.decryption_keys else None)
+        self.media_downloader.set_key(self.decryption_keys)
         status = self.media_downloader.start_download()
         
         # Check for cancellation

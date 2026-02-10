@@ -71,27 +71,25 @@ def get_select_title(table_show_manager, media_search_manager):
             media_dict[key.capitalize()] = str(getattr(media, key))
         table_show_manager.add_tv_show(media_dict)
 
-    last_command_str = table_show_manager.run(force_int_input=True, max_int_input=len(media_search_manager.media_list))
-    table_show_manager.clear()
-
-    if last_command_str is None or last_command_str.lower() in ["q", "quit"]: 
-        console.print("\n[red]Selezione annullata o uscita.")
-        return None 
-
-    try:
+    while True:
+        last_command_str = table_show_manager.run(force_int_input=True, max_int_input=len(media_search_manager.media_list))
         
-        selected_index = int(last_command_str)
-        
-        if 0 <= selected_index < len(media_search_manager.media_list):
-            return media_search_manager.get(selected_index)
+        if last_command_str is None or last_command_str.lower() in ["q", "quit"]: 
+            table_show_manager.clear()
+            console.print("\n[red]Selection cancelled by user.")
+            return None 
+
+        try:
+            selected_index = int(last_command_str)
             
-        else:
-            console.print("\n[red]Indice errato o non valido.")
-            return None
-            
-    except ValueError:
-        console.print("\n[red]Input non numerico ricevuto dalla tabella.")
-        return None
+            if 0 <= selected_index < len(media_search_manager.media_list):
+                table_show_manager.clear()
+                return media_search_manager.get(selected_index)
+            else:
+                console.print("\n[red]Invalid or out-of-range index. Please try again.")
+                
+        except ValueError:
+            console.print("\n[red]Non-numeric input received. Please try again.")
     
 
 def base_process_search_result(select_title: Optional[Entries], download_film_func: Optional[Callable[[Entries], Any]] = None, download_series_func: Optional[Callable[[Entries, Optional[str], Optional[str], Optional[Any]], Any]] = None,

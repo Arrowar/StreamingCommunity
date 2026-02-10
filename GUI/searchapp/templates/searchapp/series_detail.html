@@ -40,17 +40,28 @@
           <span class="px-3 py-1 sm:px-4 sm:py-1.5 bg-white/20 backdrop-blur-md text-white text-xs sm:text-sm font-semibold rounded">
             {{ seasons|length }} Stagioni
           </span>
+          
+          <!-- Add to Watchlist Button -->
+          <form action="{% url 'add_to_watchlist' %}" method="post" class="inline-block">
+            {% csrf_token %}
+            <input type="hidden" name="source_alias" value="{{ source_alias }}">
+            <input type="hidden" name="item_payload" value="{{ item_payload }}">
+            <button 
+              type="submit" 
+              class="px-3 py-1 sm:px-4 sm:py-1.5 bg-white hover:bg-gray-200 text-black text-xs sm:text-sm font-bold rounded flex items-center gap-2 transition-all shadow-xl"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+              Watchlist
+            </button>
+          </form>
         </div>
 
         <!-- Title -->
         <h1 class="text-2xl sm:text-4xl md:text-5xl lg:text-7xl font-black text-white mb-4 sm:mb-6 leading-tight drop-shadow-2xl text-center sm:text-left">
           {{ title }}
         </h1>
-
-        <!-- Description -->
-        <p class="text-sm sm:text-lg lg:text-xl text-gray-300 mb-6 sm:mb-8 max-w-2xl drop-shadow-lg text-center sm:text-left px-2 sm:px-0">
-          Seleziona gli episodi che desideri scaricare. Puoi scaricare stagioni complete o episodi singoli.
-        </p>
       </div>
     </div>
   </div>

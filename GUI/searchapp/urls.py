@@ -10,7 +10,18 @@ urlpatterns = [
     path("download/", views.start_download, name="start_download"),
     path("series-metadata/", views.series_metadata, name="series_metadata"),
     path("series-detail/", views.series_detail, name="series_detail"),
+
+    # Download
     path("downloads/", views.download_dashboard, name="download_dashboard"),
     path("api/get-downloads/", views.get_downloads_json, name="get_downloads_json"),
     path("api/kill-download/", views.kill_download, name="kill_download"),
+    
+    # Watchlist
+    path("watchlist/", views.watchlist, name="watchlist"),
+    path("watchlist/add/", views.add_to_watchlist, name="add_to_watchlist"),
+    path("watchlist/remove/<int:item_id>/", views.remove_from_watchlist, name="remove_from_watchlist"),
+    path("watchlist/update/<int:item_id>/", views.update_watchlist_item, name="update_watchlist_item"),
+    path("watchlist/update-all/", views.update_all_watchlist, name="update_all_watchlist"),
+    path("watchlist/clear/", views.clear_watchlist, name="clear_watchlist"),
+    path("api/watchlist-status/", views.watchlist_status, name="watchlist_status"),
 ]

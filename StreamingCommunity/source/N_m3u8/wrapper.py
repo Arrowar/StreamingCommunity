@@ -22,7 +22,7 @@ from StreamingCommunity.utils.http_client import create_async_client
 
 
 # Logic
-from ..utils.object import StreamInfo
+from ..utils.object import StreamInfo, KeysManager
 from StreamingCommunity.source.utils.trans_codec import get_subtitle_codec_name
 from .pattern import VIDEO_LINE_RE, AUDIO_LINE_RE, SUBTITLE_LINE_RE, SEGMENT_RE, PERCENT_RE, SPEED_RE, SIZE_RE, SUBTITLE_FINAL_SIZE_RE
 from .progress_bar import CustomBarColumn, ColoredSegmentColumn, CompactTimeColumn, CompactTimeRemainingColumn, SizeColumn
@@ -205,9 +205,12 @@ class MediaDownloader:
         """Get paths to metadata files"""
         return str(self.meta_json_path), str(self.meta_selected_path), str(self.raw_m3u8), str(self.raw_mpd)
     
-    def set_key(self, key: str):
+    def set_key(self, key):
         """Set decryption key"""
-        self.key = key
+        if isinstance(key, KeysManager):
+            self.key = key.get_keys_list()
+        else:
+            self.key = key
     
     async def _download_external_subtitles(self):
         """Download external subtitles using httpx"""
@@ -311,7 +314,8 @@ class MediaDownloader:
         if max_speed and str(max_speed).lower() != "false":
             cmd.extend(["--max-speed", max_speed])
         if self.key:
-            for single_key in ([self.key] if isinstance(self.key, str) else self.key):
+            keys_list = self.key.get_keys_list() if isinstance(self.key, KeysManager) else ([self.key] if isinstance(self.key, str) else self.key)
+            for single_key in keys_list:
                 cmd.extend(["--key", single_key])
         
         cmd.append(self.url)
@@ -390,7 +394,7 @@ class MediaDownloader:
             for audio in status['audios']:
                 targets.append((audio, "audio"))
             
-        keys = [self.key] if isinstance(self.key, str) else self.key
+        keys = self.key.get_keys_list() if isinstance(self.key, KeysManager) else ([self.key] if isinstance(self.key, str) else self.key)
         for target, stream_type in targets:
             file_path = Path(target['path'])
             if not file_path.exists():

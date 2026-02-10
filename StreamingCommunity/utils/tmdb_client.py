@@ -66,10 +66,11 @@ class TMDBClient:
         ratio = SequenceMatcher(None, slug1, slug2).ratio()
         return ratio >= threshold
 
-    def get_type_and_id_by_slug_year(self, slug: str, year: int, media_type: str = None, language_preference: str = "it"):
+    def get_type_and_id_by_slug_year(self, slug: str, year: str, media_type: str = None, language_preference: str = "it"):
         """
         Get the type (movie or tv) and ID from TMDB based on slug and year.
         """
+        year = int(year)
         if media_type == "movie":
             movie_results = self._make_request("search/movie", {"query": slug.replace('-', ' '), "language": language_preference}).get("results", [])
             
@@ -92,9 +93,7 @@ class TMDBClient:
                 # Use fuzzy matching instead of exact comparison
                 if self._slugs_match(movie_slug, slug) and movie_year == year:
                     return {'type': "movie", 'id': movie['id']}
-            
-            return None
-            
+        
         elif media_type == "tv":
             tv_results = self._make_request("search/tv", {"query": slug.replace('-', ' '), "language": language_preference}).get("results", [])
             
@@ -117,9 +116,7 @@ class TMDBClient:
                 # Use fuzzy matching instead of exact comparison
                 if self._slugs_match(show_slug, slug) and show_year == year:
                     return {'type': "tv", 'id': show['id']}
-            
-            return None
-            
+                
         else:
             print("Media type not specified. Searching both movie and tv.")
             return None

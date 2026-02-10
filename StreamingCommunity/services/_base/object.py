@@ -1,5 +1,6 @@
 # 23.11.24
 
+import difflib
 from datetime import datetime
 from typing import Any, List, Optional
 
@@ -216,6 +217,17 @@ class EntriesManager:
         This method clears the media list.
         """
         self.media_list.clear()
+
+    def sort_by_fuzzy_score(self, query: str) -> None:
+        """
+        Calculate fuzzy match scores for each media item based on the query and sort by score descending.
+        """
+        query_lower = query.lower()
+        for media in self.media_list:
+            title = getattr(media, 'name', '')
+            score = difflib.SequenceMatcher(None, query_lower, title.lower()).ratio()
+            setattr(media, 'score', score)
+        self.media_list.sort(key=lambda x: getattr(x, 'score', 0), reverse=True)
 
     def __str__(self):
         return f"EntriesManager(num_media={len(self.media_list)})"

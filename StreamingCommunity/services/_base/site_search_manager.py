@@ -17,7 +17,7 @@ from StreamingCommunity.utils import TVShowManager
 console = Console()
 msg = Prompt()
 available_colors = ['red', 'magenta', 'yellow', 'cyan', 'green', 'blue', 'white']
-column_to_hide = ['Slug', 'Sub_ita', 'First_air_date', 'Seasons_count', 'Url', 'Image', 'Path_id']
+column_to_hide = ['Slug', 'Sub_ita', 'First_air_date', 'Seasons_count', 'Url', 'Image', 'Path_id', 'Score']
 
 
 def get_select_title(table_show_manager, media_search_manager): 
@@ -196,6 +196,9 @@ def base_search(title_search_func: Callable[[str], int], process_result_func: Ca
 
     # Search on database
     len_database = title_search_func(actual_search_query)
+    
+    # Sort results by fuzzy score
+    media_search_manager.sort_by_fuzzy_score(actual_search_query)
     
     # Handle empty input
     if not actual_search_query:

@@ -47,7 +47,14 @@ def _initialize_registry():
                     _API_REGISTRY[module_name] = obj
                     break
         except Exception as e:
-            print(f"Error loading API {module_name}: {e}")
+            print(f"[Warning] Could not load API '{module_name}': {e}")
+            import traceback
+            traceback.print_exc()
+    
+    if not _API_REGISTRY:
+        print("[CRITICAL] No streaming APIs could be loaded! Check that all dependencies are installed (pip install -r requirements.txt).")
+    else:
+        print(f"[Info] Loaded {len(_API_REGISTRY)} streaming APIs: {', '.join(_API_REGISTRY.keys())}")
     
     _INITIALIZED = True
 

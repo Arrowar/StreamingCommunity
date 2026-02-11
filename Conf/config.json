@@ -19,6 +19,7 @@
         "retry_count": 30,
         "concurrent_download": true,
         "max_speed": "",
+        "real_time_decryption": false,
         "check_segments_count": true,
         "select_video": "best",
         "select_audio": "lang='ita|Ita|it':for=best",

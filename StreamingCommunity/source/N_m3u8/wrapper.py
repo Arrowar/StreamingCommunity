@@ -43,6 +43,7 @@ max_speed = config_manager.config.get("M3U8_DOWNLOAD", "max_speed")
 check_segments_count = config_manager.config.get_bool("M3U8_DOWNLOAD", "check_segments_count")
 concurrent_download = config_manager.config.get_int("M3U8_DOWNLOAD", "concurrent_download")
 retry_count = config_manager.config.get_int("M3U8_DOWNLOAD", "retry_count")
+real_time_decryption = config_manager.config.get_bool("M3U8_DOWNLOAD", "real_time_decryption")
 request_timeout = config_manager.config.get_int("REQUESTS", "timeout")
 thread_count = config_manager.config.get_int("M3U8_DOWNLOAD", "thread_count")
 use_proxy = config_manager.config.get_bool("REQUESTS", "use_proxy")
@@ -293,7 +294,8 @@ class MediaDownloader:
             "--del-after-done",
             "--select-video", norm_v,
             "--auto-subtitle-fix", "false",
-            "--check-segments-count", "true" if check_segments_count else "false"
+            "--check-segments-count", "true" if check_segments_count else "false",
+            "--mp4-real-time-decryption", "true" if real_time_decryption else "false"
         ]
         
         if norm_a:
@@ -341,7 +343,7 @@ class MediaDownloader:
                 TextColumn("[dim][[/dim]"), CompactTimeColumn(), TextColumn("[dim]<[/dim]"), CompactTimeRemainingColumn(), TextColumn("[dim]][/dim]"),
                 SizeColumn(), TextColumn("[dim]@[/dim]"), TextColumn("[red]{task.fields[speed]}[/red]", justify="right"), 
                 console=console,
-                refresh_per_second=0.5
+                refresh_per_second=2.0
             )
 
             with progress_ctx as progress:

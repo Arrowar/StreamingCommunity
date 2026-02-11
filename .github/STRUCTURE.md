@@ -51,20 +51,7 @@ StreamingCommunity/
 │   │       ├── streamingcommunity/
 │   │       ├── crunchyroll/
 │   │       ├── mediasetinfinity/
-│   │       ├── animeworld/
-│   │       ├── animeunity/
-│   │       ├── guardaserie/
-│   │       ├── raiplay/
-│   │       ├── discoveryus/
-│   │       ├── discoveryeu/
-│   │       ├── discoveryeuplus/
-│   │       ├── tubitv/
-│   │       ├── dmax/
-│   │       ├── nove/
-│   │       ├── ipersphera/
-│   │       ├── altadefinizione/
-│   │       ├── foodnetwork/
-│   │       ├── homegardentv/
+│   │      ...
 │   │       ├── realtime/
 │   │       └── Each service contains:
 │   │           ├── __init__.py   # search() and _useFor definition

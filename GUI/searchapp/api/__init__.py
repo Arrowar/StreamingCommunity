@@ -10,7 +10,7 @@ from .base import BaseStreamingAPI
 _API_REGISTRY: Dict[str, type] = {}
 _INITIALIZED = False
 _PREFERRED_ORDER = [
-    'streamingcommunity', 'altadefinizione', 'guardaserie', 'animeunity',
+    'streamingcommunity', 'guardaserie', 'animeunity',
     'animeworld', 'crunchyroll', 'mediasetinfinity', 'raiplay',
     'discoveryeu', 'discoveryeuplus', 'dmax', 'nove', 'realtime',
     'homegardentv', 'foodnetwork'
@@ -69,7 +69,7 @@ def get_api(site: str) -> BaseStreamingAPI:
     Get API instance for specified site.
     
     Args:
-        site: Site identifier (e.g., 'streamingcommunity', 'animeunity', 'altadefinizione')
+        site: Site identifier (e.g., 'streamingcommunity', 'animeunity', 'mostraguarda')
         
     Returns:
         API instance

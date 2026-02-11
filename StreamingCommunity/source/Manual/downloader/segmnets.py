@@ -192,7 +192,7 @@ class SegmentDownloader:
             TextColumn("/"),
             CompactTimeRemainingColumn(),
             console=console,
-            refresh_per_second=0.5
+            refresh_per_second=2.0
         )
 
         with progress_ctx as progress:

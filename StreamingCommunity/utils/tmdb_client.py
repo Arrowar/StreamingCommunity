@@ -196,5 +196,25 @@ class TMDBClient:
             console.log(f"[red]Error getting backdrop for {media_type} {tmdb_id}: {e}[/red]")
         return None
 
+    def search_movie(self, query: str):
+        """
+        Search for a movie and return the TMDB ID of the first result.
+        """
+        results = self._make_request("search/movie", {"query": query, "language": "it"}).get("results", [])
+        if results:
+            return results[0]['id']
+        return None
+
+    def get_movie_details(self, tmdb_id: int):
+        """
+        Get movie details including title and IMDB ID.
+        """
+        details = self._make_request(f"movie/{tmdb_id}", {"language": "it"})
+        return {
+            'title': details.get('title'),
+            'imdb_id': details.get('imdb_id')
+        }
+
 
 tmdb_client = TMDBClient(api_key)
+tmdb = tmdb_client

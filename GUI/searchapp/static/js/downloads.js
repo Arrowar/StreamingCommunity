@@ -88,25 +88,14 @@ function generateDownloadCardHTML(dl) {
               </span>
               <button 
                 onclick="window.killDownload('${dl.id}')"
-                class="hidden sm:flex sm:ml-2 px-2 py-0.5 bg-red-600/10 hover:bg-red-600 active:bg-red-700 text-red-500 hover:text-white border border-red-600/30 rounded text-[10px] font-bold transition-all items-center gap-1"
-                title="Smetti di scaricare e cancella il processo"
-              >
-                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-                KILL
-              </button>
-            </div>
-            <div class="flex sm:hidden mb-3">
-              <button 
-                onclick="window.killDownload('${dl.id}')"
-                class="w-full px-3 py-2.5 bg-red-600/10 hover:bg-red-600 active:bg-red-700 text-red-500 hover:text-white border border-red-600/30 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2"
+                class="px-3 py-1.5 bg-red-600/10 hover:bg-red-600 active:bg-red-700 text-red-500 hover:text-white border border-red-600/30 rounded text-xs font-bold transition-all flex items-center gap-1.5"
+                style="min-height:36px"
                 title="Smetti di scaricare e cancella il processo"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
-                KILL DOWNLOAD
+                KILL
               </button>
             </div>
             <h3 class="text-lg sm:text-xl lg:text-2xl font-bold text-white mb-1 text-center sm:text-left">
@@ -336,11 +325,10 @@ async function killDownload(id) {
 }
 
 async function clearHistory() {
-  const body = document.getElementById('history-body');
-  const rows = body ? body.querySelectorAll('tr.group') : [];
-  if (rows.length === 0) return;
-
   try {
+    const data = await fetchDownloadData();
+    if (!data.history || data.history.length === 0) return;
+
     const response = await fetch(window.CLEAR_HISTORY_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }

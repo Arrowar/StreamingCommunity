@@ -489,6 +489,18 @@ def kill_download(request: HttpRequest) -> JsonResponse:
     return JsonResponse({"status": "error", "message": "Method not allowed", "status_code": 405}, status=405)
 
 
+@csrf_exempt
+def clear_download_history(request: HttpRequest) -> JsonResponse:
+    """API view to clear the download history."""
+    if request.method == "POST":
+        try:
+            download_tracker.clear_history()
+            return JsonResponse({"status": "success"})
+        except Exception as e:
+            return JsonResponse({"status": "error", "message": str(e)}, status=500)
+    return JsonResponse({"status": "error", "message": "Method not allowed"}, status=405)
+
+
 @require_http_methods(["GET"])
 def watchlist(request: HttpRequest) -> HttpResponse:
     """Display the watchlist."""

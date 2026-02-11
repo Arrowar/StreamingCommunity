@@ -57,7 +57,7 @@ start.sh
 .DS_Store
 GUI/db.sqlite3
 console.log
-/conf/domains.json
+/Conf/domains.json
 /.cache
 .planning/phases/01-fastapi-backend-foundation
 .serena

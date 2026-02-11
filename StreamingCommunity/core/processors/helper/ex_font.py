@@ -2,7 +2,6 @@
 
 import os
 import platform
-import winreg
 import subprocess
 from typing import List
 
@@ -45,6 +44,7 @@ class FontManager:
 
     def _get_windows_fonts(self) -> List[str]:
         """Get installed fonts on Windows."""
+        import winreg
         fonts = []
 
         # Directory listing fallback

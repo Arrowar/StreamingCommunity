@@ -1,328 +1,146 @@
 .dark {
-  /* Background colors */
   --bg-primary: #0a0a0a;
   --bg-secondary: #1a1a1a;
   --bg-tertiary: #2a2a2a;
-  
-  /* Text colors */
+
   --text-primary: #ffffff;
   --text-secondary: #d1d5db;
   --text-tertiary: #9ca3af;
   --text-muted: #6b7280;
-  
-  /* Border colors */
+
   --border-primary: #1f2937;
   --border-secondary: #374151;
-  
-  /* Gradient backgrounds */
+
   --gradient-from: rgba(31, 41, 55, 0.8);
   --gradient-to: rgba(31, 41, 55, 0.4);
-  
-  /* Card backgrounds */
+
   --card-bg: rgba(31, 41, 55, 0.6);
   --card-hover: rgba(55, 65, 81, 0.6);
-  
-  /* Input backgrounds */
+
   --input-bg: rgba(0, 0, 0, 0.5);
   --input-border: #1f2937;
   --input-focus-border: #dc2626;
 }
 
 .dark .bg-page {
-  background-color: #0a0a0a;
+  background-color: var(--bg-primary);
 }
 
 .dark .text-page {
-  color: #ffffff;
+  color: var(--text-primary);
 }
 
 .dark .bg-card {
-  background: linear-gradient(to bottom right, rgba(31, 41, 55, 0.8), rgba(31, 41, 55, 0.4));
+  background: linear-gradient(to bottom right, var(--gradient-from), var(--gradient-to));
 }
 
 .dark .border-card {
-  border-color: #1f2937;
+  border-color: var(--border-primary);
 }
 
 .dark .hover\:border-card:hover {
-  border-color: #374151;
+  border-color: var(--border-secondary);
 }
 
-/* ========================================
-   LIGHT THEME
-   ======================================== */
-
-.light {
-  /* Background colors */
-  --bg-primary: #ffffff;
-  --bg-secondary: #f9fafb;
-  --bg-tertiary: #f3f4f6;
-  
-  /* Text colors */
-  --text-primary: #000000;
-  --text-secondary: #374151;
-  --text-tertiary: #6b7280;
-  --text-muted: #9ca3af;
-  
-  /* Border colors */
-  --border-primary: #e5e7eb;
-  --border-secondary: #d1d5db;
-  
-  /* Gradient backgrounds */
-  --gradient-from: rgba(249, 250, 251, 0.8);
-  --gradient-to: rgba(249, 250, 251, 0.4);
-  
-  /* Card backgrounds */
-  --card-bg: rgba(249, 250, 251, 0.8);
-  --card-hover: rgba(243, 244, 246, 0.8);
-  
-  /* Input backgrounds */
-  --input-bg: rgba(255, 255, 255, 0.8);
-  --input-border: #e5e7eb;
-  --input-focus-border: #dc2626;
+.dark *:not(nav):not(#navbar):not(#navbar *) {
+  transition-property: background-color, border-color, color, transform, opacity;
+  transition-duration: 0.2s;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.light {
-  background-color: #ffffff;
-  color: #000000;
+#navbar {
+  transition-property: background-color;
+  transition-duration: 0.3s;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.light .bg-page {
-  background-color: #ffffff;
+.dark .animate-fade-in,
+.dark .animate-slide-in,
+.dark .animate-zoom-in {
+  will-change: opacity, transform;
 }
 
-.light .text-page {
-  color: #000000;
+.dark input:focus,
+.dark select:focus,
+.dark textarea:focus {
+  outline: 2px solid var(--input-focus-border);
+  outline-offset: 2px;
 }
 
-.light .bg-card {
-  background: linear-gradient(to bottom right, rgba(249, 250, 251, 0.8), rgba(249, 250, 251, 0.4));
-  border: 1px solid #e5e7eb;
+.dark ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
 }
 
-.light .border-card {
-  border-color: #e5e7eb;
+.dark ::-webkit-scrollbar-track {
+  background: var(--bg-primary);
 }
 
-.light .hover\:border-card:hover {
-  border-color: #d1d5db;
+.dark ::-webkit-scrollbar-thumb {
+  background: var(--border-primary);
+  border-radius: 4px;
 }
 
-/* Text color overrides for light theme */
-.light h1,
-.light h2,
-.light h3,
-.light h4,
-.light h5,
-.light h6 {
-  color: #000000;
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: var(--border-secondary);
 }
 
-.light .text-gray-300 {
-  color: #6b7280;
+.card-hover {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.light .text-gray-400 {
-  color: #9ca3af;
+.card-hover:hover {
+  transform: scale(1.05) translateY(-5px);
 }
 
-.light .text-gray-500 {
-  color: #6b7280;
+.toast {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
-.light .text-gray-600 {
-  color: #4b5563;
+.loading {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-.light .text-gray-700 {
-  color: #374151;
+@media (min-width: 1280px) {
+  .dark .container {
+    max-width: 1280px;
+  }
 }
 
-/* Background overrides for light theme */
-.light .bg-gray-800 {
-  background-color: #f3f4f6;
+@media (min-width: 1536px) {
+  .dark .container {
+    max-width: 1536px;
+  }
 }
 
-.light .bg-gray-900 {
-  background-color: #e5e7eb;
+.text-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.light .bg-black {
-  background-color: #ffffff;
+.text-truncate-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-/* Border overrides for light theme */
-.light .border-gray-700 {
-  border-color: #d1d5db;
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.light .border-gray-800 {
-  border-color: #e5e7eb;
+.flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
-.light .border-gray-900 {
-  border-color: #e5e7eb;
-}
-
-/* Specific component overrides */
-.light .bg-black\/50,
-.light .bg-black\/60,
-.light .bg-black\/80,
-.light .bg-black\/95 {
-  background-color: rgba(255, 255, 255, 0.95);
-}
-
-.light .bg-gray-900\/80 {
-  background-color: rgba(249, 250, 251, 0.8);
-}
-
-.light .bg-gray-900\/60 {
-  background-color: rgba(249, 250, 251, 0.6);
-}
-
-.light .bg-gray-900\/40 {
-  background-color: rgba(249, 250, 251, 0.4);
-}
-
-.light .bg-gray-900\/20 {
-  background-color: rgba(249, 250, 251, 0.2);
-}
-
-.light .bg-gray-800\/50 {
-  background-color: rgba(243, 244, 246, 0.5);
-}
-
-/* Hover states for light theme */
-.light .hover\:bg-white\/10:hover,
-.light .hover\:bg-white\/5:hover {
-  background-color: rgba(0, 0, 0, 0.05);
-}
-
-.light .hover\:bg-gray-700:hover {
-  background-color: #e5e7eb;
-}
-
-.light .hover\:bg-gray-800:hover {
-  background-color: #f3f4f6;
-}
-
-/* Input and form overrides */
-.light input,
-.light select,
-.light textarea {
-  background-color: #ffffff;
-  border-color: #e5e7eb;
-  color: #000000;
-}
-
-.light input::placeholder,
-.light select::placeholder,
-.light textarea::placeholder {
-  color: #9ca3af;
-}
-
-.light input:focus,
-.light select:focus,
-.light textarea:focus {
-  border-color: #dc2626;
-  background-color: #ffffff;
-}
-
-/* Gradient overlays for light theme */
-.light .hero-gradient {
-  background: linear-gradient(180deg, 
-    rgba(255, 255, 255, 0) 0%,
-    rgba(255, 255, 255, 0.7) 50%,
-    rgba(255, 255, 255, 1) 100%
-  );
-}
-
-/* Shadow adjustments for light theme */
-.light .shadow-xl,
-.light .shadow-2xl {
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-}
-
-/* Specific overrides for download cards in light theme */
-.light .download-card {
-  background: linear-gradient(to bottom right, rgba(249, 250, 251, 0.95), rgba(243, 244, 246, 0.9));
-  border-color: #e5e7eb;
-}
-
-.light .download-card:hover {
-  border-color: #d1d5db;
-  background: linear-gradient(to bottom right, rgba(243, 244, 246, 0.95), rgba(229, 231, 235, 0.9));
-}
-
-/* Episode cards in light theme */
-.light .episode-card {
-  background-color: rgba(243, 244, 246, 0.5);
-  border-color: #d1d5db;
-}
-
-.light .episode-card:hover {
-  background-color: rgba(229, 231, 235, 0.5);
-}
-
-.light .episode-number {
-  color: #9ca3af;
-}
-
-/* Checked state for light theme */
-.light .episode-checkbox:checked + .episode-card {
-  border-color: #dc2626;
-  background-color: rgba(220, 38, 38, 0.1);
-}
-
-.light .episode-checkbox:checked + .episode-card .episode-number {
-  color: #dc2626;
-}
-
-/* Toast messages in light theme */
-.light .toast-container .toast {
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-}
-
-/* Table in light theme */
-.light table thead tr {
-  border-bottom-color: #e5e7eb;
-}
-
-.light table tbody tr {
-  border-bottom-color: #f3f4f6;
-}
-
-.light table tbody tr:hover {
-  background-color: rgba(0, 0, 0, 0.02);
-}
-
-/* Ensure proper contrast for all text */
-.light * {
-  color: inherit;
-}
-
-.light .text-white {
-  color: #000000 !important;
-}
-
-/* Red accent stays consistent across themes */
-.light .text-red-600,
-.dark .text-red-600 {
-  color: #dc2626;
-}
-
-.light .text-red-500,
-.dark .text-red-500 {
-  color: #ef4444;
-}
-
-.light .bg-red-600,
-.dark .bg-red-600 {
-  background-color: #dc2626;
-}
-
-/* Transition for theme switching */
-.theme-transition,
-.theme-transition * {
-  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+.grid-auto-fit {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
 }

@@ -134,6 +134,24 @@ class DownloadTracker(metaclass=SingletonMeta):
             if download_id and download_id in self.active_processes:
                 self.active_processes[download_id].append(process)
 
+    def shutdown(self):
+        """Shutdown all active downloads and kill their processes."""
+        print("Shutting down DownloadTracker, stopping all active downloads...")
+        with self._lock:
+            for download_id in list(self.downloads.keys()):
+                self.request_stop(download_id)
+            
+            # Kill all registered processes
+            for processes in self.active_processes.values():
+                for proc in processes:
+                    try:
+                        if hasattr(proc, 'terminate'):
+                            proc.terminate()
+                        elif hasattr(proc, 'cancel'):
+                            proc.cancel()
+                    except Exception:
+                        pass
+
     def complete_download(self, download_id: str, success: bool = True, error: str = None, path: str = None):
         with self._lock:
             if download_id in self.downloads:
@@ -180,6 +198,8 @@ class DownloadTracker(metaclass=SingletonMeta):
 
 
 class ContextTracker:
+    _global_is_gui = False
+
     def __init__(self):
         self.local = threading.local()
     
@@ -206,6 +226,15 @@ class ContextTracker:
     @site_name.setter
     def site_name(self, value):
         self.local.site_name = value
+
+    @property
+    def is_gui(self):
+        return getattr(self.local, 'is_gui', self._global_is_gui)
+    
+    @is_gui.setter
+    def is_gui(self, value):
+        self.local.is_gui = value
+        ContextTracker._global_is_gui = value
 
 
 # Global instance

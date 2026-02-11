@@ -170,30 +170,34 @@ def MP4_Downloader(url: str, path: str, referer: str = None, headers_: dict = No
             if total is None:
                 console.print("[yellow]No Content-Length received; streaming until peer closes connection.")
  
-            # Create progress bar with Rich
-            progress_bars = Progress(
-                TextColumn("[yellow]MP4[/yellow] [cyan]Downloading[/cyan]: "),
-                CustomBarColumn(),
-                TextColumn("[bright_green]{task.fields[downloaded]}[/bright_green] [bright_magenta]{task.fields[downloaded_unit]}[/bright_magenta][dim]/[/dim][bright_cyan]{task.fields[total_size]}[/bright_cyan] [bright_magenta]{task.fields[total_unit]}[/bright_magenta]"),
-                TextColumn("[dim]\\[[/dim][bright_yellow]{task.fields[elapsed]}[/bright_yellow][dim] < [/dim][bright_cyan]{task.fields[eta]}[/bright_cyan][dim]][/dim]"),
-                TextColumn("[bright_magenta]@[/bright_magenta]"),
-                TextColumn("[bright_cyan]{task.fields[speed]}[/bright_cyan]"),
-                console=console
-            )
-            
             start_time = time.time()
             downloaded = 0
             incomplete_error = False
-            
-            with progress_bars:
-                if total:
-                    total_size_value, total_size_unit = internet_manager.format_file_size(total).split(" ")
-                    task_total = total
-                else:
-                    total_size_value, total_size_unit = "--", ""
-                    task_total = None
 
-                task_id = progress_bars.add_task("download", total=task_total, downloaded="0.00", downloaded_unit="B", total_size=total_size_value, total_unit=total_size_unit, elapsed="0s", eta="--", speed="-- B/s")
+            # Use NullContext if in GUI mode to avoid live table conflicts for GUI
+            from contextlib import nullcontext
+            progress_ctx = nullcontext() if context_tracker.is_gui else Progress(
+                TextColumn("[yellow]MP4[/yellow] [cyan]Downloading[/cyan]: "),
+                CustomBarColumn(),
+                TextColumn("[bright_green]{task.fields[downloaded]}[/bright_green] [bright_magenta]{task.fields[downloaded_unit]}[/bright_magenta][dim]/[/dim][bright_cyan]{task.fields[total_size]}[/bright_cyan] [bright_magenta]{task.fields[total_unit]}[/bright_magenta]"),
+                TextColumn("[dim]\\\\[[/dim][bright_yellow]{task.fields[elapsed]}[/bright_yellow][dim] < [/dim][bright_cyan]{task.fields[eta]}[/bright_cyan][dim]][/dim]"),
+                TextColumn("[bright_magenta]@[/bright_magenta]"),
+                TextColumn("[bright_cyan]{task.fields[speed]}[/bright_cyan]"),
+                console=console,
+                refresh_per_second=0.5
+            )
+
+            with progress_ctx as progress_bars:
+                if not context_tracker.is_gui:
+                    if total:
+                        total_size_value, total_size_unit = internet_manager.format_file_size(total).split(" ")
+                        task_total = total
+                    else:
+                        total_size_value, total_size_unit = "--", ""
+                        task_total = None
+
+                    task_id = progress_bars.add_task("download", total=task_total, downloaded="0.00", downloaded_unit="B", total_size=total_size_value, total_unit=total_size_unit, elapsed="0s", eta="--", speed="-- B/s")
+
                 with open(temp_path, 'wb') as file:
                     try:
                         for chunk in response.iter_bytes(chunk_size=65536):
@@ -240,16 +244,17 @@ def MP4_Downloader(url: str, path: str, referer: str = None, headers_: dict = No
                                         size=f"{downloaded_value}{downloaded_unit}/{total_size_str if total else '??'}"
                                     )
 
-                                # Update progress
-                                progress_bars.update(
-                                    task_id,
-                                    completed=downloaded,
-                                    downloaded=downloaded_value,
-                                    downloaded_unit=downloaded_unit,
-                                    elapsed=elapsed_str,
-                                    eta=eta_str,
-                                    speed=speed_str
-                                )
+                                # Update progress if not GUI
+                                if not context_tracker.is_gui:
+                                    progress_bars.update(
+                                        task_id,
+                                        completed=downloaded,
+                                        downloaded=downloaded_value,
+                                        downloaded_unit=downloaded_unit,
+                                        elapsed=elapsed_str,
+                                        eta=eta_str,
+                                        speed=speed_str
+                                    )
 
                     except (KeyboardInterrupt):
                         if not interrupt_handler.force_quit:

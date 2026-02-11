@@ -1,7 +1,11 @@
+/**
+  * downloads.js - Handles fetching and rendering of active downloads and download history.
+*/
+
 import { formatTime, formatDate, fetchWithTimeout } from './utils.js';
 
 const expandedRows = new Set();
-const UPDATE_INTERVAL = 800;
+const UPDATE_INTERVAL = 1000;
 
 async function fetchDownloadData() {
   try {

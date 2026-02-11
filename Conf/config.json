@@ -19,9 +19,8 @@
         "retry_count": 30,
         "concurrent_download": true,
         "max_speed": "",
-        "real_time_decryption": false,
         "check_segments_count": true,
-        "select_video": "res=1920:for=best",
+        "select_video": "best",
         "select_audio": "lang='ita|Ita|it':for=best",
         "select_subtitle": "lang='ita|eng|Ita|Eng|it|en':for=all",
         "cleanup_tmp_folder": true
@@ -32,10 +31,10 @@
         "param_video": ["-c:v","libx265","-crf","28","-preset","medium"],
         "param_audio": ["-c:a","libopus","-b:a","128k"],
         "param_final": ["-c","copy"],
+        "merge_audio": true,
+        "merge_subtitle": true,
         "subtitle_disposition": false,
         "subtitle_disposition_language": ["forced-ita","ita-forced"],
-        "merge_subtitle": true,
-        "merge_audio": true,
         "extension": "mkv"
     },
     "REQUESTS": {

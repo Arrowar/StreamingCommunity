@@ -1,9 +1,13 @@
-﻿# 06-06-25 By @FrancescoGrazioso -> "https://github.com/FrancescoGrazioso"
+﻿# 06.06.25
 
 
+import os
 import time
 import json
 import threading
+import atexit
+import signal
+import concurrent.futures
 from typing import Any, Dict
 
 
@@ -25,18 +29,52 @@ from GUI.searchapp.api.base import Entries
 
 # CLI utilities
 from StreamingCommunity.source.utils.tracker import download_tracker, context_tracker
+from StreamingCommunity.utils.tmdb_client import tmdb_client
+from StreamingCommunity.cli.run import execute_hooks
+
+
+# Global download executor
+download_executor = concurrent.futures.ThreadPoolExecutor(max_workers=10, thread_name_prefix="DownloadWorker")
+
+
+def shutdown_downloads():
+    """Shutdown downloads and kill processes on exit."""
+    print("Shutting down downloads...")
+    download_tracker.shutdown()
+    download_executor.shutdown(wait=True)
+
+
+# Ensure downloads are shut down on exit
+atexit.register(shutdown_downloads)
+
+
+# Handle SIGINT and SIGTERM to shutdown properly
+def signal_handler(signum, frame):
+    shutdown_thread = threading.Thread(target=shutdown_downloads, daemon=True)
+    shutdown_thread.start()
+
+    print("Running post-run hooks...")
+    execute_hooks('post_run')
+
+    print("Downloads shutdown started, exiting immediately...")
+    os._exit(0)
+
+
+signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
 
 
 def _media_item_to_display_dict(item: Entries, source_alias: str) -> Dict[str, Any]:
     """Convert Entries to template-friendly dictionary."""
+    poster_url = item.poster if item.poster else "https://via.placeholder.com/300x450?text=Search"
     result = {
         'display_title': item.name,
         'display_type': item.type.capitalize(),
         'source': source_alias.capitalize(),
         'source_alias': source_alias,
-        'bg_image_url': item.poster,
+        'bg_image_url': poster_url,
         'is_movie': item.is_movie,
-        'year': item.year,
+        'year': item.year
     }
     result['payload_json'] = json.dumps(item.to_dict())
     return result
@@ -108,6 +146,7 @@ def _run_download_in_thread(site: str, item_payload: Dict[str, Any], season: str
             context_tracker.download_id = download_id
             context_tracker.site_name = site
             context_tracker.media_type = media_type
+            context_tracker.is_gui = True
             
             api = get_api(site)
             
@@ -117,11 +156,11 @@ def _run_download_in_thread(site: str, item_payload: Dict[str, Any], season: str
             # Start download
             api.start_download(media_item, season=season, episodes=episodes)
         except Exception as e:
-            print(f"[Error] Download thread failed: {e}")
+            print(f"[Error] Download task failed: {e}")
             import traceback
             traceback.print_exc()
 
-    threading.Thread(target=_task, daemon=True).start()
+    download_executor.submit(_task)
 
 
 @require_http_methods(["POST"])
@@ -211,138 +250,87 @@ def start_download(request: HttpRequest) -> HttpResponse:
         messages.error(request, "Payload non valido")
         return redirect("search_home")
 
-    # Extract title for message
-    title = item_payload.get("name")
+    # Determine media type
+    media_type = "Film" if item_payload.get("is_movie") else "Serie"
 
-    # For animeunity, default to all episodes if not specified and not a movie
-    site = source_alias.split("_")[0].lower()
-    media_type = (item_payload.get("type") or "").lower()
-    
-    if site == "animeunity" and not episode and media_type not in ("film", "movie", "ova"):
-        episode = "*"
+    # Check for series episode selection
+    if media_type == "Serie" and season and not episode:
+        messages.error(request, "Seleziona almeno un episodio prima di scaricare!")
 
-    # Start download in background
-    _run_download_in_thread(site, item_payload, season, episode, media_type)
-
-    # Success message
-    season_info = ""
-    if site != "animeunity" and season:
-        season_info = f" (Stagione {season}"
-    episode_info = f", Episodi {episode}" if episode else ""
-    if season_info and episode_info:
-        season_info += ")"
-    elif season_info:
-        season_info += ")"
-
-    messages.success(
-        request,
-        f"Download avviato per '{title}'{season_info}{episode_info}. "
-        f"Il download sta procedendo in background.",
-    )
-
-    return redirect("search_home")
-
-
-@require_http_methods(["GET", "POST"])
-def series_detail(request: HttpRequest) -> HttpResponse:
-    """Display series details page with seasons and episodes."""
-    if request.method == "GET":
-        source_alias = request.GET.get("source_alias")
-        item_payload_raw = request.GET.get("item_payload")
-        
-        if not source_alias or not item_payload_raw:
-            messages.error(request, "Parametri mancanti per visualizzare i dettagli della serie.")
-            return redirect("search_home")
-        
-        try:
-            item_payload = json.loads(item_payload_raw)
-        except Exception:
-            messages.error(request, "Errore nel caricamento dei dati della serie.")
-            return redirect("search_home")
-        
-        try:
-            # Get API instance
-            api = get_api(source_alias)
-            
-            # Ensure complete item
-            media_item = api.ensure_complete_item(item_payload)
-
-            # Clear new content flags in watchlist if present
-            try:
-                watchlist_item = WatchlistItem.objects.filter(name=media_item.name, source_alias=source_alias).first()
-                if watchlist_item and (watchlist_item.has_new_seasons or watchlist_item.has_new_episodes):
-                    watchlist_item.has_new_seasons = False
-                    watchlist_item.has_new_episodes = False
-                    watchlist_item.save()
-            except Exception:
-                pass
-            
-            # Get series metadata
-            seasons = api.get_series_metadata(media_item)
-            
-            if not seasons:
-                messages.error(request, "Impossibile recuperare le informazioni sulla serie.")
-                return redirect("search_home")
-            
-            # Convert to template format
-            seasons_data = [season.to_dict() for season in seasons]
-            
-            context = {
-                "title": media_item.name,
-                "source_alias": source_alias,
-                "item_payload": json.dumps(media_item.to_dict()),
-                "seasons": seasons_data,
-                "bg_image_url": media_item.poster,
-            }
-            
-            return render(request, "searchapp/series_detail.html", context)
-            
-        except Exception as e:
-            messages.error(request, f"Errore nel caricamento dei dettagli: {str(e)}")
-            return redirect("search_home")
-    
-    # POST: download season or selected episodes
-    elif request.method == "POST":
-        source_alias = request.POST.get("source_alias")
-        item_payload_raw = request.POST.get("item_payload")
-        season = request.POST.get("season")
-        download_type = request.POST.get("download_type")
-        episode = request.POST.get("episode", "")
-        
-        if not all([source_alias, item_payload_raw, season]):
-            messages.error(request, "Parametri mancanti per il download.")
-            return redirect("search_home")
-        
-        try:
-            item_payload = json.loads(item_payload_raw)
-        except Exception:
-            messages.error(request, "Errore nel parsing dei dati.")
-            return redirect("search_home")
-        
-        name = item_payload.get("name")
-        
-        # Prepare download parameters
-        if download_type == "full_season":
-            episode_selection = "*"
-            msg_detail = f"stagione {season} completa"
-            
-        else:
-            episode_selection = episode.strip() if episode else None
-            msg_detail = f"S{season}:E{episode_selection}"
-        
-        # Start download
-        _run_download_in_thread(source_alias, item_payload, season, episode_selection)
-        
-        messages.success(
-            request,
-            f"Download avviato per '{name}' - {msg_detail}. "
-            f"Il download sta procedendo in background."
-        )
-        
-        return redirect("search_home")
+    # Run download
+    _run_download_in_thread(source_alias, item_payload, season, episode, media_type)
+    return redirect("download_dashboard")
 
 
 @require_http_methods(["GET"])
+def series_detail(request: HttpRequest) -> HttpResponse:
+    """
+    Show series detail page with seasons and episodes.
+    """
+    source_alias = request.GET.get("source_alias")
+    item_payload_raw = request.GET.get("item_payload")
+    
+    if not source_alias or not item_payload_raw:
+        messages.error(request, "Parametri mancanti.")
+        return redirect("search_home")
+    
+    try:
+        item_payload = json.loads(item_payload_raw)
+        api = get_api(source_alias)
+        media_item = api._dict_to_entries(item_payload)
+        
+        # Try to get TMDB backdrop for better background image
+        backdrop_url = media_item.poster  # fallback to original poster
+        if not media_item.is_movie:
+            try:
+                slug = media_item.slug or tmdb_client._slugify(media_item.name)
+                year_str = str(media_item.year) if media_item.year else None
+                tmdb_result = tmdb_client.get_type_and_id_by_slug_year(slug, year_str, "tv")
+                if tmdb_result and tmdb_result.get('type') == 'tv':
+                    backdrop = tmdb_client.get_backdrop_url('tv', tmdb_result['id'], size="w1920")
+                    if backdrop:
+                        backdrop_url = backdrop
+            except Exception as e:
+                # If TMDB fails, keep original poster
+                pass
+        
+        # Get series metadata
+        seasons = api.get_series_metadata(media_item)
+        
+        if not seasons:
+            messages.warning(request, "Impossibile caricare i dettagli delle stagioni al momento. Potrebbe essere dovuto a download attivi. Riprova tra qualche minuto.")
+            seasons = []  # Allow page to load with empty seasons
+        
+        series_info = {
+            "name": media_item.name,
+            "poster": media_item.poster,        # original source poster
+            "backdrop": backdrop_url,           # TMDB backdrop or fallback to poster
+            "year": media_item.year,
+            "source_alias": source_alias,
+            "item_payload": item_payload_raw,
+        }
+        
+        seasons_data = []
+        for season in seasons:
+            seasons_data.append({
+                "number": season.number,
+                "episode_count": season.episode_count,
+                "episodes": [ep.to_dict() for ep in season.episodes],
+            })
+        
+        return render(
+            request,
+            "searchapp/series_detail.html",
+            {
+                "series": series_info,
+                "seasons": seasons_data,
+            }
+        )
+        
+    except Exception as e:
+        messages.error(request, f"Errore nel caricamento dei dettagli: {e}")
+        return redirect("search_home")
+
 def download_dashboard(request: HttpRequest) -> HttpResponse:
     """Dashboard to view all active and completed downloads."""
     active_downloads = download_tracker.get_active_downloads()
@@ -353,7 +341,8 @@ def download_dashboard(request: HttpRequest) -> HttpResponse:
         "searchapp/downloads.html", 
         {
             "active_downloads": active_downloads,
-            "history": history
+            "history": history,
+            "active_count": len(active_downloads)
         }
     )
 
@@ -409,7 +398,7 @@ def add_to_watchlist(request: HttpRequest) -> HttpResponse:
         name = item_payload.get("name")
         poster = item_payload.get("poster")
         
-        # Check if already in watchlist - using filter().first() to avoid multiple entries check
+        # Check if already in watchlist
         existing = WatchlistItem.objects.filter(name=name, source_alias=source_alias).first()
         
         if existing:
@@ -429,12 +418,11 @@ def add_to_watchlist(request: HttpRequest) -> HttpResponse:
                 _update_single_item(item)
             
             threading.Thread(target=_bg_update, daemon=True).start()
-            messages.success(request, f"'{name}' aggiunto alla watchlist. Info in caricamento...")
             
     except Exception as e:
         messages.error(request, f"Errore durante l'aggiunta alla watchlist: {e}")
     
-    # Redirect back to search results if we have the params, otherwise referer or home
+    # Redirect back to search results if we have the params
     if search_query and search_site:
         from django.urls import reverse
         return redirect(f"{reverse('search')}?site={search_site}&query={search_query}")

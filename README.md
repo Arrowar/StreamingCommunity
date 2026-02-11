@@ -157,7 +157,7 @@ OPTIONS: id=REGEX:lang=REGEX:name=REGEX:codecs=REGEX:res=REGEX:frame=REGEX:
 ```json
 "select_video": "for=best"                                // Select best video
 "select_video": "res=3840*:codecs=hvc1:for=best"          // Select 4K HEVC video
-"select_video": "res=.*1080.*:for=best"                   // Select 1080p video
+"select_video": "res=1080:for=best"                       // Select 1080p video
 "select_video": "plistDurMin=1h20m30s:for=best"           // Duration > 1h 20m 30s
 "select_video": "role=main:for=best"                      // Main video role
 "select_video": "bwMin=800:bwMax=1000:for=best"           // Bandwidth 800-1000 Kbps

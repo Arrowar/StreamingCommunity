@@ -1,7 +1,7 @@
 {% extends "searchapp/base.html" %}
 {% load static %}
 
-{% block title %}My Downloads{% endblock %}
+{% block title %}Downloads{% endblock %}
 
 {% block content %}
 <div class="py-6 sm:py-8 lg:py-12 animate-fade-in">
@@ -17,35 +17,36 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
         </svg>
       </button>
-      <h1 class="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-white leading-tight">
-        My Downloads
+      <h1 class="text-5xl font-black text-white leading-tight">
+        Downloads
       </h1>
     </div>
   </div>
 
   <!-- Active Downloads Section -->
   <div class="mb-12 sm:mb-16">
-    <!-- Section Header -->
-    <div class="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
-      <div class="flex h-2.5 w-2.5 sm:h-3 sm:w-3 relative flex-shrink-0">
+
+    <div class="flex items-center gap-4 mb-6">
+      <div class="flex h-3 w-3 relative flex-shrink-0">
         <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75"></span>
         <span class="relative inline-flex rounded-full h-full w-full bg-red-500"></span>
       </div>
-      <h2 class="text-lg sm:text-xl lg:text-2xl font-bold text-white">
+      <h2 class="text-2xl font-bold text-white">
         Download Attivi
       </h2>
     </div>
 
     <!-- Active Downloads Container -->
     <div id="active-downloads-container" class="space-y-3 sm:space-y-4">
+      
       <!-- Empty State -->
-      <div id="no-active-downloads" class="bg-gradient-to-br from-gray-900/60 to-gray-900/20 backdrop-blur-sm border border-dashed border-gray-700 rounded-xl sm:rounded-2xl p-8 sm:p-12 lg:p-16 text-center">
-        <div class="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-red-600/20 to-purple-600/20 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
-          <svg class="w-8 h-8 sm:w-10 sm:h-10 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div id="no-active-downloads" class="bg-gradient-to-br from-gray-900/60 to-gray-900/20 backdrop-blur-sm border border-dashed border-gray-700 rounded-2xl p-16 text-center">
+        <div class="w-20 h-20 bg-gradient-to-br from-red-600/20 to-purple-600/20 rounded-full flex items-center justify-center mx-auto mb-6">
+          <svg class="w-10 h-10 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
           </svg>
         </div>
-        <p class="text-gray-500 font-semibold text-base sm:text-lg">
+        <p class="text-gray-500 font-semibold text-lg">
           Nessun download in corso
         </p>
       </div>
@@ -55,37 +56,37 @@
   <!-- History Section -->
   <div>
     <!-- Section Header -->
-    <div class="flex items-center justify-between mb-4 sm:mb-6">
-      <h2 class="text-lg sm:text-xl lg:text-2xl font-bold text-white">
+    <div class="flex items-center justify-between mb-6">
+      <h2 class="text-2xl font-bold text-white">
         Cronologia
       </h2>
     </div>
 
     <!-- History Table -->
-    <div class="bg-gradient-to-br from-gray-900/80 to-gray-900/40 backdrop-blur-xl border border-gray-800 rounded-xl sm:rounded-2xl overflow-hidden">
+    <div class="bg-gradient-to-br from-gray-900/80 to-gray-900/40 backdrop-blur-xl border border-gray-800 rounded-2xl overflow-hidden">
       <div class="overflow-x-auto">
         <table class="w-full">
           <thead>
             <tr class="border-b border-gray-800">
-              <th class="px-4 sm:px-6 py-3 sm:py-5 text-left text-[10px] sm:text-xs font-bold text-gray-400 uppercase tracking-wider">
+              <th class="px-6 py-5 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">
                 Contenuto
               </th>
-              <th class="px-4 sm:px-6 py-3 sm:py-5 text-center text-[10px] sm:text-xs font-bold text-gray-400 uppercase tracking-wider">
+              <th class="px-6 py-5 text-center text-xs font-bold text-gray-400 uppercase tracking-wider">
                 Stato
               </th>
-              <th class="px-4 sm:px-6 py-3 sm:py-5 text-right text-[10px] sm:text-xs font-bold text-gray-400 uppercase tracking-wider hidden sm:table-cell">
+              <th class="px-6 py-5 text-right text-xs font-bold text-gray-400 uppercase tracking-wider">
                 Completato
               </th>
             </tr>
           </thead>
           <tbody id="history-body" class="divide-y divide-gray-800">
             <tr>
-              <td colspan="3" class="px-4 sm:px-6 py-8 sm:py-12 text-center text-gray-500">
-                <div class="flex flex-col items-center gap-2 sm:gap-3">
-                  <svg class="w-6 h-6 sm:w-8 sm:h-8 text-gray-700 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <td colspan="3" class="px-6 py-12 text-center text-gray-500">
+                <div class="flex flex-col items-center gap-3">
+                  <svg class="w-8 h-8 text-gray-700 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                   </svg>
-                  <span class="font-medium text-sm sm:text-base">Caricamento cronologia...</span>
+                  <span class="font-medium text-base">Caricamento cronologia...</span>
                 </div>
               </td>
             </tr>

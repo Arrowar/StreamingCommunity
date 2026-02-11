@@ -41,57 +41,57 @@
   </div>
 
   {% if items %}
-  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+  <div class="grid grid-cols-4 gap-4">
     {% for item in items %}
-    <div class="bg-gray-900/50 backdrop-blur-sm border rounded-2xl overflow-hidden transition-all group duration-500
+    <div class="bg-gray-900/50 backdrop-blur-sm border rounded-xl overflow-hidden transition-all group duration-500
                 {% if item.has_new_seasons or item.has_new_episodes %}
                 border-green-500/50 ring-1 ring-green-500/30 shadow-[0_0_40px_rgba(34,197,94,0.15)]
                 {% else %}
                 border-gray-800 hover:border-gray-700
                 {% endif %}">
-      <div class="relative aspect-video overflow-hidden">
+      <div class="relative aspect-[16/10] overflow-hidden">
         <img src="{{ item.poster_url }}" alt="{{ item.name }}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
         <div class="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-transparent"></div>
         
         <!-- Site Badge -->
-        <div class="absolute top-4 left-4">
-          <span class="px-3 py-1 bg-black/60 backdrop-blur-md border border-white/10 text-white text-[10px] font-bold uppercase rounded-full">
+        <div class="absolute top-3 left-3">
+          <span class="px-2 py-1 bg-black/60 backdrop-blur-md border border-white/10 text-white text-[9px] font-bold uppercase rounded-full">
             {{ item.source_alias|capfirst }}
           </span>
         </div>
 
         {% if item.has_new_seasons or item.has_new_episodes %}
-        <div class="absolute top-4 right-4 group-hover:scale-110 transition-transform">
-          <span class="px-3 py-1 bg-green-500 text-white text-[10px] font-black uppercase rounded-full shadow-[0_0_15px_rgba(34,197,94,0.6)] animate-pulse">
+        <div class="absolute top-3 right-3 group-hover:scale-110 transition-transform">
+          <span class="px-2 py-1 bg-green-500 text-white text-[9px] font-black uppercase rounded-full shadow-[0_0_15px_rgba(34,197,94,0.6)] animate-pulse">
             NUOVA USCITA!
           </span>
         </div>
         {% endif %}
       </div>
 
-      <div class="p-6">
-        <h2 class="text-xl font-bold text-white mb-4 line-clamp-1">{{ item.name }}</h2>
+      <div class="p-4">
+        <h2 class="text-lg font-bold text-white mb-3 line-clamp-1">{{ item.name }}</h2>
         
-        <div class="grid grid-cols-2 gap-4 mb-6">
-          <div class="bg-gray-800/50 rounded-xl p-3 border border-gray-700/50">
-            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Stagioni</span>
-            <span class="text-lg font-black text-white">{{ item.num_seasons }}</span>
+        <div class="grid grid-cols-2 gap-3 mb-4">
+          <div class="bg-gray-800/50 rounded-lg p-2 border border-gray-700/50">
+            <span class="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Stagioni</span>
+            <span class="text-base font-black text-white">{{ item.num_seasons }}</span>
           </div>
-          <div class="bg-gray-800/50 rounded-xl p-3 border border-gray-700/50">
+          <div class="bg-gray-800/50 rounded-lg p-2 border border-gray-700/50">
             <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Episodi Ultima</span>
-            <span class="text-lg font-black text-white">{{ item.last_season_episodes }}</span>
+            <span class="text-base font-black text-white">{{ item.last_season_episodes }}</span>
           </div>
         </div>
 
-        <div class="flex items-center justify-between text-xs text-gray-500 mb-6">
+        <div class="flex items-center justify-between text-[10px] text-gray-500 mb-4">
           <span>Aggiunto: {{ item.added_at|date:"d/m/Y" }}</span>
           <span>Check: {{ item.last_checked_at|date:"H:i" }}</span>
         </div>
 
         <div class="flex gap-2">
           <a href="{% url 'series_detail' %}?source_alias={{ item.source_alias }}&item_payload={{ item.item_payload|urlencode }}" 
-             class="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-2">
-            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+             class="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white font-bold text-[10px] rounded-lg transition-all flex items-center justify-center gap-2">
+            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
               <path d="M8 5v14l11-7z"></path>
             </svg>
             Vedi Serie
@@ -99,8 +99,8 @@
           
           <form action="{% url 'update_watchlist_item' item.id %}" method="post">
             {% csrf_token %}
-            <button type="submit" class="p-3 bg-white/5 hover:bg-white/10 text-white rounded-xl transition-all" title="Verifica aggiornamenti">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <button type="submit" class="p-2 bg-white/5 hover:bg-white/10 text-white rounded-lg transition-all" title="Verifica aggiornamenti">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
               </svg>
             </button>
@@ -108,8 +108,8 @@
 
           <form action="{% url 'remove_from_watchlist' item.id %}" method="post">
             {% csrf_token %}
-            <button type="submit" class="p-3 bg-red-600/10 hover:bg-red-600/20 text-red-500 rounded-xl transition-all" title="Rimuovi">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <button type="submit" class="p-2 bg-red-600/10 hover:bg-red-600/20 text-red-500 rounded-lg transition-all" title="Rimuovi">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
               </svg>
             </button>
@@ -120,13 +120,13 @@
     {% endfor %}
   </div>
   {% else %}
-  <div class="flex flex-col items-center justify-center py-20 text-center">
-    <div class="w-20 h-20 bg-gray-900 border border-gray-800 rounded-3xl flex items-center justify-center mb-6">
-      <svg class="w-10 h-10 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  <div class="flex flex-col items-center justify-center py-16 text-center">
+    <div class="w-16 h-16 bg-gray-900 border border-gray-800 rounded-3xl flex items-center justify-center mb-4">
+      <svg class="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
       </svg>
     </div>
-    <h3 class="text-xl font-bold text-white mb-2">La tua watchlist è vuota</h3>
+    <h3 class="text-lg font-bold text-white mb-2">La tua watchlist è vuota</h3>
   </div>
   {% endif %}
 </div>

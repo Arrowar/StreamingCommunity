@@ -148,6 +148,7 @@ def process_episode_download(index_season_selected: int, scrape_serie: Any, down
                 
                 # 2. Check if it's a valid episode number
                 else:
+                    print("Failed index check, trying episode number check...")
                     found = False
                     for idx, ep in enumerate(episodes, 1):
                         ep_num = ep.get('number') if isinstance(ep, dict) else getattr(ep, 'number', None)

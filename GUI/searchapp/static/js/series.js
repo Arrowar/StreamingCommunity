@@ -1,7 +1,6 @@
 /**
- * Series detail page - Episode selection logic
- */
-
+  * Series detail page - Episode selection logic
+*/
 
 export function selectAllEpisodes(seasonNumber) {
   const checkboxes = document.querySelectorAll(
@@ -65,8 +64,6 @@ export function updateSelectedEpisodes(seasonNumber) {
         }
       }
       
-      // If we have mixed numeric and non-numeric (unlikely but possible), 
-      // we only used numeric for ranges. Let's keep it simple for now.
       episodeString = ranges.join(',');
     }
   }
@@ -74,9 +71,6 @@ export function updateSelectedEpisodes(seasonNumber) {
   const inputField = document.getElementById(`selected_episodes_${sNum}`);
   if (inputField) {
     inputField.value = episodeString;
-    console.log(`[Series] Set hidden input selected_episodes_${sNum} to: "${episodeString}"`);
-  } else {
-    console.error(`[Series] Could not find hidden input selected_episodes_${sNum}`);
   }
 }
 
@@ -89,7 +83,6 @@ export function initEpisodeSelection() {
     }
     
     cb.addEventListener('change', function() {
-      console.log(`[Series] Checkbox change detected for season ${this.dataset.season} episode ${this.value}`);
       updateSelectedEpisodes(this.dataset.season);
     });
   });
@@ -100,19 +93,8 @@ export function initFormValidation() {
   
   forms.forEach(form => {
     form.addEventListener('submit', function(e) {
-      const downloadTypeInput = this.querySelector('input[name="download_type"]');
-      if (downloadTypeInput && downloadTypeInput.value !== 'episodes') {
-        return; // Non validiamo se scarichiamo la stagione completa
-      }
-
       const seasonNumberInput = this.querySelector('input[name="season"]');
       if (!seasonNumberInput) return;
-
-      const seasonNumber = seasonNumberInput.value;
-      const episodesInput = document.getElementById(`selected_episodes_${seasonNumber}`);
-      const selectedEpisodes = episodesInput ? episodesInput.value : '';
-      
-      console.log(`[Series] Form submission for season ${seasonNumber}. Selected: "${selectedEpisodes}"`);
     });
   });
 }

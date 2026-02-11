@@ -1,11 +1,12 @@
 ﻿# 04.01.25
 
 import re
+import asyncio
 import platform
 import subprocess
-import asyncio
 from pathlib import Path
 from typing import Optional, List, Dict, Any
+from contextlib import nullcontext
 
 
 # External
@@ -17,8 +18,9 @@ from rich.progress import Progress, TextColumn
 from StreamingCommunity.utils.config import config_manager
 from StreamingCommunity.utils.os import internet_manager
 from StreamingCommunity.setup import get_ffmpeg_path, get_n_m3u8dl_re_path, get_bento4_decrypt_path, get_shaka_packager_path
-from StreamingCommunity.source.utils.tracker import download_tracker
+from StreamingCommunity.source.utils.tracker import download_tracker, context_tracker
 from StreamingCommunity.utils.http_client import create_async_client
+from .progress_bar import CustomBarColumn, ColoredSegmentColumn, CompactTimeColumn, CompactTimeRemainingColumn, SizeColumn
 
 
 # Logic
@@ -43,7 +45,6 @@ concurrent_download = config_manager.config.get_int("M3U8_DOWNLOAD", "concurrent
 retry_count = config_manager.config.get_int("M3U8_DOWNLOAD", "retry_count")
 request_timeout = config_manager.config.get_int("REQUESTS", "timeout")
 thread_count = config_manager.config.get_int("M3U8_DOWNLOAD", "thread_count")
-real_time_decryption = config_manager.config.get_bool("M3U8_DOWNLOAD", "real_time_decryption")
 use_proxy = config_manager.config.get_bool("REQUESTS", "use_proxy")
 configuration_proxy = config_manager.config.get_dict("REQUESTS", "proxy", default={})
 
@@ -292,8 +293,7 @@ class MediaDownloader:
             "--del-after-done",
             "--select-video", norm_v,
             "--auto-subtitle-fix", "false",
-            "--check-segments-count", "true" if check_segments_count else "false",
-            "--mp4-real-time-decryption", "true" if real_time_decryption else "false"
+            "--check-segments-count", "true" if check_segments_count else "false"
         ]
         
         if norm_a:
@@ -335,9 +335,16 @@ class MediaDownloader:
         with open(log_path, 'w', encoding='utf-8', errors='replace') as log_file:
             log_file.write(f"Command: {' '.join(cmd)}\n{'='*80}\n\n")
             
-            with Progress(TextColumn("[purple]{task.description}", justify="left"), CustomBarColumn(bar_width=40), ColoredSegmentColumn(),
-                         TextColumn("[dim][[/dim]"), CompactTimeColumn(), TextColumn("[dim]<[/dim]"), CompactTimeRemainingColumn(), TextColumn("[dim]][/dim]"),
-                         SizeColumn(), TextColumn("[dim]@[/dim]"), TextColumn("[red]{task.fields[speed]}[/red]", justify="right"), console=console) as progress:
+            # Use NullContext if in GUI mode to avoid live table conflicts for GUI
+            progress_ctx = nullcontext() if context_tracker.is_gui else Progress(
+                TextColumn("[purple]{task.description}", justify="left"), CustomBarColumn(bar_width=40), ColoredSegmentColumn(),
+                TextColumn("[dim][[/dim]"), CompactTimeColumn(), TextColumn("[dim]<[/dim]"), CompactTimeRemainingColumn(), TextColumn("[dim]][/dim]"),
+                SizeColumn(), TextColumn("[dim]@[/dim]"), TextColumn("[red]{task.fields[speed]}[/red]", justify="right"), 
+                console=console,
+                refresh_per_second=0.5
+            )
+
+            with progress_ctx as progress:
                 tasks = {}
                 proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors='replace', bufsize=1, universal_newlines=True)
                 
@@ -350,32 +357,32 @@ class MediaDownloader:
                         if self.download_id and download_tracker.is_stopped(self.download_id):
                             proc.terminate()
                             break
-
-                        if not (line := line.rstrip()):
-                            continue
-
-                        if line.strip():
-                            log_parser.parse_line(line)
-                        log_file.write(line + "\n")
-                        log_file.flush()
+                        
+                        log_file.write(line)
+                        log_parser.parse_line(line)
+                        
                         self._parse_progress_line(line, progress, tasks, subtitle_sizes)
-
-                        if "Segment count check not pass" in line:
-                            console.log(f"[red]Segment count mismatch detected: {line}[/red]")
-                    
-                    if self.download_id and download_tracker.is_stopped(self.download_id):
-                        proc.wait()
-                    else:
-                        proc.wait()
+                
+                    # Ensure all tasks are complete
+                    if progress:
+                        for task_id in tasks.values():
+                            progress.update(task_id, completed=100)
         
         # Check if we were cancelled
         if self.download_id and download_tracker.is_stopped(self.download_id):
             return {"error": "cancelled"}
 
+        # Check for key retrieval errors (Succedde spesso quando parsa m3u8 che hanno bisogna di licenza, ma non ho ancora trovato un caso per implementare license per quel cazzo di m3u8 quindi amen va su failed).
+        if any("Failed to get KEY" in error for error in log_parser.errors):
+            self.status = {"error": "key_error", "message": "Failed to retrieve decryption key"}
+            if self.download_id:
+                download_tracker.complete_download(self.download_id, success=False, error="Failed to get decryption key")
+            return self.status
+
         self.status = self._get_download_status(subtitle_sizes, external_subs)
 
         if self.key:
-            # IL 99% delle volte n3u8dl riesce a fare tutto ma in quel 1% sti cazzi meglio fare double check anche se si perde tempo, fortuna è scritto tutto in C
+            # IL 99% delle volte n3u8dl riesce a fare tutto ma in quel 1% sti cazzi meglio fare double check anche se si perde tempo.
             self._manual_decrypt_check(self.status)
             print("")
 
@@ -430,36 +437,44 @@ class MediaDownloader:
     def _update_task(self, progress, tasks: dict, key: str, label: str, line: str):
         """Generic task update helper"""
         if key not in tasks:
-            tasks[key] = progress.add_task(f"[yellow]{self.manifest_type} {label}", total=100, segment="0/0", speed="0Bps", size="0B/0B")
+            if progress:
+                tasks[key] = progress.add_task(f"[yellow]{self.manifest_type} {label}", total=100, segment="0/0", speed="0Bps", size="0B/0B")
+            else:
+                tasks[key] = "gui_only"
         
         task = tasks[key]
         cur_segment, cur_percent, cur_speed, cur_size = None, None, None, None
 
         if m := SEGMENT_RE.search(line):
             cur_segment = m.group(0)
-            progress.update(task, segment=cur_segment)
+            if progress and task != "gui_only":
+                progress.update(task, segment=cur_segment)
 
         if m := PERCENT_RE.search(line):
             try:
                 cur_percent = float(m.group(1))
-                progress.update(task, completed=cur_percent)
+                if progress and task != "gui_only":
+                    progress.update(task, completed=cur_percent)
             except Exception:
                 pass
 
         if m := SPEED_RE.search(line):
             cur_speed = m.group(1)
-            progress.update(task, speed=cur_speed)
+            if progress and task != "gui_only":
+                progress.update(task, speed=cur_speed)
 
         if m := SIZE_RE.search(line):
             cur_size = f"{m.group(1)}/{m.group(2)}"
-            progress.update(task, size=cur_size)
+            if progress and task != "gui_only":
+                progress.update(task, size=cur_size)
 
         if self.download_id:
             download_tracker.update_progress(self.download_id, key, cur_percent, cur_speed, cur_size, cur_segment)
         return task
 
     def _parse_progress_line(self, line: str, progress, tasks: dict, subtitle_sizes: dict):
-        """Parse a progress line and update progress bars"""
+        """
+            Parse a progress line and update progress bars"""
         if line.startswith("Vid"):
             res = (VIDEO_LINE_RE.search(line).group(1) if VIDEO_LINE_RE.search(line) else next((s.resolution or s.extension or "main" for s in self.streams if s.type == "Video"), "main"))
             self._update_task(progress, tasks, f"video_{res}", f"[cyan]Vid [red]{res}", line)
@@ -494,7 +509,8 @@ class MediaDownloader:
 
                 if fm := SUBTITLE_FINAL_SIZE_RE.search(line):
                     final_size = fm.group(1)
-                    progress.update(task, size=final_size, completed=100)
+                    if progress:
+                        progress.update(task, size=final_size, completed=100)
                     subtitle_sizes[f"{lang}: {codec}"] = final_size
                 
                 elif not SIZE_RE.search(line):
@@ -522,11 +538,13 @@ class MediaDownloader:
                 break
         
         # Process downloaded subtitle metadata
-        downloaded_subs = [{'lang': (d_name.split(':', 1)[0] if ':' in d_name else d_name).strip(), 
-                           'name': (d_name.split(':', 1)[1] if ':' in d_name else d_name).strip(),
-                           'size': sz, 'used': False} 
-                          for d_name, size_str in subtitle_sizes.items() 
-                          if (sz := internet_manager.format_file_size(size_str))]
+        downloaded_subs = [{
+            'lang': (d_name.split(':', 1)[0] if ':' in d_name else d_name).strip(), 
+            'name': (d_name.split(':', 1)[1] if ':' in d_name else d_name).strip(),
+            'size': sz, 'used': False} 
+            for d_name, size_str in subtitle_sizes.items() 
+                if (sz := internet_manager.format_file_size(size_str))
+        ]
 
         def norm_lang(lang):
             return set(lang.lower().replace('-', '.').split('.'))

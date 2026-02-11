@@ -18,7 +18,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from StreamingCommunity.utils import config_manager
 from StreamingCommunity.utils import internet_manager
 from StreamingCommunity.utils.http_client import create_client, get_headers
-from StreamingCommunity.source.utils.tracker import download_tracker
+from StreamingCommunity.source.utils.tracker import download_tracker, context_tracker
 
 
 # Logic
@@ -178,7 +178,9 @@ class SegmentDownloader:
         else:
             display_desc = description
         
-        with Progress(
+        # Use NullContext if in GUI mode to avoid live table conflicts for GUI
+        from contextlib import nullcontext
+        progress_ctx = nullcontext() if context_tracker.is_gui else Progress(
             TextColumn("{task.description}"),
             CustomBarColumn(bar_width=40),
             ColoredSegmentColumn(),
@@ -186,20 +188,23 @@ class SegmentDownloader:
             ColoredSpeedColumn(),
             TextColumn("│"),
             ColoredSizeColumn(),
-            TextColumn("│"),
             CompactTimeColumn(),
             TextColumn("/"),
             CompactTimeRemainingColumn(),
             console=console,
-            refresh_per_second=4
-        ) as progress:
-            task = progress.add_task(
-                display_desc,
-                total=total_segments,
-                progress=f"0/{total_segments}",
-                speed="0 MB/s",
-                size="0 MB / ? MB"
-            )
+            refresh_per_second=0.5
+        )
+
+        with progress_ctx as progress:
+            task = None
+            if not context_tracker.is_gui:
+                task = progress.add_task(
+                    display_desc,
+                    total=total_segments,
+                    progress=f"0/{total_segments}",
+                    speed="0 MB/s",
+                    size="0 MB / ? MB"
+                )
             
             with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
                 futures = {executor.submit(self.download_segment, seg): seg for seg in segments}
@@ -247,7 +252,8 @@ class SegmentDownloader:
                             size_str = f"{format_size(total_size)} / {format_size(total_size * total_segments / max(downloaded_count, 1))}"
                             segments_str = f"{downloaded_count}/{total_segments}"
                             
-                            progress.update(task, completed=downloaded_count + failed_count, progress=segments_str, speed=speed_str, size=size_str)
+                            if not context_tracker.is_gui:
+                                progress.update(task, completed=downloaded_count + failed_count, progress=segments_str, speed=speed_str, size=size_str)
                             
                             if self.download_id:
                                 download_tracker.update_progress(
@@ -260,12 +266,14 @@ class SegmentDownloader:
                                 )
                         else:
                             failed_count += 1
-                            progress.update(task, completed=downloaded_count + failed_count)
+                            if not context_tracker.is_gui:
+                                progress.update(task, completed=downloaded_count + failed_count)
                     
                     except Exception as e:
                         logger.error(f"Error downloading segment {segment.number}: {e}")
                         failed_count += 1
-                        progress.update(task, completed=downloaded_count + failed_count)
+                        if not context_tracker.is_gui:
+                            progress.update(task, completed=downloaded_count + failed_count)
         
         elapsed = time.time() - start_time
         

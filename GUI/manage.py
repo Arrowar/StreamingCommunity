@@ -12,8 +12,13 @@ if parent_dir not in sys.path:
 
 def main():
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "webgui.settings")
-    from django.core.management import execute_from_command_line
 
+    if 'RUN_MAIN' not in os.environ:
+        print("Running pre-run hooks...")
+        from StreamingCommunity.cli.run import execute_hooks
+        execute_hooks('pre_run')
+    
+    from django.core.management import execute_from_command_line
     execute_from_command_line(sys.argv)
 
 

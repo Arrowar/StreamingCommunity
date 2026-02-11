@@ -79,7 +79,7 @@ function generateDownloadCardHTML(dl) {
         <div class="flex-1 min-w-0">
           <!-- Title & Type -->
           <div class="mb-4">
-            <div class="flex flex-wrap items-center justify-center sm:justify-start gap-2 mb-2">
+            <div class="flex flex-wrap items-center justify-center sm:justify-start gap-2 mb-3">
               <span class="px-2.5 py-1 sm:px-3 bg-red-600 text-white text-[10px] sm:text-xs font-bold uppercase tracking-wider rounded">
                 ${escapeHtml(typeLabel)}
               </span>
@@ -88,11 +88,10 @@ function generateDownloadCardHTML(dl) {
               </span>
               <button 
                 onclick="window.killDownload('${dl.id}')"
-                class="px-3 py-1.5 bg-red-600/10 hover:bg-red-600 active:bg-red-700 text-red-500 hover:text-white border border-red-600/30 rounded text-xs font-bold transition-all flex items-center gap-1.5"
-                style="min-height:36px"
+                class="sm:ml-2 px-3 py-1.5 sm:px-2 sm:py-0.5 bg-red-600/10 hover:bg-red-600 active:bg-red-700 text-red-500 hover:text-white border border-red-600/30 rounded text-xs sm:text-[10px] font-bold transition-all flex items-center gap-1.5 sm:gap-1 min-h-[36px] sm:min-h-0"
                 title="Smetti di scaricare e cancella il processo"
               >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-4 h-4 sm:w-3 sm:h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
                 KILL
@@ -200,15 +199,6 @@ function generateTasksHTML(dl, isExpanded) {
 function renderHistory(history) {
   const body = document.getElementById('history-body');
   if (!body) return;
-
-  const clearBtn = document.getElementById('clear-history-btn');
-  if (clearBtn) {
-    if (history.length === 0) {
-      clearBtn.classList.add('opacity-30', 'pointer-events-none');
-    } else {
-      clearBtn.classList.remove('opacity-30', 'pointer-events-none');
-    }
-  }
   
   if (history.length === 0) {
     body.innerHTML = `
@@ -325,16 +315,16 @@ async function killDownload(id) {
 }
 
 async function clearHistory() {
+  if (!confirm('Sei sicuro di voler cancellare tutta la cronologia?')) return;
   try {
-    const data = await fetchDownloadData();
-    if (!data.history || data.history.length === 0) return;
-
     const response = await fetch(window.CLEAR_HISTORY_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
     });
     if (response.ok) {
       updateProgress();
+    } else {
+      alert('Impossibile cancellare la cronologia.');
     }
   } catch (error) {
     console.error('Error clearing history:', error);

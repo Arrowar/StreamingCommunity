@@ -60,8 +60,9 @@ def signal_handler(signum, frame):
     os._exit(0)
 
 
-signal.signal(signal.SIGINT, signal_handler)
-signal.signal(signal.SIGTERM, signal_handler)
+if threading.current_thread() is threading.main_thread():
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
 
 
 def _media_item_to_display_dict(item: Entries, source_alias: str) -> Dict[str, Any]:

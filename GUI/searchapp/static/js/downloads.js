@@ -88,7 +88,7 @@ function generateDownloadCardHTML(dl) {
               </span>
               <button 
                 onclick="window.killDownload('${dl.id}')"
-                class="sm:ml-2 px-3 py-1.5 sm:px-2 sm:py-0.5 bg-red-600/10 hover:bg-red-600 active:bg-red-700 text-red-500 hover:text-white border border-red-600/30 rounded text-xs sm:text-[10px] font-bold transition-all flex items-center gap-1.5 sm:gap-1 min-h-[36px] sm:min-h-0"
+                class="w-full sm:w-auto sm:ml-2 px-3 py-2 sm:px-2 sm:py-0.5 bg-red-600/10 hover:bg-red-600 active:bg-red-700 text-red-500 hover:text-white border border-red-600/30 rounded text-xs sm:text-[10px] font-bold transition-all flex items-center justify-center gap-1.5 sm:gap-1 min-h-[36px] sm:min-h-0"
                 title="Smetti di scaricare e cancella il processo"
               >
                 <svg class="w-4 h-4 sm:w-3 sm:h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -252,7 +252,7 @@ function renderHistory(history) {
             ${isSuccess ? 'OK' : 'NO'}
           </span>
         </td>
-        <td class="px-4 sm:px-6 py-4 sm:py-5 text-right text-xs sm:text-sm text-gray-400 font-mono hidden sm:table-cell">
+        <td class="px-4 sm:px-6 py-4 sm:py-5 text-right text-[10px] sm:text-sm text-gray-400 font-mono whitespace-nowrap">
           ${date}
         </td>
       </tr>

@@ -27,6 +27,16 @@
           Aggiorna Tutte
         </button>
       </form>
+
+      <form action="{% url 'run_watchlist_auto_now' %}" method="post">
+        {% csrf_token %}
+        <button type="submit" class="px-6 py-2.5 bg-green-500/20 hover:bg-green-500 text-green-300 hover:text-white border border-green-500/50 font-bold rounded-lg transition-all flex items-center gap-2">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z"></path>
+          </svg>
+          Auto Ora
+        </button>
+      </form>
       
       <form action="{% url 'clear_watchlist' %}" method="post">
         {% csrf_token %}
@@ -87,6 +97,31 @@
           <span>Aggiunto: {{ item.added_at|date:"d/m/Y" }}</span>
           <span>Check: {{ item.last_checked_at|date:"H:i" }}</span>
         </div>
+
+        <form action="{% url 'update_watchlist_auto' item.id %}" method="post" class="mb-3 flex flex-col gap-2">
+          {% csrf_token %}
+          <label class="flex items-center gap-2 text-[10px] text-gray-300">
+            <input type="checkbox" name="auto_enabled" class="rounded border-gray-700 bg-black/40 text-red-600"
+                   {% if item.auto_enabled %}checked{% endif %} {% if not item.season_numbers %}disabled{% endif %}>
+            Auto-download stagione
+          </label>
+          <div class="flex gap-2">
+            <select name="auto_season" class="flex-1 rounded-lg border border-gray-700 bg-black/40 px-2 py-1 text-[10px] text-white"
+                    {% if not item.season_numbers %}disabled{% endif %}>
+              <option value="">Seleziona stagione</option>
+              {% for season in item.season_numbers %}
+              <option value="{{ season }}" {% if item.auto_season == season %}selected{% endif %}>Stagione {{ season }}</option>
+              {% endfor %}
+            </select>
+            <button type="submit" class="px-3 py-1 bg-white/10 hover:bg-white/20 text-white text-[10px] rounded-lg transition-all"
+                    {% if not item.season_numbers %}disabled{% endif %}>
+              Salva
+            </button>
+          </div>
+          {% if not item.season_numbers %}
+          <span class="text-[10px] text-gray-500">Stagioni non disponibili. Aggiorna la watchlist.</span>
+          {% endif %}
+        </form>
 
         <div class="flex gap-2">
           <a href="{% url 'series_detail' %}?source_alias={{ item.source_alias }}&item_payload={{ item.item_payload|urlencode }}" 

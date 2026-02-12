@@ -2,7 +2,7 @@
 
 class StreamInfo:
     def __init__(self, type_: str, language: str = "", resolution: str = "", codec: str = "", bandwidth: str = "", raw_bandwidth: str = "", name: str = "", selected: bool = False, 
-            extension: str = "", total_duration: float = 0.0, segment_count: int = 0, segments_protection: str = "NONE"):
+            extension: str = "", total_duration: float = 0.0, frame_rate: float = 0.0, channels: str = "", role: str = ""):
         self.type = type_
         self.resolution = resolution
         self.language = language
@@ -13,9 +13,10 @@ class StreamInfo:
         self.selected = selected
         self.extension = extension
         self.total_duration = total_duration
-        self.segment_count = segment_count
+        self.frame_rate = frame_rate
+        self.channels = channels
+        self.role = role
         self.final_size = None
-        self.segments_protection = segments_protection
 
 
 class KeysManager:

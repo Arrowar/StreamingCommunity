@@ -220,7 +220,13 @@ class Downloader:
         
         # Initialize components
         if self.manifest_type == "dash":
-            self.parser = DashParser(self.manifest_url, self.headers)
+            provided_kid = None
+            if self.kid_key:
+                parts = self.kid_key.split(':')
+                if len(parts) >= 1:
+                    provided_kid = parts[0]
+
+            self.parser = DashParser(self.manifest_url, self.headers, provided_kid)
         else:
             self.parser = HLSParser(self.manifest_url, self.headers)
         

@@ -142,16 +142,6 @@ def parse_meta_json(json_path: str, selected_json_path: str) -> List[StreamInfo]
         if key in seen_keys:
             idx = seen_keys[key]
             streams[idx].total_duration += s.get("Playlist", {}).get("TotalDuration", 0)
-            streams[idx].segment_count += s.get("SegmentsCount", 0)
-            
-            # Aggregate protection
-            old_p = streams[idx].segments_protection
-            if track_protection != old_p:
-                if old_p == 'NONE':
-                    streams[idx].segments_protection = track_protection
-                elif track_protection != 'NONE':
-                    p_name = old_p.replace('*', '') if old_p != 'NONE' else track_protection.replace('*', '')
-                    streams[idx].segments_protection = f"{p_name}*"
             continue
             
         seen_keys[key] = len(streams)
@@ -172,8 +162,9 @@ def parse_meta_json(json_path: str, selected_json_path: str) -> List[StreamInfo]
             selected=sel,
             extension=det.get('extension', s.get("Extension", "")),
             total_duration=det.get('duration', s.get("Playlist", {}).get("TotalDuration", 0)),
-            segment_count=det.get('segments', s.get("SegmentsCount", 0)),
-            segments_protection = det.get('encryption_method', track_protection),
+            frame_rate=s.get('FrameRate', 0),
+            channels=s.get('Channels', '').replace('CH', ''),
+            role=s.get('Role', ''),
         ))
         streams[-1].track_id = s.get("GroupId") or s.get("id") or ""
         

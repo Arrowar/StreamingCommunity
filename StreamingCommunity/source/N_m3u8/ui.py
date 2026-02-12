@@ -11,7 +11,7 @@ from StreamingCommunity.utils import internet_manager
 
 # Logic
 from ..utils.object import StreamInfo
-from ..utils.trans_codec import get_audio_codec_name, get_video_codec_name, get_subtitle_codec_name, get_codec_type
+from ..utils.trans_codec import get_audio_codec_name, get_video_codec_name, get_subtitle_codec_name, get_codec_type, get_channel_layout_name
 
 
 def build_table(streams, selected: set, cursor: int, window_size: int = 12, highlight_cursor: bool = True):
@@ -28,19 +28,19 @@ def build_table(streams, selected: set, cursor: int, window_size: int = 12, high
     cols = [
         ("#", "cyan"), 
         ("Type", "cyan"), 
-        ("Ext", "magenta"), 
-        ("Method", "red"), 
+        ("Role", "green"),
         ("Sel", "green"),
         ("Resolution", "yellow"), 
+        ("FrameRate", "yellow"), 
         ("Bitrate", "yellow"), 
         ("Codec", "green"),
+        ("Channels", "blue"), 
         ("Language", "blue"), 
         ("Name", "green"), 
-        ("Duration", "magenta"),
-        ("Segments", "white")
+        ("Duration", "magenta")
     ]
     for col, color in cols:
-        table.add_column(col, style=color, justify="right" if col in ("#", "Segments") else "left")
+        table.add_column(col, style=color, justify="right" if col in ("#",) else "left")
 
     total = len(streams)
     half = max(1, window_size // 2)
@@ -89,16 +89,16 @@ def build_table(streams, selected: set, cursor: int, window_size: int = 12, high
         table.add_row(
             str(idx + 1),
             f"{s.type}",
-            s.extension or '',
-            str(s.segments_protection),
+            s.role or '',
             "X" if is_selected else "",
             s.resolution if s.type == "Video" else "",
+            str(s.frame_rate) if s.frame_rate and s.frame_rate != 0 else "",
             bitrate,
             readable_codecs,
+            get_channel_layout_name(s.channels) if s.channels else "",
             s.language or '',
             s.name or '',
             internet_manager.format_time(s.total_duration, add_hours=True) if s.total_duration > 0 else "N/A",
-            str(s.segment_count),
             style=style
         )
 

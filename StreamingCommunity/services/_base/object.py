@@ -17,7 +17,7 @@ class Episode:
     def __init__(self, id: Optional[Any] = None, video_id: Optional[str] = None, number: Optional[Any] = None, name: Optional[str] = None, 
         duration: Optional[Any] = None, url: Optional[str] = None, mpd_id: Optional[str] = None, channel: Optional[str] = None, category: Optional[str] = None,
         description: Optional[str] = None, image: Optional[str] = None, poster: Optional[str] = None, year: Optional[Any] = None, is_special: Optional[bool] = None,
-        **kwargs
+        tmdb_id: Optional[str] = None, **kwargs
     ):
         self.id = id
         self.video_id = video_id
@@ -33,6 +33,7 @@ class Episode:
         self.poster = poster
         self.year = year
         self.is_special = is_special
+        self.tmdb_id = tmdb_id
         
         # [SERVICE-SPECIFIC] Allow additional attributes from different services (e.g., main_guid for Crunchyroll)
         for key, value in kwargs.items():
@@ -43,7 +44,7 @@ class Episode:
         return self.__dict__.copy()
 
     def __str__(self):
-        return f"Episode(id={self.id}, number={self.number}, name='{self.name}', duration={self.duration} sec)"
+        return f"Episode(id={self.id}, number={self.number}, name='{self.name}', duration={self.duration} min)"
 
 class EpisodeManager:
     def __init__(self):
@@ -78,12 +79,13 @@ class EpisodeManager:
 
 
 class Season:
-    def __init__(self, id: Optional[int] = None, number: Optional[int] = None, name: Optional[str] = None, slug: Optional[str] = None, type: Optional[str] = None, **kwargs):
+    def __init__(self, id: Optional[int] = None, number: Optional[int] = None, name: Optional[str] = None, slug: Optional[str] = None, type: Optional[str] = None, tmdb_id: Optional[str] = None, **kwargs):
         self.id = id
         self.number = number
         self.name = name
         self.slug = slug
         self.type = type
+        self.tmdb_id = tmdb_id
         self.episodes: EpisodeManager = EpisodeManager()
         
         for key, value in kwargs.items():
@@ -155,6 +157,7 @@ class Entries(metaclass=EntriesMeta):
     slug: str
     year: str
     provider_language: str
+    tmdb_id: str
 
     def to_dict(self):
         """Convert the entries to a dictionary."""
@@ -225,7 +228,7 @@ class EntriesManager:
         query_lower = query.lower()
         for media in self.media_list:
             title = getattr(media, 'name', '')
-            score = difflib.SequenceMatcher(None, query_lower, title.lower()).ratio()
+            score = 0 if title is None else difflib.SequenceMatcher(None, query_lower, title.lower()).ratio()
             setattr(media, 'score', score)
         self.media_list.sort(key=lambda x: getattr(x, 'score', 0), reverse=True)
 

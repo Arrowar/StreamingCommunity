@@ -62,6 +62,7 @@ class AnimeUnityAPI(BaseStreamingAPI):
                     type=item_dict.get('type'),
                     url=item_dict.get('url'),
                     poster=item_dict.get('image'),
+                    tmdb_id=item_dict.get('tmdb_id'),
                     raw_data=item_dict
                 )
                 results.append(media_item)
@@ -120,9 +121,6 @@ class AnimeUnityAPI(BaseStreamingAPI):
         """
         search_fn = self._get_search_fn()
         
-        # Prepare direct_item from Entries
-        direct_item = media_item.raw_data or media_item.to_dict()
-        
         # For AnimeUnity, we only use episode selection
         selections = None
         if episodes:
@@ -133,5 +131,5 @@ class AnimeUnityAPI(BaseStreamingAPI):
             selections = {'episode': '*'}
         
         scrape_serie = self.get_cached_scraper(media_item)
-        search_fn(direct_item=direct_item, selections=selections, scrape_serie=scrape_serie)
+        search_fn(direct_item=media_item.raw_data, selections=selections, scrape_serie=scrape_serie)
         return True

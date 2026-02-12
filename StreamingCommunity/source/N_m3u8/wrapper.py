@@ -20,17 +20,16 @@ from StreamingCommunity.utils.os import internet_manager
 from StreamingCommunity.setup import get_ffmpeg_path, get_n_m3u8dl_re_path, get_bento4_decrypt_path, get_shaka_packager_path
 from StreamingCommunity.source.utils.tracker import download_tracker, context_tracker
 from StreamingCommunity.utils.http_client import create_async_client
-from .progress_bar import CustomBarColumn, ColoredSegmentColumn, CompactTimeColumn, CompactTimeRemainingColumn, SizeColumn
+from StreamingCommunity.source.utils.trans_codec import get_subtitle_codec_name
+from StreamingCommunity.source.Manual.decrypt.decrypt import Decryptor
 
 
 # Logic
 from ..utils.object import StreamInfo, KeysManager
-from StreamingCommunity.source.utils.trans_codec import get_subtitle_codec_name
 from .pattern import VIDEO_LINE_RE, AUDIO_LINE_RE, SUBTITLE_LINE_RE, SEGMENT_RE, PERCENT_RE, SPEED_RE, SIZE_RE, SUBTITLE_FINAL_SIZE_RE
 from .progress_bar import CustomBarColumn, ColoredSegmentColumn, CompactTimeColumn, CompactTimeRemainingColumn, SizeColumn
 from .parser import parse_meta_json, LogParser
 from .ui import build_table
-from StreamingCommunity.source.Manual.decrypt.decrypt import Decryptor
 
 
 # Variable
@@ -343,7 +342,7 @@ class MediaDownloader:
                 TextColumn("[dim][[/dim]"), CompactTimeColumn(), TextColumn("[dim]<[/dim]"), CompactTimeRemainingColumn(), TextColumn("[dim]][/dim]"),
                 SizeColumn(), TextColumn("[dim]@[/dim]"), TextColumn("[red]{task.fields[speed]}[/red]", justify="right"), 
                 console=console,
-                refresh_per_second=2.0
+                refresh_per_second=4.0
             )
 
             with progress_ctx as progress:

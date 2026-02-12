@@ -264,7 +264,7 @@ class GetSerieInfo:
                             id=ep.get('guid', ''),
                             name=ep.get('title', ''),
                             url=ep.get('url', ''),
-                            duration=int(ep.get('duration', 0) / 60) * 60,  # Convert to seconds
+                            duration=duration,
                             number=0,  # Will be set later
                             category=category_name,
                             description=ep.get('description', ''),

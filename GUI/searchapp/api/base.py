@@ -18,26 +18,12 @@ class Entries:
     poster: Optional[str] = None
     year: Optional[int] = None
     provider_language: Optional[str] = None
+    tmdb_id: Optional[str] = None
     raw_data: Optional[Dict[str, Any]] = None
     
     @property
     def is_movie(self) -> bool:
         return self.type.lower() in ['film', 'movie', 'ova']
-    
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            'id': self.id,
-            'name': self.name,
-            'slug': self.slug,
-            'path_id': self.path_id,
-            'type': self.type,
-            'url': self.url,
-            'poster': self.poster,
-            'year': self.year,
-            'raw_data': self.raw_data,
-            'is_movie': self.is_movie,
-            'provider_language': self.provider_language
-        }
 
 
 @dataclass
@@ -46,13 +32,6 @@ class Episode:
     number: int
     name: str
     id: Optional[Any] = None
-    
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            'number': self.number,
-            'name': self.name,
-            'id': self.id
-        }
 
 
 @dataclass
@@ -65,14 +44,6 @@ class Season:
     @property
     def episode_count(self) -> int:
         return len(self.episodes)
-    
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            'number': self.number,
-            'name': self.name,
-            'episodes': [ep.to_dict() for ep in self.episodes],
-            'episode_count': self.episode_count
-        }
 
 
 class BaseStreamingAPI(ABC):
@@ -136,49 +107,3 @@ class BaseStreamingAPI(ABC):
             True if download started successfully
         """
         pass
-    
-    def ensure_complete_item(self, partial_item: Dict[str, Any]) -> Entries:
-        """
-        Ensure a media item has all required fields by searching the database.
-        
-        Args:
-            partial_item: Dictionary with partial item data
-            
-        Returns:
-            Complete Entries object
-        """
-        # If already complete, convert to Entries
-        if partial_item.get('path_id') or (partial_item.get('id') and (partial_item.get('slug') or partial_item.get('url'))):
-            return self._dict_to_entries(partial_item)
-        
-        # Try to find in database
-        query = (partial_item.get('name') or partial_item.get('slug') or partial_item.get('display_title'))
-        
-        if query:
-            results = self.search(query)
-            if results:
-                wanted_slug = partial_item.get('slug')
-                if wanted_slug:
-                    for item in results:
-                        if item.slug == wanted_slug:
-                            return item
-                        
-                return results[0]
-        
-        # Fallback: return partial item
-        return self._dict_to_entries(partial_item)
-    
-    def _dict_to_entries(self, data: Dict[str, Any]) -> Entries:
-        """Convert dictionary to Entries."""
-        return Entries(
-            id=data.get('id'),
-            name=data.get('name') or 'Unknown',
-            slug=data.get('slug') or '',
-            path_id=data.get('path_id'),
-            type=data.get('type') or data.get('media_type') or 'unknown',
-            url=data.get('url'),
-            poster=data.get('poster') or data.get('poster_url') or data.get('image'),
-            year=data.get('year'),
-            provider_language=data.get('provider_language'),
-            raw_data=data.get('raw_data', data)
-        )

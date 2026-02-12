@@ -1,8 +1,5 @@
 # 29.01.26
 
-import base64
-
-
 # External libraries
 from rich.console import Console
 from pywidevine.cdm import Cdm
@@ -125,26 +122,11 @@ def _get_widevine_keys(pssh_list: list[dict], license_url: str, cdm_device_path:
                 continue
 
             if response.status_code != 200:
-                console.print(f"[red]License error: {response.status_code}\nResponse: {response.text[:200]}\nUrl: {license_url}\nHeaders: {req_headers}")
+                console.print(f"[red]License error: {response.status_code}\nResponse: {response.content.decode('latin-1')[:200]}\nUrl: {license_url}\nHeaders: {req_headers}")
                 continue
 
             # Parse license response
             license_bytes = response.content
-            content_type = response.headers.get("Content-Type", "")
-
-            # Handle JSON response
-            if "application/json" in content_type:
-                try:
-                    data = response.json()
-                    if "license" in data:
-                        license_bytes = base64.b64decode(data["license"])
-                    else:
-                        console.print(f"[red]'license' field not found in JSON response: {data}.")
-                        continue
-                except Exception as e:
-                    console.print(f"[red]Error parsing JSON license: {e}")
-                    continue
-
             if not license_bytes:
                 console.print("[red]License data is empty.")
                 continue

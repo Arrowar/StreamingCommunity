@@ -77,7 +77,7 @@ def _media_item_to_display_dict(item: Entries, source_alias: str) -> Dict[str, A
         'is_movie': item.is_movie,
         'year': item.year
     }
-    result['payload_json'] = json.dumps(item.to_dict())
+    result['payload_json'] = json.dumps({**item.__dict__, 'is_movie': item.is_movie})
     return result
 
 
@@ -125,6 +125,7 @@ def search(request: HttpRequest) -> HttpResponse:
             "query": query,
             "download_form": download_form,
             "results": results,
+            "selected_site": site,
         },
     )
 
@@ -151,8 +152,9 @@ def _run_download_in_thread(site: str, item_payload: Dict[str, Any], season: str
             
             api = get_api(site)
             
-            # Ensure complete item
-            media_item = api.ensure_complete_item(item_payload)
+            # Create Entries from payload
+            entries_fields = {k: v for k, v in item_payload.items() if k in Entries.__dataclass_fields__}
+            media_item = Entries(**entries_fields)
             
             # Start download
             api.start_download(media_item, season=season, episodes=episodes)
@@ -188,7 +190,8 @@ def series_metadata(request: HttpRequest) -> JsonResponse:
         api = get_api(source_alias)
         
         # Convert to Entries
-        media_item = api._dict_to_entries(item_payload)
+        entries_fields = {k: v for k, v in item_payload.items() if k in Entries.__dataclass_fields__}
+        media_item = Entries(**entries_fields)
         
         # Check if it's a movie
         if media_item.is_movie:
@@ -284,20 +287,29 @@ def series_detail(request: HttpRequest) -> HttpResponse:
     try:
         item_payload = json.loads(item_payload_raw)
         api = get_api(source_alias)
-        media_item = api._dict_to_entries(item_payload)
+        entries_fields = {k: v for k, v in item_payload.items() if k in Entries.__dataclass_fields__}
+        media_item = Entries(**entries_fields)
         
         # Try to get TMDB backdrop for better background image
         backdrop_url = media_item.poster  # fallback to original poster
         if not media_item.is_movie:
             try:
-                slug = media_item.slug or tmdb_client._slugify(media_item.name)
-                year_str = str(media_item.year) if media_item.year else None
-                tmdb_result = tmdb_client.get_type_and_id_by_slug_year(slug, year_str, "tv")
-                if tmdb_result and tmdb_result.get('type') == 'tv':
-                    backdrop = tmdb_client.get_backdrop_url('tv', tmdb_result['id'], size="w1920")
+                if media_item.tmdb_id:
+                    backdrop = tmdb_client.get_backdrop_url('tv', int(media_item.tmdb_id), size="w1920")
                     if backdrop:
                         backdrop_url = backdrop
-            except Exception as e:
+                
+                else:
+                    # Fallback to search by slug/year
+                    slug = media_item.slug or tmdb_client._slugify(media_item.name)
+                    year_str = str(media_item.year) if media_item.year else None
+                    tmdb_result = tmdb_client.get_type_and_id_by_slug_year(slug, year_str, "tv")
+                    if tmdb_result and tmdb_result.get('type') == 'tv':
+                        backdrop = tmdb_client.get_backdrop_url('tv', tmdb_result['id'], size="w1920")
+                        if backdrop:
+                            backdrop_url = backdrop
+                            
+            except Exception:
                 # If TMDB fails, keep original poster
                 pass
         
@@ -322,7 +334,7 @@ def series_detail(request: HttpRequest) -> HttpResponse:
             seasons_data.append({
                 "number": season.number,
                 "episode_count": season.episode_count,
-                "episodes": [ep.to_dict() for ep in season.episodes],
+                "episodes": [ep.__dict__ for ep in season.episodes],
             })
         
         return render(
@@ -364,7 +376,8 @@ def _handle_series_download(request: HttpRequest) -> HttpResponse:
         def _download_entire_series_task():
             try:
                 api = get_api(source_alias)
-                media_item = api.ensure_complete_item(item_payload)
+                entries_fields = {k: v for k, v in item_payload.items() if k in Entries.__dataclass_fields__}
+                media_item = Entries(**entries_fields)
                 seasons = api.get_series_metadata(media_item)
 
                 if not seasons:
@@ -389,11 +402,6 @@ def _handle_series_download(request: HttpRequest) -> HttpResponse:
 
         download_executor.submit(_download_entire_series_task)
 
-        messages.success(
-            request,
-            f"Download avviato per l'intera serie '{name}'. "
-            f"Le stagioni verranno scaricate una dopo l'altra automaticamente."
-        )
         return redirect("download_dashboard")
 
     # --- FULL SEASON DOWNLOAD ---
@@ -410,11 +418,6 @@ def _handle_series_download(request: HttpRequest) -> HttpResponse:
             media_type=media_type
         )
 
-        messages.success(
-            request,
-            f"Download avviato per '{name}' - stagione {season_number} completa. "
-            f"Il download sta procedendo in background."
-        )
         return redirect("download_dashboard")
 
     # --- SELECTED EPISODES DOWNLOAD ---
@@ -438,11 +441,6 @@ def _handle_series_download(request: HttpRequest) -> HttpResponse:
             media_type=media_type
         )
 
-        messages.success(
-            request,
-            f"Download avviato per '{name}' - S{season_number}:E{episode_param}. "
-            f"Il download sta procedendo in background."
-        )
         return redirect("download_dashboard")
 
 
@@ -524,6 +522,7 @@ def add_to_watchlist(request: HttpRequest) -> HttpResponse:
         item_payload = json.loads(item_payload_raw)
         name = item_payload.get("name")
         poster = item_payload.get("poster")
+        tmdb_id = item_payload.get("tmdb_id")
         
         # Check if already in watchlist
         existing = WatchlistItem.objects.filter(name=name, source_alias=source_alias).first()
@@ -536,6 +535,7 @@ def add_to_watchlist(request: HttpRequest) -> HttpResponse:
                 source_alias=source_alias,
                 item_payload=item_payload_raw,
                 poster_url=poster,
+                tmdb_id=tmdb_id,
                 num_seasons=0,
                 last_season_episodes=0
             )
@@ -584,7 +584,8 @@ def _update_single_item(item: WatchlistItem) -> bool:
     try:
         api = get_api(item.source_alias)
         item_payload = json.loads(item.item_payload)
-        media_item = api.ensure_complete_item(item_payload)
+        entries_fields = {k: v for k, v in item_payload.items() if k in Entries.__dataclass_fields__}
+        media_item = Entries(**entries_fields)
         seasons = api.get_series_metadata(media_item)
         
         if not seasons:

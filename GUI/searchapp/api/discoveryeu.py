@@ -59,6 +59,7 @@ class DiscoveryEUAPI(BaseStreamingAPI):
                     type=item_dict.get('type'),
                     poster=item_dict.get('image'),
                     year=item_dict.get('year'),
+                    tmdb_id=item_dict.get('tmdb_id'),
                     raw_data=item_dict
                 )
                 results.append(media_item)
@@ -130,9 +131,6 @@ class DiscoveryEUAPI(BaseStreamingAPI):
         """
         search_fn = self._get_search_fn()
         
-        # Prepare direct_item from Entries
-        direct_item = media_item.raw_data or media_item.to_dict()
-        
         # Prepare selections
         selections = None
         if season or episodes:
@@ -142,5 +140,5 @@ class DiscoveryEUAPI(BaseStreamingAPI):
             }
         
         scrape_serie = self.get_cached_scraper(media_item)
-        search_fn(direct_item=direct_item, selections=selections, scrape_serie=scrape_serie)
+        search_fn(direct_item=media_item.raw_data, selections=selections, scrape_serie=scrape_serie)
         return True

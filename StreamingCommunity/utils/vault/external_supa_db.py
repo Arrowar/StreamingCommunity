@@ -122,5 +122,5 @@ class ExternalSupaDBVault:
 
 
 # Initialize
-is_supa_external_db_valid = config_manager.remote_cdm.get('external_supa_db', 'url', default=None) is not None
+is_supa_external_db_valid = not (config_manager.remote_cdm.get('external_supa_db', 'url') is None or config_manager.remote_cdm.get('external_supa_db', 'url') == "")
 obj_externalSupaDbVault = ExternalSupaDBVault() if is_supa_external_db_valid else None

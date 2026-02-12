@@ -93,8 +93,14 @@ export function initFormValidation() {
   
   forms.forEach(form => {
     form.addEventListener('submit', function(e) {
-      const seasonNumberInput = this.querySelector('input[name="season"]');
+      const seasonNumberInput = this.querySelector('input[name="season_number"]');
       if (!seasonNumberInput) return;
+      
+      const selectedEpisodesInput = this.querySelector('input[name="selected_episodes"]');
+      if (selectedEpisodesInput && !selectedEpisodesInput.value.trim()) {
+        e.preventDefault();
+        alert('Seleziona almeno un episodio prima di scaricare.');
+      }
     });
   });
 }

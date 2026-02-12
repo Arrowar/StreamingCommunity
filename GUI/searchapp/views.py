@@ -263,11 +263,17 @@ def start_download(request: HttpRequest) -> HttpResponse:
     return redirect("download_dashboard")
 
 
-@require_http_methods(["GET"])
+@require_http_methods(["GET", "POST"])
 def series_detail(request: HttpRequest) -> HttpResponse:
     """
     Show series detail page with seasons and episodes.
+    Handles POST for full series, full season, or episode-specific downloads.
     """
+    # --- POST: handle download requests ---
+    if request.method == "POST":
+        return _handle_series_download(request)
+    
+    # --- GET: show series detail page ---
     source_alias = request.GET.get("source_alias")
     item_payload_raw = request.GET.get("item_payload")
     
@@ -332,6 +338,114 @@ def series_detail(request: HttpRequest) -> HttpResponse:
         messages.error(request, f"Errore nel caricamento dei dettagli: {e}")
         return redirect("search_home")
 
+def _handle_series_download(request: HttpRequest) -> HttpResponse:
+    """Handle POST downloads from series_detail: full series, full season, or selected episodes."""
+    source_alias = request.POST.get("source_alias")
+    item_payload_raw = request.POST.get("item_payload")
+    download_type = request.POST.get("download_type")
+    season_number = request.POST.get("season_number")
+    selected_episodes = request.POST.get("selected_episodes", "")
+
+    if not all([source_alias, item_payload_raw]):
+        messages.error(request, "Parametri base mancanti per il download.")
+        return redirect("search_home")
+
+    try:
+        item_payload = json.loads(item_payload_raw)
+    except Exception:
+        messages.error(request, "Errore nel parsing dei dati.")
+        return redirect("search_home")
+
+    name = item_payload.get("name")
+    media_type = (item_payload.get("type") or "tv").lower()
+
+    # --- FULL SERIES DOWNLOAD (sequential, all seasons one after another) ---
+    if download_type == "full_series":
+        def _download_entire_series_task():
+            try:
+                api = get_api(source_alias)
+                media_item = api.ensure_complete_item(item_payload)
+                seasons = api.get_series_metadata(media_item)
+
+                if not seasons:
+                    return
+
+                for season in seasons:
+                    season_num = str(season.number)
+                    download_id = f"{source_alias}_{int(time.time())}_{hash(name + season_num) % 10000}"
+                    try:
+                        context_tracker.download_id = download_id
+                        context_tracker.site_name = source_alias
+                        context_tracker.media_type = media_type
+                        context_tracker.is_gui = True
+
+                        api.start_download(media_item, season=season_num, episodes="*")
+                    except Exception as e:
+                        print(f"[Error] Download season {season_num}: {e}")
+                        continue
+
+            except Exception as e:
+                print(f"[Error] Full series download task: {e}")
+
+        download_executor.submit(_download_entire_series_task)
+
+        messages.success(
+            request,
+            f"Download avviato per l'intera serie '{name}'. "
+            f"Le stagioni verranno scaricate una dopo l'altra automaticamente."
+        )
+        return redirect("download_dashboard")
+
+    # --- FULL SEASON DOWNLOAD ---
+    elif download_type == "full_season":
+        if not season_number:
+            messages.error(request, "Numero stagione mancante.")
+            return redirect("search_home")
+
+        _run_download_in_thread(
+            site=source_alias,
+            item_payload=item_payload,
+            season=season_number,
+            episodes="*",
+            media_type=media_type
+        )
+
+        messages.success(
+            request,
+            f"Download avviato per '{name}' - stagione {season_number} completa. "
+            f"Il download sta procedendo in background."
+        )
+        return redirect("download_dashboard")
+
+    # --- SELECTED EPISODES DOWNLOAD ---
+    else:
+        if not season_number:
+            messages.error(request, "Numero stagione mancante.")
+            return redirect("search_home")
+
+        episode_param = selected_episodes.strip() if selected_episodes else None
+        if not episode_param:
+            messages.error(request, "Nessun episodio selezionato.")
+            from django.urls import reverse
+            url = reverse('series_detail') + f"?source_alias={source_alias}&item_payload={item_payload_raw}"
+            return redirect(url)
+
+        _run_download_in_thread(
+            site=source_alias,
+            item_payload=item_payload,
+            season=season_number,
+            episodes=episode_param,
+            media_type=media_type
+        )
+
+        messages.success(
+            request,
+            f"Download avviato per '{name}' - S{season_number}:E{episode_param}. "
+            f"Il download sta procedendo in background."
+        )
+        return redirect("download_dashboard")
+
+
 def download_dashboard(request: HttpRequest) -> HttpResponse:
     """Dashboard to view all active and completed downloads."""
     active_downloads = download_tracker.get_active_downloads()
@@ -373,6 +487,18 @@ def kill_download(request: HttpRequest) -> JsonResponse:
             return JsonResponse({"status": "error", "message": str(e)}, status=400)
     
     return JsonResponse({"status": "error", "message": "Method not allowed", "status_code": 405}, status=405)
+
+
+@csrf_exempt
+def clear_download_history(request: HttpRequest) -> JsonResponse:
+    """API view to clear the download history."""
+    if request.method == "POST":
+        try:
+            download_tracker.clear_history()
+            return JsonResponse({"status": "success"})
+        except Exception as e:
+            return JsonResponse({"status": "error", "message": str(e)}, status=500)
+    return JsonResponse({"status": "error", "message": "Method not allowed"}, status=405)
 
 
 @require_http_methods(["GET"])

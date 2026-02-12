@@ -196,6 +196,11 @@ class DownloadTracker(metaclass=SingletonMeta):
         with self._lock:
             return list(reversed(self.history))
 
+    def clear_history(self):
+        """Clear all download history."""
+        with self._lock:
+            self.history.clear()
+
 
 class ContextTracker:
     _global_is_gui = False

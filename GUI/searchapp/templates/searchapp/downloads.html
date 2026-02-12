@@ -60,6 +60,18 @@
       <h2 class="text-2xl font-bold text-white">
         Cronologia
       </h2>
+      <button
+        id="clear-history-btn"
+        onclick="window.clearHistory()"
+        class="px-3 py-2 sm:px-4 sm:py-2 bg-red-600/10 hover:bg-red-600 active:bg-red-700 text-red-500 hover:text-white border border-red-600/30 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 sm:gap-2 min-h-[36px]"
+        title="Cancella tutta la cronologia"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+        </svg>
+        <span class="hidden sm:inline">Pulisci cronologia</span>
+        <span class="sm:hidden">Pulisci</span>
+      </button>
     </div>
 
     <!-- History Table -->
@@ -103,6 +115,7 @@
   // Pass Django URL to JavaScript
   window.DOWNLOADS_JSON_URL = "{% url 'get_downloads_json' %}";
   window.KILL_DOWNLOAD_URL = "{% url 'kill_download' %}";
+  window.CLEAR_HISTORY_URL = "{% url 'clear_download_history' %}";
 </script>
 <script type="module">
   import { init } from '{% static "js/downloads.js" %}';

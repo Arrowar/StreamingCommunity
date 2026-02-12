@@ -97,6 +97,24 @@
                 Scarica
               </button>
             </form>
+
+            <!-- Add to Watchlist Button (Movie) -->
+            <form action="{% url 'add_to_watchlist' %}" method="post">
+              {% csrf_token %}
+              <input type="hidden" name="source_alias" value="{{ result.source_alias }}">
+              <input type="hidden" name="item_payload" value="{{ result.payload_json }}">
+              <input type="hidden" name="search_query" value="{{ query }}">
+              <input type="hidden" name="search_site" value="{{ selected_site }}">
+              <button 
+                type="submit" 
+                class="py-2.5 px-2.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-md transition-all flex items-center justify-center shadow-xl"
+                title="Aggiungi alla Watchlist"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
+                </svg>
+              </button>
+            </form>
             {% else %}
 
             <!-- View Episodes Button -->

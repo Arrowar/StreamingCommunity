@@ -13,7 +13,7 @@
         La Mia <span class="text-red-500">Watchlist</span>
       </h1>
       <p class="text-gray-400">
-        Monitora le tue serie preferite per nuovi episodi e stagioni.
+        Monitora i tuoi contenuti preferiti e accedi rapidamente a film e serie.
       </p>
     </div>
     
@@ -60,6 +60,12 @@
           </span>
         </div>
 
+        <div class="absolute bottom-3 left-3">
+          <span class="px-2 py-1 bg-white/15 backdrop-blur-md border border-white/20 text-white text-[9px] font-bold uppercase rounded-full">
+            {% if item.is_movie %}Film{% else %}Serie{% endif %}
+          </span>
+        </div>
+
         {% if item.has_new_seasons or item.has_new_episodes %}
         <div class="absolute top-3 right-3 group-hover:scale-110 transition-transform">
           <span class="px-2 py-1 bg-green-500 text-white text-[9px] font-black uppercase rounded-full shadow-[0_0_15px_rgba(34,197,94,0.6)] animate-pulse">
@@ -72,6 +78,7 @@
       <div class="p-4">
         <h2 class="text-lg font-bold text-white mb-3 line-clamp-1">{{ item.name }}</h2>
         
+        {% if not item.is_movie %}
         <div class="grid grid-cols-2 gap-3 mb-4">
           <div class="bg-gray-800/50 rounded-lg p-2 border border-gray-700/50">
             <span class="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Stagioni</span>
@@ -82,6 +89,7 @@
             <span class="text-base font-black text-white">{{ item.last_season_episodes }}</span>
           </div>
         </div>
+        {% endif %}
 
         <div class="flex items-center justify-between text-[10px] text-gray-500 mb-4">
           <span>Aggiunto: {{ item.added_at|date:"d/m/Y" }}</span>
@@ -89,14 +97,30 @@
         </div>
 
         <div class="flex gap-2">
-          <a href="{% url 'series_detail' %}?source_alias={{ item.source_alias }}&item_payload={{ item.item_payload|urlencode }}" 
+          {% if item.is_movie %}
+          <form action="{% url 'start_download' %}" method="post" class="flex-1">
+            {% csrf_token %}
+            <input type="hidden" name="source_alias" value="{{ item.source_alias }}">
+            <input type="hidden" name="item_payload" value="{{ item.item_payload }}">
+            <button type="submit"
+               class="w-full py-2 bg-red-600 hover:bg-red-700 text-white font-bold text-[10px] rounded-lg transition-all flex items-center justify-center gap-2">
+              <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z"></path>
+              </svg>
+              Scarica Film
+            </button>
+          </form>
+          {% else %}
+          <a href="{% url 'series_detail' %}?source_alias={{ item.source_alias }}&item_payload={{ item.item_payload|urlencode }}"
              class="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white font-bold text-[10px] rounded-lg transition-all flex items-center justify-center gap-2">
             <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
               <path d="M8 5v14l11-7z"></path>
             </svg>
-            Vedi Serie
+            Dettagli Serie
           </a>
+          {% endif %}
           
+          {% if not item.is_movie %}
           <form action="{% url 'update_watchlist_item' item.id %}" method="post">
             {% csrf_token %}
             <button type="submit" class="p-2 bg-white/5 hover:bg-white/10 text-white rounded-lg transition-all" title="Verifica aggiornamenti">
@@ -105,6 +129,7 @@
               </svg>
             </button>
           </form>
+          {% endif %}
 
           <form action="{% url 'remove_from_watchlist' item.id %}" method="post">
             {% csrf_token %}

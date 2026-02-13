@@ -21,8 +21,7 @@ from .downloader import download_series
 indice = 14
 _useFor = "Film_&_Serie"
 _region = ["IT"]
-
-
+_drm = ["widevine", "playready", "fairplay"]
 msg = Prompt()
 console = Console()
 entries_manager = EntriesManager()

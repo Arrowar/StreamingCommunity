@@ -54,7 +54,7 @@ class ExternalSupaDBVault:
             console.print(f"[red]Error adding key: {e}")
             return False
 
-    def set_keys(self, keys_list: List[str], drm_type: str, license_url: str, pssh: str, kid_to_label: Optional[dict] = None) -> int:
+    def set_keys(self, keys_list: List[str], drm_type: str, license_url: str, pssh: str) -> int:
         """
         Add multiple keys to the vault in batch
         
@@ -74,7 +74,7 @@ class ExternalSupaDBVault:
                 continue
             
             kid, key = key_str.split(':', 1)
-            label = kid_to_label.get(kid.lower()) if kid_to_label else None
+            label = None
             
             if self.set_key(license_url, pssh, kid, key, drm_type, label):
                 added_count += 1

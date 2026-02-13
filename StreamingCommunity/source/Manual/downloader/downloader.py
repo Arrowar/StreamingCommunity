@@ -33,11 +33,6 @@ from ...utils.trans_codec import get_audio_codec_name, get_video_codec_name, get
 logger = logging.getLogger(__name__)
 console = Console()
 TIMEOUT = config_manager.config.get_int('REQUESTS', 'timeout')
-SELECTION_CONFIG = {
-    "select_video": config_manager.config.get('M3U8_DOWNLOAD', 'select_video'),
-    "select_audio": config_manager.config.get('M3U8_DOWNLOAD', 'select_audio'),
-    "select_subtitle": config_manager.config.get('M3U8_DOWNLOAD', 'select_subtitle'),
-}
 MAX_WORKERS = config_manager.config.get_int('M3U8_DOWNLOAD', 'thread_count')
 
 
@@ -203,7 +198,6 @@ class Downloader:
         self.headers = headers or get_headers()
         self.kid_key = kid_key
         self.download_id = download_id
-        self.selection_config = SELECTION_CONFIG
         
         # Determine manifest type
         if ".mpd" in manifest_url.lower() or "?type=dash" in manifest_url.lower():
@@ -228,7 +222,7 @@ class Downloader:
 
             self.parser = DashParser(self.manifest_url, self.headers, provided_kid)
         else:
-            self.parser = HLSParser(self.manifest_url, self.headers)
+            self.parser = HLSParser(self.manifest_url, self.headers, None)
         
         self.segment_downloader = SegmentDownloader(headers=self.headers, max_workers=MAX_WORKERS, download_id=self.download_id)
         self.decryptor = Decryptor()
@@ -311,18 +305,15 @@ class Downloader:
     
     def _apply_selections(self):
         """Apply selection filters to streams"""
-        
-        # Select video
-        video_filter = self.selection_config.get('select_video', 'best')
+        video_filter = config_manager.config.get('M3U8_DOWNLOAD', 'select_video')
         StreamSelector.select_video(self.streams, video_filter)
         
-        # Select audio
-        audio_filter = self.selection_config.get('select_audio', 'best')
+        audio_filter = config_manager.config.get('M3U8_DOWNLOAD', 'select_audio')
         StreamSelector.select_audio(self.streams, audio_filter)
         
-        # Select subtitle
-        subtitle_filter = self.selection_config.get('select_subtitle', 'none')
-        StreamSelector.select_subtitle(self.streams, subtitle_filter)
+        subtitle_filter = config_manager.config.get('M3U8_DOWNLOAD', 'select_subtitle')
+        if subtitle_filter != "false":
+            StreamSelector.select_subtitle(self.streams, subtitle_filter)
         
         # Get list of selected streams
         self.selected_streams: list[Stream] = [s for s in self.streams if s.selected]

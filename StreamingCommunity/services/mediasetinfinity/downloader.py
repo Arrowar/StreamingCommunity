@@ -41,7 +41,6 @@ def try_mpd(url, qualities):
     """
     parsed = urlparse(url)
     path_parts = parsed.path.rsplit('/', 1)
-
     if len(path_parts) != 2:
         return None
     
@@ -56,13 +55,10 @@ def try_mpd(url, qualities):
         return filename
 
     for q in qualities:
-
-        # Search for which quality is present in the filename
         for old_q in qualities:
             if f"{old_q}_" in filename or filename.startswith(f"{old_q}_"):
                 new_filename = replace_quality(filename, old_q, q)
                 break
-
         else:
             new_filename = filename  # No quality found, use original filename
 
@@ -73,7 +69,6 @@ def try_mpd(url, qualities):
             r = create_client().head(mpd_url)
             if r.status_code == 200:
                 return mpd_url
-            
         except Exception:
             pass
 

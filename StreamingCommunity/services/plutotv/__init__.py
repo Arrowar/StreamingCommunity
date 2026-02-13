@@ -22,8 +22,7 @@ from .client import get_api
 indice = 18
 _useFor = "Serie"
 _region = ["IT"]
-
-
+_drm = ["widevine", "playready"]
 msg = Prompt()
 console = Console()
 entries_manager = EntriesManager()

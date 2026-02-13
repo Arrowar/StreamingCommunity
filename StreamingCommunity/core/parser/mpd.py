@@ -13,7 +13,7 @@ from pyplayready.system.pssh import PSSH as PR_PSSH
 
 
 # Internal utilities
-from StreamingCommunity.utils.http_client import create_client_curl
+from StreamingCommunity.utils.http_client import create_client_curl, get_userAgent
 
 
 # Variable
@@ -65,7 +65,10 @@ class MPDParser:
     def parse(self) -> bool:
         """Parse MPD from URL."""
         try:
-            r = create_client_curl(headers=self.headers).get(self.mpd_url)
+            # Generate fresh User-Agent for MPD fetch
+            mpd_headers = self.headers.copy()
+            mpd_headers['User-Agent'] = get_userAgent()
+            r = create_client_curl(headers=mpd_headers).get(self.mpd_url)
             r.raise_for_status()
             self.root = ET.fromstring(r.content)
             self._extract_namespaces()

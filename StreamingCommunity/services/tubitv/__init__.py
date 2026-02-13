@@ -24,8 +24,7 @@ from .client import get_bearer_token
 indice = 10
 _useFor = "Serie"
 _region = ["US"]
-
-
+_drm = ["widevine", "playready"]
 msg = Prompt()
 console = Console()
 entries_manager = EntriesManager()

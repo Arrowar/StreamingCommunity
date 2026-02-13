@@ -17,7 +17,7 @@ from StreamingCommunity.source.utils.object import KeysManager
 console = Console()
 
 
-def get_playready_keys(pssh_list: list[dict], license_url: str, cdm_device_path: str = None, cdm_remote_api: list[str] = None, headers: dict = None, key: str = None, kid_to_label: dict = None):
+def get_playready_keys(pssh_list: list[dict], license_url: str, cdm_device_path: str = None, cdm_remote_api: list[str] = None, headers: dict = None, key: str = None):
     """
     Extract PlayReady CONTENT keys (KID/KEY) from a license.
 
@@ -28,7 +28,6 @@ def get_playready_keys(pssh_list: list[dict], license_url: str, cdm_device_path:
         - cdm_remote_api (list[str]): Remote CDM API config. Optional if using local device.
         - headers (dict): Optional HTTP headers for the license request.
         - key (str): Optional raw license data to bypass HTTP request.
-        - kid_to_label (dict): Mapping from KID (hex) to track label.
 
     Returns:
         list: List of strings "KID:KEY" (only CONTENT keys) or None if error.
@@ -45,10 +44,10 @@ def get_playready_keys(pssh_list: list[dict], license_url: str, cdm_device_path:
         console.print("[red]Error: Must provide either cdm_device_path or cdm_remote_api.")
         return None
     
-    return _get_playready_keys_local_cdm(pssh_list, license_url, cdm_device_path, cdm_remote_api, headers, kid_to_label)
+    return _get_playready_keys_local_cdm(pssh_list, license_url, cdm_device_path, cdm_remote_api, headers)
 
 
-def _get_playready_keys_local_cdm(pssh_list: list[dict], license_url: str, cdm_device_path: str, cdm_remote_api: list[str], headers: dict = None, kid_to_label: dict = None):
+def _get_playready_keys_local_cdm(pssh_list: list[dict], license_url: str, cdm_device_path: str, cdm_remote_api: list[str], headers: dict = None):
     """Extract PlayReady keys using local or remote CDM device."""
     device = None
     cdm = None
@@ -78,6 +77,7 @@ def _get_playready_keys_local_cdm(pssh_list: list[dict], license_url: str, cdm_d
             return None
 
     # Open CDM session
+    console.print("[dim]Opening CDM session ...")
     session_id = cdm.open()
     all_content_keys = []
     extracted_kids = set()
@@ -118,6 +118,7 @@ def _get_playready_keys_local_cdm(pssh_list: list[dict], license_url: str, cdm_d
 
             # Make license request
             try:
+                console.print("[dim]Requesting license ...")
                 response = create_client_curl(headers=req_headers).post(license_url, data=challenge)
             except Exception as e:
                 console.print(f"[red]License request error: {e}")
@@ -128,7 +129,12 @@ def _get_playready_keys_local_cdm(pssh_list: list[dict], license_url: str, cdm_d
                 continue
 
             # Parse license
-            cdm.parse_license(session_id, response.text)
+            try:
+                console.print("[dim]Parsing license ...")
+                cdm.parse_license(session_id, response.text)
+            except Exception as e:
+                console.print(f"[red]Error parsing license: {e}")
+                continue
 
             # Extract CONTENT keys
             try:
@@ -158,22 +164,10 @@ def _get_playready_keys_local_cdm(pssh_list: list[dict], license_url: str, cdm_d
                 console.print(f"[red]Error extracting keys: {e}")
                 continue
 
-            # Break if 'all' type requested and we have all expected keys
-            if type_info.lower() == 'all' and len(extracted_kids) >= len(expected_kids):
-                break
-            
-            # For single PSSH, break after extracting at least one key
-            if len(pssh_list) == 1 and len(all_content_keys) >= 1:
-                break
-
-        # Display extracted keys
         if all_content_keys:
             for i, k in enumerate(all_content_keys):
                 kid, key_val = k.split(':')
-                masked_key = key_val[:-1] + "*"
-                label = kid_to_label.get(kid.lower()) if kid_to_label else None
-                label_str = f" [cyan]| [red]{label}" if label else ""
-                console.print(f"    - [red]{kid}[white]:[green]{masked_key}{label_str}")
+                console.print(f"    - [red]{kid}[white]:[green]{key_val}")
         else:
             console.print("[yellow]No keys extracted")
         

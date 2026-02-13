@@ -19,9 +19,7 @@ from .client import CrunchyrollClient
 # Variable
 indice = 7
 _useFor = "Anime"
-
-
-
+_drm = ['Widevine', 'PlayReady']
 msg = Prompt()
 console = Console()
 entries_manager = EntriesManager()

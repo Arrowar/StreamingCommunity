@@ -20,8 +20,6 @@ from .downloader import download_series
 indice = 9
 _useFor = "Serie"
 _region = ["IT"]
-
-
 msg = Prompt()
 console = Console()
 entries_manager = EntriesManager()

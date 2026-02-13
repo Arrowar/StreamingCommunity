@@ -299,7 +299,9 @@ class MediaDownloader:
         
         if norm_a:
             cmd.extend(["--select-audio", norm_a])
-        if norm_s:
+        if subtitle_filter == "false":
+            cmd.extend(["--drop-subtitle", "all"])
+        elif norm_s:
             cmd.extend(["--select-subtitle", norm_s])
         cmd.extend(self._get_common_args())
 

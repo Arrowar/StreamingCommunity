@@ -23,8 +23,7 @@ from .client import get_client
 indice = 3
 _useFor = "Film_&_Serie"
 _region = ["IT"]
-
-
+_drm = ["widevine"]
 msg = Prompt()
 console = Console()
 entries_manager = EntriesManager()

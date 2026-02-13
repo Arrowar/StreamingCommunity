@@ -17,7 +17,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 # Internal utilities
 from StreamingCommunity.utils import config_manager
 from StreamingCommunity.utils import internet_manager
-from StreamingCommunity.utils.http_client import create_client, get_headers
+from StreamingCommunity.utils.http_client import create_client, get_headers, get_userAgent
 from StreamingCommunity.source.utils.tracker import download_tracker, context_tracker
 
 
@@ -134,7 +134,10 @@ class SegmentDownloader:
                 return False
             
             try:
-                with create_client(headers=self.headers, timeout=TIMEOUT, follow_redirects=True) as client:
+                # Generate new User-Agent for each segment request
+                segment_headers = self.headers.copy()
+                segment_headers['User-Agent'] = get_userAgent()
+                with create_client(headers=segment_headers, timeout=TIMEOUT, follow_redirects=True) as client:
                     response = client.get(segment.url)
                     response.raise_for_status()
                     

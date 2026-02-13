@@ -25,9 +25,10 @@ TIMEOUT = config_manager.config.get_int('REQUESTS', 'timeout')
 
 
 class DashParser:
-    def __init__(self, mpd_url, headers=None):
+    def __init__(self, mpd_url, headers=None, provided_kid=None):
         self.mpd_url = mpd_url
         self.headers = headers or get_headers()
+        self.provided_kid = provided_kid
         self.base_url = self._get_base_url()
         self.mpd_content = None
         self.root = None
@@ -130,6 +131,11 @@ class DashParser:
                 kid = default_kid.replace('-', '').lower()
                 drm_info.set_kid(kid)
                 drm_info.default_kid = kid
+        
+        # Use provided KID if no KID found in manifest and provided_kid is available
+        if not kid and self.provided_kid:
+            drm_info.set_kid(self.provided_kid)
+            kid = self.provided_kid
         
         return {
             'drm_info': drm_info,

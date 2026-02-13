@@ -15,7 +15,7 @@ from .api.base import Entries
 from .models import WatchlistItem
 
 
-DEFAULT_INTERVAL_SECONDS = 1800
+DEFAULT_INTERVAL_SECONDS = 14400
 
 
 def _get_interval_seconds() -> int:
@@ -54,6 +54,11 @@ def _process_item(item: WatchlistItem, force: bool = False) -> None:
         item_payload = json.loads(item.item_payload)
         entries_fields = {k: v for k, v in item_payload.items() if k in Entries.__dataclass_fields__}
         media_item = Entries(**entries_fields)
+
+        if media_item.is_movie or item.is_movie:
+            print(f"[WatchlistAuto] '{item.name}': movies are not eligible for auto-download")
+            return
+
         seasons = api.get_series_metadata(media_item)
 
         if not seasons:
@@ -112,7 +117,11 @@ def _auto_loop(interval_seconds: int) -> None:
     while True:
         try:
             close_old_connections()
-            items = list(WatchlistItem.objects.filter(auto_enabled=True).exclude(auto_season__isnull=True))
+            items = list(
+                WatchlistItem.objects.filter(auto_enabled=True)
+                .exclude(auto_season__isnull=True)
+                .exclude(is_movie=True)
+            )
             print(f"[WatchlistAuto] Periodic check: {len(items)} items with auto-download enabled")
             for item in items:
                 _process_item(item)
@@ -125,7 +134,11 @@ def run_watchlist_auto_once(force: bool = True) -> None:
     """Run auto-download scan once. force=True downloads even without new episodes."""
     try:
         close_old_connections()
-        items = list(WatchlistItem.objects.filter(auto_enabled=True).exclude(auto_season__isnull=True))
+        items = list(
+            WatchlistItem.objects.filter(auto_enabled=True)
+            .exclude(auto_season__isnull=True)
+            .exclude(is_movie=True)
+        )
         print(f"[WatchlistAuto] Manual trigger: {len(items)} items with auto-download enabled (force={force})")
         if not items:
             print("[WatchlistAuto] No items have auto-download enabled with a season selected.")

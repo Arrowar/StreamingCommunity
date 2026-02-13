@@ -625,6 +625,23 @@ def update_watchlist_auto(request: HttpRequest, item_id: int) -> HttpResponse:
         messages.error(request, "Elemento non trovato.")
         return redirect("watchlist")
 
+    if item.is_movie:
+        if item.auto_enabled or item.auto_season:
+            item.auto_enabled = False
+            item.auto_season = None
+            item.auto_last_episode_count = 0
+            item.auto_last_downloaded_at = None
+            item.save(
+                update_fields=[
+                    "auto_enabled",
+                    "auto_season",
+                    "auto_last_episode_count",
+                    "auto_last_downloaded_at",
+                ]
+            )
+        messages.error(request, "Auto-download non disponibile per i film.")
+        return redirect("watchlist")
+
     auto_enabled = request.POST.get("auto_enabled") == "on"
     auto_season_raw = request.POST.get("auto_season")
     auto_season = None

@@ -52,40 +52,6 @@ def create_key(s):
     return f"SUBTITLE|{s.get('Language','')}|{s.get('Name','')}|{s.get('Role','')}"
 
 
-def get_track_protection(s) -> str:
-    """Check for encryption in all segments. Returns 'NONE', 'CENC'*, etc."""
-    all_methods = set()
-    playlist = s.get('Playlist', {})
-    
-    # Check MediaInit
-    init = playlist.get('MediaInit', {})
-    if init:
-        m = init.get('EncryptInfo', {}).get('Method', 'NONE')
-        if m: 
-            all_methods.add(m)
-        
-    # Check all segments in all parts
-    for part in playlist.get('MediaParts', []):
-        for seg in part.get('MediaSegments', []):
-            m = seg.get('EncryptInfo', {}).get('Method', 'NONE')
-            if m: 
-                all_methods.add(m)
-    
-    if not all_methods: 
-        return 'NONE'
-    
-    non_none = [m for m in all_methods if m and m.upper() != 'NONE']
-    if not non_none: 
-        return 'NONE'
-    
-    # If mixed (contains NONE and something else), add asterisk
-    if 'NONE' in all_methods:
-        main = 'CENC' if 'CENC' in non_none else 'CBCS' if 'CBCS' in non_none else non_none[0]
-        return f"{main}*"
-    
-    return non_none[0]
-
-
 def classify_stream(s):
     """Classify stream type based on meta.json data"""
     group_id = s.get("GroupId", "")
@@ -121,12 +87,8 @@ def parse_meta_json(json_path: str, selected_json_path: str) -> List[StreamInfo]
     if selected_json_path and os.path.isfile(selected_json_path):
         with open(selected_json_path, 'r', encoding='utf-8-sig') as f:
             for s in json.load(f):
-                enc_method = get_track_protection(s)
-                enc = '*' in enc_method or (enc_method != 'NONE' and enc_method != '')
 
                 selected_map[create_key(s)] = {
-                    'encrypted': enc,
-                    'encryption_method': enc_method,
                     'extension': s.get("Extension", ""),
                     'duration': s.get("Playlist", {}).get("TotalDuration", 0),
                     'segments': s.get("SegmentsCount", 0)
@@ -137,21 +99,10 @@ def parse_meta_json(json_path: str, selected_json_path: str) -> List[StreamInfo]
     for s in metadata:
         key = create_key(s)
         bw = s.get('Bandwidth', 0)
-        track_protection = get_track_protection(s)
         
         if key in seen_keys:
             idx = seen_keys[key]
             streams[idx].total_duration += s.get("Playlist", {}).get("TotalDuration", 0)
-            streams[idx].segment_count += s.get("SegmentsCount", 0)
-            
-            # Aggregate protection
-            old_p = streams[idx].segments_protection
-            if track_protection != old_p:
-                if old_p == 'NONE':
-                    streams[idx].segments_protection = track_protection
-                elif track_protection != 'NONE':
-                    p_name = old_p.replace('*', '') if old_p != 'NONE' else track_protection.replace('*', '')
-                    streams[idx].segments_protection = f"{p_name}*"
             continue
             
         seen_keys[key] = len(streams)
@@ -172,8 +123,9 @@ def parse_meta_json(json_path: str, selected_json_path: str) -> List[StreamInfo]
             selected=sel,
             extension=det.get('extension', s.get("Extension", "")),
             total_duration=det.get('duration', s.get("Playlist", {}).get("TotalDuration", 0)),
-            segment_count=det.get('segments', s.get("SegmentsCount", 0)),
-            segments_protection = det.get('encryption_method', track_protection),
+            frame_rate=s.get('FrameRate', 0),
+            channels=s.get('Channels', '').replace('CH', ''),
+            role=s.get('Role', ''),
         ))
         streams[-1].track_id = s.get("GroupId") or s.get("id") or ""
         

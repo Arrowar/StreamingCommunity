@@ -128,6 +128,16 @@ SUBTITLE_CODEC_MAP = {
     'ssa': 'SSA'
 }
 
+CHANNEL_LAYOUT_MAP = {
+    'A000': '2',
+    'A001': '1',
+    'A002': '2.1',
+    'F801': '5.1',
+    'F803': '7.1',
+    'F805': '7.1',
+    'F809': '5.1'
+}
+
 
 def get_video_codec_name(codec_string):
     """Get the human-readable name of a video codec."""
@@ -161,6 +171,13 @@ def get_subtitle_codec_name(codec_string):
             return value
     
     return codec_string
+
+def get_channel_layout_name(channel_string):
+    """Get the human-readable name of a channel layout."""
+    if channel_string in CHANNEL_LAYOUT_MAP:
+        return CHANNEL_LAYOUT_MAP[channel_string.strip()]
+    
+    return channel_string
 
 def get_codec_type(codec_string):
     """Get the type of codec: 'Video', 'Audio', 'Subtitle' or 'Unknown'."""

@@ -81,6 +81,14 @@ def _media_item_to_display_dict(item: Entries, source_alias: str) -> Dict[str, A
     return result
 
 
+def _to_bool(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "on"}
+    return bool(value)
+
+
 @require_http_methods(["GET"])
 def search_home(request: HttpRequest) -> HttpResponse:
     """Display search form."""
@@ -510,7 +518,7 @@ def watchlist(request: HttpRequest) -> HttpResponse:
 
 @require_http_methods(["POST"])
 def add_to_watchlist(request: HttpRequest) -> HttpResponse:
-    """Add a series to the watchlist."""
+    """Add a media item to the watchlist."""
     source_alias = request.POST.get("source_alias")
     item_payload_raw = request.POST.get("item_payload")
     search_query = request.POST.get("search_query")
@@ -525,6 +533,7 @@ def add_to_watchlist(request: HttpRequest) -> HttpResponse:
         name = item_payload.get("name")
         poster = item_payload.get("poster")
         tmdb_id = item_payload.get("tmdb_id")
+        is_movie = _to_bool(item_payload.get("is_movie"))
         
         # Check if already in watchlist
         existing = WatchlistItem.objects.filter(name=name, source_alias=source_alias).first()
@@ -536,6 +545,7 @@ def add_to_watchlist(request: HttpRequest) -> HttpResponse:
                 name=name,
                 source_alias=source_alias,
                 item_payload=item_payload_raw,
+                is_movie=is_movie,
                 poster_url=poster,
                 tmdb_id=tmdb_id,
                 num_seasons=0,
@@ -621,10 +631,26 @@ def update_watchlist_auto(request: HttpRequest, item_id: int) -> HttpResponse:
 def _update_single_item(item: WatchlistItem) -> bool:
     """Internal helper to update a single watchlist item."""
     try:
+        if item.is_movie:
+            item.last_checked_at = timezone.now()
+            item.has_new_seasons = False
+            item.has_new_episodes = False
+            item.save(update_fields=["last_checked_at", "has_new_seasons", "has_new_episodes"])
+            return False
+
         api = get_api(item.source_alias)
         item_payload = json.loads(item.item_payload)
         entries_fields = {k: v for k, v in item_payload.items() if k in Entries.__dataclass_fields__}
         media_item = Entries(**entries_fields)
+
+        if media_item.is_movie:
+            item.is_movie = True
+            item.last_checked_at = timezone.now()
+            item.has_new_seasons = False
+            item.has_new_episodes = False
+            item.save(update_fields=["is_movie", "last_checked_at", "has_new_seasons", "has_new_episodes"])
+            return False
+
         seasons = api.get_series_metadata(media_item)
         
         if not seasons:

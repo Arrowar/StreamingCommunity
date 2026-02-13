@@ -36,6 +36,7 @@ CLEANUP_TMP = config_manager.config.get_bool('M3U8_DOWNLOAD', 'cleanup_tmp_folde
 EXTENSION_OUTPUT = config_manager.config.get("M3U8_CONVERSION", "extension")
 SKIP_DOWNLOAD = config_manager.config.get_bool('M3U8_DOWNLOAD', 'skip_download')
 CREATE_NFO_FILES = config_manager.config.get_bool('M3U8_CONVERSION', 'generate_nfo', default=False)
+SUBTITLE_FILTER = config_manager.config.get('M3U8_DOWNLOAD', 'select_subtitle')
 MERGE_SUBTITLES = config_manager.config.get_bool('M3U8_CONVERSION', 'merge_subtitle', default=True)
 MERGE_AUDIO = config_manager.config.get_bool('M3U8_CONVERSION', 'merge_audio', default=True)
 
@@ -80,7 +81,6 @@ class DASH_Downloader:
         # DRM and state
         self.drm_info = None
         self.decryption_keys = []
-        self.kid_to_label = {}
         self.media_downloader = None
         self.meta_json = self.meta_selected = self.raw_mpd = None
         self.error = None
@@ -95,9 +95,6 @@ class DASH_Downloader:
             parser = MPDParser(self.mpd_url, headers=self.mpd_headers)
             parser.parse_from_file(self.raw_mpd)
             
-            # Map KIDs to labels
-            self._map_kids_to_labels(parser, selected_ids, selected_kids, selected_langs, selected_periods)
-            
             # Get DRM info
             self.drm_info = parser.get_drm_info(
                 self.drm_preference, selected_ids, selected_kids, 
@@ -108,37 +105,6 @@ class DASH_Downloader:
         except Exception as e:
             console.print(f"[yellow]Warning parsing MPD: {e}")
             return False
-    
-    def _map_kids_to_labels(self, parser, selected_ids, selected_kids, selected_langs, selected_periods):
-        """Map KIDs to descriptive labels."""
-        self.kid_to_label = {}
-        sets = parser.get_adaptation_sets_info(selected_ids, selected_kids, selected_langs, selected_periods)
-        
-        # Group by content type
-        groups = {}
-        for s in sets:
-            if s['content_type'] in ('image', 'text'):
-                continue
-            groups.setdefault(s['content_type'], []).append(s)
-        
-        for c_type, items in groups.items():
-            for item in items:
-                # Text/Subtitle streams might not have KIDs but we want to label them
-                if not item['default_kid'] and c_type != 'text':
-                    continue
-    
-    def _generate_label(self, item, content_type, is_uniform):
-        """Generate label for a stream."""
-        if is_uniform:
-            return f"all {content_type}"
-        
-        parts = [content_type]
-        if item.get('height'):
-            parts.append(f"{item['height']}p")
-        if item.get('language') and item['language'] != 'N/A':
-            parts.append(f"({item['language']})")
-        
-        return " ".join(parts)
     
     def _fetch_decryption_keys(self):
         """Fetch decryption keys based on DRM type."""
@@ -151,9 +117,9 @@ class DASH_Downloader:
         drm_type = self.drm_info['selected_drm_type']
         try:
             if drm_type == DRMSystem.WIDEVINE:
-                keys = self.drm_manager.get_wv_keys(self.drm_info.get('widevine_pssh', []), self.license_url, self.license_headers, self.key, self.kid_to_label)
+                keys = self.drm_manager.get_wv_keys(self.drm_info.get('widevine_pssh', []), self.license_url, self.license_headers, self.key)
             elif drm_type == DRMSystem.PLAYREADY:
-                keys = self.drm_manager.get_pr_keys(self.drm_info.get('playready_pssh', []), self.license_url, self.license_headers, self.key, self.kid_to_label)
+                keys = self.drm_manager.get_pr_keys(self.drm_info.get('playready_pssh', []), self.license_url, self.license_headers, self.key)
             else:
                 console.print(f"[red]Unsupported DRM type: {drm_type}")
                 self.error = f"Unsupported DRM type: {drm_type}"
@@ -186,7 +152,7 @@ class DASH_Downloader:
             return (selected_ids, selected_kids, selected_langs, selected_periods)
         
         # 1. Process meta_selected first if it exists
-        if os.path.exists(self.meta_selected):
+        if self.meta_selected and os.path.exists(self.meta_selected):
             try:
                 with open(self.meta_selected, "r", encoding="utf-8-sig") as f:
                     data = json.load(f)
@@ -314,12 +280,14 @@ class DASH_Downloader:
             site_name=self.site_name
         )
         
-        if self.mpd_sub_list:
+        if self.mpd_sub_list and SUBTITLE_FILTER != "false":
+            console.print(f"[dim]Adding {len(self.mpd_sub_list)} external subtitle(s) to the downloader.")
             self.media_downloader.external_subtitles = self.mpd_sub_list
         
         if self.download_id:
             download_tracker.update_status(self.download_id, "Parsing...")
-            
+        
+        console.print("[dim]Parsing MPD ...")
         self.media_downloader.parser_stream()
         
         # Get metadata
@@ -350,7 +318,8 @@ class DASH_Downloader:
         # Set keys and start download
         if self.download_id:
             download_tracker.update_status(self.download_id, "downloading")
-            
+        
+        console.print("[dim]Starting download ...")
         self.media_downloader.set_key(self.decryption_keys)
         status = self.media_downloader.start_download()
         

@@ -20,8 +20,7 @@ from .client import get_api
 indice = 12
 _useFor = "Film_&_Serie"
 _region = ["US"]
-
-
+_drm = ["widevine", "playready", "fairplay"]
 msg = Prompt()
 console = Console()
 entries_manager = EntriesManager()

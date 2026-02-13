@@ -44,7 +44,8 @@ def download_film(select_title: Entries):
     # Set up video source (only configure scrape_serie now)
     scrape_serie.setup(None, select_title.id, select_title.slug)
     scrape_serie.is_series = False
-    download_episode(0, scrape_serie, video_source)
+    obj_episode = scrape_serie.selectEpisode(1, 0)
+    download_episode(obj_episode, 0, scrape_serie, video_source)
 
 
 def download_episode(obj_episode, index_select, scrape_serie, video_source):

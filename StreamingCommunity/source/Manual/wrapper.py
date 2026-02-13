@@ -143,16 +143,8 @@ class MediaDownloader:
         else:
             extension = ''
         
-        # Determine encryption
-        segments_protection = "NONE"
-        if stream.drm.is_encrypted():
-            segments_protection = stream.drm.get_drm_display()
-        elif stream.encryption_method == 'AES-128':
-            segments_protection = "AES-128"
-        
         stream_info = StreamInfo(type_=stream_type, language=stream.language, resolution=stream.resolution if stream.type == 'video' else "", codec=stream.codecs,
-            bandwidth=bandwidth_str, raw_bandwidth=str(stream.bitrate), name=stream.name, selected=stream.selected, extension=extension, total_duration=stream.duration,
-            segment_count=len(stream.segments), segments_protection=segments_protection
+            bandwidth=bandwidth_str, raw_bandwidth=str(stream.bitrate), name=stream.name, selected=stream.selected, extension=extension, total_duration=stream.duration
         )
         
         return stream_info

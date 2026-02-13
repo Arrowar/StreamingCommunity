@@ -6,6 +6,7 @@ class WatchlistItem(models.Model):
     name = models.CharField(max_length=255)
     source_alias = models.CharField(max_length=100)
     item_payload = models.TextField()
+    is_movie = models.BooleanField(default=False)
     poster_url = models.URLField(max_length=500, null=True, blank=True)
     tmdb_id = models.CharField(max_length=50, null=True, blank=True)
     num_seasons = models.IntegerField(default=0)

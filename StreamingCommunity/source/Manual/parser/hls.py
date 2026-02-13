@@ -20,9 +20,10 @@ TIMEOUT = config_manager.config.get_int('REQUESTS', 'timeout')
 
 
 class HLSParser:
-    def __init__(self, m3u8_url, headers=None):
+    def __init__(self, m3u8_url, headers=None, provided_kid=None):
         self.m3u8_url = m3u8_url
         self.headers = headers or get_headers()
+        self.provided_kid = provided_kid        # NOT USE
         self.base_url = self._get_base_url()
         self.master_content = None
         

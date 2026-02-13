@@ -37,7 +37,7 @@ class DRMManager:
         self.is_local_db_connected = obj_localDbValut is not None
         self.is_supa_db_connected = obj_externalSupaDbVault is not None
     
-    def get_wv_keys(self, pssh_list: list[dict], license_url: str, headers: dict = None, key: str = None, kid_to_label: dict = None):
+    def get_wv_keys(self, pssh_list: list[dict], license_url: str, headers: dict = None, key: str = None):
         """
         Get Widevine keys with step: 
             1) Database lookup by license URL and PSSH
@@ -85,18 +85,18 @@ class DRMManager:
         
         # Step 3: Try CDM extraction
         try:
-            keys = get_widevine_keys(pssh_list, license_url, self.widevine_device_path, self.widevine_remote_cdm_api, headers, key, kid_to_label)
+            keys = get_widevine_keys(pssh_list, license_url, self.widevine_device_path, self.widevine_remote_cdm_api, headers, key)
             time.sleep(DELAY)
                 
             if keys:
                 keys_list = keys.get_keys_list()
                 if self.is_local_db_connected and license_url and pssh_val:
                     console.print(f"Storing {len(keys)} key(s) to local database...")
-                    obj_localDbValut.set_keys(keys_list, 'widevine', license_url, pssh_val, kid_to_label)
+                    obj_localDbValut.set_keys(keys_list, 'widevine', license_url, pssh_val)
 
                 if self.is_supa_db_connected and license_url and pssh_val:
                     console.print(f"Storing {len(keys)} key(s) to Supabase database...")
-                    obj_externalSupaDbVault.set_keys(keys_list, 'widevine', license_url, pssh_val, kid_to_label)
+                    obj_externalSupaDbVault.set_keys(keys_list, 'widevine', license_url, pssh_val)
 
                 return keys
             
@@ -109,7 +109,7 @@ class DRMManager:
         console.print("\n[red]All extraction methods failed for Widevine")
         return None
     
-    def get_pr_keys(self, pssh_list: list[dict], license_url: str, headers: dict = None, key: str = None, kid_to_label: dict = None):
+    def get_pr_keys(self, pssh_list: list[dict], license_url: str, headers: dict = None, key: str = None):
         """
         Get PlayReady keys with step: 
             1) Database lookup by license URL and PSSH
@@ -157,18 +157,18 @@ class DRMManager:
         
         # Step 3: Try CDM extraction
         try:
-            keys = get_playready_keys(pssh_list, license_url, self.playready_device_path, self.playready_remote_cdm_api, headers, key, kid_to_label)
+            keys = get_playready_keys(pssh_list, license_url, self.playready_device_path, self.playready_remote_cdm_api, headers, key)
             time.sleep(DELAY)
             
             if keys:
                 keys_list = keys.get_keys_list()
                 if self.is_local_db_connected and license_url and pssh_val:
                     console.print(f"Storing {len(keys)} key(s) to local database...")
-                    obj_localDbValut.set_keys(keys_list, 'playready', license_url, pssh_val, kid_to_label)
+                    obj_localDbValut.set_keys(keys_list, 'playready', license_url, pssh_val)
 
                 if self.is_supa_db_connected and license_url and pssh_val:
                     console.print(f"Storing {len(keys)} key(s) to Supabase database...")
-                    obj_externalSupaDbVault.set_keys(keys_list, 'playready', license_url, pssh_val, kid_to_label)
+                    obj_externalSupaDbVault.set_keys(keys_list, 'playready', license_url, pssh_val)
 
                 return keys
             else:

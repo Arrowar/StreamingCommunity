@@ -136,11 +136,12 @@ Key configuration parameters in `config.json`:
 ```
 
 #### Performance Settings
-- **`auto_select`**: If false user can manually select individual track (vid, aud, sub) if true auto apply selelt_video \ aud \ sub
+- **`skip_download`**: Skip the download step and process existing files (default: `false`)
 - **`thread_count`**: Number of parallel download threads (default: `12`)
 - **`retry_count`**: Maximum retry attempts for failed segments (default: `40`)
 - **`concurrent_download`**: Download video and audio simultaneously (default: `true`)
 - **`max_speed`**: Speed limit per stream (e.g., `"30MB"`, `"10MB"`)
+- **`real_time_decryption`**: Decrypt segments in real-time during download instead of post-processing (default: `false`)
 - **`check_segments_count`**: Verify segment count matches manifest (default: `true`)
 - **`cleanup_tmp_folder`**: Remove temporary files after download (default: `true`)
 
@@ -178,32 +179,39 @@ OPTIONS: id=REGEX:lang=REGEX:name=REGEX:codecs=REGEX:res=REGEX:frame=REGEX:
 "select_subtitle": "name=English:for=all"                 // All subtitles containing "English"
 "select_subtitle": "lang='ita|eng|Ita|Eng':for=all"       // Italian and English subtitles
 "select_subtitle": "lang=en:for=best"                     // Best English subtitle
+"select_subtitle": "false"                                // Disable subtitle download
 ```
 
 ### M3U8 Conversion Settings
 ```json
 {
     "M3U8_CONVERSION": {
+        "generate_nfo": false,
         "use_gpu": false,
         "param_video": ["-c:v", "libx265", "-crf", "28", "-preset", "medium"],
         "param_audio": ["-c:a", "libopus", "-b:a", "128k"],
+        "param_final": ["-c", "copy"],
+        "merge_audio": true,
+        "merge_subtitle": true,
         "subtitle_disposition": true,
         "subtitle_disposition_language": ["forced-ita", "ita-forced"],
-        "param_final": ["-c", "copy"],
         "extension": "mkv"
     }
 }
 ```
 
+- **`generate_nfo`**: Generate .nfo metadata file alongside the video (default: `false`)
 - **`use_gpu`**: Enable hardware acceleration (default: `false`)
 - **`param_video`**: FFmpeg video encoding parameters
   - Example: `["-c:v", "libx265", "-crf", "28", "-preset", "medium"]` (H.265/HEVC encoding)
 - **`param_audio`**: FFmpeg audio encoding parameters
   - Example: `["-c:a", "libopus", "-b:a", "128k"]` (Opus audio at 128kbps)
+- **`param_final`**: Final FFmpeg parameters (default: `["-c", "copy"]` for stream copy)
+- **`merge_audio`**: Merge all audio tracks into a single output file (default: `true`)
+- **`merge_subtitle`**: Merge all subtitle tracks into a single output file (default: `true`)
 - **`subtitle_disposition`**: Automatically set default subtitle track (default: `true`)
 - **`subtitle_disposition_language`**: Languages to mark as default/forced
   - Example: `["forced-ita", "ita-forced"]` for Italian forced subtitles
-- **`param_final`**: Final FFmpeg parameters (default: `["-c", "copy"]` for stream copy)
 - **`extension`**: Output file format (`"mkv"` or `"mp4"`)
 
 ### Request Settings
@@ -212,7 +220,12 @@ OPTIONS: id=REGEX:lang=REGEX:name=REGEX:codecs=REGEX:res=REGEX:frame=REGEX:
     "REQUESTS": {
         "verify": false,
         "timeout": 30,
-        "max_retry": 10
+        "max_retry": 10,
+        "use_proxy": false,
+        "proxy": {
+            "http": "http://localhost:8888",
+            "https": "http://localhost:8888"
+        }
     }
 }
 ```
@@ -220,11 +233,16 @@ OPTIONS: id=REGEX:lang=REGEX:name=REGEX:codecs=REGEX:res=REGEX:frame=REGEX:
 - **`verify`**: Enable SSL certificate verification (default: `false`)
 - **`timeout`**: Request timeout in seconds (default: `30`)
 - **`max_retry`**: Maximum retry attempts for failed requests (default: `10`)
+- **`use_proxy`**: Enable proxy support for HTTP requests (default: `false`)
+- **`proxy`**: Proxy configuration for HTTP and HTTPS connections
+  - **`http`**: HTTP proxy URL (e.g., `"http://localhost:8888"`)
+  - **`https`**: HTTPS proxy URL (e.g., `"http://localhost:8888"`)
 
-### Domain Management
+### Default Settings
 ```json
 {
     "DEFAULT": {
+        "close_console": true,
         "show_message": false,
         "show_device_info": false,
         "fetch_domain_online": true
@@ -232,6 +250,7 @@ OPTIONS: id=REGEX:lang=REGEX:name=REGEX:codecs=REGEX:res=REGEX:frame=REGEX:
 }
 ```
 
+- **`close_console`**: Automatically close console after download completion (default: `true`)
 - **`show_message`**: Display debug messages (default: `false`)
 - **`show_device_info`**: Display device information (default: `false`)
 - **`fetch_domain_online`**: Automatically fetch latest domains from GitHub (default: `true`)

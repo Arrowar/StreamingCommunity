@@ -85,6 +85,7 @@ class HLS_Downloader:
             download_id=self.download_id,
             site_name=self.site_name
         )
+        console.print("[dim]Parsing MPD ...")
         self.media_downloader.parser_stream()
         
         # Create output directory
@@ -103,7 +104,8 @@ class HLS_Downloader:
         
         if self.download_id:
             download_tracker.update_status(self.download_id, "downloading")
-            
+        
+        console.print("[dim]Starting download ...")
         status = self.media_downloader.start_download()
 
         # Check for cancellation

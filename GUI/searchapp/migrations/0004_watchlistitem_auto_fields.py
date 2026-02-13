@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("searchapp", "0002_watchlistitem_tmdb_id"),
+        ("searchapp", "0003_watchlistitem_is_movie"),
     ]
 
     operations = [

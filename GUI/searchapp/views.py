@@ -23,6 +23,7 @@ from django.utils import timezone
 # Internal utilities
 from .forms import SearchForm, DownloadForm
 from .models import WatchlistItem
+from .watchlist_auto import _get_interval_seconds
 from GUI.searchapp.api import get_api
 from GUI.searchapp.api.base import Entries
 
@@ -513,7 +514,31 @@ def watchlist(request: HttpRequest) -> HttpResponse:
     items = WatchlistItem.objects.all()
     for item in items:
         item.season_numbers = list(range(1, item.num_seasons + 1))
-    return render(request, "searchapp/watchlist.html", {"items": items})
+    poll_interval_seconds = _get_interval_seconds()
+    return render(
+        request,
+        "searchapp/watchlist.html",
+        {"items": items, "poll_interval_seconds": poll_interval_seconds},
+    )
+
+
+@require_http_methods(["POST"])
+def set_watchlist_polling_interval(request: HttpRequest) -> HttpResponse:
+    """Update the watchlist auto-check interval for this process."""
+    raw = request.POST.get("poll_interval", "")
+    try:
+        value = int(raw)
+    except Exception:
+        value = None
+
+    allowed = {300, 900, 1800, 3600, 21600, 43200, 86400}
+    if value not in allowed:
+        messages.error(request, "Intervallo non valido.")
+        return redirect("watchlist")
+
+    os.environ["WATCHLIST_AUTO_INTERVAL_SECONDS"] = str(value)
+    messages.success(request, "Intervallo di controllo aggiornato.")
+    return redirect("watchlist")
 
 
 @require_http_methods(["POST"])

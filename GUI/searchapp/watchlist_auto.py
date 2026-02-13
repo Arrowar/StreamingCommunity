@@ -118,7 +118,7 @@ def _auto_loop(interval_seconds: int) -> None:
                 _process_item(item)
         except Exception as exc:
             print(f"[WatchlistAuto] Loop error: {exc}")
-        time.sleep(interval_seconds)
+        time.sleep(_get_interval_seconds())
 
 
 def run_watchlist_auto_once(force: bool = True) -> None:

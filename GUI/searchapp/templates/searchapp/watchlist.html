@@ -17,34 +17,61 @@
       </p>
     </div>
     
-    <div class="flex gap-3">
+    <div class="flex flex-wrap items-center gap-3">
       <form action="{% url 'update_all_watchlist' %}" method="post">
         {% csrf_token %}
-        <button type="submit" class="px-6 py-2.5 bg-white hover:bg-gray-200 text-black font-bold rounded-lg transition-all flex items-center gap-2">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+        <button type="submit"
+                class="h-10 px-5 bg-white hover:bg-gray-200 text-black font-bold rounded-lg transition-all flex items-center gap-2 text-sm shadow-lg shadow-white/5">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
           </svg>
-          Aggiorna Tutte
+          <span>Aggiorna Tutte</span>
         </button>
       </form>
 
-      <form action="{% url 'run_watchlist_auto_now' %}" method="post">
-        {% csrf_token %}
-        <button type="submit" class="px-6 py-2.5 bg-green-500/20 hover:bg-green-500 text-green-300 hover:text-white border border-green-500/50 font-bold rounded-lg transition-all flex items-center gap-2">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z"></path>
-          </svg>
-          Auto Ora
-        </button>
-      </form>
-      
+      <div class="flex items-center rounded-lg bg-green-600 hover:bg-green-500 transition-all shadow-lg shadow-green-500/10 border border-green-500/50 group h-10">
+        <form action="{% url 'run_watchlist_auto_now' %}" method="post" class="h-full">
+          {% csrf_token %}
+          <button type="submit"
+                  class="h-full px-4 text-white font-bold text-sm flex items-center gap-2 border-r border-green-700/50 hover:bg-white/10 rounded-l-lg transition-colors"
+                  title="Esegue subito un controllo della watchlist per nuove stagioni/episodi">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <span>Auto-Download</span>
+          </button>
+        </form>
+
+        <form action="{% url 'set_watchlist_polling_interval' %}" method="post" class="h-full relative">
+          {% csrf_token %}
+          <select name="poll_interval"
+                  onchange="this.form.requestSubmit ? this.form.requestSubmit() : this.form.submit()"
+                  class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 appearance-none bg-gray-900 text-white"
+                  title="Cambia frequenza controllo">
+            <option value="1800" class="bg-gray-900 text-white" {% if poll_interval_seconds == 1800 %}selected{% endif %}>Ogni 30 min</option>
+            <option value="3600" class="bg-gray-900 text-white" {% if poll_interval_seconds == 3600 %}selected{% endif %}>Ogni 1 ora</option>
+            <option value="21600" class="bg-gray-900 text-white" {% if poll_interval_seconds == 21600 %}selected{% endif %}>Ogni 6 ore</option>
+            <option value="43200" class="bg-gray-900 text-white" {% if poll_interval_seconds == 43200 %}selected{% endif %}>Ogni 12 ore</option>
+            <option value="86400" class="bg-gray-900 text-white" {% if poll_interval_seconds == 86400 %}selected{% endif %}>Ogni 24 ore</option>
+          </select>
+          <div class="h-full px-2 flex items-center justify-center text-white/80 hover:text-white hover:bg-white/10 rounded-r-lg cursor-pointer">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
+          </div>
+        </form>
+      </div>
+
       <form action="{% url 'clear_watchlist' %}" method="post">
         {% csrf_token %}
-        <button type="submit" class="px-6 py-2.5 bg-red-600/20 hover:bg-red-600 text-red-500 hover:text-white border border-red-600/50 font-bold rounded-lg transition-all flex items-center gap-2">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+        <button type="submit"
+                class="h-10 px-5 bg-red-600/10 hover:bg-red-600 text-red-500 hover:text-white border border-red-600/30 font-bold rounded-lg transition-all flex items-center gap-2 text-sm">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
           </svg>
-          Svuota
+          <span>Svuota</span>
         </button>
       </form>
     </div>
@@ -106,29 +133,76 @@
           <span>Check: {{ item.last_checked_at|date:"H:i" }}</span>
         </div>
 
-        <form action="{% url 'update_watchlist_auto' item.id %}" method="post" class="mb-3 flex flex-col gap-2">
+        <form action="{% url 'update_watchlist_auto' item.id %}"
+              method="post"
+              class="mb-4 js-auto-watchlist-form">
           {% csrf_token %}
-          <label class="flex items-center gap-2 text-[10px] text-gray-300">
-            <input type="checkbox" name="auto_enabled" class="rounded border-gray-700 bg-black/40 text-red-600"
-                   {% if item.auto_enabled %}checked{% endif %} {% if not item.season_numbers %}disabled{% endif %}>
-            Auto-download stagione
-          </label>
-          <div class="flex gap-2">
-            <select name="auto_season" class="flex-1 rounded-lg border border-gray-700 bg-black/40 px-2 py-1 text-[10px] text-white"
-                    {% if not item.season_numbers %}disabled{% endif %}>
-              <option value="">Seleziona stagione</option>
-              {% for season in item.season_numbers %}
-              <option value="{{ season }}" {% if item.auto_season == season %}selected{% endif %}>Stagione {{ season }}</option>
-              {% endfor %}
-            </select>
-            <button type="submit" class="px-3 py-1 bg-white/10 hover:bg-white/20 text-white text-[10px] rounded-lg transition-all"
-                    {% if not item.season_numbers %}disabled{% endif %}>
-              Salva
-            </button>
+
+          <div class="rounded-xl border border-gray-800 bg-gray-900/50 backdrop-blur-sm p-3">
+            <div class="flex items-start justify-between gap-4">
+              <div class="min-w-0">
+                <p class="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Auto-download</p>
+                <p class="mt-1 text-[10px] text-gray-500 leading-snug">
+                  Scarica automaticamente gli episodi della stagione selezionata.
+                </p>
+              </div>
+
+              <label class="relative inline-flex items-center shrink-0">
+                <span class="sr-only">Auto-download stagione</span>
+
+                <input type="checkbox"
+                       name="auto_enabled"
+                       class="sr-only peer js-auto-watchlist-input"
+                       {% if item.auto_enabled %}checked{% endif %}
+                       {% if not item.season_numbers %}disabled{% endif %}>
+
+                <span class="h-6 w-11 rounded-full bg-gray-700/70 border border-gray-600/70 transition
+                             peer-checked:bg-green-500/80
+                             peer-focus-visible:outline-none peer-focus-visible:ring-2 peer-focus-visible:ring-green-400/40
+                             peer-disabled:opacity-40"></span>
+
+                <span class="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition
+                             peer-checked:translate-x-5
+                             peer-disabled:opacity-60"></span>
+              </label>
+            </div>
+
+            <div class="mt-3">
+              <label for="auto_season_{{ item.id }}"
+                     class="block mb-1 text-[9px] font-bold text-gray-400 uppercase tracking-widest">
+                Stagione
+              </label>
+
+              <div class="relative">
+                <select id="auto_season_{{ item.id }}"
+                        name="auto_season"
+                        class="w-full appearance-none rounded-lg border border-gray-700/70 bg-black/40 px-3 py-2
+                               text-[10px] text-white transition
+                               hover:border-gray-600/80
+                               focus:border-red-500/60 focus:ring-2 focus:ring-red-500/20
+                               disabled:opacity-50 js-auto-watchlist-input"
+                        {% if not item.season_numbers %}disabled{% endif %}>
+                  <option value="">Seleziona stagione</option>
+                  {% for season in item.season_numbers %}
+                    <option value="{{ season }}" {% if item.auto_season == season %}selected{% endif %}>
+                      Stagione {{ season }}
+                    </option>
+                  {% endfor %}
+                </select>
+
+                <svg class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
+                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+              </div>
+
+              {% if not item.season_numbers %}
+                <p class="mt-2 text-[10px] text-gray-500">
+                  Stagioni non disponibili. Aggiorna la watchlist.
+                </p>
+              {% endif %}
+            </div>
           </div>
-          {% if not item.season_numbers %}
-          <span class="text-[10px] text-gray-500">Stagioni non disponibili. Aggiorna la watchlist.</span>
-          {% endif %}
         </form>
 
         <div class="flex gap-2">
@@ -219,5 +293,25 @@
   if (itemsCount > 0) {
     setInterval(checkWatchlistStatus, 3000);
   }
+
+  // Auto-submit auto-download changes for quick toggle/select
+  document.querySelectorAll('.js-auto-watchlist-form').forEach((form) => {
+    const toggle = form.querySelector('input[name="auto_enabled"]');
+    const seasonSelect = form.querySelector('select[name="auto_season"]');
+
+    form.querySelectorAll('.js-auto-watchlist-input').forEach((input) => {
+      input.addEventListener('change', () => {
+        if (seasonSelect && input === seasonSelect && seasonSelect.value && toggle && !toggle.checked) {
+          toggle.checked = true;
+        }
+
+        if (form.requestSubmit) {
+          form.requestSubmit();
+        } else {
+          form.submit();
+        }
+      });
+    });
+  });
 </script>
 {% endblock %}

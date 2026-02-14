@@ -148,6 +148,9 @@ jobs:
           --hidden-import=sqlite3 \
           --collect-binaries sqlite3 \
           --hidden-import=pycryptodomex \
+          --hidden-import=Cryptodome \
+          --hidden-import=Cryptodome.Cipher \
+          --hidden-import=Cryptodome.Util.Padding \
           --hidden-import=ua_generator \
           --hidden-import=bs4 \
           --hidden-import=httpx \

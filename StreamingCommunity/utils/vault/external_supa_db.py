@@ -54,7 +54,7 @@ class ExternalSupaDBVault:
             console.print(f"[red]Error adding key: {e}")
             return False
 
-    def set_keys(self, keys_list: List[str], drm_type: str, license_url: str, pssh: str, kid_to_label: Optional[dict] = None) -> int:
+    def set_keys(self, keys_list: List[str], drm_type: str, license_url: str, pssh: str) -> int:
         """
         Add multiple keys to the vault in batch
         
@@ -74,7 +74,7 @@ class ExternalSupaDBVault:
                 continue
             
             kid, key = key_str.split(':', 1)
-            label = kid_to_label.get(kid.lower()) if kid_to_label else None
+            label = None
             
             if self.set_key(license_url, pssh, kid, key, drm_type, label):
                 added_count += 1
@@ -104,15 +104,12 @@ class ExternalSupaDBVault:
             keys = result.get('keys', [])
             
             if keys:
-                # Print header (reference from widevine.py)
                 console.print("[cyan]Using Supabase Vault.")
                 console.print(f"[red]{drm_type} [cyan](PSSH: [yellow]{pssh[:30]}...[cyan] KID: [red]N/A)")
                 
                 for key_data in keys:
                     kid, key_val = key_data['kid_key'].split(':')
-                    masked_key = key_val[:-1] + "*"
-                    label_str = f" [cyan]| [red]{key_data['label']}" if key_data.get('label') else ""
-                    console.print(f"    - [red]{kid}[white]:[green]{masked_key}{label_str}")
+                    console.print(f"    - [red]{kid}[white]:[green]{key_val}")
             
             return [k['kid_key'] for k in keys]
             
@@ -122,5 +119,5 @@ class ExternalSupaDBVault:
 
 
 # Initialize
-is_supa_external_db_valid = config_manager.remote_cdm.get('external_supa_db', 'url', default=None) is not None
+is_supa_external_db_valid = not (config_manager.remote_cdm.get('external_supa_db', 'url') is None or config_manager.remote_cdm.get('external_supa_db', 'url') == "")
 obj_externalSupaDbVault = ExternalSupaDBVault() if is_supa_external_db_valid else None

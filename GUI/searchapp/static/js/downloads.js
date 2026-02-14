@@ -1,7 +1,11 @@
+/**
+  * downloads.js - Handles fetching and rendering of active downloads and download history.
+*/
+
 import { formatTime, formatDate, fetchWithTimeout } from './utils.js';
 
 const expandedRows = new Set();
-const UPDATE_INTERVAL = 800;
+const UPDATE_INTERVAL = 1000;
 
 async function fetchDownloadData() {
   try {
@@ -84,10 +88,10 @@ function generateDownloadCardHTML(dl) {
               </span>
               <button 
                 onclick="window.killDownload('${dl.id}')"
-                class="ml-auto sm:ml-2 px-2 py-0.5 bg-red-600/10 hover:bg-red-600 text-red-500 hover:text-white border border-red-600/30 rounded text-[10px] font-bold transition-all flex items-center gap-1"
+                class="w-full sm:w-auto sm:ml-2 px-3 py-2 sm:px-2 sm:py-0.5 bg-red-600/10 hover:bg-red-600 active:bg-red-700 text-red-500 hover:text-white border border-red-600/30 rounded text-xs sm:text-[10px] font-bold transition-all flex items-center justify-center gap-1.5 sm:gap-1 min-h-[36px] sm:min-h-0"
                 title="Smetti di scaricare e cancella il processo"
               >
-                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-4 h-4 sm:w-3 sm:h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
                 KILL
@@ -248,7 +252,7 @@ function renderHistory(history) {
             ${isSuccess ? 'OK' : 'NO'}
           </span>
         </td>
-        <td class="px-4 sm:px-6 py-4 sm:py-5 text-right text-xs sm:text-sm text-gray-400 font-mono hidden sm:table-cell">
+        <td class="px-4 sm:px-6 py-4 sm:py-5 text-right text-[10px] sm:text-sm text-gray-400 font-mono whitespace-nowrap">
           ${date}
         </td>
       </tr>
@@ -290,8 +294,6 @@ function escapeHtml(str) {
 }
 
 async function killDownload(id) {
-  if (!confirm('Sei sicuro di voler annullare questo download?')) return;
-  
   try {
     const response = await fetch(window.KILL_DOWNLOAD_URL, {
       method: 'POST',
@@ -312,9 +314,27 @@ async function killDownload(id) {
   }
 }
 
+async function clearHistory() {
+  if (!confirm('Sei sicuro di voler cancellare tutta la cronologia?')) return;
+  try {
+    const response = await fetch(window.CLEAR_HISTORY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (response.ok) {
+      updateProgress();
+    } else {
+      alert('Impossibile cancellare la cronologia.');
+    }
+  } catch (error) {
+    console.error('Error clearing history:', error);
+  }
+}
+
 export function init() {
   window.toggleTasks = toggleTasks;
   window.killDownload = killDownload;
+  window.clearHistory = clearHistory;
   updateProgress();
   setInterval(updateProgress, UPDATE_INTERVAL);
 }

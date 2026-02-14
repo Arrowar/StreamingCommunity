@@ -17,12 +17,6 @@
       <div class="space-y-6">
         <!-- Search Input -->
         <div class="relative group">
-          <label for="id_query" class="block text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-            </svg>
-            Titolo o parola chiave
-          </label>
           <input 
             type="text" 
             name="query" 
@@ -36,67 +30,37 @@
 
         <!-- Platform Selector -->
         <div class="relative group">
-          <label for="id_site" class="block text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
-            </svg>
-            Sorgente streaming
-          </label>
           <div class="relative">
             {{ form.site }}
             <div class="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
-              <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
               </svg>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- Submit Button -->
-      <button 
-        type="submit" 
-        class="w-full mt-8 h-16 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white text-lg font-bold rounded-xl transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-2xl shadow-red-600/30 flex items-center justify-center gap-3"
-      >
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-        </svg>
-        Cerca Ora
-      </button>
+        <!-- Search Button -->
+        <button 
+          type="submit" 
+          class="w-full h-14 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-bold text-lg rounded-xl transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-xl hover:shadow-2xl hover:shadow-red-600/20 flex items-center justify-center gap-3"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+          </svg>
+          Cerca
+        </button>
+      </div>
     </form>
   </div>
 </div>
 
 <style>
-  #id_site {
-    appearance: none;
-    width: 100%;
-    height: 4rem;
-    padding: 0 3.5rem 0 1.5rem;
-    background-color: rgba(0, 0, 0, 0.5);
-    border: 2px solid rgb(31 41 55);
-    border-radius: 0.75rem;
-    color: white;
-    font-size: 1.125rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-  #id_site:focus {
-    border-color: rgb(220 38 38);
-    outline: none;
-    box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.1);
-  }
   #id_site option {
     background-color: rgb(17 24 39);
     color: white;
     padding: 1rem;
     font-weight: 500;
-  }
-  
-  /* Smooth scroll */
-  html {
-    scroll-behavior: smooth;
   }
 </style>
 {% endblock %}

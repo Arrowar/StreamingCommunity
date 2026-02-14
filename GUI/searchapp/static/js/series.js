@@ -1,7 +1,6 @@
 /**
- * Series detail page - Episode selection logic
- */
-
+  * Series detail page - Episode selection logic
+*/
 
 export function selectAllEpisodes(seasonNumber) {
   const checkboxes = document.querySelectorAll(
@@ -20,44 +19,56 @@ export function deselectAllEpisodes(seasonNumber) {
 }
 
 export function updateSelectedEpisodes(seasonNumber) {
+  const sNum = String(seasonNumber);
   const checkboxes = document.querySelectorAll(
-    `input.episode-checkbox[data-season="${seasonNumber}"]:checked`
+    `input.episode-checkbox[data-season="${sNum}"]:checked`
   );
   const episodes = Array.from(checkboxes).map(cb => cb.value);
   
   let episodeString = '';
   
   if (episodes.length > 0) {
-    const sortedEpisodes = episodes.map(Number).sort((a, b) => a - b);
-    const ranges = [];
-    let start = sortedEpisodes[0];
-    let end = sortedEpisodes[0];
+
+    // Attempt to parse as integers for range calculation
+    const numericEpisodes = episodes
+      .map(val => parseInt(val, 10))
+      .filter(num => !isNaN(num))
+      .sort((a, b) => a - b);
     
-    for (let i = 1; i <= sortedEpisodes.length; i++) {
-      if (i < sortedEpisodes.length && sortedEpisodes[i] === end + 1) {
-        end = sortedEpisodes[i];
-      } else {
-        // Add range to results
-        if (start === end) {
-          ranges.push(String(start));
-        } else if (end === start + 1) {
-          ranges.push(String(start));
-          ranges.push(String(end));
+    if (numericEpisodes.length === 0) {
+
+      // Fallback for non-numeric episode "numbers" (e.g. dates)
+      episodeString = episodes.join(',');
+    } else {
+      const ranges = [];
+      let start = numericEpisodes[0];
+      let end = numericEpisodes[0];
+      
+      for (let i = 1; i <= numericEpisodes.length; i++) {
+        if (i < numericEpisodes.length && numericEpisodes[i] === end + 1) {
+          end = numericEpisodes[i];
         } else {
-          ranges.push(`${start}-${end}`);
-        }
-        
-        if (i < sortedEpisodes.length) {
-          start = sortedEpisodes[i];
-          end = sortedEpisodes[i];
+          if (start === end) {
+            ranges.push(String(start));
+          } else if (end === start + 1) {
+            ranges.push(String(start));
+            ranges.push(String(end));
+          } else {
+            ranges.push(`${start}-${end}`);
+          }
+          
+          if (i < numericEpisodes.length) {
+            start = numericEpisodes[i];
+            end = numericEpisodes[i];
+          }
         }
       }
+      
+      episodeString = ranges.join(',');
     }
-    
-    episodeString = ranges.join(',');
   }
   
-  const inputField = document.getElementById(`selected_episodes_${seasonNumber}`);
+  const inputField = document.getElementById(`selected_episodes_${sNum}`);
   if (inputField) {
     inputField.value = episodeString;
   }
@@ -67,6 +78,10 @@ export function initEpisodeSelection() {
   const checkboxes = document.querySelectorAll('.episode-checkbox');
   
   checkboxes.forEach(cb => {
+    if (cb.checked) {
+      updateSelectedEpisodes(cb.dataset.season);
+    }
+    
     cb.addEventListener('change', function() {
       updateSelectedEpisodes(this.dataset.season);
     });
@@ -78,12 +93,13 @@ export function initFormValidation() {
   
   forms.forEach(form => {
     form.addEventListener('submit', function(e) {
-      const seasonNumber = this.querySelector('input[name="season_number"]').value;
-      const selectedEpisodes = document.getElementById(`selected_episodes_${seasonNumber}`).value;
+      const seasonNumberInput = this.querySelector('input[name="season_number"]');
+      if (!seasonNumberInput) return;
       
-      if (!selectedEpisodes) {
+      const selectedEpisodesInput = this.querySelector('input[name="selected_episodes"]');
+      if (selectedEpisodesInput && !selectedEpisodesInput.value.trim()) {
         e.preventDefault();
-        alert('Seleziona almeno un episodio!');
+        alert('Seleziona almeno un episodio prima di scaricare.');
       }
     });
   });

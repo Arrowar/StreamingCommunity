@@ -45,6 +45,33 @@ def check_bento4() -> Optional[str]:
     return None
 
 
+def check_mp4dump() -> Optional[str]:
+    """
+    Check for Bento4 mp4dump binary and download if not found.
+    """
+    system_platform = binary_paths.system
+    binary_exec = "mp4dump.exe" if system_platform == "windows" else "mp4dump"
+    
+    # STEP 1: Check system PATH
+    binary_path = shutil.which(binary_exec)
+    
+    if binary_path:
+        return binary_path
+    
+    # STEP 2: Check local binary directory
+    binary_local = binary_paths.get_binary_path("bento4", binary_exec)
+    if binary_local and os.path.isfile(binary_local):
+        return binary_local
+    
+    # STEP 3: Download
+    binary_downloaded = binary_paths.download_binary("bento4", binary_exec)
+    if binary_downloaded:
+        return binary_downloaded
+    
+    console.print(f"Failed to download {binary_exec}", style="red")
+    return None
+
+
 def check_ffmpeg() -> Tuple[Optional[str], Optional[str]]:
     """
     Check for FFmpeg executables and download if not found.

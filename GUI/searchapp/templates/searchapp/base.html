@@ -3,7 +3,7 @@
 <html lang="it">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#0a0a0a" id="theme-color-meta">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -28,18 +28,20 @@
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
     
+    :root {
+      --navbar-height: 4rem;
+    }
+    
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
-      -webkit-tap-highlight-color: transparent;
     }
     
     body { 
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
-      touch-action: pan-y;
       transition: background-color 0.3s ease, color 0.3s ease;
     }
     
@@ -71,38 +73,13 @@
       --scrollbar-thumb-hover: #555;
     }
     
-    /* Light theme scrollbar */
-    .light {
-      --scrollbar-track: #f5f5f5;
-      --scrollbar-thumb: #d1d5db;
-      --scrollbar-thumb-hover: #9ca3af;
+    /* Card hover effect */
+    .card-hover {
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
-    
-    /* Mobile-friendly scrollbar */
-    @media (max-width: 640px) {
-      ::-webkit-scrollbar {
-        width: 4px;
-        height: 4px;
-      }
-    }
-    
-    /* Card hover effect - disabled on mobile */
-    @media (min-width: 768px) {
-      .card-hover {
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      }
-      .card-hover:hover {
-        transform: scale(1.05) translateY(-5px);
-        z-index: 10;
-      }
-    }
-    
-    /* Better touch targets for mobile */
-    @media (max-width: 640px) {
-      button, a, input, select {
-        min-height: 44px;
-        min-width: 44px;
-      }
+    .card-hover:hover {
+      transform: scale(1.05) translateY(-5px);
+      z-index: 10;
     }
     
     /* Smooth scroll */
@@ -123,215 +100,163 @@
   {% block extra_head %}{% endblock %}
 </head>
 
-<body class="dark bg-black text-white">
+<body class="bg-black text-white">
   
-  <!-- Top Navigation - Netflix Style - Mobile Optimized -->
-  <nav class="fixed top-0 left-0 right-0 z-50 transition-all duration-300 theme-transition" id="navbar">
-    <div class="absolute inset-0 bg-gradient-to-b from-black/90 via-black/70 to-transparent dark:from-black/90 dark:via-black/70 light:from-white/90 light:via-white/70 backdrop-blur-sm"></div>
-    <div class="relative max-w-[1920px] mx-auto px-3 sm:px-4 lg:px-8 xl:px-16 h-14 sm:h-16 lg:h-20 flex items-center justify-between">
+  <!-- Top Navigation -->
+  <nav class="fixed top-0 left-0 right-0 z-50 bg-black/50 backdrop-blur-md transition-all duration-300" id="navbar">
+    <div class="w-full px-3 sm:px-5 lg:px-8 h-[var(--navbar-height)] flex items-center justify-between">
       
       <!-- Logo -->
-      <a href="{% url 'search_home' %}" class="flex items-center gap-2 sm:gap-3 group">
-        <div class="relative">
-          <div class="absolute inset-0 bg-red-600 blur-xl opacity-50 group-hover:opacity-75 transition-opacity"></div>
-          <div class="relative text-xl sm:text-2xl lg:text-3xl font-black tracking-tighter">
-            <span class="text-red-600">ARRO</span><span class="dark:text-white light:text-black">WAR</span>
-          </div>
+      <a href="{% url 'search_home' %}" class="flex items-center gap-2 group">
+        <div class="flex flex-col">
+          <span class="text-xl font-black text-white tracking-tighter uppercase">ARRO<span class="text-red-600">WAR</span></span>
+          <span class="text-xs text-gray-400">v{{ app_version }}</span>
         </div>
       </a>
 
-      <!-- Navigation Menu - Desktop -->
-      <div class="hidden md:flex items-center gap-6 lg:gap-8">
-        <a href="{% url 'search_home' %}" class="text-sm font-medium text-gray-300 dark:text-gray-300 light:text-gray-700 hover:text-white dark:hover:text-white light:hover:text-black transition-colors">
-          Home
-        </a>
-        <a href="{% url 'search_home' %}" class="text-sm font-medium text-gray-300 dark:text-gray-300 light:text-gray-700 hover:text-white dark:hover:text-white light:hover:text-black transition-colors">
-          Cerca
-        </a>
-        <a href="{% url 'download_dashboard' %}" class="text-sm font-medium text-gray-300 dark:text-gray-300 light:text-gray-700 hover:text-white dark:hover:text-white light:hover:text-black transition-colors flex items-center gap-2">
+      <!-- Hamburger Button (mobile) -->
+      <button 
+        id="hamburger-btn" 
+        class="lg:hidden p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+        onclick="toggleMobileMenu()"
+        aria-label="Menu"
+      >
+        <svg id="hamburger-icon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+        </svg>
+        <svg id="close-icon" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+
+      <!-- Navigation Menu (desktop) -->
+      <div class="hidden lg:flex items-center gap-8">
+        <a href="{% url 'download_dashboard' %}" class="text-sm font-medium text-gray-300 hover:text-white transition-colors flex items-center gap-2">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
           </svg>
-          I Miei Download
+          Downloads
         </a>
-
-        <!-- Theme Toggle Desktop -->
-        <button 
-          onclick="toggleTheme()" 
-          class="p-2 hover:bg-white/10 dark:hover:bg-white/10 light:hover:bg-black/10 rounded-lg transition-colors" 
-          aria-label="Cambia tema"
-          title="Cambia tema"
-        >
-          <div class="relative w-5 h-5">
-            <svg class="theme-toggle-icon absolute inset-0 dark:opacity-100 dark:rotate-0 light:opacity-0 light:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
-            </svg>
-            <svg class="theme-toggle-icon absolute inset-0 dark:opacity-0 dark:rotate-180 light:opacity-100 light:rotate-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
-            </svg>
-          </div>
-        </button>
-      </div>
-
-      <!-- Mobile Menu Button & Theme Toggle -->
-      <div class="md:hidden flex items-center gap-2">
-        <!-- Theme Toggle Mobile -->
-        <button 
-          onclick="toggleTheme()" 
-          class="p-2 hover:bg-white/10 dark:hover:bg-white/10 light:hover:bg-black/10 rounded-lg transition-colors" 
-          aria-label="Cambia tema"
-        >
-          <div class="relative w-6 h-6">
-            <svg class="theme-toggle-icon absolute inset-0 dark:opacity-100 dark:rotate-0 light:opacity-0 light:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
-            </svg>
-            <svg class="theme-toggle-icon absolute inset-0 dark:opacity-0 dark:rotate-180 light:opacity-100 light:rotate-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
-            </svg>
-          </div>
-        </button>
-
-        <button class="p-2 -mr-2 hover:bg-white/10 dark:hover:bg-white/10 light:hover:bg-black/10 rounded-lg transition-colors" onclick="toggleMobileMenu()" aria-label="Menu">
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+        <a href="{% url 'watchlist' %}" class="text-sm font-medium text-red-500 hover:text-red-400 transition-colors flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
           </svg>
-        </button>
+          Watchlist
+        </a>
+        <a href="https://github.com/Arrowar/StreamingCommunity" target="_blank" class="text-sm font-medium text-gray-300 hover:text-white transition-colors flex items-center gap-2">
+          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+          </svg>
+          GitHub
+        </a>
+        <a href="https://ko-fi.com/arrowar" target="_blank" class="text-sm font-medium text-red-500 hover:text-red-400 transition-colors flex items-center gap-2">
+          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+          </svg>
+          Donations
+        </a>
       </div>
     </div>
 
     <!-- Mobile Menu -->
-    <div id="mobile-menu" class="hidden md:hidden bg-black/95 dark:bg-black/95 light:bg-white/95 backdrop-blur-lg border-t border-gray-800 dark:border-gray-800 light:border-gray-200">
-      <div class="px-3 sm:px-4 py-3 sm:py-4 space-y-1">
-        <a href="{% url 'search_home' %}" class="block py-3 px-3 text-sm font-medium text-gray-300 dark:text-gray-300 light:text-gray-700 hover:text-white dark:hover:text-white light:hover:text-black hover:bg-white/5 dark:hover:bg-white/5 light:hover:bg-black/5 rounded-lg transition-colors">
-          Home
-        </a>
-        <a href="{% url 'search_home' %}" class="block py-3 px-3 text-sm font-medium text-gray-300 dark:text-gray-300 light:text-gray-700 hover:text-white dark:hover:text-white light:hover:text-black hover:bg-white/5 dark:hover:bg-white/5 light:hover:bg-black/5 rounded-lg transition-colors">
+    <div id="mobile-menu" class="lg:hidden hidden border-t border-gray-800 bg-black/95 backdrop-blur-md">
+      <div class="px-4 py-4 space-y-1">
+        <a href="{% url 'search_home' %}" class="flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+          </svg>
           Cerca
         </a>
-        <a href="{% url 'download_dashboard' %}" class="block py-3 px-3 text-sm font-medium text-gray-300 dark:text-gray-300 light:text-gray-700 hover:text-white dark:hover:text-white light:hover:text-black hover:bg-white/5 dark:hover:bg-white/5 light:hover:bg-black/5 rounded-lg transition-colors flex items-center gap-2">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <a href="{% url 'download_dashboard' %}" class="flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
           </svg>
-          I Miei Download
+          Downloads
+        </a>
+        <a href="{% url 'watchlist' %}" class="flex items-center gap-3 px-4 py-3 text-sm font-medium text-red-500 hover:text-red-400 hover:bg-white/10 rounded-lg transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
+          </svg>
+          Watchlist
+        </a>
+        <div class="border-t border-gray-800 my-2"></div>
+        <a href="https://github.com/Arrowar/StreamingCommunity" target="_blank" class="flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+          </svg>
+          GitHub
+        </a>
+        <a href="https://ko-fi.com/arrowar" target="_blank" class="flex items-center gap-3 px-4 py-3 text-sm font-medium text-red-500 hover:text-red-400 hover:bg-white/10 rounded-lg transition-colors">
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+          </svg>
+          Donations
         </a>
       </div>
     </div>
   </nav>
 
   <!-- Main Content -->
-  <main class="relative min-h-screen pt-14 sm:pt-16 lg:pt-20 theme-transition">
-    <!-- Messages Toast - Mobile Optimized -->
+  <main class="relative min-h-screen pt-[var(--navbar-height)]">
+    
+    <!-- Messages Toast -->
     {% if messages %}
-    <div class="fixed top-16 sm:top-20 lg:top-24 right-2 sm:right-4 left-2 sm:left-auto z-50 space-y-2 sm:space-y-3 sm:max-w-md animate-slide-in">
+    <div class="fixed top-24 right-4 z-50 space-y-3 max-w-md animate-slide-in">
       {% for message in messages %}
-      <div class="{% if message.tags == 'success' %}bg-green-600{% else %}bg-red-600{% endif %} text-white px-4 py-3 sm:px-5 sm:py-4 rounded-lg shadow-2xl backdrop-blur-xl flex items-start gap-2 sm:gap-3">
-        <svg class="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div class="{% if message.tags == 'success' %}bg-green-600{% else %}bg-red-600{% endif %} text-white px-5 py-4 rounded-lg shadow-2xl backdrop-blur-xl flex items-start gap-3">
+        <svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           {% if message.tags == 'success' %}
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
           {% else %}
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
           {% endif %}
         </svg>
-        <span class="text-xs sm:text-sm font-medium">{{ message }}</span>
+        <span class="text-sm font-medium">{{ message }}</span>
       </div>
       {% endfor %}
     </div>
     {% endif %}
 
-    <div class="max-w-[1920px] mx-auto px-3 sm:px-4 lg:px-8 xl:px-16">
+    <div class="w-full px-3 sm:px-5 lg:px-8">
       {% block content %}{% endblock %}
     </div>
   </main>
 
-  <!-- Footer - Mobile Optimized -->
-  <footer class="mt-12 sm:mt-16 lg:mt-20 border-t border-gray-900 dark:border-gray-900 light:border-gray-200 bg-black/50 dark:bg-black/50 light:bg-white/50 theme-transition">
-    <div class="max-w-[1920px] mx-auto px-3 sm:px-4 lg:px-8 xl:px-16 py-6 sm:py-8">
-      <div class="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
-        <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-500 light:text-gray-600 text-center sm:text-left">
-          © 2025 Arrowar. Download Manager.
-        </p>
-        <div class="flex items-center gap-4 sm:gap-6">
-          <a href="#" class="text-xs sm:text-sm text-gray-500 dark:text-gray-500 light:text-gray-600 hover:text-white dark:hover:text-white light:hover:text-black transition-colors">Privacy</a>
-          <a href="#" class="text-xs sm:text-sm text-gray-500 dark:text-gray-500 light:text-gray-600 hover:text-white dark:hover:text-white light:hover:text-black transition-colors">Termini</a>
-          <a href="#" class="text-xs sm:text-sm text-gray-500 dark:text-gray-500 light:text-gray-600 hover:text-white dark:hover:text-white light:hover:text-black transition-colors">Aiuto</a>
-        </div>
-      </div>
-    </div>
-  </footer>
-
   <script>
-    // Theme Management
-    function getTheme() {
-      return localStorage.getItem('theme') || 'dark';
-    }
-
-    function setTheme(theme) {
-      localStorage.setItem('theme', theme);
-      document.body.classList.remove('dark', 'light');
-      document.body.classList.add(theme);
-      
-      // Update background color
-      if (theme === 'dark') {
-        document.body.style.backgroundColor = '#0a0a0a';
-        document.body.style.color = '#ffffff';
-        document.getElementById('theme-color-meta').setAttribute('content', '#0a0a0a');
-      } else {
-        document.body.style.backgroundColor = '#ffffff';
-        document.body.style.color = '#000000';
-        document.getElementById('theme-color-meta').setAttribute('content', '#ffffff');
-      }
-    }
-
-    function toggleTheme() {
-      const currentTheme = getTheme();
-      const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-      setTheme(newTheme);
-    }
-
-    // Initialize theme on load
-    setTheme(getTheme());
-
-    // Navbar scroll effect
-    let lastScroll = 0;
-    const navbar = document.getElementById('navbar');
-    
-    window.addEventListener('scroll', () => {
-      const currentScroll = window.pageYOffset;
-      
-      if (currentScroll > 50) {
-        navbar.classList.add('bg-black/95', 'dark:bg-black/95', 'light:bg-white/95');
-      } else {
-        navbar.classList.remove('bg-black/95', 'dark:bg-black/95', 'light:bg-white/95');
-      }
-      
-      lastScroll = currentScroll;
-    });
-
     // Mobile menu toggle
     function toggleMobileMenu() {
       const menu = document.getElementById('mobile-menu');
-      menu.classList.toggle('hidden');
-    }
-    
-    // Close mobile menu when clicking outside
-    document.addEventListener('click', (e) => {
-      const menu = document.getElementById('mobile-menu');
-      const menuButton = menu?.previousElementSibling?.querySelector('button');
+      const hamburgerIcon = document.getElementById('hamburger-icon');
+      const closeIcon = document.getElementById('close-icon');
       
-      if (!menu?.contains(e.target) && !menuButton?.contains(e.target)) {
-        menu?.classList.add('hidden');
+      menu.classList.toggle('hidden');
+      hamburgerIcon.classList.toggle('hidden');
+      closeIcon.classList.toggle('hidden');
+    }
+
+    // Close mobile menu on resize to desktop
+    window.addEventListener('resize', () => {
+      if (window.innerWidth >= 1024) {
+        const menu = document.getElementById('mobile-menu');
+        const hamburgerIcon = document.getElementById('hamburger-icon');
+        const closeIcon = document.getElementById('close-icon');
+        if (menu && !menu.classList.contains('hidden')) {
+          menu.classList.add('hidden');
+          hamburgerIcon.classList.remove('hidden');
+          closeIcon.classList.add('hidden');
+        }
       }
     });
-    
-    // Close mobile menu on navigation
-    document.querySelectorAll('#mobile-menu a').forEach(link => {
-      link.addEventListener('click', () => {
-        document.getElementById('mobile-menu')?.classList.add('hidden');
-      });
-    });
 
-    // Make toggleTheme available globally
-    window.toggleTheme = toggleTheme;
+    // Navbar scroll effect
+    window.addEventListener('scroll', () => {
+      const nav = document.getElementById('navbar');
+      if (window.scrollY > 20) {
+        nav.classList.replace('bg-black/50', 'bg-black/95');
+      } else {
+        nav.classList.replace('bg-black/95', 'bg-black/50');
+      }
+    });
   </script>
 
   {% block extra_scripts %}{% endblock %}

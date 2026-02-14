@@ -10,7 +10,7 @@ from rich.prompt import Prompt
 # Internal utilities
 from StreamingCommunity.utils.http_client import create_client_curl, get_userAgent
 from StreamingCommunity.utils import TVShowManager
-from StreamingCommunity.services._base import site_constants, MediaManager, MediaItem
+from StreamingCommunity.services._base import site_constants, EntriesManager, Entries
 from StreamingCommunity.services._base.site_search_manager import base_process_search_result, base_search
 
 
@@ -25,7 +25,7 @@ _useFor = "Anime"
 
 msg = Prompt()
 console = Console()
-media_search_manager = MediaManager()
+entries_manager = EntriesManager()
 table_show_manager = TVShowManager()
 
 
@@ -54,7 +54,7 @@ def title_search(query: str) -> int:
     """
     Perform anime search on animeunity.so.
     """
-    media_search_manager.clear()
+    entries_manager.clear()
     table_show_manager.clear()
     seen_titles = set()
     user_agent = get_userAgent()
@@ -76,7 +76,7 @@ def title_search(query: str) -> int:
     try:
         response1 = create_client_curl(headers=headers).post(f'{site_constants.FULL_URL}/livesearch', cookies=cookies, data={'title': query})
         response1.raise_for_status()
-        process_results(response1.json().get('records', []), seen_titles, media_search_manager)
+        process_results(response1.json().get('records', []), seen_titles, entries_manager)
 
     except Exception as e:
         console.print(f"[red]Site: {site_constants.SITE_NAME}, request search error: {e}")
@@ -97,15 +97,15 @@ def title_search(query: str) -> int:
         }
         response2 = create_client_curl(headers=headers).post(f'{site_constants.FULL_URL}/archivio/get-animes', cookies=cookies, json=json_data)
         response2.raise_for_status()
-        process_results(response2.json().get('records', []), seen_titles, media_search_manager)
+        process_results(response2.json().get('records', []), seen_titles, entries_manager)
 
     except Exception as e:
         console.print(f"Site: {site_constants.SITE_NAME}, archivio search error: {e}")
 
-    result_count = media_search_manager.get_length()
+    result_count = len(entries_manager)
     return result_count
 
-def process_results(records: list, seen_titles: set, media_manager: MediaManager) -> None:
+def process_results(records: list, seen_titles: set, entries_manager: EntriesManager) -> None:
     """
     Add unique results to the media manager.
     """
@@ -118,7 +118,7 @@ def process_results(records: list, seen_titles: set, media_manager: MediaManager
             seen_titles.add(title_id)
             dict_title['name'] = get_real_title(dict_title)
 
-            media_manager.add(MediaItem(
+            entries_manager.add(Entries(
                 id=title_id,
                 slug=dict_title.get('slug'),
                 name=dict_title.get('name'),
@@ -134,7 +134,7 @@ def process_results(records: list, seen_titles: set, media_manager: MediaManager
  
  
 # WRAPPING FUNCTIONS
-def process_search_result(select_title, selections=None):
+def process_search_result(select_title, selections=None, scrape_serie=None):
     """
     Wrapper for the generalized process_search_result function.
     """
@@ -142,23 +142,25 @@ def process_search_result(select_title, selections=None):
         select_title=select_title,
         download_film_func=download_film,
         download_series_func=download_series,
-        media_search_manager=media_search_manager,
+        media_search_manager=entries_manager,
         table_show_manager=table_show_manager,
-        selections=selections
+        selections=selections,
+        scrape_serie=scrape_serie
     )
 
-def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_item: dict = None, selections: dict = None):
+def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_item: dict = None, selections: dict = None, scrape_serie=None):
     """
     Wrapper for the generalized search function.
     """
     return base_search(
         title_search_func=title_search,
         process_result_func=process_search_result,
-        media_search_manager=media_search_manager,
+        media_search_manager=entries_manager,
         table_show_manager=table_show_manager,
         site_name=site_constants.SITE_NAME,
         string_to_search=string_to_search,
         get_onlyDatabase=get_onlyDatabase,
         direct_item=direct_item,
-        selections=selections
+        selections=selections,
+        scrape_serie=scrape_serie
     )

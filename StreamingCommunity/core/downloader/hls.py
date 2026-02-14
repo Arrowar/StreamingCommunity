@@ -11,15 +11,15 @@ from rich.console import Console
 
 
 # Internal utilities
+from StreamingCommunity.utils import config_manager, os_manager, internet_manager
 from StreamingCommunity.utils.http_client import get_headers
 from StreamingCommunity.core.processors import join_video, join_audios, join_subtitles
 from StreamingCommunity.core.processors.helper.nfo import create_nfo
 from StreamingCommunity.source.utils.tracker import download_tracker, context_tracker
 from StreamingCommunity.source.utils.media_players import MediaPlayers
-from StreamingCommunity.utils import config_manager, os_manager, internet_manager
 
 
-# DRM Utilities
+# # Downloader
 from StreamingCommunity.source.N_m3u8 import MediaDownloader
 
 
@@ -29,6 +29,8 @@ CLEANUP_TMP = config_manager.config.get_bool('M3U8_DOWNLOAD', 'cleanup_tmp_folde
 EXTENSION_OUTPUT = config_manager.config.get("M3U8_CONVERSION", "extension")
 SKIP_DOWNLOAD = config_manager.config.get_bool('M3U8_DOWNLOAD', 'skip_download')
 CREATE_NFO_FILES = config_manager.config.get_bool('M3U8_CONVERSION', 'generate_nfo', default=False)
+MERGE_SUBTITLES = config_manager.config.get_bool('M3U8_CONVERSION', 'merge_subtitle', default=True)
+MERGE_AUDIO = config_manager.config.get_bool('M3U8_CONVERSION', 'merge_audio', default=True)
 
 
 class HLS_Downloader:
@@ -65,6 +67,8 @@ class HLS_Downloader:
         self.error = None
         self.last_merge_result = None
         self.media_players = None
+        self.copied_subtitles = []
+        self.copied_audios = []
 
     def start(self) -> Dict[str, Any]:
         """Main execution flow for downloading HLS content"""
@@ -81,6 +85,7 @@ class HLS_Downloader:
             download_id=self.download_id,
             site_name=self.site_name
         )
+        console.print("[dim]Parsing MPD ...")
         self.media_downloader.parser_stream()
         
         # Create output directory
@@ -99,7 +104,8 @@ class HLS_Downloader:
         
         if self.download_id:
             download_tracker.update_status(self.download_id, "downloading")
-            
+        
+        console.print("[dim]Starting download ...")
         status = self.media_downloader.start_download()
 
         # Check for cancellation
@@ -140,6 +146,12 @@ class HLS_Downloader:
                 console.print(f"[yellow]Warning: Could not move file: {e}")
                 self.output_path = final_file
         
+        # Move subtitle files if any were copied without merging
+        self._move_copied_subtitles()
+        
+        # Move audio files if any were copied without merging
+        self._move_copied_audios()
+        
         # Print summary and cleanup
         self._print_summary()
 
@@ -173,7 +185,8 @@ class HLS_Downloader:
             console.print("[cyan]\nNo additional tracks to merge, muxing video...")
             merged_file, result_json = join_video(
                 video_path=video_path,
-                out_path=self.output_path
+                out_path=self.output_path,
+                log_path=os.path.join(self.output_dir, "video_mux.log")
             )
             self.last_merge_result = result_json
             if os.path.exists(merged_file):
@@ -184,41 +197,120 @@ class HLS_Downloader:
         
         current_file = video_path
         
-        # Merge audio tracks if present
+        # Merge or track audio tracks
         if status['audios']:
-            console.print(f"[cyan]\nMerging [red]{len(status['audios'])} [cyan]audio track(s)...")
-            audio_output = os.path.join(self.output_dir, f"{self.filename_base}_with_audio.{EXTENSION_OUTPUT}")
-            
-            merged_file, use_shortest, result_json = join_audios(
-                video_path=current_file,
-                audio_tracks=status['audios'],
-                out_path=audio_output
-            )
-            self.last_merge_result = result_json
-            
-            if os.path.exists(merged_file):
-                current_file = merged_file
+            if MERGE_AUDIO:
+                console.print(f"[cyan]\nMerging [red]{len(status['audios'])} [cyan]audio track(s)...")
+                audio_output = os.path.join(self.output_dir, f"{self.filename_base}_with_audio.{EXTENSION_OUTPUT}")
+                
+                merged_file, use_shortest, result_json = join_audios(
+                    video_path=current_file,
+                    audio_tracks=status['audios'],
+                    out_path=audio_output,
+                    log_path=os.path.join(self.output_dir, "audio_merge.log")
+                )
+                self.last_merge_result = result_json
+                
+                if os.path.exists(merged_file):
+                    current_file = merged_file
+                else:
+                    console.print("[yellow]Audio merge failed, continuing with video only")
             else:
-                console.print("[yellow]Audio merge failed, continuing with video only")
+                console.print("[cyan]Track audio tracks.")
+                self._track_audios_for_copy(status['audios'])
         
         # Merge subtitles if enabled and present
         if status['subtitles']:
-            console.print(f"[cyan]\nMerging [red]{len(status['subtitles'])} [cyan]subtitle track(s)...")
-            sub_output = os.path.join(self.output_dir, f"{self.filename_base}_final.{EXTENSION_OUTPUT}")
-            
-            merged_file, result_json = join_subtitles(
-                video_path=current_file,
-                subtitles_list=status['subtitles'],
-                out_path=sub_output
-            )
-            self.last_merge_result = result_json
-            
-            if os.path.exists(merged_file):
-                current_file = merged_file
+            if MERGE_SUBTITLES:
+                console.print(f"[cyan]\nMerging [red]{len(status['subtitles'])} [cyan]subtitle track(s)...")
+                sub_output = os.path.join(self.output_dir, f"{self.filename_base}_final.{EXTENSION_OUTPUT}")
+                
+                merged_file, result_json = join_subtitles(
+                    video_path=current_file,
+                    subtitles_list=status['subtitles'],
+                    out_path=sub_output,
+                    log_path=os.path.join(self.output_dir, "sub_merge.log")
+                )
+                self.last_merge_result = result_json
+                
+                if os.path.exists(merged_file):
+                    current_file = merged_file
+                else:
+                    console.print("[yellow]Subtitle merge failed, continuing without subtitles")
             else:
-                console.print("[yellow]Subtitle merge failed, continuing without subtitles")
-    
+                self._track_subtitles_for_copy(status['subtitles'])
+
         return current_file
+    
+    def _track_subtitles_for_copy(self, subtitles_list):
+        """Track subtitle paths for later copying to final location."""
+        for idx, subtitle in enumerate(subtitles_list):
+            sub_path = subtitle.get('path')
+            if sub_path and os.path.exists(sub_path):
+                language = subtitle.get('language', f'sub{idx}')
+                extension = os.path.splitext(sub_path)[1]
+                self.copied_subtitles.append({
+                    'src': sub_path,
+                    'language': language,
+                    'extension': extension
+                })
+
+    def _track_audios_for_copy(self, audios_list):
+        """Track audio paths for later copying to final location."""
+        for idx, audio in enumerate(audios_list):
+            audio_path = audio.get('path')
+            if audio_path and os.path.exists(audio_path):
+                language = audio.get('language', f'audio{idx}')
+                extension = os.path.splitext(audio_path)[1]
+                self.copied_audios.append({
+                    'src': audio_path,
+                    'language': language,
+                    'extension': extension
+                })
+
+    def _move_copied_subtitles(self):
+        """Move tracked subtitle files to final output directory if copied_subtitles exits."""
+        if not self.copied_subtitles:
+            return
+        
+        output_dir = os.path.dirname(self.output_path)
+        filename_base = os.path.splitext(os.path.basename(self.output_path))[0]
+        console.print("[cyan]Copy the subtitles to the final path.")
+        
+        for sub_info in self.copied_subtitles:
+            src_path = sub_info['src']
+            language = sub_info['language']
+            extension = sub_info['extension']
+            
+            # final name
+            dst_path = os.path.join(output_dir, f"{filename_base}.{language}{extension}")
+            
+            try:
+                shutil.copy2(src_path, dst_path)
+            except Exception as e:
+                console.print(f"[yellow]Warning: Could not move subtitle {language}: {e}")
+
+    def _move_copied_audios(self):
+        """Move tracked audio files to final output directory if copied_audios exists."""
+        if not self.copied_audios:
+            return
+        
+        output_dir = os.path.dirname(self.output_path)
+        filename_base = os.path.splitext(os.path.basename(self.output_path))[0]
+        console.print("[cyan]Copy the audios to the final path.")
+        
+        for audio_info in self.copied_audios:
+            src_path = audio_info['src']
+            language = audio_info['language']
+            extension = audio_info['extension']
+            
+            # final name
+            dst_path = os.path.join(output_dir, f"{filename_base}.{language}{extension}")
+            
+            try:
+                shutil.copy2(src_path, dst_path)
+            except Exception as e:
+                console.print(f"[yellow]Warning: Could not move audio {language}: {e}")
 
     def _print_summary(self):
         """Print download summary"""

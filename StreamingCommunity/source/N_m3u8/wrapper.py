@@ -1,11 +1,12 @@
 ﻿# 04.01.25
 
 import re
+import asyncio
 import platform
 import subprocess
-import asyncio
 from pathlib import Path
 from typing import Optional, List, Dict, Any
+from contextlib import nullcontext
 
 
 # External
@@ -17,16 +18,17 @@ from rich.progress import Progress, TextColumn
 from StreamingCommunity.utils.config import config_manager
 from StreamingCommunity.utils.os import internet_manager
 from StreamingCommunity.setup import get_ffmpeg_path, get_n_m3u8dl_re_path, get_bento4_decrypt_path, get_shaka_packager_path
-from StreamingCommunity.source.utils.tracker import download_tracker
+from StreamingCommunity.source.utils.tracker import download_tracker, context_tracker
 from StreamingCommunity.utils.http_client import create_async_client
+from StreamingCommunity.source.utils.trans_codec import get_subtitle_codec_name
+from StreamingCommunity.source.Manual.decrypt.decrypt import Decryptor
 
 
 # Logic
-from ..utils.object import StreamInfo
+from ..utils.object import StreamInfo, KeysManager
 from .pattern import VIDEO_LINE_RE, AUDIO_LINE_RE, SUBTITLE_LINE_RE, SEGMENT_RE, PERCENT_RE, SPEED_RE, SIZE_RE, SUBTITLE_FINAL_SIZE_RE
 from .progress_bar import CustomBarColumn, ColoredSegmentColumn, CompactTimeColumn, CompactTimeRemainingColumn, SizeColumn
 from .parser import parse_meta_json, LogParser
-from .trackSelector import TrackSelector
 from .ui import build_table
 
 
@@ -40,9 +42,9 @@ max_speed = config_manager.config.get("M3U8_DOWNLOAD", "max_speed")
 check_segments_count = config_manager.config.get_bool("M3U8_DOWNLOAD", "check_segments_count")
 concurrent_download = config_manager.config.get_int("M3U8_DOWNLOAD", "concurrent_download")
 retry_count = config_manager.config.get_int("M3U8_DOWNLOAD", "retry_count")
+real_time_decryption = config_manager.config.get_bool("M3U8_DOWNLOAD", "real_time_decryption")
 request_timeout = config_manager.config.get_int("REQUESTS", "timeout")
 thread_count = config_manager.config.get_int("M3U8_DOWNLOAD", "thread_count")
-real_time_decryption = config_manager.config.get_bool("M3U8_DOWNLOAD", "real_time_decryption")
 use_proxy = config_manager.config.get_bool("REQUESTS", "use_proxy")
 configuration_proxy = config_manager.config.get_dict("REQUESTS", "proxy", default={})
 
@@ -61,7 +63,7 @@ class MediaDownloader:
         self.streams = []
         self.external_subtitles = []
         self.force_best_video = False
-        self.meta_json_path, self.meta_selected_path, self.raw_m3u8, self.raw_mpd = None, None, None, None 
+        self.meta_json_path, self.meta_selected_path, self.raw_m3u8, self.raw_mpd, self.raw_ism = None, None, None, None, None 
         self.status = None
         self.manifest_type = "Unknown"
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -76,7 +78,7 @@ class MediaDownloader:
         if not filter_value:
             return filter_value
         
-        parts, normalized_parts, special_chars = filter_value.split(':'), [], '|.*+?[]{}()^$'
+        parts, normalized_parts, special_chars = filter_value.split(':'), [], '|=.*+?[]{}()^$'
         for part in parts:
             if '=' in part:
                 key, val = part.split('=', 1)
@@ -120,49 +122,6 @@ class MediaDownloader:
             return any(t.lower() in ext_lang.lower() for t in re.findall(r"[A-Za-z]{2,}", subtitle_filter))
         except Exception:
             return False
-
-    def _build_custom_filters(self, selected):
-        """Build custom filters from selected tracks"""
-        video = next((s for s in selected if s.type.lower().startswith('video')), None)
-        audios = [s for s in selected if s.type.lower().startswith('audio')]
-        subs = [s for s in selected if s.type.lower().startswith('subtitle')]
-
-        def build_video(s):
-            f = [f"res={s.resolution}"] if getattr(s, 'resolution', None) else []
-            f += [f"codecs={s.codec}"] if getattr(s, 'codec', None) else []
-            if getattr(s, 'raw_bandwidth', None):
-                bw_kbps = s.raw_bandwidth // 1000
-                f += [f"bwMin={bw_kbps - 10}"]
-                f += [f"bwMax={bw_kbps + 10}"]
-
-            return ':'.join(f + ["for=best"])
-
-        def build_audio(tracks):
-            filters = []
-            for s in tracks:
-                f = [f"lang={s.language}"] if getattr(s, 'language', None) else []
-                f += [f"codecs={s.codec}"] if getattr(s, 'codec', None) else []
-                if getattr(s, 'raw_bandwidth', None):
-                    bw_kbps = s.raw_bandwidth // 1000
-                    f += [f"bwMin={bw_kbps - 10}"]
-                    f += [f"bwMax={bw_kbps + 10}"]
-
-                if f:
-                    filters.append(':'.join(f))
-            return ':'.join(filters) + ':for=all' if filters else "for=all"
-
-        def build_subtitle(tracks):
-            langs = [s.language for s in tracks if getattr(s, 'language', None)]
-            return f"lang='{'|'.join(langs)}':for=all" if langs else "for=all"
-
-        custom = {}
-        if video:
-            custom['video'] = build_video(video)
-        if audios:
-            custom['audio'] = build_audio(audios)
-        if subs:
-            custom['subtitle'] = build_subtitle(subs)
-        return custom if custom else None
 
     def parser_stream(self) -> List[StreamInfo]:
         """Analyze playlist and display table of available streams"""
@@ -210,9 +169,10 @@ class MediaDownloader:
         self.meta_selected_path = analysis_dir / "meta_selected.json"
         self.raw_m3u8 = analysis_dir / "raw.m3u8"
         self.raw_mpd = analysis_dir / "raw.mpd"
+        self.raw_ism = analysis_dir / "raw.ism"
         
         # Determine manifest type
-        self.manifest_type = "DASH" if self.raw_mpd.exists() else "HLS" if self.raw_m3u8.exists() else "Unknown"
+        self.manifest_type = "DASH" if self.raw_mpd.exists() else "HLS" if self.raw_m3u8.exists() else "ISM" if self.raw_ism.exists() else "Unknown"
         
         if self.meta_json_path.exists():
             self.streams = parse_meta_json(str(self.meta_json_path), str(self.meta_selected_path))
@@ -236,36 +196,23 @@ class MediaDownloader:
                 ext_sub['_ext'] = ext_type
                 self.streams.append(StreamInfo(type_="Subtitle [red]*EXT", language=ext_sub.get('language', ''), name=ext_sub.get('name', ''), selected=selected, extension=ext_type))
 
-            # Interactive track selection
-            if not auto_select_cfg and self.streams:
-                try:
-                    self.suppress_display = True
-                    selector = TrackSelector(self.streams)
-                    selector.window_size = min(10, len(self.streams)) or 1
-                    if selected := selector.run():
-                        self.custom_filters = self._build_custom_filters(selected)
-                except Exception as e:
-                    console.log(f"[yellow]Interactive selector failed: {e}[/yellow]")
-
-            # Show table unless suppressed
-            if not getattr(self, 'suppress_display', False):
-                try:
-                    selected_set = {i for i, s in enumerate(self.streams) if getattr(s, 'selected', False)}
-                    console.print(build_table(self.streams, selected_set, 0, window_size=len(self.streams), highlight_cursor=False))
-                except Exception:
-                    for idx, s in enumerate(self.streams):
-                        console.print(f"{idx+1}. {getattr(s,'type','')} {getattr(s,'language','')} {getattr(s,'resolution','')} {getattr(s,'codec','')}")
+            # Show table
+            selected_set = {i for i, s in enumerate(self.streams) if getattr(s, 'selected', False)}
+            console.print(build_table(self.streams, selected_set, 0, window_size=len(self.streams), highlight_cursor=False))
             return self.streams
         
         return []
 
     def get_metadata(self) -> tuple:
         """Get paths to metadata files"""
-        return str(self.meta_json_path), str(self.meta_selected_path), str(self.raw_m3u8), str(self.raw_mpd)
+        return str(self.meta_json_path), str(self.meta_selected_path), str(self.raw_m3u8), str(self.raw_mpd), str(self.raw_ism)
     
-    def set_key(self, key: str):
+    def set_key(self, key):
         """Set decryption key"""
-        self.key = key
+        if isinstance(key, KeysManager):
+            self.key = key.get_keys_list()
+        else:
+            self.key = key
     
     async def _download_external_subtitles(self):
         """Download external subtitles using httpx"""
@@ -274,23 +221,54 @@ class MediaDownloader:
         
         downloaded = []
         async with create_async_client(headers=self.headers) as client:
-            for sub in self.external_subtitles:
+            for idx, sub in enumerate(self.external_subtitles):
                 try:
                     if not sub.get('_selected', True):
                         continue
 
                     url, lang = sub['url'], sub.get('language', 'unknown')
                     sub_type = sub.get('_ext') or sub.get('type') or sub.get('format') or 'srt'
-                    sub_path = self.output_dir / f"{self.filename}.{lang}.{sub_type}"
+                    original_type = sub.get('type')
+
+                    # Handle 'captions' type getting mapped to wrong extension
+                    if sub_type == 'captions':
+                        sub_type = 'vtt'
+                    
+                    # Determine filename suffix
+                    fname_suffix = lang
+                    if original_type == 'captions' or original_type == 'closed_captions':
+                        fname_suffix = f"{lang}_captions"
+                    
+                    sub_path = self.output_dir / f"{self.filename}.{fname_suffix}.{sub_type}"
                     response = await client.get(url)
                     response.raise_for_status()
 
                     with open(sub_path, 'wb') as f:
                         f.write(response.content)
                     downloaded.append({'path': str(sub_path), 'language': lang, 'type': sub_type, 'size': len(response.content)})
+                    
+                    # Update download progress for external subtitle
+                    if self.download_id and download_tracker:
+                        track_key = f"subtitle_{fname_suffix}"
+                        download_tracker.update_status(self.download_id, "downloading")
+                        download_tracker.update_progress(
+                            self.download_id, 
+                            track_key, 
+                            progress=100.0,
+                            size=f"{len(response.content) / 1024:.2f}KB",
+                            speed="N/A",  # Too fast/small to calculate meaningful speed
+                            segments="1/1",
+                            status="completed"
+                        )
 
                 except Exception as e:
                     console.log(f"[red]Failed to download external subtitle: {e}[/red]")
+                    if self.download_id and download_tracker:
+                        download_tracker.update_progress(
+                            self.download_id,
+                            f"subtitle_{lang}_{idx}",
+                            status="failed"
+                        )
         return downloaded
 
     def start_download(self) -> Dict[str, Any]:
@@ -322,7 +300,9 @@ class MediaDownloader:
         
         if norm_a:
             cmd.extend(["--select-audio", norm_a])
-        if norm_s:
+        if subtitle_filter == "false":
+            cmd.extend(["--drop-subtitle", "all"])
+        elif norm_s:
             cmd.extend(["--select-subtitle", norm_s])
         cmd.extend(self._get_common_args())
 
@@ -335,18 +315,22 @@ class MediaDownloader:
             cmd.extend(["--http-request-timeout", str(request_timeout)])
         if retry_count > 0:
             cmd.extend(["--download-retry-count", str(retry_count)])
-        if max_speed:
+        if max_speed and str(max_speed).lower() != "false":
             cmd.extend(["--max-speed", max_speed])
         if self.key:
-            for single_key in ([self.key] if isinstance(self.key, str) else self.key):
+            keys_list = self.key.get_keys_list() if isinstance(self.key, KeysManager) else ([self.key] if isinstance(self.key, str) else self.key)
+            for single_key in keys_list:
                 cmd.extend(["--key", single_key])
         
         cmd.append(self.url)
         
         # Download external subtitles
         loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        external_subs = loop.run_until_complete(self._download_external_subtitles())
+        try:
+            asyncio.set_event_loop(loop)
+            external_subs = loop.run_until_complete(self._download_external_subtitles())
+        finally:
+            loop.close()
         
         log_parser = LogParser(show_warnings=False)
         log_path = self.output_dir / f"{self.filename}_download.log"
@@ -355,9 +339,16 @@ class MediaDownloader:
         with open(log_path, 'w', encoding='utf-8', errors='replace') as log_file:
             log_file.write(f"Command: {' '.join(cmd)}\n{'='*80}\n\n")
             
-            with Progress(TextColumn("[purple]{task.description}", justify="left"), CustomBarColumn(bar_width=40), ColoredSegmentColumn(),
-                         TextColumn("[dim][[/dim]"), CompactTimeColumn(), TextColumn("[dim]<[/dim]"), CompactTimeRemainingColumn(), TextColumn("[dim]][/dim]"),
-                         SizeColumn(), TextColumn("[dim]@[/dim]"), TextColumn("[red]{task.fields[speed]}[/red]", justify="right"), console=console) as progress:
+            # Use NullContext if in GUI mode to avoid live table conflicts for GUI
+            progress_ctx = nullcontext() if context_tracker.is_gui else Progress(
+                TextColumn("[purple]{task.description}", justify="left"), CustomBarColumn(bar_width=40), ColoredSegmentColumn(),
+                TextColumn("[dim][[/dim]"), CompactTimeColumn(), TextColumn("[dim]<[/dim]"), CompactTimeRemainingColumn(), TextColumn("[dim]][/dim]"),
+                SizeColumn(), TextColumn("[dim]@[/dim]"), TextColumn("[red]{task.fields[speed]}[/red]", justify="right"), 
+                console=console,
+                refresh_per_second=4.0
+            )
+
+            with progress_ctx as progress:
                 tasks = {}
                 proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors='replace', bufsize=1, universal_newlines=True)
                 
@@ -370,65 +361,124 @@ class MediaDownloader:
                         if self.download_id and download_tracker.is_stopped(self.download_id):
                             proc.terminate()
                             break
-
-                        if not (line := line.rstrip()):
-                            continue
-
-                        if line.strip():
-                            log_parser.parse_line(line)
-                        log_file.write(line + "\n")
-                        log_file.flush()
+                        
+                        log_file.write(line)
+                        log_parser.parse_line(line)
+                        
                         self._parse_progress_line(line, progress, tasks, subtitle_sizes)
-
-                        if "Segment count check not pass" in line:
-                            console.log(f"[red]Segment count mismatch detected: {line}[/red]")
-                    
-                    if self.download_id and download_tracker.is_stopped(self.download_id):
-                        proc.wait()
-                    else:
-                        proc.wait()
+                
+                    # Ensure all tasks are complete
+                    if progress:
+                        for task_id in tasks.values():
+                            progress.update(task_id, completed=100)
         
         # Check if we were cancelled
         if self.download_id and download_tracker.is_stopped(self.download_id):
             return {"error": "cancelled"}
 
+        # Check for key retrieval errors (Succedde spesso quando parsa m3u8 che hanno bisogna di licenza, ma non ho ancora trovato un caso per implementare license per quel cazzo di m3u8 quindi amen va su failed).
+        if any("Failed to get KEY" in error for error in log_parser.errors):
+            self.status = {"error": "key_error", "message": "Failed to retrieve decryption key"}
+            if self.download_id:
+                download_tracker.complete_download(self.download_id, success=False, error="Failed to get decryption key")
+            return self.status
+
         self.status = self._get_download_status(subtitle_sizes, external_subs)
 
+        if self.key:
+            # IL 99% delle volte n3u8dl riesce a fare tutto ma in quel 1% sti cazzi meglio fare double check anche se si perde tempo.
+            self._manual_decrypt_check(self.status)
+            print("")
+
         return self.status
+
+    def _manual_decrypt_check(self, status: Dict[str, Any]):
+        """Check and manually decrypt files if they are still encrypted after download"""
+        print("")
+        decryptor = Decryptor(preference=self.decrypt_preference)
+        
+        # Prepare targets with their respective stream types
+        targets = []
+        if status.get('video'):
+            targets.append((status['video'], "video"))
+        if status.get('audios'):
+            for audio in status['audios']:
+                targets.append((audio, "audio"))
+            
+        keys = self.key.get_keys_list() if isinstance(self.key, KeysManager) else ([self.key] if isinstance(self.key, str) else self.key)
+        for target, stream_type in targets:
+            file_path = Path(target['path'])
+            if not file_path.exists():
+                continue
+                
+            # Check if still encrypted
+            console.print(f"[cyan]Checking if file [red]{file_path.name} [cyan]is still encrypted...")
+            if decryptor.detect_encryption(str(file_path)):
+                
+                # Decrypt to a temporary file
+                temp_output = file_path.with_suffix(file_path.suffix + ".decrypted")
+                
+                if decryptor.decrypt(str(file_path), keys, str(temp_output), stream_type=stream_type):
+                    try:
+                        # Replace the old file with the decrypted one
+                        file_path.unlink()
+                        temp_output.rename(file_path)
+                        
+                        # Update status with new size
+                        target['size'] = file_path.stat().st_size
+                    except Exception as e:
+                        console.print(f"[red]Failed to replace encrypted file: {e}[/red]")
+                        if temp_output.exists():
+                            temp_output.unlink()
+                else:
+                    if temp_output.exists():
+                        temp_output.unlink()
+                    console.print(f"[red]Manual decryption failed for: {file_path.name}[/red]")
+
+            else:
+                console.print("[dim]Not encrypted, copied")
 
     def _update_task(self, progress, tasks: dict, key: str, label: str, line: str):
         """Generic task update helper"""
         if key not in tasks:
-            tasks[key] = progress.add_task(f"[yellow]{self.manifest_type} {label}", total=100, segment="0/0", speed="0Bps", size="0B/0B")
+            if progress:
+                tasks[key] = progress.add_task(f"[yellow]{self.manifest_type} {label}", total=100, segment="0/0", speed="0Bps", size="0B/0B")
+            else:
+                tasks[key] = "gui_only"
         
         task = tasks[key]
         cur_segment, cur_percent, cur_speed, cur_size = None, None, None, None
 
         if m := SEGMENT_RE.search(line):
             cur_segment = m.group(0)
-            progress.update(task, segment=cur_segment)
+            if progress and task != "gui_only":
+                progress.update(task, segment=cur_segment)
 
         if m := PERCENT_RE.search(line):
             try:
                 cur_percent = float(m.group(1))
-                progress.update(task, completed=cur_percent)
+                if progress and task != "gui_only":
+                    progress.update(task, completed=cur_percent)
             except Exception:
                 pass
 
         if m := SPEED_RE.search(line):
             cur_speed = m.group(1)
-            progress.update(task, speed=cur_speed)
+            if progress and task != "gui_only":
+                progress.update(task, speed=cur_speed)
 
         if m := SIZE_RE.search(line):
             cur_size = f"{m.group(1)}/{m.group(2)}"
-            progress.update(task, size=cur_size)
+            if progress and task != "gui_only":
+                progress.update(task, size=cur_size)
 
         if self.download_id:
             download_tracker.update_progress(self.download_id, key, cur_percent, cur_speed, cur_size, cur_segment)
         return task
 
     def _parse_progress_line(self, line: str, progress, tasks: dict, subtitle_sizes: dict):
-        """Parse a progress line and update progress bars"""
+        """
+            Parse a progress line and update progress bars"""
         if line.startswith("Vid"):
             res = (VIDEO_LINE_RE.search(line).group(1) if VIDEO_LINE_RE.search(line) else next((s.resolution or s.extension or "main" for s in self.streams if s.type == "Video"), "main"))
             self._update_task(progress, tasks, f"video_{res}", f"[cyan]Vid [red]{res}", line)
@@ -441,17 +491,35 @@ class MediaDownloader:
 
         elif line.startswith("Sub"):
             if m := SUBTITLE_LINE_RE.search(line):
-                lang, name = m.group(1).strip(), m.group(2).strip()
-                task = self._update_task(progress, tasks, f"sub_{lang}_{name}", f"[cyan]Sub [red]{name}", line)
+                lang, codec = m.group(1).strip(), m.group(2).strip()
+                
+                # SHIT Attempt to fix find actual language from streams if codec seems to be a tech type | TO REWRITE
+                display_lang = lang
+                if any(x in lang.lower() for x in ['stpp', 'ttml', 'vtt', 'srt']) or any(x in codec.lower() for x in ['stpp', 'ttml', 'vtt', 'srt']):
+                    for s in self.streams:
+
+                        # Check if codec matches and lang matches (as sub-string)
+                        if s.type.lower().startswith('subtitle') and s.codec and (any(x in s.codec.lower() for x in ['stpp', 'ttml', 'vtt', 'srt'])):
+                            s_lang = (s.language or "").lower()
+                            p_lang = lang.lower()
+                            if s_lang == p_lang or s_lang in p_lang or p_lang in s_lang:
+                                if s.language:
+                                    display_lang = s.language
+                                    break
+                
+                # If still using tech name for display_lang, try to clean it
+                display_lang = get_subtitle_codec_name(display_lang)
+                task = self._update_task(progress, tasks, f"sub_{lang}_{codec}", f"[cyan]Sub [red]{display_lang}", line)
 
                 if fm := SUBTITLE_FINAL_SIZE_RE.search(line):
                     final_size = fm.group(1)
-                    progress.update(task, size=final_size, completed=100)
-                    subtitle_sizes[f"{lang}: {name}"] = final_size
+                    if progress:
+                        progress.update(task, size=final_size, completed=100)
+                    subtitle_sizes[f"{lang}: {codec}"] = final_size
                 
                 elif not SIZE_RE.search(line):
                     if sm := re.search(r"(\d+\.\d+(?:B|KB|MB|GB))\s*$", line):
-                        subtitle_sizes[f"{lang}: {name}"] = sm.group(1)
+                        subtitle_sizes[f"{lang}: {codec}"] = sm.group(1)
 
     def _extract_language_from_filename(self, filename: str, base_name: str) -> str:
         """Extract language from filename"""
@@ -464,7 +532,7 @@ class MediaDownloader:
         exts = {
             'video': ['.mp4', '.mkv', '.m4v', '.ts', '.mov', '.webm'], 
             'audio': ['.m4a', '.aac', '.mp3', '.ts', '.mp4', '.wav', '.webm'], 
-            'subtitle': ['.srt', '.vtt', '.ass', '.sub', '.ssa']
+            'subtitle': ['.srt', '.vtt', '.ass', '.sub', '.ssa', '.m4s', '.ttml', '.xml']
         }
         
         # Find video
@@ -474,11 +542,13 @@ class MediaDownloader:
                 break
         
         # Process downloaded subtitle metadata
-        downloaded_subs = [{'lang': (d_name.split(':', 1)[0] if ':' in d_name else d_name).strip(), 
-                           'name': (d_name.split(':', 1)[1] if ':' in d_name else d_name).strip(),
-                           'size': sz, 'used': False} 
-                          for d_name, size_str in subtitle_sizes.items() 
-                          if (sz := internet_manager.format_file_size(size_str))]
+        downloaded_subs = [{
+            'lang': (d_name.split(':', 1)[0] if ':' in d_name else d_name).strip(), 
+            'name': (d_name.split(':', 1)[1] if ':' in d_name else d_name).strip(),
+            'size': sz, 'used': False} 
+            for d_name, size_str in subtitle_sizes.items() 
+                if (sz := internet_manager.format_file_size(size_str))
+        ]
 
         def norm_lang(lang):
             return set(lang.lower().replace('-', '.').split('.'))

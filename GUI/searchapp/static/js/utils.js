@@ -1,6 +1,6 @@
 /**
- * Utility functions shared across the application
- */
+  * Utility functions shared across the application
+*/
 
 export function formatTime(seconds) {
   if (seconds < 60) {

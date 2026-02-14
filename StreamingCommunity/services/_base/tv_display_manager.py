@@ -63,30 +63,45 @@ def manage_selection(cmd_insert: str, max_count: int) -> List[int]:
     while True:
         list_selection = []
 
-        # For a single number (e.g., '5')
-        if cmd_insert.isnumeric():
-            list_selection.append(int(cmd_insert))
-            break
-
-        # For a range (e.g., '5-12')
-        elif "-" in cmd_insert:
-            try:
-                start, end = map(str.strip, cmd_insert.split('-'))
-                start = int(start)
-                end = int(end) if end.isnumeric() else max_count
-                list_selection = list(range(start, end + 1))
-                break
-            except ValueError:
-                pass
+        if cmd_insert.lower() in ("q", "quit"):
+            console.print("\n[red]Quit ...")
+            sys.exit(0)
 
         # For all items ('*')
-        elif cmd_insert == "*":
+        if cmd_insert == "*":
             list_selection = list(range(1, max_count + 1))
             break
 
-        elif cmd_insert.lower() in ("q", "quit"):
-            console.print("\n[red]Quit ...")
-            sys.exit(0)
+        try:
+            # Handle comma separated values and ranges
+            parts = cmd_insert.split(",")
+            for part in parts:
+                part = part.strip()
+                if not part:
+                    continue
+
+                if "-" in part:
+                    start, end = map(str.strip, part.split('-'))
+                    start = int(start)
+
+                    # Handle end part (could be numeric or '*' or empty for max_count)
+                    if end.isnumeric():
+                        end = int(end)
+                    else:
+                        end = max_count
+                    
+                    list_selection.extend(list(range(start, end + 1)))
+                elif part.isnumeric():
+                    list_selection.append(int(part))
+                else:
+                    raise ValueError
+            
+            if list_selection:
+                list_selection = sorted(list(set(list_selection)))
+                break
+            
+        except (ValueError, TypeError):
+            pass
 
         cmd_insert = msg.ask("[red]Invalid input. Please enter a valid command")
     

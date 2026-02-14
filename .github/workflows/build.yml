@@ -147,6 +147,7 @@ jobs:
           pyinstaller --onefile \
           --hidden-import=sqlite3 \
           --collect-binaries sqlite3 \
+          --hidden-import=pycryptodomex \
           --hidden-import=ua_generator \
           --hidden-import=bs4 \
           --hidden-import=httpx \
@@ -161,6 +162,8 @@ jobs:
           --hidden-import=xml.etree.ElementTree \
           --hidden-import=pywidevine \
           --hidden-import=pyplayready \
+          --hidden-import=ttconv \
+          --collect-all ttconv \
           --hidden-import=curl_cffi \
           --hidden-import=_cffi_backend \
           --collect-all curl_cffi \

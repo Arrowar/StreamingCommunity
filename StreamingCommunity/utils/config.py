@@ -1,6 +1,7 @@
 # 29.01.24
 
 import os
+import re
 import sys
 import json
 import logging
@@ -20,10 +21,10 @@ DOMAINS_FILENAME = 'domains.json'
 GITHUB_DOMAINS_PATH = '.github/script/domains.json'
 REMOTE_CDM_PATH = 'remote_cdm.json'
 
-CONFIG_DOWNLOAD_URL = 'https://raw.githubusercontent.com/Arrowar/StreamingCommunity/refs/heads/main/conf/config.json'
-CONFIG_LOGIN_DOWNLOAD_URL = 'https://raw.githubusercontent.com/Arrowar/StreamingCommunity/refs/heads/main/conf/login.json'
+CONFIG_DOWNLOAD_URL = 'https://raw.githubusercontent.com/Arrowar/StreamingCommunity/refs/heads/main/Conf/config.json'
+CONFIG_LOGIN_DOWNLOAD_URL = 'https://raw.githubusercontent.com/Arrowar/StreamingCommunity/refs/heads/main/Conf/login.json'
 DOMAINS_DOWNLOAD_URL = 'https://raw.githubusercontent.com/Arrowar/SC_Domains/refs/heads/main/domains.json'
-REMOTE_CDM_DOWNLOAD_URL = 'https://raw.githubusercontent.com/Arrowar/StreamingCommunity/refs/heads/main/conf/remote_cdm.json'
+REMOTE_CDM_DOWNLOAD_URL = 'https://raw.githubusercontent.com/Arrowar/StreamingCommunity/refs/heads/main/Conf/remote_cdm.json'
 
 
 class ConfigAccessor:
@@ -160,6 +161,11 @@ class ConfigAccessor:
             console.print(f"[red]{error_msg}")
 
 
+def save_config_compact(data, f):
+    json_str = json.dumps(data, indent=4)
+    json_str = re.sub(r'\[\s*\n\s*((?:"[^"]*"|\d+|true|false|null)(?:\s*,\s*(?:"[^"]*"|\d+|true|false|null))*\s*)\n\s*\]', lambda m: '[' + m.group(1).replace('\n', '').replace(' ', '') + ']', json_str, flags=re.MULTILINE | re.DOTALL)
+    f.write(json_str)
+
 class ConfigManager:
     def __init__(self) -> None:
         """Initialize the ConfigManager with caching."""
@@ -171,12 +177,12 @@ class ConfigManager:
             self.base_path = os.getcwd()
             
         # Initialize conf directory path
-        self.conf_path = os.path.join(self.base_path, 'conf')
+        self.conf_path = os.path.join(self.base_path, 'Conf')
         
         # Create conf directory if it doesn't exist
         if not os.path.exists(self.conf_path):
             os.makedirs(self.conf_path, exist_ok=True)
-            console.print(f"[green]Created conf directory: {self.conf_path}")
+            console.print(f"[green]Created Conf directory: {self.conf_path}")
             
         # Initialize file paths using conf directory
         self.config_file_path = os.path.join(self.conf_path, CONFIG_FILENAME)
@@ -467,7 +473,7 @@ class ConfigManager:
         """Save the main configuration to file."""
         try:
             with open(self.config_file_path, 'w') as f:
-                json.dump(self._config_data, f, indent=4)
+                save_config_compact(self._config_data, f)
         except Exception as e:
             console.print(f"[red]Error saving configuration: {e}")
     

@@ -13,7 +13,7 @@ from pyplayready.system.pssh import PSSH as PR_PSSH
 
 
 # Internal utilities
-from StreamingCommunity.utils.http_client import create_client_curl
+from StreamingCommunity.utils.http_client import create_client_curl, get_userAgent
 
 
 # Variable
@@ -65,7 +65,10 @@ class MPDParser:
     def parse(self) -> bool:
         """Parse MPD from URL."""
         try:
-            r = create_client_curl(headers=self.headers).get(self.mpd_url)
+            # Generate fresh User-Agent for MPD fetch
+            mpd_headers = self.headers.copy()
+            mpd_headers['User-Agent'] = get_userAgent()
+            r = create_client_curl(headers=mpd_headers).get(self.mpd_url)
             r.raise_for_status()
             self.root = ET.fromstring(r.content)
             self._extract_namespaces()
@@ -117,7 +120,7 @@ class MPDParser:
         for cp in self._findall(element, 'mpd:ContentProtection'):
             kid = (cp.get('{urn:mpeg:cenc:2013}default_KID') or cp.get('default_KID') or cp.get('kid'))
             if kid:
-                return kid
+                return kid.lower().replace('-', '')
         return None
     
     def _get_drm_data(self, element: ET.Element) -> Dict[str, List[str]]:
@@ -194,8 +197,8 @@ class MPDParser:
             for adapt_set in self._findall(period, 'mpd:AdaptationSet'):
                 content_type, lang = self._get_content_info(adapt_set)
                 
-                # Skip non-media types
-                if content_type in ('image', 'text'):
+                # Skip non-media types (keep text for external sub support if present)
+                if content_type == 'image':
                     continue
                 
                 # Apply filters
@@ -236,6 +239,16 @@ class MPDParser:
     def _extract_adaptation_set_info(self, adapt_set, content_type, lang, selected_ids=None):
         """Extract detailed information from adaptation set."""
         default_kid = self._get_default_kid(adapt_set)
+        
+        # If a specific Representation was selected, extract its KID instead
+        if selected_ids:
+            for rep in self._findall(adapt_set, 'mpd:Representation'):
+                rep_id = rep.get('id', 'N/A')
+                if rep_id in selected_ids:
+                    rep_kid = self._get_default_kid(rep)
+                    if rep_kid:
+                        default_kid = rep_kid
+                    break
         
         # Combine PSSH from AdaptationSet and Representations
         pssh_map = self._get_drm_data(adapt_set)

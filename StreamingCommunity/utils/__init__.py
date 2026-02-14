@@ -4,7 +4,6 @@ from .config import config_manager
 from .console import start_message
 from .console import TVShowManager
 from .os import os_manager, internet_manager
-from .keyboards import get_key
 from .tmdb_client import tmdb_client
 
 
@@ -15,6 +14,5 @@ __all__ = [
     "os_manager",
     "start_message",
     "internet_manager",
-    "get_key",
     "tmdb_client",
 ]

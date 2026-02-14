@@ -49,11 +49,37 @@ def create_key(s):
     if s.get("MediaType") == "AUDIO": 
         return f"AUDIO|{s.get('Language','')}|{s.get('Name','')}|{s.get('Bandwidth',0)}|{s.get('Codecs','')}|{s.get('Channels','')}"
 
-    return f"SUBTITLE|{s.get('Language','')}|{s.get('Name','')}"
+    return f"SUBTITLE|{s.get('Language','')}|{s.get('Name','')}|{s.get('Role','')}"
+
+
+def classify_stream(s):
+    """Classify stream type based on meta.json data"""
+    group_id = s.get("GroupId", "")
+    if isinstance(group_id, str) and group_id.startswith("thumb_"):
+        return "Thumbnail"
+    
+    # Check MediaType
+    media_type = s.get("MediaType", "").upper()
+    if media_type == "AUDIO":
+        return "Audio"
+    elif media_type == "SUBTITLES":
+        return "Subtitle"
+    elif media_type == "VIDEO":
+        return "Video"
+    
+    # Fallback: if has Resolution, it's Video
+    if "Resolution" in s and s.get("Resolution"):
+        return "Video"
+    
+    # Default to Video for unknown types
+    return "Video"
 
 
 def parse_meta_json(json_path: str, selected_json_path: str) -> List[StreamInfo]:
     """Parse meta.json and meta_selected.json to determine which streams are selected"""
+    if not os.path.exists(json_path):
+        return []
+
     with open(json_path, 'r', encoding='utf-8-sig') as f: 
         metadata = json.load(f)
         
@@ -61,36 +87,30 @@ def parse_meta_json(json_path: str, selected_json_path: str) -> List[StreamInfo]
     if selected_json_path and os.path.isfile(selected_json_path):
         with open(selected_json_path, 'r', encoding='utf-8-sig') as f:
             for s in json.load(f):
-                
-                # Check for encryption in segments
-                enc_method = s.get('Playlist', {}).get('MediaParts', [{}])[0].get('MediaSegments', [{}])[0].get('EncryptInfo', {}).get('Method', 'NONE')
-                enc = enc_method != 'NONE' and enc_method is not None and enc_method != ''
 
                 selected_map[create_key(s)] = {
-                    'encrypted': enc,
-                    'encryption_method': enc_method,
                     'extension': s.get("Extension", ""),
                     'duration': s.get("Playlist", {}).get("TotalDuration", 0),
                     'segments': s.get("SegmentsCount", 0)
                 }
     
     streams = []
-    seen_keys = set()
+    seen_keys = {}
     for s in metadata:
         key = create_key(s)
-        if key in seen_keys:
-            continue
-        seen_keys.add(key)
-        
         bw = s.get('Bandwidth', 0)
+        
+        if key in seen_keys:
+            idx = seen_keys[key]
+            streams[idx].total_duration += s.get("Playlist", {}).get("TotalDuration", 0)
+            continue
+            
+        seen_keys[key] = len(streams)
         bw_str = f"{bw/1e6:.1f} Mbps" if bw >= 1e6 else (f"{bw/1e3:.0f} Kbps" if bw >= 1e3 else f"{bw:.0f} bps")
         
         sel = key in selected_map
         det = selected_map.get(key, {})
-        
-        st_type = "Video" if ("Resolution" in s and s.get("Resolution")) else s.get("MediaType", "Video").title()
-        if st_type == "Subtitles": 
-            st_type = "Subtitle"
+        st_type = classify_stream(s)
         
         streams.append(StreamInfo(
             type_=st_type,
@@ -103,8 +123,10 @@ def parse_meta_json(json_path: str, selected_json_path: str) -> List[StreamInfo]
             selected=sel,
             extension=det.get('extension', s.get("Extension", "")),
             total_duration=det.get('duration', s.get("Playlist", {}).get("TotalDuration", 0)),
-            segment_count=det.get('segments', s.get("SegmentsCount", 0)),
-            segments_protection = s.get('Playlist', {}).get('MediaParts', [{}])[0].get('MediaSegments', [{}])[0].get('EncryptInfo', {}).get('Method', det.get('encryption_method', 'NONE')),
+            frame_rate=s.get('FrameRate', 0),
+            channels=s.get('Channels', '').replace('CH', ''),
+            role=s.get('Role', ''),
         ))
+        streams[-1].track_id = s.get("GroupId") or s.get("id") or ""
         
     return streams

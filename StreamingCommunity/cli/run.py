@@ -20,6 +20,7 @@ from StreamingCommunity.setup import get_prd_path, get_wvd_path, get_info_wvd, g
 from StreamingCommunity.services._base import load_search_functions
 from StreamingCommunity.utils import config_manager, os_manager, start_message
 from StreamingCommunity.upload import git_update, binary_update
+from StreamingCommunity.upload.version import __version__, __title__
 
 
 # Config
@@ -245,6 +246,7 @@ def setup_argument_parser(search_functions):
     parser.add_argument('--use_proxy', action='store_true', help='Enable proxy for requests')
     parser.add_argument('--extension', type=str, help='Output file extension (mkv, mp4)')
     parser.add_argument('-UP', '--update', action='store_true', help='Auto-update to latest version (binary only)')
+    parser.add_argument('--version', action='version', version=f'{__title__} {__version__}')
     return parser
 
 
@@ -256,7 +258,7 @@ def apply_config_updates(args):
         's_video': 'M3U8_DOWNLOAD.select_video',
         's_audio': 'M3U8_DOWNLOAD.select_audio',
         's_subtitle': 'M3U8_DOWNLOAD.select_subtitle',
-        'not_close': 'DEFAULT.not_close',
+        'not_close': 'DEFAULT.close_console',
         'use_proxy': 'REQUESTS.use_proxy',
         'extension': 'M3U8_CONVERSION.extension'
     }

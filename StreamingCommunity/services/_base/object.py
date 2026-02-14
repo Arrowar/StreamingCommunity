@@ -1,5 +1,6 @@
 # 23.11.24
 
+import difflib
 from datetime import datetime
 from typing import Any, List, Optional
 
@@ -16,7 +17,7 @@ class Episode:
     def __init__(self, id: Optional[Any] = None, video_id: Optional[str] = None, number: Optional[Any] = None, name: Optional[str] = None, 
         duration: Optional[Any] = None, url: Optional[str] = None, mpd_id: Optional[str] = None, channel: Optional[str] = None, category: Optional[str] = None,
         description: Optional[str] = None, image: Optional[str] = None, poster: Optional[str] = None, year: Optional[Any] = None, is_special: Optional[bool] = None,
-        **kwargs
+        tmdb_id: Optional[str] = None, **kwargs
     ):
         self.id = id
         self.video_id = video_id
@@ -32,12 +33,18 @@ class Episode:
         self.poster = poster
         self.year = year
         self.is_special = is_special
+        self.tmdb_id = tmdb_id
         
+        # [SERVICE-SPECIFIC] Allow additional attributes from different services (e.g., main_guid for Crunchyroll)
         for key, value in kwargs.items():
             setattr(self, key, value)
 
+    def to_dict(self) -> dict:
+        """Convert the episode to a dictionary."""
+        return self.__dict__.copy()
+
     def __str__(self):
-        return f"Episode(id={self.id}, number={self.number}, name='{self.name}', duration={self.duration} sec)"
+        return f"Episode(id={self.id}, number={self.number}, name='{self.name}', duration={self.duration} min)"
 
 class EpisodeManager:
     def __init__(self):
@@ -72,12 +79,13 @@ class EpisodeManager:
 
 
 class Season:
-    def __init__(self, id: Optional[int] = None, number: Optional[int] = None, name: Optional[str] = None, slug: Optional[str] = None, type: Optional[str] = None, **kwargs):
+    def __init__(self, id: Optional[int] = None, number: Optional[int] = None, name: Optional[str] = None, slug: Optional[str] = None, type: Optional[str] = None, tmdb_id: Optional[str] = None, **kwargs):
         self.id = id
         self.number = number
         self.name = name
         self.slug = slug
         self.type = type
+        self.tmdb_id = tmdb_id
         self.episodes: EpisodeManager = EpisodeManager()
         
         for key, value in kwargs.items():
@@ -118,7 +126,7 @@ class SeasonManager:
         return len(self.seasons)
 
     
-class MediaItemMeta(type):
+class EntriesMeta(type):
     def __new__(cls, name, bases, dct):
         def init(self, **kwargs):
             for key, value in kwargs.items():
@@ -138,7 +146,7 @@ class MediaItemMeta(type):
 
         return super().__new__(cls, name, bases, dct)
 
-class MediaItem(metaclass=MediaItemMeta):
+class Entries(metaclass=EntriesMeta):
     id: int
     name: str
     type: str
@@ -149,17 +157,32 @@ class MediaItem(metaclass=MediaItemMeta):
     slug: str
     year: str
     provider_language: str
- 
-class MediaManager:
-    def __init__(self):
-        self.media_list: List[MediaItem] = []
+    tmdb_id: str
 
-    def add(self, media: MediaItem) -> None:
+    def to_dict(self):
+        """Convert the entries to a dictionary."""
+        return self.__dict__.copy()
+
+    @property
+    def is_movie(self) -> bool:
+        """Check if the entries is a movie."""
+        return str(getattr(self, 'type', '')).lower() in ['film', 'movie', 'ova']
+
+    @property
+    def poster(self) -> str:
+        """Get the poster image url."""
+        return getattr(self, 'image', '') or getattr(self, 'poster_url', '')
+
+class EntriesManager:
+    def __init__(self):
+        self.media_list: List[Entries] = []
+
+    def add(self, media) -> None:
         """
         Add media to the list.
 
         Args:
-            media (MediaItem): Media item to add.
+            media (Entries): Media item to add.
         """
         # Logic to fetch year if 9999
         if media.year == "9999":
@@ -180,13 +203,13 @@ class MediaManager:
 
         self.media_list.append(media)
 
-    def get(self, index: int) -> MediaItem:
+    def get(self, index: int) -> Entries:
         """
         Get a media item from the list by index.
         """
         return self.media_list[index]
 
-    def get_length(self) -> int:
+    def __len__(self) -> int:
         """
         Get the number of media items in the list.
         """
@@ -198,5 +221,16 @@ class MediaManager:
         """
         self.media_list.clear()
 
+    def sort_by_fuzzy_score(self, query: str) -> None:
+        """
+        Calculate fuzzy match scores for each media item based on the query and sort by score descending.
+        """
+        query_lower = query.lower()
+        for media in self.media_list:
+            title = getattr(media, 'name', '')
+            score = 0 if title is None else difflib.SequenceMatcher(None, query_lower, title.lower()).ratio()
+            setattr(media, 'score', score)
+        self.media_list.sort(key=lambda x: getattr(x, 'score', 0), reverse=True)
+
     def __str__(self):
-        return f"MediaManager(num_media={len(self.media_list)})"
+        return f"EntriesManager(num_media={len(self.media_list)})"

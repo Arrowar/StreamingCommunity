@@ -206,7 +206,7 @@ class LocalDBVault:
                 conn.rollback()
                 return False
     
-    def set_keys(self, keys_list: List[str], drm_type: str, license_url: str, pssh: str = None, kid_to_label: Dict[str, str] = None) -> int:
+    def set_keys(self, keys_list: List[str], drm_type: str, license_url: str, pssh: str = None) -> int:
         """Add multiple keys to the database at once."""
         if not keys_list:
             console.print("[yellow]No keys provided to add.")
@@ -216,7 +216,7 @@ class LocalDBVault:
         for key_str in keys_list:
             if ':' in key_str:
                 kid, key = key_str.split(':', 1)
-                label = kid_to_label.get(kid.lower()) if kid_to_label else None
+                label = None
                 
                 if self.set_key(kid, key, drm_type, license_url, pssh, label):
                     added_count += 1
@@ -281,12 +281,7 @@ class LocalDBVault:
             for row in cursor.fetchall():
                 kid, key, label = row
                 keys.append(f"{kid}:{key}")
-                
-                # Display label if available
-                masked_key = key[:-1] + "*"
-                label_str = f" [cyan]| [red]{label}" if label else ""
-                
-                console.print(f"    - [red]{kid}[white]:[green]{masked_key}{label_str}")
+                console.print(f"    - [red]{kid}[white]:[green]{key}")
             
             conn.commit()
             return keys

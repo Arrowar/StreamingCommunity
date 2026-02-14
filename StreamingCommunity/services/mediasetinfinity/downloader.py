@@ -14,7 +14,7 @@ from rich.prompt import Prompt
 # Internal utilities
 from StreamingCommunity.utils import os_manager, config_manager, start_message
 from StreamingCommunity.utils.http_client import create_client
-from StreamingCommunity.services._base import site_constants, MediaItem
+from StreamingCommunity.services._base import site_constants, Entries
 from StreamingCommunity.services._base.tv_display_manager import map_episode_title
 from StreamingCommunity.services._base.tv_download_manager import process_season_selection, process_episode_download
 
@@ -41,7 +41,6 @@ def try_mpd(url, qualities):
     """
     parsed = urlparse(url)
     path_parts = parsed.path.rsplit('/', 1)
-
     if len(path_parts) != 2:
         return None
     
@@ -56,13 +55,10 @@ def try_mpd(url, qualities):
         return filename
 
     for q in qualities:
-
-        # Search for which quality is present in the filename
         for old_q in qualities:
             if f"{old_q}_" in filename or filename.startswith(f"{old_q}_"):
                 new_filename = replace_quality(filename, old_q, q)
                 break
-
         else:
             new_filename = filename  # No quality found, use original filename
 
@@ -73,7 +69,6 @@ def try_mpd(url, qualities):
             r = create_client().head(mpd_url)
             if r.status_code == 200:
                 return mpd_url
-            
         except Exception:
             pass
 
@@ -92,9 +87,9 @@ def get_manifest(base):
     return mpd_url
 
 
-def download_film(select_title: MediaItem) -> Tuple[str, bool]:
+def download_film(select_title: Entries) -> Tuple[str, bool]:
     """
-    Downloads a film using the provided MediaItem information.
+    Downloads a film using the provided Entries information.
     """
     start_message()
     console.print(f"\n[yellow]Download: [red]{site_constants.SITE_NAME} → [cyan]{select_title.name} \n")
@@ -146,18 +141,21 @@ def download_episode(obj_episode, index_season_selected, index_episode_selected,
     ).start()
     
 
-def download_series(dict_serie: MediaItem, season_selection: str = None, episode_selection: str = None) -> None:
+def download_series(dict_serie: Entries, season_selection: str = None, episode_selection: str = None, scrape_serie = None) -> None:
     """
     Handle downloading a complete series.
 
     Parameters:
-        - dict_serie (MediaItem): Series metadata from search
+        - dict_serie (Entries): Series metadata from search
         - season_selection (str, optional): Pre-defined season selection that bypasses manual input
         - episode_selection (str, optional): Pre-defined episode selection that bypasses manual input
+        - scrape_serie (Any, optional): Pre-existing scraper instance to avoid recreation
     """
     start_message()
-    scrape_serie = GetSerieInfo(dict_serie.url)
-    seasons_count = scrape_serie.getNumberSeason()
+    if scrape_serie is None:
+        scrape_serie = GetSerieInfo(dict_serie.url)
+        scrape_serie.getNumberSeason()
+    seasons_count = len(scrape_serie.seasons_manager)
 
     # Create callback function for downloading episodes
     def download_episode_callback(season_number: int, download_all: bool, episode_selection: str = None):

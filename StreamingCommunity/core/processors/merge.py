@@ -2,7 +2,7 @@
 
 import os
 import subprocess
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 
 # External library
@@ -16,9 +16,10 @@ from StreamingCommunity.setup import binary_paths, get_ffmpeg_path
 
 # Logic class
 from .helper.ex_video import need_to_force_to_ts
-from .helper.ex_audio import check_duration_v_a
+from .helper.ex_audio import check_duration_v_a, has_audio
 from .helper.ex_sub import fix_subtitle_extension
 from .capture import capture_ffmpeg_real_time
+from .conversion.ttml_to_srt import convert_ttml_to_srt
 
 
 # Config
@@ -89,7 +90,7 @@ def detect_gpu_device_type() -> str:
         return 'none'
 
 
-def join_video(video_path: str, out_path: str):
+def join_video(video_path: str, out_path: str, log_path: Optional[str] = None):
     """
     Mux video file using FFmpeg.
     
@@ -119,13 +120,13 @@ def join_video(video_path: str, out_path: str):
     ffmpeg_cmd.extend([out_path, '-y'])
 
     # Run join
-    result_json = capture_ffmpeg_real_time(ffmpeg_cmd, "[yellow]FFMPEG [cyan]Join video")
+    result_json = capture_ffmpeg_real_time(ffmpeg_cmd, "[yellow]FFMPEG [cyan]Join video", log_path)
     print()
 
     return out_path, result_json
 
 
-def join_audios(video_path: str, audio_tracks: List[Dict[str, str]], out_path: str, limit_duration_diff: float = 3):
+def join_audios(video_path: str, audio_tracks: List[Dict[str, str]], out_path: str, limit_duration_diff: float = 3, log_path: Optional[str] = None):
     """
     Joins audio tracks with a video file using FFmpeg.
     
@@ -188,13 +189,13 @@ def join_audios(video_path: str, audio_tracks: List[Dict[str, str]], out_path: s
     ffmpeg_cmd.extend([out_path, '-y'])
 
     # Run join
-    result_json = capture_ffmpeg_real_time(ffmpeg_cmd, "[yellow]FFMPEG [cyan]Join audio")
+    result_json = capture_ffmpeg_real_time(ffmpeg_cmd, "[yellow]FFMPEG [cyan]Join audio", log_path)
     print()
 
     return out_path, use_shortest, result_json
 
 
-def join_subtitles(video_path: str, subtitles_list: List[Dict[str, str]], out_path: str):
+def join_subtitles(video_path: str, subtitles_list: List[Dict[str, str]], out_path: str, log_path: Optional[str] = None):
     """
     Joins subtitles with a video file using FFmpeg.
 
@@ -208,6 +209,14 @@ def join_subtitles(video_path: str, subtitles_list: List[Dict[str, str]], out_pa
     for subtitle in subtitles_list:
         original_path = subtitle['path']
         corrected_path = fix_subtitle_extension(original_path)
+        
+        # TTML to SRT conversion if needed
+        if corrected_path.lower().endswith(('.ttml', '.xml')) or 'ttml' in corrected_path.lower():
+            srt_path = os.path.splitext(corrected_path)[0] + '.srt'
+            if convert_ttml_to_srt(corrected_path, srt_path):
+                console.print(f"[yellow]    - [green]Converted TTML to SRT: [red]{os.path.basename(srt_path)}")
+                corrected_path = srt_path
+        
         subtitle['path'] = corrected_path
     
     ffmpeg_cmd = [get_ffmpeg_path(), "-i", video_path]
@@ -217,7 +226,8 @@ def join_subtitles(video_path: str, subtitles_list: List[Dict[str, str]], out_pa
     if output_ext == '.mp4':
         subtitle_codec = 'mov_text'
     elif output_ext == '.mkv':
-        subtitle_codec = 'copy'
+        # Now that we convert TTML manually, we don't need to force srt via ffmpeg unless they are still not srt
+        subtitle_codec = 'srt'
     else:
         subtitle_codec = 'copy'
     
@@ -226,7 +236,9 @@ def join_subtitles(video_path: str, subtitles_list: List[Dict[str, str]], out_pa
         ffmpeg_cmd += ["-i", subtitle['path']]
     
     # Add maps for video and audio streams
-    ffmpeg_cmd += ["-map", "0:v", "-map", "0:a"]
+    ffmpeg_cmd += ["-map", "0:v"]
+    if has_audio(video_path):
+        ffmpeg_cmd += ["-map", "0:a"]
     
     # Add subtitle maps and metadata
     for idx, subtitle in enumerate(subtitles_list):
@@ -268,7 +280,7 @@ def join_subtitles(video_path: str, subtitles_list: List[Dict[str, str]], out_pa
     ffmpeg_cmd += [out_path, "-y"]
     
     # Run join
-    result_json = capture_ffmpeg_real_time(ffmpeg_cmd, "[yellow]FFMPEG [cyan]Join subtitle")
+    result_json = capture_ffmpeg_real_time(ffmpeg_cmd, "[yellow]FFMPEG [cyan]Join subtitle", log_path)
     print()
     
     return out_path, result_json

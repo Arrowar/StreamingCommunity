@@ -37,18 +37,21 @@
     </div>
   </div>
 
-  <!-- Results Grid - Netflix Style -->
+  <!-- Results Grid -->
   {% if results %}
-  <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
+  <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 3xl:grid-cols-8 gap-3 sm:gap-4">
     {% for result in results %}
-    <div class="group relative card-hover cursor-pointer" data-type="{% if result.is_movie %}movie{% else %}series{% endif %}">
+    <div class="group relative card-hover cursor-pointer" data-type="{% if result.is_movie %}movie{% else %}series{% endif %}" 
+         data-name="{{ result.display_title }}" data-year="{{ result.year }}" data-is-movie="{{ result.is_movie|lower }}" data-source="{{ result.source_alias }}"
+         data-has-tmdb="{{ result.has_tmdb_potential|lower }}">
+
       <!-- Card Container -->
       <div class="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-900">
         <!-- Poster Image -->
         <img 
           src="{{ result.bg_image_url }}" 
           alt="{{ result.display_title }}" 
-          class="w-full h-full object-cover"
+          class="w-full h-full object-cover {% if not result.bg_image_url or result.bg_image_url == 'N/A' %}opacity-50{% endif %}"
           loading="lazy"
         >
         
@@ -69,6 +72,7 @@
 
         <!-- Hover Content -->
         <div class="absolute inset-0 flex flex-col justify-end p-4 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-4 group-hover:translate-y-0">
+
           <!-- Title -->
           <h3 class="text-white font-bold text-sm mb-3 line-clamp-2 drop-shadow-lg">
             {{ result.display_title }}
@@ -77,11 +81,12 @@
           <!-- Action Buttons -->
           <div class="flex gap-2">
             {% if result.is_movie %}
+
             <!-- Download Movie Button -->
             <form action="{% url 'start_download' %}" method="post" class="flex-1">
               {% csrf_token %}
               <input type="hidden" name="source_alias" value="{{ result.source_alias }}">
-              <input type="hidden" name="item_payload" value='{{ result.payload_json|safe }}'>
+              <input type="hidden" name="item_payload" value="{{ result.payload_json }}">
               <button 
                 type="submit" 
                 class="w-full py-2.5 bg-white hover:bg-gray-200 text-black font-bold text-xs rounded-md transition-all flex items-center justify-center gap-2 shadow-xl"
@@ -92,43 +97,62 @@
                 Scarica
               </button>
             </form>
+
+            <!-- Add to Watchlist Button (Movie) -->
+            <form action="{% url 'add_to_watchlist' %}" method="post">
+              {% csrf_token %}
+              <input type="hidden" name="source_alias" value="{{ result.source_alias }}">
+              <input type="hidden" name="item_payload" value="{{ result.payload_json }}">
+              <input type="hidden" name="search_query" value="{{ query }}">
+              <input type="hidden" name="search_site" value="{{ selected_site }}">
+              <button 
+                type="submit" 
+                class="py-2.5 px-2.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-md transition-all flex items-center justify-center shadow-xl"
+                title="Aggiungi alla Watchlist"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
+                </svg>
+              </button>
+            </form>
             {% else %}
+
             <!-- View Episodes Button -->
-            <a 
-              href="{% url 'series_detail' %}?source_alias={{ result.source_alias }}&item_payload={{ result.payload_json|urlencode }}" 
-              class="flex-1 py-2.5 bg-white hover:bg-gray-200 text-black font-bold text-xs rounded-md transition-all flex items-center justify-center gap-2 shadow-xl"
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-              </svg>
-              Episodi
-            </a>
+            <div class="flex-1">
+              <a 
+                href="{% url 'series_detail' %}?source_alias={{ result.source_alias }}&item_payload={{ result.payload_json|urlencode }}" 
+                class="w-full py-2.5 bg-white hover:bg-gray-200 text-black font-bold text-xs rounded-md transition-all flex items-center justify-center gap-2 shadow-xl"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                Dettagli
+              </a>
+            </div>
+
+            <!-- Add to Watchlist Button (Series) -->
+            <form action="{% url 'add_to_watchlist' %}" method="post">
+              {% csrf_token %}
+              <input type="hidden" name="source_alias" value="{{ result.source_alias }}">
+              <input type="hidden" name="item_payload" value="{{ result.payload_json }}">
+              <input type="hidden" name="search_query" value="{{ query }}">
+              <input type="hidden" name="search_site" value="{{ selected_site }}">
+              <button 
+                type="submit" 
+                class="py-2.5 px-2.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-md transition-all flex items-center justify-center shadow-xl"
+                title="Aggiungi alla Watchlist"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
+                </svg>
+              </button>
+            </form>
             {% endif %}
-            
-            <!-- Info Button -->
-            <button 
-              class="w-10 h-10 bg-gray-900/80 hover:bg-gray-800 backdrop-blur-sm rounded-full flex items-center justify-center transition-colors"
-              title="Info"
-            >
-              <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-              </svg>
-            </button>
           </div>
 
-          <!-- Source Badge -->
-          <div class="mt-2 text-[10px] text-gray-400 font-semibold uppercase tracking-wider">
-            {{ result.source }}
-          </div>
         </div>
       </div>
 
-      <!-- Bottom Info (Always Visible) -->
-      <div class="mt-2 px-1">
-        <h4 class="text-sm font-semibold text-gray-300 truncate group-hover:text-white transition-colors">
-          {{ result.display_title }}
-        </h4>
-      </div>
     </div>
     {% endfor %}
   </div>

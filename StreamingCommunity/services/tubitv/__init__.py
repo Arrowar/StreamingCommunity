@@ -11,7 +11,7 @@ from rich.prompt import Prompt
 # Internal utilities
 from StreamingCommunity.utils import TVShowManager
 from StreamingCommunity.utils.http_client import create_client, get_userAgent, check_region_availability
-from StreamingCommunity.services._base import site_constants, MediaManager, MediaItem
+from StreamingCommunity.services._base import site_constants, EntriesManager, Entries
 from StreamingCommunity.services._base.site_search_manager import base_process_search_result, base_search
 
 
@@ -24,11 +24,10 @@ from .client import get_bearer_token
 indice = 10
 _useFor = "Serie"
 _region = ["US"]
-
-
+_drm = ["widevine", "playready"]
 msg = Prompt()
 console = Console()
-media_search_manager = MediaManager()
+entries_manager = EntriesManager()
 table_show_manager = TVShowManager()
 
 
@@ -66,7 +65,7 @@ def title_search(query: str) -> int:
     Returns:
         int: The number of titles found.
     """
-    media_search_manager.clear()
+    entries_manager.clear()
     table_show_manager.clear()
 
     if not check_region_availability(_region, site_constants.SITE_NAME):
@@ -124,7 +123,7 @@ def title_search(query: str) -> int:
             if "thumbnails" in element and element["thumbnails"]:
                 thumbnail = element["thumbnails"][0]
             
-            media_search_manager.add(MediaItem(
+            entries_manager.add(Entries(
                 name=title,
                 type=type_content,
                 year=str(year) if year else "9999",
@@ -136,13 +135,12 @@ def title_search(query: str) -> int:
             console.print(f"[yellow]Error parsing a title entry: {e}")
             continue
     
-    # Return the number of titles found
-    return media_search_manager.get_length()
+    return len(entries_manager)
 
 
 
 # WRAPPING FUNCTIONS
-def process_search_result(select_title, selections=None):
+def process_search_result(select_title, selections=None, scrape_serie=None):
     """
     Wrapper for the generalized process_search_result function.
     """
@@ -150,23 +148,25 @@ def process_search_result(select_title, selections=None):
         select_title=select_title,
         download_film_func=download_film,
         download_series_func=download_series,
-        media_search_manager=media_search_manager,
+        media_search_manager=entries_manager,
         table_show_manager=table_show_manager,
-        selections=selections
+        selections=selections,
+        scrape_serie=scrape_serie
     )
 
-def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_item: dict = None, selections: dict = None):
+def search(string_to_search: str = None, get_onlyDatabase: bool = False, direct_item: dict = None, selections: dict = None, scrape_serie=None):
     """
     Wrapper for the generalized search function.
     """
     return base_search(
         title_search_func=title_search,
         process_result_func=process_search_result,
-        media_search_manager=media_search_manager,
+        media_search_manager=entries_manager,
         table_show_manager=table_show_manager,
         site_name=site_constants.SITE_NAME,
         string_to_search=string_to_search,
         get_onlyDatabase=get_onlyDatabase,
         direct_item=direct_item,
-        selections=selections
+        selections=selections,
+        scrape_serie=scrape_serie
     )

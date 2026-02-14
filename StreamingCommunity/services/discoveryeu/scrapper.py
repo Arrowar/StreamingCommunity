@@ -29,7 +29,6 @@ class GetSerieInfo:
         self.n_seasons = 0
         self.collection_id = None
         self._get_show_info()
-       
         
     def _get_show_info(self):
         """Get show information including number of seasons and collection ID"""

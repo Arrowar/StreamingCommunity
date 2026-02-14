@@ -5,7 +5,7 @@ from typing import List, Optional
 
 
 # Internal utilities
-from .base import BaseStreamingAPI, MediaItem, Season, Episode
+from .base import BaseStreamingAPI, Entries, Season, Episode
 
 
 # External utilities
@@ -31,7 +31,7 @@ class DmaxAPI(BaseStreamingAPI):
             self._search_fn = getattr(module, "search")
         return self._search_fn
     
-    def search(self, query: str) -> List[MediaItem]:
+    def search(self, query: str) -> List[Entries]:
         """
         Search for content on Dmax.
         
@@ -39,34 +39,37 @@ class DmaxAPI(BaseStreamingAPI):
             query: Search term
             
         Returns:
-            List of MediaItem objects
+            List of Entries objects
         """
         search_fn = self._get_search_fn()
         database = search_fn(query, get_onlyDatabase=True)
         
         results = []
         if database and hasattr(database, 'media_list'):
-            for element in database.media_list:
+            items = list(database.media_list)
+            for element in items:
                 item_dict = element.__dict__.copy() if hasattr(element, '__dict__') else {}
                 
-                media_item = MediaItem(
+                media_item = Entries(
                     name=item_dict.get('name'),
+                    path_id=item_dict.get('path_id'),
                     type=item_dict.get('type'),
                     url=item_dict.get('url'),
                     poster=item_dict.get('image'),
                     year=item_dict.get('year'),
+                    tmdb_id=item_dict.get('tmdb_id'),
                     raw_data=item_dict
                 )
                 results.append(media_item)
         
         return results
     
-    def get_series_metadata(self, media_item: MediaItem) -> Optional[List[Season]]:
+    def get_series_metadata(self, media_item: Entries) -> Optional[List[Season]]:
         """
         Get seasons and episodes for a Dmax series.
         
         Args:
-            media_item: MediaItem to get metadata for
+            media_item: Entries to get metadata for
             
         Returns:
             List of Season objects, or None if not a series
@@ -74,7 +77,11 @@ class DmaxAPI(BaseStreamingAPI):
         if media_item.is_movie:
             return None
         
-        scrape_serie = GetSerieInfo(media_item.url)
+        scrape_serie = self.get_cached_scraper(media_item)
+        if not scrape_serie:
+            scrape_serie = GetSerieInfo(media_item.url)
+            self.set_cached_scraper(media_item, scrape_serie)
+
         scrape_serie.getNumberSeason()
         seasons_count = len(scrape_serie.seasons_manager)
         
@@ -104,12 +111,12 @@ class DmaxAPI(BaseStreamingAPI):
         
         return seasons if seasons else None
     
-    def start_download(self, media_item: MediaItem, season: Optional[str] = None, episodes: Optional[str] = None) -> bool:
+    def start_download(self, media_item: Entries, season: Optional[str] = None, episodes: Optional[str] = None) -> bool:
         """
         Start downloading from Dmax.
         
         Args:
-            media_item: MediaItem to download
+            media_item: Entries to download
             season: Season number (for series)
             episodes: Episode selection
             
@@ -117,9 +124,6 @@ class DmaxAPI(BaseStreamingAPI):
             True if download started successfully
         """
         search_fn = self._get_search_fn()
-        
-        # Prepare direct_item from MediaItem
-        direct_item = media_item.raw_data or media_item.to_dict()
         
         # Prepare selections
         selections = None
@@ -129,6 +133,9 @@ class DmaxAPI(BaseStreamingAPI):
                 'episode': episodes
             }
         
+        scrape_serie = self.get_cached_scraper(media_item)
+        
         # Execute download
-        search_fn(direct_item=direct_item, selections=selections)
+        scrape_serie = self.get_cached_scraper(media_item)
+        search_fn(direct_item=media_item.raw_data, selections=selections, scrape_serie=scrape_serie)
         return True

@@ -15,7 +15,8 @@ class SearchForm(forms.Form):
         label="Sito",
         widget=forms.Select(
             attrs={
-                "class": "block w-full appearance-none rounded-lg border border-gray-300 bg-white py-3 pl-12 pr-12 text-gray-900 placeholder-gray-500 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500",
+                "class": "block w-full appearance-none rounded-xl border-2 border-gray-800 bg-black/50 py-4 pl-6 pr-12 text-white text-lg font-medium cursor-pointer focus:border-red-600 focus:outline-none focus:ring-4 focus:ring-red-600/20 transition-all",
+                "id": "id_site",
             }
         ),
     )
@@ -24,7 +25,7 @@ class SearchForm(forms.Form):
         label="Cosa cerchi?",
         widget=forms.TextInput(
             attrs={
-                "class": "block w-full rounded-lg border border-gray-300 bg-white py-3 pl-12 pr-12 text-gray-900 placeholder-gray-500 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500",
+                "class": "block w-full rounded-xl border-2 border-gray-800 bg-black/50 py-4 pl-6 pr-6 text-white text-lg placeholder-gray-600 focus:border-red-600 focus:outline-none focus:ring-4 focus:ring-red-600/20 transition-all",
                 "placeholder": "Cerca titolo...",
                 "autocomplete": "off",
             }
@@ -38,6 +39,6 @@ class SearchForm(forms.Form):
 
 class DownloadForm(forms.Form):
     source_alias = forms.CharField(widget=forms.HiddenInput)
-    item_payload = forms.CharField(widget=forms.HiddenInput)
-    season = forms.CharField(max_length=10, required=False, label="Stagione")
-    episode = forms.CharField(max_length=20, required=False, label="Episodio (es: 1-3)")
+    item_payload = forms.CharField(widget=forms.HiddenInput, required=False)
+    season = forms.CharField(max_length=100, required=False, label="Stagione")
+    episode = forms.CharField(max_length=1000, required=False, label="Episodio (es: 1-3)")

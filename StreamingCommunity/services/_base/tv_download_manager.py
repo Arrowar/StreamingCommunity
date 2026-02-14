@@ -111,7 +111,7 @@ def process_episode_download(index_season_selected: int, scrape_serie: Any, down
     
     if download_all:
         for i_episode in range(1, episodes_count + 1):
-            path, stopped = download_video_callback(index_season_selected, i_episode)
+            path, stopped = download_video_callback(episodes[i_episode-1], index_season_selected, i_episode)
             
             if stopped:
                 break
@@ -148,10 +148,13 @@ def process_episode_download(index_season_selected: int, scrape_serie: Any, down
                 
                 # 2. Check if it's a valid episode number
                 else:
+                    print("Failed index check, trying episode number check...")
                     found = False
                     for idx, ep in enumerate(episodes, 1):
                         ep_num = ep.get('number') if isinstance(ep, dict) else getattr(ep, 'number', None)
-                        if ep_num == val:
+                        
+                        # Compare as strings to handle numeric-like strings from API GUI
+                        if str(ep_num) == str(val):
                             list_episode_select.append(idx)
                             found = True
                             break

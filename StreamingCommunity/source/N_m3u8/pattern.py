@@ -2,9 +2,9 @@
 
 import re
 
-PERCENT_RE = re.compile(r"(\d+\.\d+)%")
-SPEED_RE = re.compile(r"(\d+\.\d+(?:MB|KB|GB)ps)")
-SIZE_RE = re.compile(r"(\d+\.\d+(?:MB|GB|KB))/(\d+\.\d+(?:MB|GB|KB))")
+PERCENT_RE = re.compile(r"(\d+(?:\.\d+)?)%")
+SPEED_RE = re.compile(r"(\d+(?:\.\d+)?(?:MB|KB|GB|B)ps)")
+SIZE_RE = re.compile(r"(\d+(?:\.\d+)?(?:MB|GB|KB|B))/(\d+(?:\.\d+)?(?:MB|GB|KB|B))")
 SEGMENT_RE = re.compile(r"(\d+)/(\d+)")
 VIDEO_LINE_RE = re.compile(r"Vid\s+(\d+x\d+)")
 AUDIO_LINE_RE = re.compile(r"Aud\s+([^|]+?)\s*\|\s*([\w-]+)")

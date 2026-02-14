@@ -32,4 +32,4 @@ ENV PYTHONPATH="/app:${PYTHONPATH}" \
 
 EXPOSE 8000
 
-CMD ["python", "GUI/manage.py", "runserver", "0.0.0.0:8000"]
+CMD ["sh", "-c", "python GUI/manage.py migrate --noinput && python GUI/manage.py runserver 0.0.0.0:8000"]

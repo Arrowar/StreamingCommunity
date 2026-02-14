@@ -12,19 +12,22 @@ from rich.console import Console
 
 
 # Internal utilities
+from StreamingCommunity.utils import config_manager, os_manager, internet_manager
 from StreamingCommunity.utils.http_client import get_headers
+from StreamingCommunity.setup import get_wvd_path, get_prd_path
 from StreamingCommunity.core.processors import join_video, join_audios, join_subtitles
 from StreamingCommunity.core.processors.helper.nfo import create_nfo
 from StreamingCommunity.source.utils.tracker import download_tracker, context_tracker
 from StreamingCommunity.source.utils.media_players import MediaPlayers
-from StreamingCommunity.utils import config_manager, os_manager, internet_manager
 
 
 # DRM Utilities
-from StreamingCommunity.source.N_m3u8 import MediaDownloader
-from StreamingCommunity.setup import get_wvd_path, get_prd_path
 from ..parser import MPDParser, DRMSystem
 from ..drm import DRMManager
+
+
+# Downloader
+from StreamingCommunity.source.N_m3u8 import MediaDownloader
 
 
 # Config
@@ -33,6 +36,9 @@ CLEANUP_TMP = config_manager.config.get_bool('M3U8_DOWNLOAD', 'cleanup_tmp_folde
 EXTENSION_OUTPUT = config_manager.config.get("M3U8_CONVERSION", "extension")
 SKIP_DOWNLOAD = config_manager.config.get_bool('M3U8_DOWNLOAD', 'skip_download')
 CREATE_NFO_FILES = config_manager.config.get_bool('M3U8_CONVERSION', 'generate_nfo', default=False)
+SUBTITLE_FILTER = config_manager.config.get('M3U8_DOWNLOAD', 'select_subtitle')
+MERGE_SUBTITLES = config_manager.config.get_bool('M3U8_CONVERSION', 'merge_subtitle', default=True)
+MERGE_AUDIO = config_manager.config.get_bool('M3U8_CONVERSION', 'merge_audio', default=True)
 
 
 class DASH_Downloader:
@@ -75,21 +81,19 @@ class DASH_Downloader:
         # DRM and state
         self.drm_info = None
         self.decryption_keys = []
-        self.kid_to_label = {}
         self.media_downloader = None
         self.meta_json = self.meta_selected = self.raw_mpd = None
         self.error = None
         self.last_merge_result = None
         self.media_players = None
+        self.copied_subtitles = []
+        self.copied_audios = []
     
     def _setup_drm_info(self, selected_ids, selected_kids, selected_langs, selected_periods):
         """Fetch and setup DRM information."""
         try:
             parser = MPDParser(self.mpd_url, headers=self.mpd_headers)
             parser.parse_from_file(self.raw_mpd)
-            
-            # Map KIDs to labels
-            self._map_kids_to_labels(parser, selected_ids, selected_kids, selected_langs, selected_periods)
             
             # Get DRM info
             self.drm_info = parser.get_drm_info(
@@ -102,44 +106,6 @@ class DASH_Downloader:
             console.print(f"[yellow]Warning parsing MPD: {e}")
             return False
     
-    def _map_kids_to_labels(self, parser, selected_ids, selected_kids, selected_langs, selected_periods):
-        """Map KIDs to descriptive labels."""
-        self.kid_to_label = {}
-        sets = parser.get_adaptation_sets_info(selected_ids, selected_kids, selected_langs, selected_periods)
-        
-        # Group by content type
-        groups = {}
-        for s in sets:
-            if s['content_type'] in ('image', 'text'):
-                continue
-            groups.setdefault(s['content_type'], []).append(s)
-        
-        has_filter = any([selected_ids, selected_kids, selected_langs])
-        
-        for c_type, items in groups.items():
-            is_uni = len({i['default_kid'] for i in items}) == 1 and not has_filter
-            
-            for item in items:
-                if not item['default_kid']:
-                    continue
-                
-                norm_kid = item['default_kid'].lower().replace('-', '')
-                label = self._generate_label(item, c_type, is_uni)
-                self.kid_to_label[norm_kid] = label
-    
-    def _generate_label(self, item, content_type, is_uniform):
-        """Generate label for a stream."""
-        if is_uniform:
-            return f"all {content_type}"
-        
-        parts = [content_type]
-        if item.get('height'):
-            parts.append(f"{item['height']}p")
-        if item.get('language') and item['language'] != 'N/A':
-            parts.append(f"({item['language']})")
-        
-        return " ".join(parts)
-    
     def _fetch_decryption_keys(self):
         """Fetch decryption keys based on DRM type."""
         if len(self.drm_info.get('available_drm_types', [])) > 0 and (self.license_url is None or self.license_url == "") or len(self.drm_info.get('available_drm_types', [])) > 0 and (self.key is None or self.key == ""):
@@ -151,9 +117,9 @@ class DASH_Downloader:
         drm_type = self.drm_info['selected_drm_type']
         try:
             if drm_type == DRMSystem.WIDEVINE:
-                keys = self.drm_manager.get_wv_keys(self.drm_info.get('widevine_pssh', []), self.license_url, self.license_headers, self.key, self.kid_to_label)
+                keys = self.drm_manager.get_wv_keys(self.drm_info.get('widevine_pssh', []), self.license_url, self.license_headers, self.key)
             elif drm_type == DRMSystem.PLAYREADY:
-                keys = self.drm_manager.get_pr_keys(self.drm_info.get('playready_pssh', []), self.license_url, self.license_headers, self.key, self.kid_to_label)
+                keys = self.drm_manager.get_pr_keys(self.drm_info.get('playready_pssh', []), self.license_url, self.license_headers, self.key)
             else:
                 console.print(f"[red]Unsupported DRM type: {drm_type}")
                 self.error = f"Unsupported DRM type: {drm_type}"
@@ -176,9 +142,17 @@ class DASH_Downloader:
         """Extract selected track information from metadata files."""
         selected_ids, selected_kids, selected_langs, selected_periods = [], [], [], []
         has_video_in_selected = False
+
+        # For Manual SHIT downloader, extract from raw MPD if available
+        if hasattr(self.media_downloader, 'get_selected_ids_from_mpd') and self.raw_mpd:
+            selected_ids, selected_kids, selected_langs, selected_periods = self.media_downloader.get_selected_ids_from_mpd(self.raw_mpd)
+            for sid in selected_ids:
+                has_video_in_selected = True
+                break
+            return (selected_ids, selected_kids, selected_langs, selected_periods)
         
         # 1. Process meta_selected first if it exists
-        if os.path.exists(self.meta_selected):
+        if self.meta_selected and os.path.exists(self.meta_selected):
             try:
                 with open(self.meta_selected, "r", encoding="utf-8-sig") as f:
                     data = json.load(f)
@@ -306,16 +280,18 @@ class DASH_Downloader:
             site_name=self.site_name
         )
         
-        if self.mpd_sub_list:
+        if self.mpd_sub_list and SUBTITLE_FILTER != "false":
+            console.print(f"[dim]Adding {len(self.mpd_sub_list)} external subtitle(s) to the downloader.")
             self.media_downloader.external_subtitles = self.mpd_sub_list
         
         if self.download_id:
             download_tracker.update_status(self.download_id, "Parsing...")
-            
+        
+        console.print("[dim]Parsing MPD ...")
         self.media_downloader.parser_stream()
         
         # Get metadata
-        self.meta_json, self.meta_selected, _, self.raw_mpd = self.media_downloader.get_metadata()
+        self.meta_json, self.meta_selected, _, self.raw_mpd, _ = self.media_downloader.get_metadata()
         
         # Extract selected track info
         selected_info = self._extract_selected_track_info()
@@ -342,8 +318,9 @@ class DASH_Downloader:
         # Set keys and start download
         if self.download_id:
             download_tracker.update_status(self.download_id, "downloading")
-            
-        self.media_downloader.set_key(self.decryption_keys if self.decryption_keys else None)
+        
+        console.print("[dim]Starting download ...")
+        self.media_downloader.set_key(self.decryption_keys)
         status = self.media_downloader.start_download()
         
         # Check for cancellation
@@ -375,7 +352,14 @@ class DASH_Downloader:
             return None, True
         
         # Move to final location if needed
-        self._move_to_final_location(final_file)
+        if final_file and os.path.exists(final_file):
+            self._move_to_final_location(final_file)
+        
+        # Move subtitle files if any were copied without merging
+        self._move_copied_subtitles()
+        
+        # Move audio files if any were copied without merging
+        self._move_copied_audios()
         
         # Print summary and cleanup
         self._print_summary()
@@ -423,20 +407,27 @@ class DASH_Downloader:
             console.print("[cyan]\nNo additional tracks to merge, muxing video...")
             merged_file, result_json = join_video(
                 video_path=video_path,
-                out_path=self.output_path
+                out_path=self.output_path,
+                log_path=os.path.join(self.output_dir, "video_mux.log")
             )
             self.last_merge_result = result_json
             return merged_file if os.path.exists(merged_file) else None
         
         current_file = video_path
         
-        # Merge audio tracks
+        # Merge or track audio tracks
         if status['audios']:
-            current_file = self._merge_audio_tracks(current_file, status['audios'])
+            if MERGE_AUDIO:
+                current_file = self._merge_audio_tracks(current_file, status['audios'])
+            else:
+                self._track_audios_for_copy(status['audios'])
         
-        # Merge subtitle tracks
+       # Merge or track subtitle tracks
         if status['subtitles']:
-            current_file = self._merge_subtitle_tracks(current_file, status['subtitles'])
+            if MERGE_SUBTITLES:
+                current_file = self._merge_subtitle_tracks(current_file, status['subtitles'])
+            else:
+                self._track_subtitles_for_copy(status['subtitles'])
         
         return current_file
     
@@ -448,7 +439,8 @@ class DASH_Downloader:
         merged_file, _, result_json = join_audios(
             video_path=current_file,
             audio_tracks=audio_tracks,
-            out_path=audio_output
+            out_path=audio_output,
+            log_path=os.path.join(self.output_dir, "audio_merge.log")
         )
         self.last_merge_result = result_json
         
@@ -466,7 +458,8 @@ class DASH_Downloader:
         merged_file, result_json = join_subtitles(
             video_path=current_file,
             subtitles_list=subtitle_tracks,
-            out_path=sub_output
+            out_path=sub_output,
+            log_path=os.path.join(self.output_dir, "sub_merge.log")
         )
         self.last_merge_result = result_json
         
@@ -475,6 +468,76 @@ class DASH_Downloader:
         else:
             console.print("[yellow]Subtitle merge failed, continuing without subtitles")
             return current_file
+    
+    def _track_subtitles_for_copy(self, subtitles_list):
+        """Track subtitle paths for later copying to final location."""
+        for idx, subtitle in enumerate(subtitles_list):
+            sub_path = subtitle.get('path')
+            if sub_path and os.path.exists(sub_path):
+                language = subtitle.get('language', f'sub{idx}')
+                extension = os.path.splitext(sub_path)[1]
+                self.copied_subtitles.append({
+                    'src': sub_path,
+                    'language': language,
+                    'extension': extension
+                })
+    
+    def _move_copied_subtitles(self):
+        """Move tracked subtitle files to final output directory."""
+        if not self.copied_subtitles:
+            return
+        
+        output_dir = os.path.dirname(self.output_path)
+        filename_base = os.path.splitext(os.path.basename(self.output_path))[0]
+        console.print("[cyan]Copy the subtitles to the final path.")
+        
+        for sub_info in self.copied_subtitles:
+            src_path = sub_info['src']
+            language = sub_info['language']
+            extension = sub_info['extension']
+            
+            # final name
+            dst_path = os.path.join(output_dir, f"{filename_base}.{language}{extension}")
+            
+            try:
+                shutil.copy2(src_path, dst_path)
+            except Exception as e:
+                console.print(f"[yellow]Warning: Could not move subtitle {language}: {e}")
+    
+    def _track_audios_for_copy(self, audios_list):
+        """Track audio paths for later copying to final location."""
+        for idx, audio in enumerate(audios_list):
+            audio_path = audio.get('path')
+            if audio_path and os.path.exists(audio_path):
+                language = audio.get('language', f'audio{idx}')
+                extension = os.path.splitext(audio_path)[1]
+                self.copied_audios.append({
+                    'src': audio_path,
+                    'language': language,
+                    'extension': extension
+                })
+    
+    def _move_copied_audios(self):
+        """Move tracked audio files to final output directory if copied_audios exists."""
+        if not self.copied_audios:
+            return
+        
+        output_dir = os.path.dirname(self.output_path)
+        filename_base = os.path.splitext(os.path.basename(self.output_path))[0]
+        console.print("[cyan]Copy the audios to the final path.")
+        
+        for audio_info in self.copied_audios:
+            src_path = audio_info['src']
+            language = audio_info['language']
+            extension = audio_info['extension']
+            
+            # final name
+            dst_path = os.path.join(output_dir, f"{filename_base}.{language}{extension}")
+            
+            try:
+                shutil.copy2(src_path, dst_path)
+            except Exception as e:
+                console.print(f"[yellow]Warning: Could not move audio {language}: {e}")
     
     def _print_summary(self):
         """Print download summary."""

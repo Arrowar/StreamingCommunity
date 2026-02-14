@@ -1,6 +1,7 @@
 httpx
 bs4
 rich
+ttconv
 unidecode
 curl_cffi
 jsbeautifier
@@ -8,3 +9,4 @@ pathvalidate
 ua-generator
 pywidevine
 pyplayready
+pycryptodomex

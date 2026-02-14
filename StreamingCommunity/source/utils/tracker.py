@@ -5,17 +5,23 @@ import threading
 from typing import Dict, Any, List
 
 
-class DownloadTracker:
-    _instance = None
+class SingletonMeta(type):
+    _instances = {}
     _lock = threading.Lock()
-    
-    def __new__(cls):
+
+    def __call__(cls, *args, **kwargs):
         with cls._lock:
-            if cls._instance is None:
-                cls._instance = super(DownloadTracker, cls).__new__(cls)
-                cls._instance._init_tracker()
-            return cls._instance
-            
+            if cls not in cls._instances:
+                cls._instances[cls] = super().__call__(*args, **kwargs)
+            return cls._instances[cls]
+
+
+class DownloadTracker(metaclass=SingletonMeta):
+    def __init__(self):
+        if not hasattr(self, '_initialized'):
+            self._initialized = True
+            self._init_tracker()
+    
     def _init_tracker(self):
         self.downloads: Dict[str, Dict[str, Any]] = {}
         self.history: List[Dict[str, Any]] = []
@@ -128,6 +134,24 @@ class DownloadTracker:
             if download_id and download_id in self.active_processes:
                 self.active_processes[download_id].append(process)
 
+    def shutdown(self):
+        """Shutdown all active downloads and kill their processes."""
+        print("Shutting down DownloadTracker, stopping all active downloads...")
+        with self._lock:
+            for download_id in list(self.downloads.keys()):
+                self.request_stop(download_id)
+            
+            # Kill all registered processes
+            for processes in self.active_processes.values():
+                for proc in processes:
+                    try:
+                        if hasattr(proc, 'terminate'):
+                            proc.terminate()
+                        elif hasattr(proc, 'cancel'):
+                            proc.cancel()
+                    except Exception:
+                        pass
+
     def complete_download(self, download_id: str, success: bool = True, error: str = None, path: str = None):
         with self._lock:
             if download_id in self.downloads:
@@ -172,8 +196,15 @@ class DownloadTracker:
         with self._lock:
             return list(reversed(self.history))
 
+    def clear_history(self):
+        """Clear all download history."""
+        with self._lock:
+            self.history.clear()
+
 
 class ContextTracker:
+    _global_is_gui = False
+
     def __init__(self):
         self.local = threading.local()
     
@@ -200,6 +231,15 @@ class ContextTracker:
     @site_name.setter
     def site_name(self, value):
         self.local.site_name = value
+
+    @property
+    def is_gui(self):
+        return getattr(self.local, 'is_gui', self._global_is_gui)
+    
+    @is_gui.setter
+    def is_gui(self, value):
+        self.local.is_gui = value
+        ContextTracker._global_is_gui = value
 
 
 # Global instance

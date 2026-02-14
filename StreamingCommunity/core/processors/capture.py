@@ -1,10 +1,12 @@
 # 16.04.24
 
 import re
+import os
 import time
 import logging
 import threading
 import subprocess
+from typing import Optional
 
 
 # External library
@@ -35,7 +37,7 @@ class ProgressData:
             return self.last_data
 
 
-def capture_output(process: subprocess.Popen, description: str, progress_data: ProgressData) -> None:
+def capture_output(process: subprocess.Popen, description: str, progress_data: ProgressData, log_path: Optional[str] = None) -> None:
     """
     Function to capture and print output from a subprocess.
 
@@ -43,67 +45,81 @@ def capture_output(process: subprocess.Popen, description: str, progress_data: P
         - process (subprocess.Popen): The subprocess whose output is captured.
         - description (str): Description of the command being executed.
         - progress_data (ProgressData): Object to store the last progress data.
+        - log_path (Optional[str]): Path to log file to write output.
     """
+    log_file = None
+    if log_path:
+        try:
+            os.makedirs(os.path.dirname(log_path), exist_ok=True)
+            log_file = open(log_path, 'w', encoding='utf-8')
+        except Exception as e:
+            logging.error(f"Error opening log file {log_path}: {e}")
+    
     try:
         max_length = 0
         start_time = time.time()
 
-        for line in iter(process.stdout.readline, ''):          
-            try:
-                line = line.strip()
+        with log_file or open(os.devnull, 'w') as log_f:
+            for line in iter(process.stdout.readline, ''):          
+                try:
+                    line = line.strip()
 
-                if not line:
-                    continue
+                    if not line:
+                        continue
 
-                # Check if termination is requested
-                if terminate_flag.is_set():
-                    break
+                    # Write to log file
+                    log_f.write(line + '\n')
+                    log_f.flush()
 
-                if "size=" in line:
-                    try:
-                        elapsed_time = time.time() - start_time
-                        data = parse_output_line(line)
+                    # Check if termination is requested
+                    if terminate_flag.is_set():
+                        break
 
-                        if 'q' in data:
-                            is_end = (float(data.get('q', -1.0)) == -1.0)
-                            size_key = 'Lsize' if is_end else 'size'
-                            byte_size = int(re.findall(r'\d+', data.get(size_key, '0'))[0]) * 1000
-                        else:
-                            byte_size = int(re.findall(r'\d+', data.get('size', '0'))[0]) * 1000
+                    if "size=" in line:
+                        try:
+                            elapsed_time = time.time() - start_time
+                            data = parse_output_line(line)
 
-                        # Extract additional information
-                        fps = data.get('fps', 'N/A')
-                        time_processed = data.get('time', 'N/A')
-                        bitrate = data.get('bitrate', 'N/A')
-                        speed = data.get('speed', 'N/A')
+                            if 'q' in data:
+                                is_end = (float(data.get('q', -1.0)) == -1.0)
+                                size_key = 'Lsize' if is_end else 'size'
+                                byte_size = int(re.findall(r'\d+', data.get(size_key, '0'))[0]) * 1000
+                            else:
+                                byte_size = int(re.findall(r'\d+', data.get('size', '0'))[0]) * 1000
 
-                        # Format elapsed time as HH:MM:SS
-                        elapsed_formatted = internet_manager.format_time(elapsed_time, add_hours=True)
+                            # Extract additional information
+                            fps = data.get('fps', 'N/A')
+                            time_processed = data.get('time', 'N/A')
+                            bitrate = data.get('bitrate', 'N/A')
+                            speed = data.get('speed', 'N/A')
 
-                        # Store progress data as JSON
-                        json_data = {'fps': fps,'speed': speed, 'time': time_processed,'bitrate': bitrate}
-                        progress_data.update(json_data)
+                            # Format elapsed time as HH:MM:SS
+                            elapsed_formatted = internet_manager.format_time(elapsed_time, add_hours=True)
 
-                        # Construct the progress string with formatted output information
-                        progress_string = (
-                            f"{description}[white]: "
-                            f"([green]'fps': [yellow]{fps}[white], "
-                            f"[green]'speed': [yellow]{speed}[white], "
-                            f"[green]'size': [yellow]{internet_manager.format_file_size(byte_size)}[white], "
-                            f"[green]'time': [yellow]{time_processed}[white], "
-                            f"[green]'bitrate': [yellow]{bitrate}[white], "
-                            f"[green]'elapsed': [yellow]{elapsed_formatted}[white])"
-                        )
-                        max_length = max(max_length, len(progress_string))
+                            # Store progress data as JSON
+                            json_data = {'fps': fps,'speed': speed, 'time': time_processed,'bitrate': bitrate}
+                            progress_data.update(json_data)
 
-                        # Print the progress string to the console, overwriting the previous line
-                        console.print(progress_string.ljust(max_length), end="\r")
+                            # Construct the progress string with formatted output information
+                            progress_string = (
+                                f"{description}[white]: "
+                                f"([green]'fps': [yellow]{fps}[white], "
+                                f"[green]'speed': [yellow]{speed}[white], "
+                                f"[green]'size': [yellow]{internet_manager.format_file_size(byte_size)}[white], "
+                                f"[green]'time': [yellow]{time_processed}[white], "
+                                f"[green]'bitrate': [yellow]{bitrate}[white], "
+                                f"[green]'elapsed': [yellow]{elapsed_formatted}[white])"
+                            )
+                            max_length = max(max_length, len(progress_string))
 
-                    except Exception as e:
-                        logging.error(f"Error parsing output line: {line} - {e}")
+                            # Print the progress string to the console, overwriting the previous line
+                            console.print(progress_string.ljust(max_length), end="\r")
 
-            except Exception as e:
-                logging.error(f"Error processing line from subprocess: {e}")
+                        except Exception as e:
+                            logging.error(f"Error parsing output line: {line} - {e}")
+
+                except Exception as e:
+                    logging.error(f"Error processing line from subprocess: {e}")
 
     except Exception as e:
         logging.error(f"Error in capture_output: {e}")
@@ -162,7 +178,7 @@ def terminate_process(process):
         logging.error(f"Failed to terminate process: {e}")
 
 
-def capture_ffmpeg_real_time(ffmpeg_command: list, description: str) -> dict:
+def capture_ffmpeg_real_time(ffmpeg_command: list, description: str, log_path: Optional[str] = None) -> dict:
     """
     Function to capture real-time output from ffmpeg process.
 
@@ -187,7 +203,7 @@ def capture_ffmpeg_real_time(ffmpeg_command: list, description: str) -> dict:
         process = subprocess.Popen(ffmpeg_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
 
         # Start a thread to capture and print output
-        output_thread = threading.Thread(target=capture_output, args=(process, description, progress_data))
+        output_thread = threading.Thread(target=capture_output, args=(process, description, progress_data, log_path))
         output_thread.start()
 
         try:

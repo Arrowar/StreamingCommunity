@@ -9,6 +9,7 @@ from rich.console import Console
 # Internal utilities
 from StreamingCommunity.utils import config_manager
 from StreamingCommunity.utils.vault import obj_localDbValut, obj_externalSupaDbVault
+from StreamingCommunity.source.utils.object import KeysManager
 
 
 # Logic
@@ -36,7 +37,7 @@ class DRMManager:
         self.is_local_db_connected = obj_localDbValut is not None
         self.is_supa_db_connected = obj_externalSupaDbVault is not None
     
-    def get_wv_keys(self, pssh_list: list[dict], license_url: str, headers: dict = None, key: str = None, kid_to_label: dict = None) -> list[str]:
+    def get_wv_keys(self, pssh_list: list[dict], license_url: str, headers: dict = None, key: str = None):
         """
         Get Widevine keys with step: 
             1) Database lookup by license URL and PSSH
@@ -60,7 +61,7 @@ class DRMManager:
                     console.print(f"    - [red]{kid}[white]:[green]{masked_key} [cyan]| [red]Manual")
                     manual_keys.append(f"{kid}:{key_val}")
             if manual_keys:
-                return manual_keys
+                return KeysManager(manual_keys)
             
         # Extract PSSH from first entry for database lookup
         pssh_val = pssh_list[0].get('pssh') if pssh_list else None
@@ -73,28 +74,30 @@ class DRMManager:
             found_keys = obj_localDbValut.get_keys_by_pssh(license_url, pssh_val, 'widevine')
             
             if found_keys:
-                return found_keys
+                return KeysManager(found_keys)
             
         # Setp 1.1: Check external Supabase database if connected
         if self.is_supa_db_connected and license_url and pssh_val:
             found_keys = obj_externalSupaDbVault.get_keys_by_pssh(license_url, pssh_val, 'widevine')
             
             if found_keys:
-                return found_keys
+                return KeysManager(found_keys)
         
         # Step 3: Try CDM extraction
         try:
-            keys = get_widevine_keys(pssh_list, license_url, self.widevine_device_path, self.widevine_remote_cdm_api, headers, key, kid_to_label)
+            console.print(f"[dim]Waiting {DELAY} seconds after CDM request ...")
             time.sleep(DELAY)
+            keys = get_widevine_keys(pssh_list, license_url, self.widevine_device_path, self.widevine_remote_cdm_api, headers, key)
                 
             if keys:
+                keys_list = keys.get_keys_list()
                 if self.is_local_db_connected and license_url and pssh_val:
                     console.print(f"Storing {len(keys)} key(s) to local database...")
-                    obj_localDbValut.set_keys(keys, 'widevine', license_url, pssh_val, kid_to_label)
+                    obj_localDbValut.set_keys(keys_list, 'widevine', license_url, pssh_val)
 
                 if self.is_supa_db_connected and license_url and pssh_val:
                     console.print(f"Storing {len(keys)} key(s) to Supabase database...")
-                    obj_externalSupaDbVault.set_keys(keys, 'widevine', license_url, pssh_val, kid_to_label)
+                    obj_externalSupaDbVault.set_keys(keys_list, 'widevine', license_url, pssh_val)
 
                 return keys
             
@@ -107,7 +110,7 @@ class DRMManager:
         console.print("\n[red]All extraction methods failed for Widevine")
         return None
     
-    def get_pr_keys(self, pssh_list: list[dict], license_url: str, headers: dict = None, key: str = None, kid_to_label: dict = None) -> list[str]:
+    def get_pr_keys(self, pssh_list: list[dict], license_url: str, headers: dict = None, key: str = None):
         """
         Get PlayReady keys with step: 
             1) Database lookup by license URL and PSSH
@@ -131,7 +134,7 @@ class DRMManager:
                     console.print(f"    - [red]{kid}[white]:[green]{masked_key} [cyan]| [red]Manual")
                     manual_keys.append(f"{kid}:{key_val}")
             if manual_keys:
-                return manual_keys
+                return KeysManager(manual_keys)
         
         # Extract PSSH from first entry for database lookup
         pssh_val = pssh_list[0].get('pssh') if pssh_list else None
@@ -144,28 +147,30 @@ class DRMManager:
             found_keys = obj_localDbValut.get_keys_by_pssh(license_url, pssh_val, 'playready')
             
             if found_keys:
-                return found_keys
+                return KeysManager(found_keys)
             
         # Setp 1.1: Check external Supabase database if connected
         if self.is_supa_db_connected and license_url and pssh_val:
             found_keys = obj_externalSupaDbVault.get_keys_by_pssh(license_url, pssh_val, 'playready')
             
             if found_keys:
-                return found_keys
+                return KeysManager(found_keys)
         
         # Step 3: Try CDM extraction
         try:
-            keys = get_playready_keys(pssh_list, license_url, self.playready_device_path, self.playready_remote_cdm_api, headers, key, kid_to_label)
+            console.print(f"[dim]Waiting {DELAY} seconds after CDM request ...")
             time.sleep(DELAY)
+            keys = get_playready_keys(pssh_list, license_url, self.playready_device_path, self.playready_remote_cdm_api, headers, key)
             
             if keys:
+                keys_list = keys.get_keys_list()
                 if self.is_local_db_connected and license_url and pssh_val:
                     console.print(f"Storing {len(keys)} key(s) to local database...")
-                    obj_localDbValut.set_keys(keys, 'playready', license_url, pssh_val, kid_to_label)
+                    obj_localDbValut.set_keys(keys_list, 'playready', license_url, pssh_val)
 
                 if self.is_supa_db_connected and license_url and pssh_val:
                     console.print(f"Storing {len(keys)} key(s) to Supabase database...")
-                    obj_externalSupaDbVault.set_keys(keys, 'playready', license_url, pssh_val, kid_to_label)
+                    obj_externalSupaDbVault.set_keys(keys_list, 'playready', license_url, pssh_val)
 
                 return keys
             else:

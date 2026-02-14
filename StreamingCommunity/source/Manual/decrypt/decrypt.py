@@ -9,8 +9,15 @@ import logging
 
 # External import 
 from rich.console import Console
-from Cryptodome.Cipher import AES
-from Cryptodome.Util.Padding import unpad
+try:
+    from Cryptodome.Cipher import AES
+    from Cryptodome.Util.Padding import unpad
+except:
+    try:
+        from Crypto.Cipher import AES
+        from Crypto.Util.Padding import unpad
+    except: 
+        logging.warning("PyCryptodome not found, HLS segment decryption will not work. Install with 'pip install pycryptodome' for AES-128-CBC support.")
 
 
 # Internal import

@@ -168,10 +168,6 @@ def _get_widevine_keys(pssh_list: list[dict], license_url: str, cdm_device_path:
                     # Skip all-zero KIDs
                     if all(c == '0' for c in kid):
                         continue
-
-                    # Check if this KID is in our expected list
-                    if kid not in expected_kids:
-                        console.print(f"[yellow]Warning: Extracted KID [red]{kid} [yellow]is not in the expected KID list")
                     
                     # Skip if we already extracted this KID
                     if kid in extracted_kids:

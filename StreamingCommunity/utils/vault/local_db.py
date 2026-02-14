@@ -281,12 +281,7 @@ class LocalDBVault:
             for row in cursor.fetchall():
                 kid, key, label = row
                 keys.append(f"{kid}:{key}")
-                
-                # Display label if available
-                masked_key = key[:-1] + "*"
-                label_str = f" [cyan]| [red]{label}" if label else ""
-                
-                console.print(f"    - [red]{kid}[white]:[green]{masked_key}{label_str}")
+                console.print(f"    - [red]{kid}[white]:[green]{key}")
             
             conn.commit()
             return keys

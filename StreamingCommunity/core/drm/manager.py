@@ -85,8 +85,9 @@ class DRMManager:
         
         # Step 3: Try CDM extraction
         try:
-            keys = get_widevine_keys(pssh_list, license_url, self.widevine_device_path, self.widevine_remote_cdm_api, headers, key)
+            console.print(f"[dim]Waiting {DELAY} seconds after CDM request ...")
             time.sleep(DELAY)
+            keys = get_widevine_keys(pssh_list, license_url, self.widevine_device_path, self.widevine_remote_cdm_api, headers, key)
                 
             if keys:
                 keys_list = keys.get_keys_list()
@@ -157,8 +158,9 @@ class DRMManager:
         
         # Step 3: Try CDM extraction
         try:
-            keys = get_playready_keys(pssh_list, license_url, self.playready_device_path, self.playready_remote_cdm_api, headers, key)
+            console.print(f"[dim]Waiting {DELAY} seconds after CDM request ...")
             time.sleep(DELAY)
+            keys = get_playready_keys(pssh_list, license_url, self.playready_device_path, self.playready_remote_cdm_api, headers, key)
             
             if keys:
                 keys_list = keys.get_keys_list()

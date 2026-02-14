@@ -63,7 +63,7 @@ class MediaDownloader:
         self.streams = []
         self.external_subtitles = []
         self.force_best_video = False
-        self.meta_json_path, self.meta_selected_path, self.raw_m3u8, self.raw_mpd = None, None, None, None 
+        self.meta_json_path, self.meta_selected_path, self.raw_m3u8, self.raw_mpd, self.raw_ism = None, None, None, None, None 
         self.status = None
         self.manifest_type = "Unknown"
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -169,9 +169,10 @@ class MediaDownloader:
         self.meta_selected_path = analysis_dir / "meta_selected.json"
         self.raw_m3u8 = analysis_dir / "raw.m3u8"
         self.raw_mpd = analysis_dir / "raw.mpd"
+        self.raw_ism = analysis_dir / "raw.ism"
         
         # Determine manifest type
-        self.manifest_type = "DASH" if self.raw_mpd.exists() else "HLS" if self.raw_m3u8.exists() else "Unknown"
+        self.manifest_type = "DASH" if self.raw_mpd.exists() else "HLS" if self.raw_m3u8.exists() else "ISM" if self.raw_ism.exists() else "Unknown"
         
         if self.meta_json_path.exists():
             self.streams = parse_meta_json(str(self.meta_json_path), str(self.meta_selected_path))
@@ -204,7 +205,7 @@ class MediaDownloader:
 
     def get_metadata(self) -> tuple:
         """Get paths to metadata files"""
-        return str(self.meta_json_path), str(self.meta_selected_path), str(self.raw_m3u8), str(self.raw_mpd)
+        return str(self.meta_json_path), str(self.meta_selected_path), str(self.raw_m3u8), str(self.raw_mpd), str(self.raw_ism)
     
     def set_key(self, key):
         """Set decryption key"""

@@ -104,15 +104,12 @@ class ExternalSupaDBVault:
             keys = result.get('keys', [])
             
             if keys:
-                # Print header (reference from widevine.py)
                 console.print("[cyan]Using Supabase Vault.")
                 console.print(f"[red]{drm_type} [cyan](PSSH: [yellow]{pssh[:30]}...[cyan] KID: [red]N/A)")
                 
                 for key_data in keys:
                     kid, key_val = key_data['kid_key'].split(':')
-                    masked_key = key_val[:-1] + "*"
-                    label_str = f" [cyan]| [red]{key_data['label']}" if key_data.get('label') else ""
-                    console.print(f"    - [red]{kid}[white]:[green]{masked_key}{label_str}")
+                    console.print(f"    - [red]{kid}[white]:[green]{key_val}")
             
             return [k['kid_key'] for k in keys]
             

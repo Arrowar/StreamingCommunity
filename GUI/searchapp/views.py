@@ -23,6 +23,7 @@ from django.utils import timezone
 # Internal utilities
 from .forms import SearchForm, DownloadForm
 from .models import WatchlistItem
+from .watchlist_auto import _get_interval_seconds
 from GUI.searchapp.api import get_api
 from GUI.searchapp.api.base import Entries
 
@@ -511,7 +512,33 @@ def clear_download_history(request: HttpRequest) -> JsonResponse:
 def watchlist(request: HttpRequest) -> HttpResponse:
     """Display the watchlist."""
     items = WatchlistItem.objects.all()
-    return render(request, "searchapp/watchlist.html", {"items": items})
+    for item in items:
+        item.season_numbers = list(range(1, item.num_seasons + 1))
+    poll_interval_seconds = _get_interval_seconds()
+    return render(
+        request,
+        "searchapp/watchlist.html",
+        {"items": items, "poll_interval_seconds": poll_interval_seconds},
+    )
+
+
+@require_http_methods(["POST"])
+def set_watchlist_polling_interval(request: HttpRequest) -> HttpResponse:
+    """Update the watchlist auto-check interval for this process."""
+    raw = request.POST.get("poll_interval", "")
+    try:
+        value = int(raw)
+    except Exception:
+        value = None
+
+    allowed = {300, 900, 1800, 3600, 21600, 43200, 86400}
+    if value not in allowed:
+        messages.error(request, "Intervallo non valido.")
+        return redirect("watchlist")
+
+    os.environ["WATCHLIST_AUTO_INTERVAL_SECONDS"] = str(value)
+    messages.success(request, "Intervallo di controllo aggiornato.")
+    return redirect("watchlist")
 
 
 @require_http_methods(["POST"])
@@ -586,6 +613,60 @@ def clear_watchlist(request: HttpRequest) -> HttpResponse:
     """Remove all items from the watchlist."""
     WatchlistItem.objects.all().delete()
     messages.success(request, "Watchlist svuotata.")
+    return redirect("watchlist")
+
+
+@require_http_methods(["POST"])
+def update_watchlist_auto(request: HttpRequest, item_id: int) -> HttpResponse:
+    """Update auto-download settings for a watchlist item."""
+    try:
+        item = WatchlistItem.objects.get(id=item_id)
+    except WatchlistItem.DoesNotExist:
+        messages.error(request, "Elemento non trovato.")
+        return redirect("watchlist")
+
+    if item.is_movie:
+        if item.auto_enabled or item.auto_season:
+            item.auto_enabled = False
+            item.auto_season = None
+            item.auto_last_episode_count = 0
+            item.auto_last_downloaded_at = None
+            item.save(
+                update_fields=[
+                    "auto_enabled",
+                    "auto_season",
+                    "auto_last_episode_count",
+                    "auto_last_downloaded_at",
+                ]
+            )
+        messages.error(request, "Auto-download non disponibile per i film.")
+        return redirect("watchlist")
+
+    auto_enabled = request.POST.get("auto_enabled") == "on"
+    auto_season_raw = request.POST.get("auto_season")
+    auto_season = None
+    if auto_season_raw:
+        try:
+            auto_season = int(auto_season_raw)
+        except Exception:
+            auto_season = None
+
+    if auto_enabled and not auto_season:
+        messages.error(request, "Seleziona una stagione per l'auto-download.")
+        return redirect("watchlist")
+
+    if item.auto_season != auto_season:
+        item.auto_last_episode_count = 0
+        item.auto_last_downloaded_at = None
+
+    item.auto_enabled = auto_enabled
+    item.auto_season = auto_season if auto_enabled else None
+
+    if not auto_enabled:
+        item.auto_last_episode_count = 0
+
+    item.save()
+    messages.success(request, "Impostazioni auto-download aggiornate.")
     return redirect("watchlist")
 
 
@@ -671,6 +752,16 @@ def update_all_watchlist(request: HttpRequest) -> HttpResponse:
             
     threading.Thread(target=_update_all, daemon=True).start()
     messages.info(request, "Aggiornamento globale avviato in background. Ricarica tra qualche istante.")
+    return redirect("watchlist")
+
+
+@require_http_methods(["POST"])
+def run_watchlist_auto_now(request: HttpRequest) -> HttpResponse:
+    """Trigger the auto-download scan immediately."""
+    from .watchlist_auto import run_watchlist_auto_once
+
+    threading.Thread(target=run_watchlist_auto_once, daemon=True).start()
+    messages.info(request, "Auto-download avviato subito in background.")
     return redirect("watchlist")
 
 

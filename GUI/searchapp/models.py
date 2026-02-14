@@ -11,6 +11,12 @@ class WatchlistItem(models.Model):
     tmdb_id = models.CharField(max_length=50, null=True, blank=True)
     num_seasons = models.IntegerField(default=0)
     last_season_episodes = models.IntegerField(default=0)
+
+    auto_enabled = models.BooleanField(default=False)
+    auto_season = models.IntegerField(null=True, blank=True)
+    auto_last_episode_count = models.IntegerField(default=0)
+    auto_last_checked_at = models.DateTimeField(null=True, blank=True)
+    auto_last_downloaded_at = models.DateTimeField(null=True, blank=True)
     
     # Metadata for tracking changes
     added_at = models.DateTimeField(default=timezone.now)

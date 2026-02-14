@@ -23,6 +23,9 @@ urlpatterns = [
     path("watchlist/remove/<int:item_id>/", views.remove_from_watchlist, name="remove_from_watchlist"),
     path("watchlist/update/<int:item_id>/", views.update_watchlist_item, name="update_watchlist_item"),
     path("watchlist/update-all/", views.update_all_watchlist, name="update_all_watchlist"),
+    path("watchlist/auto/<int:item_id>/", views.update_watchlist_auto, name="update_watchlist_auto"),
+    path("watchlist/auto-run/", views.run_watchlist_auto_now, name="run_watchlist_auto_now"),
+    path("watchlist/auto-interval/", views.set_watchlist_polling_interval, name="set_watchlist_polling_interval"),
     path("watchlist/clear/", views.clear_watchlist, name="clear_watchlist"),
     path("api/watchlist-status/", views.watchlist_status, name="watchlist_status"),
 ]

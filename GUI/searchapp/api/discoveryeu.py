@@ -20,11 +20,10 @@ class DiscoveryEUAPI(BaseStreamingAPI):
         self.site_name = "discoveryeu"
         self._load_config()
         self._search_fn = None
-        self.scrape_serie = None
     
     def _load_config(self):
         """Load site configuration."""
-        self.base_url = "https://eu1-prod-direct.discoveryplus.com"
+        self.base_url = None    # NOT NECESSARY
     
     def _get_search_fn(self):
         """Lazy load the search function."""
@@ -57,6 +56,7 @@ class DiscoveryEUAPI(BaseStreamingAPI):
                     name=item_dict.get('name'),
                     path_id=item_dict.get('path_id'),
                     type=item_dict.get('type'),
+                    url=item_dict.get('url'),
                     poster=item_dict.get('image'),
                     year=item_dict.get('year'),
                     tmdb_id=item_dict.get('tmdb_id'),
@@ -79,20 +79,16 @@ class DiscoveryEUAPI(BaseStreamingAPI):
         if media_item.is_movie:
             return None
         
-        # Split combined ID (format: "id|alternateId")
-        id_parts = media_item.id.split('|')
-        if len(id_parts) != 2:
-            raise Exception(f"Invalid ID format: {media_item.id}")
-        
+        # Initialize scraper with show ID
         scrape_serie = self.get_cached_scraper(media_item)
         if not scrape_serie:
-            scrape_serie = GetSerieInfo(id_parts[1], id_parts[0])
+            scrape_serie = GetSerieInfo(media_item.id)
             self.set_cached_scraper(media_item, scrape_serie)
 
         seasons_count = scrape_serie.getNumberSeason()
         
         if not seasons_count:
-            print(f"[Discovery+] No seasons found for: {media_item.name}")
+            print(f"[DiscoveryPlus] No seasons found for: {media_item.name}")
             return None
     
         seasons = []
@@ -113,10 +109,10 @@ class DiscoveryEUAPI(BaseStreamingAPI):
             
             season = Season(number=season_num, episodes=episodes, name=season_name)
             seasons.append(season)
-            print(f"[Discovery+] Season {season_num} ({season_name or f'Season {season_num}'}): {len(episodes)} episodes")
+            print(f"[Discovery+ EU] Season {season_num} ({season_name or f'Season {season_num}'}): {len(episodes)} episodes")
         
         return seasons if seasons else None
-
+    
     def start_download(self, media_item: Entries, season: Optional[str] = None, episodes: Optional[str] = None) -> bool:
         """
         Start downloading from Discovery+.

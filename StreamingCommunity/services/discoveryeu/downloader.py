@@ -16,12 +16,12 @@ from StreamingCommunity.services._base.tv_download_manager import process_season
 
 
 # Downloader
-from StreamingCommunity.core.downloader import DASH_Downloader, HLS_Downloader
+from StreamingCommunity.core.downloader import DASH_Downloader
 
 
 # Logic
+from .client import get_client
 from .scrapper import GetSerieInfo
-from .client import get_playback_info, generate_license_headers, DiscoveryEUAPI
 
 
 # Variables
@@ -35,44 +35,26 @@ def download_episode(obj_episode, index_season_selected, index_episode_selected,
     Downloads a specific episode from the specified season.
     """
     start_message()
-    console.print(f"\n[yellow]Download: [red]{site_constants.SITE_NAME} → [cyan]{scrape_serie.series_name} [white]\\ [magenta]{obj_episode.name} ([cyan]S{index_season_selected}E{index_episode_selected}) \n")
-
+    client = get_client()
+    console.print(f"\n[yellow]Download: [red]{site_constants.SITE_NAME} [cyan]{scrape_serie.series_name} [white]\\ [magenta]{obj_episode.name} ([cyan]S{index_season_selected}E{index_episode_selected}) \n")
+    
     # Define output path
     mp4_name = f"{map_episode_title(scrape_serie.series_name, index_season_selected, index_episode_selected, obj_episode.name)}.{extension_output}"
     mp4_path = os_manager.get_sanitize_path(
         os.path.join(site_constants.SERIES_FOLDER, scrape_serie.series_name, f"S{index_season_selected}")
     )
     
-    # Get playback information using video_id
-    playback_info = get_playback_info(obj_episode.video_id)
-
-    if (str(playback_info['type']).strip().lower() == 'dash' and playback_info['license_url'] is None) or (str(playback_info['type']).strip().lower() != 'hls' and str(playback_info['type']).strip().lower() != 'dash' ):
-        console.print(f"[red]Unsupported streaming type. Playback info: {playback_info}")
-        return None, False
+    # Get playback information using the new client
+    playback_info = client.get_playback_info(obj_episode.id)
+    license_headers = client.generate_license_headers(playback_info['license_token'])
     
-    # Check the type of stream
-    if  playback_info['type'] == 'dash':
-        license_headers = generate_license_headers(playback_info['license_token'])
-    
-        # Download the episode
-        return DASH_Downloader(
-            mpd_url=playback_info['mpd_url'],
-            license_url=playback_info['license_url'],
-            license_headers=license_headers,
-            output_path=os.path.join(mp4_path, mp4_name),
-        ).start()
-        
-    elif playback_info['type'] == 'hls':
-        
-        api = DiscoveryEUAPI()
-        headers = api.get_request_headers()
-        
-        # Download the episode
-        return HLS_Downloader(
-            m3u8_url=playback_info['mpd_url'],
-            headers=headers,
-            output_path=os.path.join(mp4_path, mp4_name),
-        ).start()
+    return DASH_Downloader(
+        mpd_url=playback_info['manifest'],
+        license_url=playback_info['license'],
+        license_headers=license_headers,
+        output_path=os.path.join(mp4_path, mp4_name),
+        drm_preference="widevine" if "widevine" in playback_info['license'].lower() else "playready"
+    ).start()
 
 def download_series(select_season: Entries, season_selection: str = None, episode_selection: str = None, scrape_serie = None) -> None:
     """
@@ -85,12 +67,13 @@ def download_series(select_season: Entries, season_selection: str = None, episod
         scrape_serie (Any, optional): Pre-existing scraper instance to avoid recreation
     """
     start_message()
+    
+    # Initialize the series scraper with just the show ID
     if not scrape_serie:
-        id_parts = select_season.id.split('|')
-        scrape_serie = GetSerieInfo(id_parts[1], id_parts[0])
+        scrape_serie = GetSerieInfo(select_season.id)
         scrape_serie.getNumberSeason()
     seasons_count = len(scrape_serie.seasons_manager)
-
+    
     # Create callback function for downloading episodes
     def download_episode_callback(season_number: int, download_all: bool, episode_selection: str = None):
         """Callback to handle episode downloads for a specific season"""

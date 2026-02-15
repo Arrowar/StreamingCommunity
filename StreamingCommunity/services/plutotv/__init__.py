@@ -19,7 +19,7 @@ from .client import get_api
 
 
 # Variables
-indice = 18
+indice = 17
 _useFor = "Serie"
 _region = ["IT"]
 _drm = ["widevine", "playready"]

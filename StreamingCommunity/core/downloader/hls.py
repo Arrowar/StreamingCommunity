@@ -85,7 +85,7 @@ class HLS_Downloader:
             download_id=self.download_id,
             site_name=self.site_name
         )
-        console.print("[dim]Parsing MPD ...")
+        console.print("[dim]Parsing HLS ...")
         self.media_downloader.parser_stream()
         
         # Create output directory

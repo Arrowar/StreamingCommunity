@@ -2,11 +2,10 @@
 
 import json
 import subprocess
-import logging
 
 
 # Internal utilities
-from StreamingCommunity.setup import get_ffprobe_path
+from StreamingCommunity.setup import get_ffprobe_path, get_ffmpeg_path
 
 
 # External library
@@ -17,61 +16,54 @@ from rich.console import Console
 console = Console()
 
 
-def get_ffprobe_info(file_path):
+def detect_ts_timestamp_issues(file_path):
     """
-    Get format and codec information for a media file using ffprobe.
+    Detect if a TS file has timestamp issues by checking for unset timestamps.
 
     Parameters:
-        - file_path (str): Path to the media file.
-    
-    Returns:
-        dict: A dictionary containing the format name and a list of codec names.
-              Returns None if file does not exist or ffprobe crashes.
-    """
+        - file_path (str): Path to the TS file.
 
-    cmd = [get_ffprobe_path(), '-v', 'error', '-show_format', '-show_streams', '-print_format', 'json', file_path]
-    
+    Returns:
+        bool: True if timestamp issues are detected, False otherwise.
+    """
+    cmd = [get_ffprobe_path(), '-v', 'error', '-show_packets', '-select_streams', 'v:0', '-read_intervals', '0%+#1', '-print_format', 'json', file_path]
     result = subprocess.run(cmd, capture_output=True, text=True, check=False)
-
-    if result.returncode != 0:
-        logging.error(f"FFprobe failed with return code {result.returncode}")
-        logging.error(f"FFprobe stderr: {result.stderr}")
-        logging.error(f"FFprobe stdout: {result.stdout}")
-        logging.error(f"Command: {' '.join(cmd)}")
-        return None
-
-    # Parse JSON output
-    info = json.loads(result.stdout)
-    return {
-        'format_name': info.get('format', {}).get('format_name'),
-        'codec_names': [stream.get('codec_name') for stream in info.get('streams', [])]
-    }
-
-
-def is_png_format_or_codec(file_info):
-    """
-    Check if the format is 'png_pipe' or if any codec is 'png'.
-
-    Parameters:
-        - file_info (dict): The dictionary containing file information.
-
-    Returns:
-        bool: True if the format is 'png_pipe' or any codec is 'png', otherwise False.
-    """
-    if not file_info:
-        return False
-
-    return file_info.get('format_name') == 'png_pipe' or 'png' in file_info.get('codec_names', [])
-
-
-def need_to_force_to_ts(file_path):
-    """
-    Get if a file to TS format if it is in PNG format or contains a PNG codec.
-
-    Parameters:
-        - file_path (str): Path to the input media file.
-    """
-    if is_png_format_or_codec(get_ffprobe_info(file_path)):
-       return True
+    
+    if result.returncode != 0 or 'pts_time' not in result.stdout:
+        return True  # Assume issues if probe fails or no pts_time
+    
+    # Parse JSON and check for packets without pts
+    try:
+        info = json.loads(result.stdout)
+        packets = info.get('packets', [])
+        for packet in packets:
+            if packet.get('pts') is None or packet.get('pts') == 'N/A':
+                return True
+    except json.JSONDecodeError:
+        return True
     
     return False
+
+
+def convert_ts_to_mp4(input_path, output_path):
+    """
+    Convert a TS file to MP4 to regenerate timestamps.
+
+    Parameters:
+        - input_path (str): Path to the input TS file.
+        - output_path (str): Path to the output MP4 file.
+
+    Returns:
+        bool: True if conversion succeeded, False otherwise.
+    """
+    cmd = [
+        get_ffmpeg_path(),
+        '-fflags', '+genpts+igndts+discardcorrupt',
+        '-avoid_negative_ts', 'make_zero',
+        '-i', input_path,
+        '-c', 'copy',
+        '-y', output_path
+    ]
+    
+    result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    return result.returncode == 0

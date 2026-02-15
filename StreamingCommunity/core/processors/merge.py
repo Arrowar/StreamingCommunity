@@ -15,7 +15,7 @@ from StreamingCommunity.setup import binary_paths, get_ffmpeg_path
 
 
 # Logic class
-from .helper.ex_video import need_to_force_to_ts
+from .helper.ex_video import detect_ts_timestamp_issues, convert_ts_to_mp4
 from .helper.ex_audio import check_duration_v_a, has_audio
 from .helper.ex_sub import fix_subtitle_extension
 from .capture import capture_ffmpeg_real_time
@@ -107,7 +107,7 @@ def join_video(video_path: str, out_path: str, log_path: Optional[str] = None):
         ffmpeg_cmd.extend(['-hwaccel', gpu_type_hwaccel])
 
     # Add mpegts to force to detect input file as ts file
-    if need_to_force_to_ts(video_path):
+    if video_path.lower().endswith('.ts'):
         ffmpeg_cmd.extend(['-f', 'mpegts'])
 
     # Insert input video path
@@ -139,6 +139,18 @@ def join_audios(video_path: str, audio_tracks: List[Dict[str, str]], out_path: s
     """
     use_shortest = False
     
+    # Check and convert audio tracks if TS with issues
+    temp_audio_paths = []
+    for audio_track in audio_tracks:
+        audio_path = audio_track.get('path')
+        if audio_path.lower().endswith('.ts') and detect_ts_timestamp_issues(audio_path):
+            temp_audio_path = audio_path + '.temp.m4a'
+            if convert_ts_to_mp4(audio_path, temp_audio_path):
+                audio_track['path'] = temp_audio_path
+                temp_audio_paths.append(temp_audio_path)
+            else:
+                console.print(f"[red]Failed to convert audio TS {audio_path} to M4A")
+    
     for audio_track in audio_tracks:
         audio_path = audio_track.get('path')
         audio_lang = audio_track.get('name', 'unknown')
@@ -157,11 +169,15 @@ def join_audios(video_path: str, audio_tracks: List[Dict[str, str]], out_path: s
     if USE_GPU:
         ffmpeg_cmd.extend(['-hwaccel', detect_gpu_device_type()])
 
-    # Insert input video path
+    # Insert input video path with TS format
+    if video_path.lower().endswith('.ts'):
+        ffmpeg_cmd.extend(['-f', 'mpegts'])
     ffmpeg_cmd.extend(['-i', video_path])
 
-    # Add audio tracks as input
+    # Add audio tracks as input with TS format
     for i, audio_track in enumerate(audio_tracks):
+        if audio_track.get('path', '').lower().endswith('.ts'):
+            ffmpeg_cmd.extend(['-f', 'mpegts'])
         ffmpeg_cmd.extend(['-i', audio_track.get('path')])
 
     # Map the video and audio streams
@@ -191,6 +207,14 @@ def join_audios(video_path: str, audio_tracks: List[Dict[str, str]], out_path: s
     # Run join
     result_json = capture_ffmpeg_real_time(ffmpeg_cmd, "[yellow]FFMPEG [cyan]Join audio", log_path)
     print()
+
+    # Clean up temp audio files
+    for temp_path in temp_audio_paths:
+        if os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except Exception:
+                pass
 
     return out_path, use_shortest, result_json
 

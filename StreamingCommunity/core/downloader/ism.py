@@ -168,7 +168,7 @@ class ISM_Downloader:
             download_tracker.update_status(self.download_id, "Parsing...")
         
         # Parse streams using N_m3u8dl (creates meta.json and raw.ism)
-        console.print("[dim]Parsing ISM manifest...")
+        console.print("[dim]Parsing ISM ...")
         self.media_downloader.parser_stream()
         
         # Get metadata paths

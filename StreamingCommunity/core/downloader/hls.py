@@ -25,12 +25,12 @@ from StreamingCommunity.source.N_m3u8 import MediaDownloader
 
 # Config
 console = Console()
-CLEANUP_TMP = config_manager.config.get_bool('M3U8_DOWNLOAD', 'cleanup_tmp_folder')
-EXTENSION_OUTPUT = config_manager.config.get("M3U8_CONVERSION", "extension")
-SKIP_DOWNLOAD = config_manager.config.get_bool('M3U8_DOWNLOAD', 'skip_download')
-CREATE_NFO_FILES = config_manager.config.get_bool('M3U8_CONVERSION', 'generate_nfo', default=False)
-MERGE_SUBTITLES = config_manager.config.get_bool('M3U8_CONVERSION', 'merge_subtitle', default=True)
-MERGE_AUDIO = config_manager.config.get_bool('M3U8_CONVERSION', 'merge_audio', default=True)
+CLEANUP_TMP = config_manager.config.get_bool('DOWNLOAD', 'cleanup_tmp_folder')
+EXTENSION_OUTPUT = config_manager.config.get("PROCESS", "extension")
+SKIP_DOWNLOAD = config_manager.config.get_bool('DOWNLOAD', 'skip_download')
+CREATE_NFO_FILES = config_manager.config.get_bool('PROCESS', 'generate_nfo', default=False)
+MERGE_SUBTITLES = config_manager.config.get_bool('PROCESS', 'merge_subtitle', default=True)
+MERGE_AUDIO = config_manager.config.get_bool('PROCESS', 'merge_audio', default=True)
 
 
 class HLS_Downloader:

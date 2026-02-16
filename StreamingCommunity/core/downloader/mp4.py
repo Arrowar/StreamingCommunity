@@ -26,8 +26,8 @@ from StreamingCommunity.source.utils.tracker import download_tracker, context_tr
 msg = Prompt()
 console = Console()
 REQUEST_VERIFY = config_manager.config.get_bool('REQUESTS', 'verify')
-CREATE_NFO_FILES = config_manager.config.get_bool('M3U8_CONVERSION', 'generate_nfo', default=False)
-SKIP_DOWNLOAD = config_manager.config.get_bool('M3U8_DOWNLOAD', 'skip_download')
+CREATE_NFO_FILES = config_manager.config.get_bool('PROCESS', 'generate_nfo', default=False)
+SKIP_DOWNLOAD = config_manager.config.get_bool('DOWNLOAD', 'skip_download')
 
 
 class InterruptHandler:

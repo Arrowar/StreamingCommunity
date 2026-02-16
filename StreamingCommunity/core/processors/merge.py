@@ -25,12 +25,14 @@ from .conversion.ttml_to_srt import convert_ttml_to_srt
 # Config
 console = Console()
 os_type = binary_paths._detect_system()
-USE_GPU = config_manager.config.get_bool("M3U8_CONVERSION", "use_gpu")
-PARAM_VIDEO = config_manager.config.get_list("M3U8_CONVERSION", "param_video")
-PARAM_AUDIO = config_manager.config.get_list("M3U8_CONVERSION", "param_audio")
-PARAM_FINAL = config_manager.config.get_list("M3U8_CONVERSION", "param_final")
-SUBTITLE_DISPOSITION = config_manager.config.get_bool("M3U8_CONVERSION", "subtitle_disposition")
-SUBTITLE_DISPOSITION_LANGUAGE = config_manager.config.get_list("M3U8_CONVERSION", "subtitle_disposition_language")
+USE_GPU = config_manager.config.get_bool("PROCESS", "use_gpu")
+PARAM_VIDEO = config_manager.config.get_list("PROCESS", "param_video")
+PARAM_AUDIO = config_manager.config.get_list("PROCESS", "param_audio")
+PARAM_FINAL = config_manager.config.get_list("PROCESS", "param_final")
+SUBTITLE_DISPOSITION = config_manager.config.get_bool("PROCESS", "subtitle_disposition")
+SUBTITLE_DISPOSITION_LANGUAGE = config_manager.config.get_list("PROCESS", "subtitle_disposition_language")
+AUDIO_ORDER = config_manager.config.get_list("PROCESS", "audio_order")
+SUBTITLE_ORDER = config_manager.config.get_list("PROCESS", "subtitle_order")
 
 
 def add_encoding_params(ffmpeg_cmd: List[str]):
@@ -137,6 +139,15 @@ def join_audios(video_path: str, audio_tracks: List[Dict[str, str]], out_path: s
         - out_path (str): The path to save the output file.
         - limit_duration_diff (float): Maximum duration difference in seconds.
     """
+    if AUDIO_ORDER:
+        def get_order_index(track):
+            track_name = track.get('name', '').lower()
+            for i, order_val in enumerate(AUDIO_ORDER):
+                if order_val.lower() in track_name:
+                    return i
+            return len(AUDIO_ORDER)
+        audio_tracks = sorted(audio_tracks, key=get_order_index)
+
     use_shortest = False
     
     # Check and convert audio tracks if TS with issues
@@ -229,6 +240,15 @@ def join_subtitles(video_path: str, subtitles_list: List[Dict[str, str]], out_pa
             Each dictionary should contain the 'path' key with the path to the subtitle file and the 'name' key with the name of the subtitle.
         - out_path (str): The path to save the output file.
     """
+    if SUBTITLE_ORDER:
+        def get_order_index(track):
+            track_name = (track.get('name', '') or track.get('language', '') or track.get('lang', '') or '').lower()
+            for i, order_val in enumerate(SUBTITLE_ORDER):
+                if order_val.lower() in track_name:
+                    return i
+            return len(SUBTITLE_ORDER)
+        subtitles_list = sorted(subtitles_list, key=get_order_index)
+
     # First, detect and fix subtitle extensions
     for subtitle in subtitles_list:
         original_path = subtitle['path']

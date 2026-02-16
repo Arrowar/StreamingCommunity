@@ -32,11 +32,11 @@ console = Console()
 
 
 # Config
-auto_select_cfg = config_manager.config.get_bool('M3U8_DOWNLOAD', 'auto_select', default=True)
-video_filter = config_manager.config.get("M3U8_DOWNLOAD", "select_video")
-audio_filter = config_manager.config.get("M3U8_DOWNLOAD", "select_audio")
-subtitle_filter = config_manager.config.get("M3U8_DOWNLOAD", "select_subtitle")
-cleanup_enabled = config_manager.config.get_bool('M3U8_DOWNLOAD', 'cleanup_tmp_folder')
+auto_select_cfg = config_manager.config.get_bool('DOWNLOAD', 'auto_select', default=True)
+video_filter = config_manager.config.get("DOWNLOAD", "select_video")
+audio_filter = config_manager.config.get("DOWNLOAD", "select_audio")
+subtitle_filter = config_manager.config.get("DOWNLOAD", "select_subtitle")
+cleanup_enabled = config_manager.config.get_bool('DOWNLOAD', 'cleanup_tmp_folder')
 
 
 class MediaDownloader:
@@ -66,12 +66,12 @@ class MediaDownloader:
         # Create output directory
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.output_dir_type = (
-            "Movie" if config_manager.config.get("OUT_FOLDER", "movie_folder_name") in str(self.output_dir)
-            else "TV" if config_manager.config.get("OUT_FOLDER", "serie_folder_name") in str(self.output_dir)
-            else "Anime" if config_manager.config.get("OUT_FOLDER", "anime_folder_name") in str(self.output_dir)
+            "Movie" if config_manager.config.get("OUTPUT", "movie_folder_name") in str(self.output_dir)
+            else "TV" if config_manager.config.get("OUTPUT", "serie_folder_name") in str(self.output_dir)
+            else "Anime" if config_manager.config.get("OUTPUT", "anime_folder_name") in str(self.output_dir)
             else "other"
         )
-        extension = config_manager.config.get("M3U8_CONVERSION", "extension", default="mp4")
+        extension = config_manager.config.get("PROCESS", "extension", default="mp4")
         self.output_path = str(self.output_dir / f"{self.filename}.{extension}")
         
         # Initialize Manual downloader

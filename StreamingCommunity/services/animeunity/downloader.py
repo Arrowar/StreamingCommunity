@@ -29,7 +29,7 @@ from .scrapper import ScrapeSerieAnime
 # Variable
 console = Console()
 msg = Prompt()
-extension_output = config_manager.config.get("M3U8_CONVERSION", "extension")
+extension_output = config_manager.config.get("PROCESS", "extension")
 KILL_HANDLER = False
 DOWNOAD_HLS = True
 

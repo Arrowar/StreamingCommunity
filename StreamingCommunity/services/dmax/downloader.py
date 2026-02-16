@@ -27,7 +27,7 @@ from ..realtime.client import get_bearer_token, get_playback_url
 # Variable
 msg = Prompt()
 console = Console()
-extension_output = config_manager.config.get("M3U8_CONVERSION", "extension")
+extension_output = config_manager.config.get("PROCESS", "extension")
 
 
 def download_episode(obj_episode, index_season_selected, index_episode_selected, scrape_serie):

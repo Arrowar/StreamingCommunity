@@ -19,7 +19,7 @@ from .client import get_client
 
 # Variables
 indice = 13
-_useFor = "Film_&_Serie"
+_useFor = "Film_Serie"
 _region = ["IT"]
 _drm = ["widevine", "playready", "fairplay"]
 msg = Prompt()

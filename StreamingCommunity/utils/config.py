@@ -297,14 +297,14 @@ class ConfigManager:
     def _precache_config_values(self) -> None:
         """Pre-cache commonly used configuration values."""
         common_keys = [
-            ('M3U8_DOWNLOAD', 'thread_count', int),
-            ('M3U8_DOWNLOAD', 'retry_count', int),
-            ('M3U8_DOWNLOAD', 'concurrent_download', bool),
-            ('M3U8_DOWNLOAD', 'cleanup_tmp_folder', bool),
-            ('M3U8_CONVERSION', 'use_gpu', bool),
-            ('M3U8_CONVERSION', 'param_video', str),
-            ('M3U8_CONVERSION', 'param_audio', str),
-            ('M3U8_CONVERSION', 'param_final', str),
+            ('DOWNLOAD', 'thread_count', int),
+            ('DOWNLOAD', 'retry_count', int),
+            ('DOWNLOAD', 'concurrent_download', bool),
+            ('DOWNLOAD', 'cleanup_tmp_folder', bool),
+            ('PROCESS', 'use_gpu', bool),
+            ('PROCESS', 'param_video', str),
+            ('PROCESS', 'param_audio', str),
+            ('PROCESS', 'param_final', str),
             ('REQUESTS', 'verify', bool),
             ('REQUESTS', 'timeout', int),
             ('REQUESTS', 'max_retry', int),

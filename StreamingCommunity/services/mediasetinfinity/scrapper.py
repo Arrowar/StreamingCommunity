@@ -18,7 +18,8 @@ from StreamingCommunity.services._base.object import SeasonManager, Episode, Sea
 
 class GetSerieInfo:
     BAD_WORDS = [
-        'Trailer', 'Promo', 'Teaser', 'Clip', 'Backstage', 'Le interviste', 'BALLETTI', 'Anteprime web', 'I servizi', 'Video trend', 'Extra', 'Le trame della settimana', 'Esclusive'
+        'Trailer', 'Promo', 'Teaser', 'Clip', 'Backstage', 'Le interviste', 'BALLETTI', 'Anteprime web', 'I servizi', 'Video trend', 'Extra', 'Le trame della settimana', 'Esclusive',
+        'INTERVISTE', 'SERVIZI', 'Gossip', 'Prossimi appuntamenti tv'
     ]
 
     def __init__(self, url):

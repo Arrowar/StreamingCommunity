@@ -27,7 +27,7 @@ from .scrapper import GetSerieInfo
 # Variables
 msg = Prompt()
 console = Console()
-extension_output = config_manager.config.get("M3U8_CONVERSION", "extension")
+extension_output = config_manager.config.get("PROCESS", "extension")
 
 
 def download_episode(obj_episode, index_season_selected, index_episode_selected, scrape_serie):
@@ -46,7 +46,7 @@ def download_episode(obj_episode, index_season_selected, index_episode_selected,
     
     # Get playback information using the new client
     playback_info = client.get_playback_info(obj_episode.id)
-    license_headers = client.generate_license_headers(playback_info['license_token'])
+    license_headers = client.generate_license_headers(playback_info['license_token']) if playback_info.get('license_token') else {}
     
     return DASH_Downloader(
         mpd_url=playback_info['manifest'],

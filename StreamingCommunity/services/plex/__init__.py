@@ -18,7 +18,7 @@ from .client import get_client
 
 # Variable
 indice = 18
-_useFor = "Film_&_Serie"
+_useFor = "Film_Serie"
 _drm = ["widevine", "playready"]
 msg = Prompt()
 console = Console()

@@ -29,7 +29,7 @@ from .scrapper import GetSerieInfo
 # Variable
 console = Console()
 msg = Prompt()
-extension_output = config_manager.config.get("M3U8_CONVERSION", "extension")
+extension_output = config_manager.config.get("PROCESS", "extension")
 
 
 def extract_content_id(url: str) -> str:

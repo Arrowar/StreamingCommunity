@@ -32,7 +32,7 @@ failed_segments = set()
 failed_segments_lock = threading.Lock()
 shutdown_flag = threading.Event()
 TIMEOUT = config_manager.config.get_int('REQUESTS', 'timeout')
-MAX_WORKERS = config_manager.config.get_int('M3U8_DOWNLOAD', 'thread_count')
+MAX_WORKERS = config_manager.config.get_int('DOWNLOAD', 'thread_count')
 MAX_RETRIES = config_manager.config.get_int('REQUESTS', 'max_retry')
 
 

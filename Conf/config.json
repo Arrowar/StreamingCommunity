@@ -5,7 +5,7 @@
         "show_device_info": true,
         "fetch_domain_online": true
     },
-    "OUT_FOLDER": {
+    "OUTPUT": {
         "root_path": "Video",
         "movie_folder_name": "Movie",
         "serie_folder_name": "Serie",
@@ -13,7 +13,7 @@
         "map_episode_name": "%(episode_name) S%(season)E%(episode)",
         "add_siteName": false
     },
-    "M3U8_DOWNLOAD": {
+    "DOWNLOAD": {
         "skip_download": false,
         "thread_count": 8,
         "retry_count": 30,
@@ -26,16 +26,18 @@
         "select_subtitle": "lang='ita|eng|Ita|Eng|it|en':for=all",
         "cleanup_tmp_folder": true
     },
-    "M3U8_CONVERSION": {
+    "PROCESS": {
         "generate_nfo": false,
         "use_gpu": false,
         "param_video": ["-c:v","libx265","-crf","28","-preset","medium"],
         "param_audio": ["-c:a","libopus","-b:a","128k"],
         "param_final": ["-c","copy"],
-        "merge_audio": true,
-        "merge_subtitle": true,
+        "audio_order": [],
+        "subtitle_order": [],
         "subtitle_disposition": false,
         "subtitle_disposition_language": ["forced-ita","ita-forced"],
+        "merge_audio": true,
+        "merge_subtitle": true,
         "extension": "mkv"
     },
     "REQUESTS": {

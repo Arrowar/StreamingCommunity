@@ -89,7 +89,7 @@ Key configuration parameters in `config.json`:
 ### Output Directories
 ```json
 {
-    "OUT_FOLDER": {
+    "OUTPUT": {
         "root_path": "Video",
         "movie_folder_name": "Movie",
         "serie_folder_name": "Serie",
@@ -117,10 +117,10 @@ Key configuration parameters in `config.json`:
 
 - **`add_siteName`**: Append site name to root path (default: `false`)
 
-### M3U8 Download Settings
+### Download Settings
 ```json
 {
-    "M3U8_DOWNLOAD": {
+    "DOWNLOAD": {
         "auto_select": true,
         "thread_count": 12,
         "retry_count": 40,
@@ -182,15 +182,17 @@ OPTIONS: id=REGEX:lang=REGEX:name=REGEX:codecs=REGEX:res=REGEX:frame=REGEX:
 "select_subtitle": "false"                                // Disable subtitle download
 ```
 
-### M3U8 Conversion Settings
+### Processing Settings
 ```json
 {
-    "M3U8_CONVERSION": {
+    "PROCESS": {
         "generate_nfo": false,
         "use_gpu": false,
         "param_video": ["-c:v", "libx265", "-crf", "28", "-preset", "medium"],
         "param_audio": ["-c:a", "libopus", "-b:a", "128k"],
         "param_final": ["-c", "copy"],
+        "audio_order": ["ita", "eng"],
+        "subtitle_order": ["ita", "eng"],
         "merge_audio": true,
         "merge_subtitle": true,
         "subtitle_disposition": true,
@@ -207,6 +209,8 @@ OPTIONS: id=REGEX:lang=REGEX:name=REGEX:codecs=REGEX:res=REGEX:frame=REGEX:
 - **`param_audio`**: FFmpeg audio encoding parameters
   - Example: `["-c:a", "libopus", "-b:a", "128k"]` (Opus audio at 128kbps)
 - **`param_final`**: Final FFmpeg parameters (default: `["-c", "copy"]` for stream copy)
+- **`audio_order`**: List of strings to order audio tracks (e.g., `["ita", "eng"]`)
+- **`subtitle_order`**: List of strings to order subtitle tracks (e.g., `["ita", "eng"]`)
 - **`merge_audio`**: Merge all audio tracks into a single output file (default: `true`)
 - **`merge_subtitle`**: Merge all subtitle tracks into a single output file (default: `true`)
 - **`subtitle_disposition`**: Automatically set default subtitle track (default: `true`)

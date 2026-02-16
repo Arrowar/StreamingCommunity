@@ -15,7 +15,7 @@ from StreamingCommunity.core.downloader import HLS_Downloader
 
 
 start_message()
-conf_extension = config_manager.config.get("M3U8_CONVERSION", "extension")
+conf_extension = config_manager.config.get("PROCESS", "extension")
 hls_process =  HLS_Downloader(
     m3u8_url="",
     headers={},

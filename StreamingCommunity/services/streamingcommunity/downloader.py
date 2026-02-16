@@ -30,7 +30,7 @@ from .scrapper import GetSerieInfo
 # Variable
 console = Console()
 msg = Prompt()
-extension_output = config_manager.config.get("M3U8_CONVERSION", "extension")
+extension_output = config_manager.config.get("PROCESS", "extension")
 use_other_api = config_manager.login.get("TMDB", "api_key") != ""
 
 

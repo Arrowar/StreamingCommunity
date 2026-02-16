@@ -34,7 +34,7 @@ from .scrapper import GetSerieInfo
 # Variable
 console = Console()
 msg = Prompt()
-extension_output = config_manager.config.get("M3U8_CONVERSION", "extension")
+extension_output = config_manager.config.get("PROCESS", "extension")
 
 
 def fix_manifest_url(manifest_url: str) -> str:

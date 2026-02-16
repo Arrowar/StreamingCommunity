@@ -33,7 +33,7 @@ from ...utils.trans_codec import get_audio_codec_name, get_video_codec_name, get
 logger = logging.getLogger(__name__)
 console = Console()
 TIMEOUT = config_manager.config.get_int('REQUESTS', 'timeout')
-MAX_WORKERS = config_manager.config.get_int('M3U8_DOWNLOAD', 'thread_count')
+MAX_WORKERS = config_manager.config.get_int('DOWNLOAD', 'thread_count')
 
 
 class StreamDownloader:
@@ -305,13 +305,13 @@ class Downloader:
     
     def _apply_selections(self):
         """Apply selection filters to streams"""
-        video_filter = config_manager.config.get('M3U8_DOWNLOAD', 'select_video')
+        video_filter = config_manager.config.get('DOWNLOAD', 'select_video')
         StreamSelector.select_video(self.streams, video_filter)
         
-        audio_filter = config_manager.config.get('M3U8_DOWNLOAD', 'select_audio')
+        audio_filter = config_manager.config.get('DOWNLOAD', 'select_audio')
         StreamSelector.select_audio(self.streams, audio_filter)
         
-        subtitle_filter = config_manager.config.get('M3U8_DOWNLOAD', 'select_subtitle')
+        subtitle_filter = config_manager.config.get('DOWNLOAD', 'select_subtitle')
         if subtitle_filter != "false":
             StreamSelector.select_subtitle(self.streams, subtitle_filter)
         

@@ -35,6 +35,10 @@ class TMDBClient:
         if params is None:
             params = {}
 
+        if self.api_key is None or self.api_key == "":
+            console.log("[red]TMDB API key is not set. Please provide a valid API key in the configuration.")
+            return {}
+
         params['api_key'] = self.api_key
         url = f"{self.base_url}/{endpoint}"
         

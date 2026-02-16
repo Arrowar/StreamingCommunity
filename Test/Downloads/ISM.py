@@ -15,7 +15,7 @@ from StreamingCommunity.core.downloader import ISM_Downloader
 
 
 start_message()
-conf_extension = config_manager.config.get("M3U8_CONVERSION", "extension")
+conf_extension = config_manager.config.get("PROCESS", "extension")
 ism_url = 'https://test.playready.microsoft.com/media/profficialsite/tearsofsteel_4k.ism.smoothstreaming/manifest'
 ism_headers = {}
 license_url = 'http://test.playready.microsoft.com/service/rightsmanager.asmx?cfg=(persist:false,sl:150)'

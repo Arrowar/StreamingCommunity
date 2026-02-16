@@ -34,17 +34,17 @@ from .ui import build_table
 
 # Variable
 console = Console(force_terminal=True if platform.system().lower() != 'windows' else None)
-auto_select_cfg = config_manager.config.get_bool('M3U8_DOWNLOAD', 'auto_select', default=True)
-video_filter = config_manager.config.get("M3U8_DOWNLOAD", "select_video")
-audio_filter = config_manager.config.get("M3U8_DOWNLOAD", "select_audio")
-subtitle_filter = config_manager.config.get("M3U8_DOWNLOAD", "select_subtitle")
-max_speed = config_manager.config.get("M3U8_DOWNLOAD", "max_speed")
-check_segments_count = config_manager.config.get_bool("M3U8_DOWNLOAD", "check_segments_count")
-concurrent_download = config_manager.config.get_int("M3U8_DOWNLOAD", "concurrent_download")
-retry_count = config_manager.config.get_int("M3U8_DOWNLOAD", "retry_count")
-real_time_decryption = config_manager.config.get_bool("M3U8_DOWNLOAD", "real_time_decryption")
+auto_select_cfg = config_manager.config.get_bool('DOWNLOAD', 'auto_select', default=True)
+video_filter = config_manager.config.get("DOWNLOAD", "select_video")
+audio_filter = config_manager.config.get("DOWNLOAD", "select_audio")
+subtitle_filter = config_manager.config.get("DOWNLOAD", "select_subtitle")
+max_speed = config_manager.config.get("DOWNLOAD", "max_speed")
+check_segments_count = config_manager.config.get_bool("DOWNLOAD", "check_segments_count")
+concurrent_download = config_manager.config.get_int("DOWNLOAD", "concurrent_download")
+retry_count = config_manager.config.get_int("DOWNLOAD", "retry_count")
+real_time_decryption = config_manager.config.get_bool("DOWNLOAD", "real_time_decryption")
 request_timeout = config_manager.config.get_int("REQUESTS", "timeout")
-thread_count = config_manager.config.get_int("M3U8_DOWNLOAD", "thread_count")
+thread_count = config_manager.config.get_int("DOWNLOAD", "thread_count")
 use_proxy = config_manager.config.get_bool("REQUESTS", "use_proxy")
 configuration_proxy = config_manager.config.get_dict("REQUESTS", "proxy", default={})
 
@@ -67,7 +67,7 @@ class MediaDownloader:
         self.status = None
         self.manifest_type = "Unknown"
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        self.output_dir_type = "Movie" if config_manager.config.get("OUT_FOLDER", "movie_folder_name") in str(self.output_dir) else "TV" if config_manager.config.get("OUT_FOLDER", "serie_folder_name") in str(self.output_dir) else "Anime" if config_manager.config.get("OUT_FOLDER", "anime_folder_name") in str(self.output_dir) else "other"
+        self.output_dir_type = "Movie" if config_manager.config.get("OUTPUT", "movie_folder_name") in str(self.output_dir) else "TV" if config_manager.config.get("OUTPUT", "serie_folder_name") in str(self.output_dir) else "Anime" if config_manager.config.get("OUTPUT", "anime_folder_name") in str(self.output_dir) else "other"
 
         # Track in GUI if ID is provided
         if self.download_id:

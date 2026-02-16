@@ -64,7 +64,7 @@
 **Search Flow:**
 
 1. User enters search query via CLI (`cli/run.py` → `get_user_site_selection()`)
-2. Service selection (anime, film_&_serie, serie)
+2. Service selection (anime, Film_Serie, serie)
 3. Lazy-load selected service via `LazySearchModule`
 4. Call service's `search(query)` function:
    - Scraper fetches and parses web results (`services/{site}/scrapper.py`)

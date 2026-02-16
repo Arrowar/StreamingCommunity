@@ -18,7 +18,7 @@ from .downloader import download_film, download_series
 
 # Variable
 indice = 5
-_useFor = "Film_&_Serie"
+_useFor = "Film_Serie"
 _region = ["IT"]
 
 

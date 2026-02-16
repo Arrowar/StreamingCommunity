@@ -18,7 +18,7 @@ from .client import get_api
 
 # Variables
 indice = 12
-_useFor = "Film_&_Serie"
+_useFor = "Film_Serie"
 _region = ["US"]
 _drm = ["widevine", "playready", "fairplay"]
 msg = Prompt()

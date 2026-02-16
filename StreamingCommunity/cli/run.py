@@ -28,10 +28,11 @@ console = Console()
 msg = Prompt()
 COLOR_MAP = {
     "anime": "red",
-    "film_&_serie": "yellow", 
-    "serie": "blue"
+    "film_serie": "yellow", 
+    "serie": "blue",
+    "film": "green"
 }
-CATEGORY_MAP = {1: "anime", 2: "film_&_serie", 3: "serie"}
+CATEGORY_MAP = {1: "anime", 2: "Film_serie", 3: "serie"}
 SHOW_DEVICE_INFO = config_manager.config.get_bool('DEFAULT', 'show_device_info')
 NOT_CLOSE = config_manager.config.get_bool('DEFAULT', 'close_console')
 
@@ -235,7 +236,6 @@ def setup_argument_parser(search_functions):
     
     # Add arguments
     parser.add_argument('-s', '--search', default=None, help='Search terms')
-    parser.add_argument('--category', type=int, help='Category (1: anime, 2: film_&_serie, 3: serie)')
     parser.add_argument('--auto-first', action='store_true', help='Auto-download first result (use with --site and --search)')
     parser.add_argument('--site', type=str, help='Site by name or index')
     parser.add_argument('--global', action='store_true', help='Global search across sites')
@@ -255,12 +255,12 @@ def apply_config_updates(args):
     config_updates = {}
     
     arg_mappings = {
-        's_video': 'M3U8_DOWNLOAD.select_video',
-        's_audio': 'M3U8_DOWNLOAD.select_audio',
-        's_subtitle': 'M3U8_DOWNLOAD.select_subtitle',
+        's_video': 'DOWNLOAD.select_video',
+        's_audio': 'DOWNLOAD.select_audio',
+        's_subtitle': 'DOWNLOAD.select_subtitle',
         'not_close': 'DEFAULT.close_console',
         'use_proxy': 'REQUESTS.use_proxy',
-        'extension': 'M3U8_CONVERSION.extension'
+        'extension': 'PROCESS.extension'
     }
     
     for arg_name, config_key in arg_mappings.items():
@@ -325,26 +325,16 @@ def handle_direct_site_selection(args, input_to_function, module_name_to_functio
 
 def get_user_site_selection(args, choice_labels):
     """Get site selection from user (interactive or category-based)."""
-    if args.category:
-        selected_category = CATEGORY_MAP.get(args.category)
-        category_sites = [(key, label[0]) for key, label in choice_labels.items() if label[1] == selected_category]
-        
-        if len(category_sites) == 1:
-            console.print(f"[green]Selezionato automaticamente: {category_sites[0][1]}")
-            return category_sites[0][0]
-        
-    else:
-        # Show all sites
-        legend_text = " | ".join([f"[{color}]{cat.capitalize()}[/{color}]" for cat, color in COLOR_MAP.items()])
-        legend_text += " | [magenta]Global[/magenta]"
-        console.print(f"\n[cyan]Category Legend: {legend_text}")
-        
-        choice_keys = list(choice_labels.keys()) + ["global"]
-        prompt_message = "[cyan]Insert site: " + ", ".join([
-            f"[{COLOR_MAP.get(label[1], 'white')}]({key}) {label[0]}[/{COLOR_MAP.get(label[1], 'white')}]" 
-            for key, label in choice_labels.items()
-        ]) + ", [magenta](global) Global[/magenta]"
-        return msg.ask(prompt_message, choices=choice_keys, default="0", show_choices=False, show_default=False)
+    legend_text = " | ".join([f"[{color}]{cat.capitalize()}[/{color}]" for cat, color in COLOR_MAP.items()])
+    legend_text += " | [magenta]Global[/magenta]"
+    console.print(f"\n[cyan]Category Legend: {legend_text}")
+    
+    choice_keys = list(choice_labels.keys()) + ["global"]
+    prompt_message = "[cyan]Insert site: " + ", ".join([
+        f"[{COLOR_MAP.get(label[1], 'white')}]({key}) {label[0]}[/{COLOR_MAP.get(label[1], 'white')}]" 
+        for key, label in choice_labels.items()
+    ]) + ", [magenta](global) Global[/magenta]"
+    return msg.ask(prompt_message, choices=choice_keys, default="0", show_choices=False, show_default=False)
 
 
 def main():

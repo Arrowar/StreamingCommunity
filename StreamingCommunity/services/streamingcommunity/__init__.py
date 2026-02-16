@@ -22,7 +22,7 @@ from .downloader import download_series, download_film
 
 # Variable
 indice = 0
-_useFor = "Film_&_Serie"
+_useFor = "Film_Serie"
 
 
 msg = Prompt()

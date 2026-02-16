@@ -32,7 +32,7 @@ from .client import get_playback_url, get_tracking_info, generate_license_url
 # Variable
 console = Console()
 msg = Prompt()
-extension_output = config_manager.config.get("M3U8_CONVERSION", "extension")
+extension_output = config_manager.config.get("PROCESS", "extension")
 
 
 def try_mpd(url, qualities):

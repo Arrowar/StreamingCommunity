@@ -30,7 +30,7 @@ class SiteConstant:
     
     @property
     def ROOT_PATH(self) -> str:
-        return config_manager.config.get('OUT_FOLDER', 'root_path')
+        return config_manager.config.get('OUTPUT', 'root_path')
     
     @property
     def FULL_URL(self) -> str:
@@ -39,22 +39,22 @@ class SiteConstant:
     @property
     def SERIES_FOLDER(self):
         base_path = self.ROOT_PATH
-        if config_manager.config.get_bool("OUT_FOLDER", "add_siteName"):
+        if config_manager.config.get_bool("OUTPUT", "add_siteName"):
             base_path = os.path.join(base_path, self.SITE_NAME)
-        return os.path.join(base_path, config_manager.config.get('OUT_FOLDER', 'serie_folder_name'))
+        return os.path.join(base_path, config_manager.config.get('OUTPUT', 'serie_folder_name'))
     
     @property
     def MOVIE_FOLDER(self):
         base_path = self.ROOT_PATH
-        if config_manager.config.get_bool("OUT_FOLDER", "add_siteName"):
+        if config_manager.config.get_bool("OUTPUT", "add_siteName"):
             base_path = os.path.join(base_path, self.SITE_NAME)
-        return os.path.join(base_path, config_manager.config.get('OUT_FOLDER', 'movie_folder_name'))
+        return os.path.join(base_path, config_manager.config.get('OUTPUT', 'movie_folder_name'))
     
     @property
     def ANIME_FOLDER(self):
         base_path = self.ROOT_PATH
-        if config_manager.config.get_bool("OUT_FOLDER", "add_siteName"):
+        if config_manager.config.get_bool("OUTPUT", "add_siteName"):
             base_path = os.path.join(base_path, self.SITE_NAME)
-        return os.path.join(base_path, config_manager.config.get('OUT_FOLDER', 'anime_folder_name'))
+        return os.path.join(base_path, config_manager.config.get('OUTPUT', 'anime_folder_name'))
 
 site_constants = SiteConstant()

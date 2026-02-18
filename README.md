@@ -440,11 +440,6 @@ services:
 >
 > **If you do not agree with these terms, do not use this software.**
 
-
->### How to run the project locally
->1. Install all the python requirements.txt
->2. run the command **sh -c "python3 GUI/manage.py migrate --noinput && python3 GUI/manage.py runserver 0.0.0.0:8000"** from the main folder
-
 ---
 
 <div align="center">

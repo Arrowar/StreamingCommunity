@@ -7,6 +7,13 @@ import { formatTime, formatDate, fetchWithTimeout } from './utils.js';
 const expandedRows = new Set();
 const UPDATE_INTERVAL = 1000;
 
+function normalizeTypeLabel(type, title = '') {
+  const raw = String(type || '').toLowerCase();
+  if (raw === 'serie' || raw === 'tv' || raw === 'series') return 'Serie';
+  if (raw === 'film' || raw === 'movie') return 'Film';
+  return title && title.match(/[SE]\d+/i) ? 'Serie' : 'Film';
+}
+
 async function fetchDownloadData() {
   try {
     const response = await fetchWithTimeout(window.DOWNLOADS_JSON_URL, {}, 5000);
@@ -14,7 +21,7 @@ async function fetchDownloadData() {
     return await response.json();
   } catch (error) {
     console.error('Failed to fetch download data:', error);
-    return { active: [], history: [] };
+    return { active: [], scheduled: [], history: [] };
   }
 }
 
@@ -47,12 +54,76 @@ function renderActiveDownloads(downloads) {
   });
 }
 
+function renderScheduledDownloads(downloads) {
+  const container = document.getElementById('scheduled-downloads-container');
+  const noDownloads = document.getElementById('no-scheduled-downloads');
+
+  if (!container || !noDownloads) return;
+
+  const scheduledIds = new Set(downloads.map(dl => dl.id));
+  container.querySelectorAll('.scheduled-download-card').forEach(card => {
+    if (!scheduledIds.has(card.dataset.id)) card.remove();
+  });
+
+  noDownloads.style.display = downloads.length === 0 ? 'block' : 'none';
+
+  downloads.forEach(dl => {
+    let card = container.querySelector(`.scheduled-download-card[data-id="${dl.id}"]`);
+    if (!card) {
+      card = document.createElement('div');
+      card.className = 'scheduled-download-card bg-gradient-to-br from-gray-900/80 to-gray-900/40 backdrop-blur-xl border border-gray-800 rounded-xl sm:rounded-2xl p-4 sm:p-5';
+      card.dataset.id = dl.id;
+      container.appendChild(card);
+    }
+
+    const typeLabel = normalizeTypeLabel(dl.type, dl.title);
+    const scheduleDate = dl.scheduled_at ? formatDate(dl.scheduled_at) : '';
+    const seasonLabel = dl.season ? `S${escapeHtml(String(dl.season))}` : '';
+    const episodesLabel = dl.episodes && dl.episodes !== '*' ? `E${escapeHtml(String(dl.episodes))}` : (dl.episodes === '*' ? 'Tutti gli episodi' : '');
+    const details = [seasonLabel, episodesLabel].filter(Boolean).join(' • ');
+
+    card.innerHTML = `
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div class="min-w-0">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="px-2.5 py-1 bg-amber-500/20 text-amber-300 text-[10px] sm:text-xs font-bold uppercase tracking-wider rounded">
+              In attesa
+            </span>
+            <span class="px-2.5 py-1 bg-white/10 text-gray-300 text-[10px] sm:text-xs font-semibold rounded">
+              ${escapeHtml(typeLabel)}
+            </span>
+            <span class="px-2.5 py-1 bg-white/10 text-gray-400 text-[10px] sm:text-xs rounded">
+              ${escapeHtml(dl.site || '')}
+            </span>
+          </div>
+          <p class="text-sm sm:text-base font-semibold text-white truncate">${escapeHtml(dl.title || 'Download')}</p>
+          ${details ? `<p class="text-xs text-gray-400 mt-1">${details}</p>` : ''}
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="text-xs text-gray-500 font-mono whitespace-nowrap">
+            ${scheduleDate}
+          </div>
+          <button
+            onclick="window.killDownload('${dl.id}')"
+            class="px-3 py-2 bg-red-600/10 hover:bg-red-600 active:bg-red-700 text-red-500 hover:text-white border border-red-600/30 rounded text-[10px] sm:text-xs font-bold transition-all flex items-center justify-center gap-1.5 min-h-[34px]"
+            title="Annulla questo download"
+          >
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+            Cancella
+          </button>
+        </div>
+      </div>
+    `;
+  });
+}
+
 function generateDownloadCardHTML(dl) {
   const isExpanded = expandedRows.has(dl.id);
   const hasTasks = Object.keys(dl.tasks || {}).length > 0;
   
-  const isSeries = dl.title.match(/[SE]\d+/i) || dl.title.includes(' - ');
-  const typeLabel = dl.type || (isSeries ? 'Serie' : 'Film');
+  const typeLabel = normalizeTypeLabel(dl.type, dl.title);
   const elapsedSec = Math.floor(Date.now() / 1000 - (dl.start_time || 0));
   const timeStr = formatTime(elapsedSec);
 
@@ -283,6 +354,7 @@ function toggleTasks(id) {
 async function updateProgress() {
   const data = await fetchDownloadData();
   renderActiveDownloads(data.active || []);
+  renderScheduledDownloads(data.scheduled || []);
   renderHistory(data.history || []);
 }
 

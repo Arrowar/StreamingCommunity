@@ -45,17 +45,29 @@ def download_episode(obj_episode, index_season_selected, index_episode_selected,
     mp4_name = f"{map_episode_title(scrape_serie.tv_name, index_season_selected_formatted, index_episode_selected, obj_episode.name)}.{extension_output}"
     mp4_path = os.path.join(site_constants.SERIES_FOLDER, scrape_serie.tv_name, f"S{index_season_selected_formatted}")
 
-    # Setup video source
+    # Get the master playlist
     video_source = VideoSource(obj_episode.url)
-
-    # Get m3u8 master playlist
     master_playlist = video_source.get_playlist()
     
-    # Download the film using the m3u8 playlist, and output filename
-    return HLS_Downloader(
+    output_path, _ = HLS_Downloader(
         m3u8_url=master_playlist, 
         output_path=os.path.join(mp4_path, mp4_name)
     ).start()
+
+    if output_path is None:
+
+        # Get the master playlist
+        video_source = VideoSource(obj_episode.url_2)
+        master_playlist = video_source.get_playlist()
+
+        return HLS_Downloader(
+            m3u8_url=master_playlist,
+            output_path=os.path.join(mp4_path, mp4_name),
+            headers={
+                'Origin': 'https://dropload.pro',
+                'Referer': 'https://dropload.pro/',
+            }
+        ).start()
 
 def download_series(select_season: Entries, season_selection: str = None, episode_selection: str = None, scrape_serie = None) -> None:
     """

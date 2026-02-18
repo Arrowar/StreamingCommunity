@@ -84,25 +84,31 @@ class GetSerieInfo:
             list_episodes = []
 
             for episode_div in episode_content:
-                episode_link = episode_div.find("a")
+                episode_link = episode_div.find("a", attrs={"data-link": True}) or episode_div.find("a")
                 if not episode_link:
                     continue
-                
-                # Extract episode information from data attributes
+
+                # primary URL (data-link preferred, then href)
+                data_link = episode_link.get("data-link") or episode_link.get("href") or ""
+
+                # episode metadata
                 data_num = episode_link.get("data-num", "")
-                data_link = episode_link.get("data-link", "")
-                #data_title = episode_link.get("data-title", "")
-                
-                # Parse episode number from data-num
                 episode_number = data_num.split('x')[-1] if 'x' in data_num else data_num
-                
-                # Use data-title if available
-                episode_name = f"Episodio {episode_number}"
+
+                # look for a dropload mirror inside the same <li>
+                url_2 = None
+                for a in episode_div.find_all("a", attrs={"data-link": True}):
+                    href = (a.get("data-link") or a.get("href") or "").lower()
+                    if "dropload" in href:
+                        url_2 = a.get("data-link") or a.get("href")
+                        break
+
                 list_episodes.append(Episode(
                     number=episode_number,
-                    name=episode_name,
+                    name=f"Episodio {episode_number}",
                     url=data_link,
-                    id=episode_number
+                    id=episode_number,
+                    url_2=url_2
                 ))
 
             return list_episodes

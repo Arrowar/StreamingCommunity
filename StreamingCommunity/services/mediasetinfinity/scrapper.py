@@ -19,7 +19,7 @@ from StreamingCommunity.services._base.object import SeasonManager, Episode, Sea
 class GetSerieInfo:
     BAD_WORDS = [
         'Trailer', 'Promo', 'Teaser', 'Clip', 'Backstage', 'Le interviste', 'BALLETTI', 'Anteprime web', 'I servizi', 'Video trend', 'Extra', 'Le trame della settimana', 'Esclusive',
-        'INTERVISTE', 'SERVIZI', 'Gossip', 'Prossimi appuntamenti tv'
+        'INTERVISTE', 'SERVIZI', 'Gossip', 'Prossimi appuntamenti tv', 'DAYTIME', 'Ballo', 'Canto', 'Band', 'Senza ADV', 'Il serale'
     ]
 
     def __init__(self, url):
@@ -151,16 +151,25 @@ class GetSerieInfo:
         if any(w.lower() in category_name.lower() for w in self.BAD_WORDS):
             return []
 
-        if sb_id.startswith('sb'):
+        # If the category is the full listing (site paginates "Tutti gli episodi"), use the programs feed
+        if 'tutti' in category_name.lower() or category_name.lower().startswith('all'):
+            episodes = self._get_all_season_episodes(season)
+        elif sb_id.startswith('sb'):
             episodes = self._get_episodes_from_feed_api(sb_id, season['tvSeasonNumber'])
         else:
+            # try RSC extraction first; if this is the "Tutti" collection but only the first page
+            # is returned, fall back to the full programs feed
             episodes = self._extract_episodes_from_rsc_text(sb_id, season['tvSeasonNumber'], category_name, season.get('guid'))
+            if 'tutti' in category_name.lower() and len(episodes) <= 24:
+                fallback = self._get_all_season_episodes(season)
+                if fallback:
+                    episodes = fallback
         
         print(f"Found {len(episodes)} episodes for season {season['tvSeasonNumber']} ({category_name})")
         return episodes
 
     def _get_all_season_episodes(self, season):
-        """Fetch the full programs feed for the season and return cleaned episode list."""
+        """Fetch the full programs feed for the season and return a list of Episode objects for all entries."""
         print("Getting all episodes for season", season['tvSeasonNumber'], " v2")
         time.sleep(1)
         
@@ -187,18 +196,17 @@ class GetSerieInfo:
                 except Exception:
                     ep_num = 0
 
-                episodes.append({
-                    'id': entry.get('guid'),
-                    'title': entry.get('title'),
-                    'duration': duration,
-                    'url': entry.get('media', [{}])[0].get('publicUrl') if entry.get('media') else None,
-                    'name': entry.get('title'),
-                    'tvSeasonEpisodeNumber': ep_num,
-                    'number': ep_num,
-                    'category': entry.get('mediasetprogram$category', 'programs_feed'),
-                    'description': entry.get('description', ''),
-                    'series': ''
-                })
+                episode = Episode(
+                    id=entry.get('guid'),
+                    name=entry.get('title'),
+                    url=entry.get('media')[0].get('publicUrl'),
+                    duration=duration,
+                    number=ep_num,
+                    category=entry.get('mediasetprogram$category', 'programs_feed'),
+                    description=entry.get('description', ''),
+                    season_number=season.get('tvSeasonNumber')
+                )
+                episodes.append(episode)
 
             return episodes
         except Exception as e:
@@ -209,15 +217,11 @@ class GetSerieInfo:
         """Extract episodes from RSC response text"""
         episodes = []
         
-        # Construct href based on URL type
-        if 'fiction' in self.url:
-            serie_name = self.serie_id.split('_')[0]
-            serie_code = self.serie_id.split('_')[1]
-            href = f"/fiction/{serie_name}/stagione{season_number}/{category_name.lower().replace(' ', '')}_{serie_code},{guid},{sb_id}"
-        else:
-            href = f"/browse/{category_name.lower().replace(' ', '-')}_{sb_id}"
+        # Standard browse URL for RSC extraction
+        href = f"/browse/{category_name.lower().replace(' ', '-')}_{sb_id}"
         
         browse_url = f"https://mediasetinfinity.mediaset.it{href}"
+        print("Constructed browse URL for RSC:", browse_url)
         
         # Create the router state
         url_path = browse_url.split('mediasetinfinity.mediaset.it/')[1] if 'mediasetinfinity.mediaset.it/' in browse_url else browse_url
@@ -376,7 +380,7 @@ class GetSerieInfo:
             
             # Step 8: Populate seasons manager
             self._populate_seasons_manager()
-            
+
         except Exception as e:
             logging.error(f"Error in collect_season: {str(e)}")
 

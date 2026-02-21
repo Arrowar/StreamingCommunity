@@ -1,4 +1,4 @@
-﻿# 04.01.25
+# 04.01.25
 
 import re
 import asyncio
@@ -292,18 +292,35 @@ class MediaDownloader:
             "--write-meta-json", "false", 
             "--binary-merge",
             "--del-after-done",
-            "--select-video", norm_v,
             "--auto-subtitle-fix", "false",
             "--check-segments-count", "true" if check_segments_count else "false",
             "--mp4-real-time-decryption", "true" if real_time_decryption else "false"
         ]
+
+        if video_filter == "false":
+            cmd.extend(["--drop-video", "all"])
+        else:
+            if norm_v:
+                cmd.extend(["--select-video", norm_v])
+            else:
+                console.print("[dim]No video filter selected.")
         
-        if norm_a:
-            cmd.extend(["--select-audio", norm_a])
+        if audio_filter == "false":
+            cmd.extend(["--drop-audio", "all"])
+        else:
+            if norm_a:
+                cmd.extend(["--select-audio", norm_a])
+            else:
+                console.print("[dim]No audio filter selected.")
+
         if subtitle_filter == "false":
             cmd.extend(["--drop-subtitle", "all"])
-        elif norm_s:
-            cmd.extend(["--select-subtitle", norm_s])
+        else:
+            if norm_s:
+                cmd.extend(["--select-subtitle", norm_s])
+            else:
+                console.print("[dim]No subtitle filter selected.")
+
         cmd.extend(self._get_common_args())
 
         # Add optional parameters

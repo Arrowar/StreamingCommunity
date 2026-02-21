@@ -8,7 +8,7 @@ import threading
 import atexit
 import signal
 import concurrent.futures
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 
 # External utilities
@@ -36,11 +36,88 @@ from StreamingCommunity.cli.run import execute_hooks
 
 # Global download executor
 download_executor = concurrent.futures.ThreadPoolExecutor(max_workers=10, thread_name_prefix="DownloadWorker")
+scheduled_downloads: Dict[str, Dict[str, Any]] = {}
+scheduled_downloads_lock = threading.Lock()
+cancelled_scheduled_downloads: set[str] = set()
+
+
+def _add_scheduled_download(
+    download_id: str,
+    title: str,
+    site: str,
+    media_type: str = "Film",
+    season: str = None,
+    episodes: str = None,
+) -> None:
+    with scheduled_downloads_lock:
+        scheduled_downloads[download_id] = {
+            "id": download_id,
+            "title": title,
+            "site": site,
+            "type": media_type,
+            "season": season,
+            "episodes": episodes,
+            "scheduled_at": time.time(),
+        }
+        cancelled_scheduled_downloads.discard(download_id)
+
+
+def _remove_scheduled_download(download_id: str) -> None:
+    with scheduled_downloads_lock:
+        scheduled_downloads.pop(download_id, None)
+        cancelled_scheduled_downloads.discard(download_id)
+
+
+def _cancel_scheduled_download(download_id: str) -> None:
+    with scheduled_downloads_lock:
+        if download_id in scheduled_downloads:
+            cancelled_scheduled_downloads.add(download_id)
+        scheduled_downloads.pop(download_id, None)
+
+
+def _is_scheduled_cancelled(download_id: str) -> bool:
+    with scheduled_downloads_lock:
+        return download_id in cancelled_scheduled_downloads
+
+
+def _get_scheduled_downloads() -> List[Dict[str, Any]]:
+    with scheduled_downloads_lock:
+        return sorted(
+            list(scheduled_downloads.values()),
+            key=lambda item: item.get("scheduled_at", 0),
+        )
+
+
+def _prune_scheduled_downloads(
+    _active_downloads: List[Dict[str, Any]],
+    history: List[Dict[str, Any]],
+) -> None:
+    history_ids = {item.get("id") for item in history if item.get("id")}
+    now = time.time()
+    max_age_seconds = 6 * 60 * 60
+
+    with scheduled_downloads_lock:
+        to_remove = []
+        for download_id, item in scheduled_downloads.items():
+            # Keep entries visible while not completed; remove only once they
+            # reach history (completed/failed/cancelled) or become stale.
+            if download_id in history_ids:
+                to_remove.append(download_id)
+                continue
+            if now - float(item.get("scheduled_at", now)) > max_age_seconds:
+                to_remove.append(download_id)
+
+        for download_id in to_remove:
+            scheduled_downloads.pop(download_id, None)
+            cancelled_scheduled_downloads.discard(download_id)
 
 
 def shutdown_downloads():
     """Shutdown downloads and kill processes on exit."""
     print("Shutting down downloads...")
+    with scheduled_downloads_lock:
+        scheduled_downloads.clear()
+        cancelled_scheduled_downloads.clear()
     download_tracker.shutdown()
     download_executor.shutdown(wait=True)
 
@@ -150,9 +227,14 @@ def _run_download_in_thread(site: str, item_payload: Dict[str, Any], season: str
         title = name
         
     download_id = f"{site}_{int(time.time())}_{hash(title) % 10000}"
+    _add_scheduled_download(download_id, title, site, media_type, season, episodes)
     
     def _task():
         try:
+            if _is_scheduled_cancelled(download_id):
+                _remove_scheduled_download(download_id)
+                return
+
             # Set context for downloaders in this thread
             context_tracker.download_id = download_id
             context_tracker.site_name = site
@@ -392,10 +474,27 @@ def _handle_series_download(request: HttpRequest) -> HttpResponse:
                 if not seasons:
                     return
 
+                planned_seasons = []
                 for season in seasons:
                     season_num = str(season.number)
-                    download_id = f"{source_alias}_{int(time.time())}_{hash(name + season_num) % 10000}"
+                    season_title = f"{name} - S{season_num}"
+                    planned_id = f"{source_alias}_{int(time.time())}_{hash(season_title + str(season_num)) % 10000}_{season_num}"
+                    planned_seasons.append((planned_id, season_num))
+                    _add_scheduled_download(
+                        planned_id,
+                        season_title,
+                        source_alias,
+                        media_type,
+                        season=season_num,
+                        episodes="*",
+                    )
+
+                for download_id, season_num in planned_seasons:
                     try:
+                        if _is_scheduled_cancelled(download_id):
+                            _remove_scheduled_download(download_id)
+                            continue
+
                         context_tracker.download_id = download_id
                         context_tracker.site_name = source_alias
                         context_tracker.media_type = media_type
@@ -404,7 +503,6 @@ def _handle_series_download(request: HttpRequest) -> HttpResponse:
                         api.start_download(media_item, season=season_num, episodes="*")
                     except Exception as e:
                         print(f"[Error] Download season {season_num}: {e}")
-                        continue
 
             except Exception as e:
                 print(f"[Error] Full series download task: {e}")
@@ -457,14 +555,18 @@ def download_dashboard(request: HttpRequest) -> HttpResponse:
     """Dashboard to view all active and completed downloads."""
     active_downloads = download_tracker.get_active_downloads()
     history = download_tracker.get_history()
+    _prune_scheduled_downloads(active_downloads, history)
+    scheduled = _get_scheduled_downloads()
     
     return render(
         request, 
         "searchapp/downloads.html", 
         {
             "active_downloads": active_downloads,
+            "scheduled_downloads": scheduled,
             "history": history,
-            "active_count": len(active_downloads)
+            "active_count": len(active_downloads),
+            "scheduled_count": len(scheduled),
         }
     )
 
@@ -473,9 +575,12 @@ def get_downloads_json(request: HttpRequest) -> JsonResponse:
     """API endpoint to get real-time download progress."""
     active_downloads = download_tracker.get_active_downloads()
     history = download_tracker.get_history()
+    _prune_scheduled_downloads(active_downloads, history)
+    scheduled = _get_scheduled_downloads()
     
     return JsonResponse({
         "active": active_downloads,
+        "scheduled": scheduled,
         "history": history
     })
 
@@ -487,6 +592,7 @@ def kill_download(request: HttpRequest) -> JsonResponse:
             data = json.loads(request.body)
             download_id = data.get("download_id")
             if download_id:
+                _cancel_scheduled_download(download_id)
                 download_tracker.request_stop(download_id)
                 return JsonResponse({"status": "success"})
         

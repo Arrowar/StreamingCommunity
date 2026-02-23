@@ -15,7 +15,7 @@ from rich.prompt import Prompt
 
 
 # Internal utilities
-from . import call_global_search
+from . import call_global_search, call_queue_command
 from StreamingCommunity.setup import get_prd_path, get_wvd_path, get_info_wvd, get_info_prd
 from StreamingCommunity.services._base import load_search_functions
 from StreamingCommunity.utils import config_manager, os_manager, start_message
@@ -239,6 +239,7 @@ def setup_argument_parser(search_functions):
     parser.add_argument('--auto-first', action='store_true', help='Auto-download first result (use with --site and --search)')
     parser.add_argument('--site', type=str, help='Site by name or index')
     parser.add_argument('--global', action='store_true', help='Global search across sites')
+    parser.add_argument('-q', '--queue', type=str, nargs='*', help='Queue management commands: status, download, clear, summary')
     parser.add_argument('--not_close', type=bool, help='Keep console open after last download')
     parser.add_argument('-sv', '--s_video', type=str, help='''Select video tracks. Example:  1. select best video (best) 2. Select 4K+HEVC video (res="3840*":codecs=hvc1:for=best)''')
     parser.add_argument('-sa', '--s_audio', type=str, help='''Select audio tracks. Example:  1. Select all (all) 2. Select best eng audio (lang=en:for=best) 3. Select best 2, and language is ja or en (lang="ja|en":for=best2)''')
@@ -345,6 +346,13 @@ def main():
         search_functions = load_search_functions()
         parser = setup_argument_parser(search_functions)
         args = parser.parse_args()
+        
+        # Handle queue commands
+        if args.queue is not None:
+            action = args.queue[0] if args.queue and len(args.queue) > 0 else "status"
+            queue_args = args.queue[1:] if args.queue and len(args.queue) > 1 else []
+            call_queue_command(action, queue_args)
+            return
         
         # Handle auto-update
         if args.update:

@@ -13,11 +13,13 @@ from rich.table import Table
 # Internal utilities
 from StreamingCommunity.utils.console.message import start_message
 from StreamingCommunity.services._base import load_search_functions
+from StreamingCommunity.source.queue_manager import DownloadQueue
 
 
 # Variable
 console = Console()
 msg = Prompt()
+download_queue = DownloadQueue()
 
 
 def global_search(search_terms: str = None, selected_sites: list = None):
@@ -131,8 +133,11 @@ def global_search(search_terms: str = None, selected_sites: list = None):
         # Allow user to select an item
         selected_item = select_from_consolidated_results(all_media_items)
         if selected_item:
-            # Process the selected item - download or further actions
-            process_selected_item(selected_item, search_functions)
+            # Handle action on selected item
+            while handle_selected_item_action(selected_item, search_functions):
+                # User wants to search again
+                search_terms = msg.ask("\n[purple]Enter search terms for global search").strip()
+                return global_search(search_terms, selected_sites)
 
     else:
         console.print(f"\n[red]No results found for: [yellow]{search_terms}")
@@ -201,6 +206,53 @@ def select_from_consolidated_results(all_media_items):
         return None
     
     return all_media_items[int(choice) - 1]
+
+def handle_selected_item_action(selected_item, search_functions):
+    """
+    Let user choose what to do with the selected item.
+    
+    Parameters:
+        selected_item (dict): The selected media item.
+        search_functions (dict): Dictionary of search functions by alias.
+    
+    Returns:
+        bool: True if user wants to continue searching, False otherwise.
+    """
+    console.print("\n[green]What would you like to do?")
+    console.print("[cyan]1. Download now")
+    console.print("[cyan]2. Add to queue")
+    console.print("[cyan]3. Search for another movie")
+    console.print("[cyan]4. Cancel")
+    
+    action = msg.ask("[green]Select action (1-4)", choices=["1", "2", "3", "4"], default="1")
+    
+    if action == "1":
+        # Download now
+        process_selected_item(selected_item, search_functions)
+        
+        # Ask if user wants to search again
+        if msg.ask("[green]Search for another movie? (y/n)", choices=["y", "n"], default="y") == "y":
+            return True
+        return False
+    
+    elif action == "2":
+        # Add to queue
+        queue_id = download_queue.add_item(selected_item)
+        console.print(f"[green]✓ Added to queue! Queue ID: {queue_id}")
+        console.print(f"[yellow]Queue size: {download_queue.get_queue_size()} items")
+        
+        # Ask if user wants to search again
+        if msg.ask("[green]Search for another movie? (y/n)", choices=["y", "n"], default="y") == "y":
+            return True
+        return False
+    
+    elif action == "3":
+        # Continue searching
+        return True
+    
+    else:
+        # Cancel
+        return False
 
 def process_selected_item(selected_item, search_functions):
     """

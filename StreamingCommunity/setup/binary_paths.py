@@ -118,6 +118,7 @@ class BinaryPaths:
                 url = f"{self.github_repo}/binaries/{rel_path}"
                 local_path = os.path.join(self.get_binary_directory(), binary_name)
                 console.log(f"[cyan]Downloading from [red]{url} [cyan]to [yellow]{local_path}")
+                os.makedirs(os.path.dirname(local_path), exist_ok=True)
                 
                 try:
                     response = httpx.get(url, timeout=60, headers=get_headers())

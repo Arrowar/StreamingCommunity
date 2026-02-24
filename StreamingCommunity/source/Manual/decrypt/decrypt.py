@@ -126,18 +126,8 @@ class Decryptor:
                         for key_kid in key_kids:
                             self._mark_key_invalid(key_kid)
                     
-                    # Try to find correct key from Supabase by KID
-                    if self.is_supa_db_connected and self.license_url and self.drm_type:
-                        correct_keys = obj_externalSupaDbVault.get_keys_by_kid(self.license_url, kid, self.drm_type)
-                        if correct_keys:
-                            console.print(f"[green]Found correct key for KID {kid} from Supabase Vault!")
-                            keys = correct_keys
-                        else:
-                            console.print("[red]File cannot be decrypted")
-                            return False
-                    else:
-                        console.print("[red]File cannot be decrypted - wrong key for this content")
-                        return False
+                    console.print("[red]File cannot be decrypted - wrong key for this content")
+                    return False
             
             console.print(f"[dim]Decrypting ({encryption_scheme.upper()}) with {self.preference}...")
 
@@ -157,18 +147,18 @@ class Decryptor:
             return False
 
     def _mark_key_invalid(self, kid: str):
-        """Mark a key as invalid in Supabase Vault."""
+        """Mark a key as invalid for this specific license URL in Supabase Vault."""
         if self.is_supa_db_connected:
-            if obj_externalSupaDbVault.update_key_validity(kid, False):
+            if obj_externalSupaDbVault.update_key_validity(kid, False, self.license_url, self.drm_type):
                 console.print(f"[yellow]Marked key {kid} as invalid in Supabase")
             else:
                 logger.debug(f"Could not mark key {kid} as invalid")
 
     def _mark_key_valid(self, kid: str):
-        """Mark a key as valid in Supabase Vault after successful decryption."""
+        """Mark a key as valid for this specific license URL in Supabase Vault after successful decryption."""
         if self.is_supa_db_connected:
-            if obj_externalSupaDbVault.update_key_validity(kid, True):
-                console.print(f"[green]Marked key {kid} as valid in Supabase")
+            if obj_externalSupaDbVault.update_key_validity(kid, True, self.license_url, self.drm_type):
+                logger.debug(f"Marked key {kid} as valid")
             else:
                 logger.debug(f"Could not mark key {kid} as valid")
 

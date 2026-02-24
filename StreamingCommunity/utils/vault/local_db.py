@@ -6,7 +6,7 @@ try:
     SQLITE3_AVAILABLE = True
 except Exception:
     SQLITE3_AVAILABLE = False
-from typing import List, Dict
+from typing import List, Dict, Optional
 from urllib.parse import urlparse
 
 
@@ -287,6 +287,65 @@ class LocalDBVault:
             
             conn.commit()
             return keys
+
+    def get_keys_by_kids(self, license_url: Optional[str], kids: List[str], drm_type: str) -> List[str]:
+        """
+        Retrieve keys for one or more KIDs in a single SQL query.
+
+        Args:
+            license_url (Optional[str]): License URL. If None, search globally by KID.
+            kids (List[str]): List of KID values to look up.
+            drm_type (str): Either 'widevine' or 'playready'.
+
+        Returns:
+            List[str]: List of "KID:KEY" strings found.
+        """
+        if not kids:
+            return []
+
+        base_url = self._clean_license_url(license_url) if license_url else None
+        normalized_kids = [k.replace('-', '').strip().lower() for k in kids]
+        drm_type = drm_type.lower()
+
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            placeholders = ','.join('?' * len(normalized_kids))
+
+            if base_url:
+                cursor.execute(f"""
+                    SELECT k.kid, k.key
+                    FROM drm_keys k
+                    JOIN drm_cache c ON k.cache_id = c.id
+                    WHERE c.base_url_license = ?
+                    AND c.drm_type = ?
+                    AND k.kid IN ({placeholders})
+                    AND k.is_valid = 1
+                """, [base_url, drm_type] + normalized_kids)
+            else:
+                cursor.execute(f"""
+                    SELECT k.kid, k.key
+                    FROM drm_keys k
+                    JOIN drm_cache c ON k.cache_id = c.id
+                    WHERE c.drm_type = ?
+                    AND k.kid IN ({placeholders})
+                    AND k.is_valid = 1
+                """, [drm_type] + normalized_kids)
+
+            found = cursor.fetchall()
+            if found and base_url:
+                cursor.execute("""
+                    UPDATE drm_cache
+                    SET last_accessed = CURRENT_TIMESTAMP,
+                        access_count = access_count + 1
+                    WHERE base_url_license = ? AND drm_type = ?
+                """, (base_url, drm_type))
+                conn.commit()
+
+            return [f"{row[0]}:{row[1]}" for row in found]
+
+    def get_keys_by_kid(self, license_url: Optional[str], kid: str, drm_type: str) -> List[str]:
+        """Convenience wrapper for a single KID lookup."""
+        return self.get_keys_by_kids(license_url, [kid], drm_type)
 
 
 # Initialize

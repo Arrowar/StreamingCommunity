@@ -5,6 +5,7 @@ from typing import List, Optional
 
 # External import
 from rich.console import Console
+from urllib.parse import urlparse
 from StreamingCommunity.utils.http_client import create_client
 from StreamingCommunity.utils.config import config_manager
 
@@ -19,158 +20,151 @@ class ExternalSupaDBVault:
         self.headers = {
             "Content-Type": "application/json"
         }
-    
-    ################# SET ##################
-    def set_key(self, license_url: str, pssh: str, kid: str, key: str, drm_type: str, label: Optional[str] = None) -> bool:
-        """
-        Add a key to the vault
-        
-        Returns:
-            bool: True if added successfully, False otherwise
-        """
-        url = f"{self.base_url}/set-key"
-        
-        payload = {
-            "license_url": license_url,
-            "pssh": pssh,
-            "kid": kid,
-            "key": key,
-            "drm_type": drm_type,
-            "label": label
-        }
-        
+
+    def _clean_license_url(self, license_url: str) -> str:
+        """Extract base URL from license URL (remove query parameters and fragments)"""
+        parsed = urlparse(license_url)
+        base_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
+        return base_url.rstrip('/')
+
+    def _post(self, endpoint: str, payload: dict) -> Optional[dict]:
+        """Internal helper: POST to an endpoint, return parsed JSON or None on error."""
+        url = f"{self.base_url}/{endpoint}"
         try:
             response = create_client(headers=self.headers).post(url, json=payload)
             response.raise_for_status()
-            
-            result = response.json()
-            
-            if result.get('success'):
-                return True
-            else:
-                return False
-                
+            return response.json()
         except Exception as e:
-            console.print(f"[red]Error adding key: {e}")
-            return False
+            console.print(f"[red]Supabase request error ({endpoint}): {e}")
+            return None
 
+    ################# SET ##################
     def set_keys(self, keys_list: List[str], drm_type: str, license_url: str, pssh: str) -> int:
         """
-        Add multiple keys to the vault in batch
-        
+        Add multiple keys to the vault in a single bulk request.
+
         Args:
             keys_list: List of "kid:key" strings
-            
+            drm_type:  'widevine' or 'playready'
+            license_url: Full license URL (will be cleaned server-side)
+            pssh: PSSH string
+
         Returns:
             int: Number of keys successfully added
         """
         if not keys_list:
             return 0
-        
-        added_count = 0
-        
+
+        base_license_url = self._clean_license_url(license_url)
+        keys_payload = []
         for key_str in keys_list:
             if ':' not in key_str:
                 continue
-            
             kid, key = key_str.split(':', 1)
-            label = None
-            
-            if self.set_key(license_url, pssh, kid, key, drm_type, label):
-                added_count += 1
-        
-        return added_count
-    
+            keys_payload.append({"kid": kid.strip(), "key": key.strip()})
+
+        if not keys_payload:
+            return 0
+
+        payload = {
+            "license_url": base_license_url,
+            "pssh": pssh,
+            "drm_type": drm_type,
+            "keys": keys_payload,
+        }
+
+        console.print(f"[dim]Supabase set_keys: {len(keys_payload)} key(s) for {drm_type}…")
+        result = self._post("set-key", payload)
+        if result is None:
+            return 0
+
+        added = result.get('added', 0)
+        already = result.get('already_exists', 0)
+        errors = result.get('errors', 0)
+        console.print(f"[dim]Supabase set_keys result: added={added}, already_exists={already}, errors={errors}")
+        return added
+
     ################# GET ##################
     def get_keys_by_pssh(self, license_url: str, pssh: str, drm_type: str) -> List[str]:
         """
-        Retrieve all keys for a given license URL and PSSH
-        
+        Retrieve all keys for a given license URL and PSSH (single request).
+
         Returns:
             List[str]: List of "kid:key" strings
         """
-        url = f"{self.base_url}/get-keys"
-        
+        base_license_url = self._clean_license_url(license_url)
         payload = {
-            "license_url": license_url,
+            "license_url": base_license_url,
             "pssh": pssh,
-            "drm_type": drm_type
+            "drm_type": drm_type,
         }
-        
-        try:
-            response = create_client(headers=self.headers).post(url, json=payload)
-            response.raise_for_status()
-            
-            result = response.json()
-            keys = result.get('keys', [])
-            
-            if keys:
-                console.print("[cyan]Using Supabase Vault.")
-                console.print(f"[red]{drm_type} [cyan](PSSH: [yellow]{pssh[:30]}...[cyan] KID: [red]N/A)")
-                
-                for key_data in keys:
-                    kid, key_val = key_data['kid_key'].split(':')
-                    console.print(f"    - [red]{kid}[white]:[green]{key_val}")
-            
-            return [k['kid_key'] for k in keys]
-            
-        except Exception as e:
-            console.print(f"[red]Error fetching keys: {e}")
-            return []
-        
-    def get_keys_by_kid(self, license_url: str, kid: str, drm_type: str) -> List[str]:
-        """
-        Retrieve key for a specific KID
-        
-        Returns:
-            List[str]: List of "kid:key" strings
-        """
-        url = f"{self.base_url}/get-keys"
-        
-        payload = {
-            "license_url": license_url,
-            "kid": kid,
-            "drm_type": drm_type
-        }
-        
-        try:
-            response = create_client(headers=self.headers).post(url, json=payload)
-            response.raise_for_status()
-            
-            result = response.json()
-            keys = result.get('keys', [])
-            
-            return [k['kid_key'] for k in keys]
-            
-        except Exception as e:
-            console.print(f"[red]Error fetching key for KID {kid}: {e}")
+
+        console.print(f"[dim]Supabase get_keys_by_pssh: pssh={pssh[:20]}…")
+        result = self._post("get-keys", payload)
+        if result is None:
             return []
 
-    ################# UPDATE ##################
-    def update_key_validity(self, kid: str, is_valid: bool) -> bool:
+        keys = result.get('keys', [])
+        if keys:
+            for k in keys:
+                kid_val, key_val = k['kid_key'].split(':', 1)
+                console.print(f"    - [red]{kid_val}[white]:[green]{key_val}")
+
+        return [k['kid_key'] for k in keys]
+
+    def get_keys_by_kids(self, license_url: Optional[str], kids: List[str], drm_type: str) -> List[str]:
         """
-        Update validity status of a key
-        
+        Retrieve keys for one or more KIDs in a single bulk request.
+        If license_url is None the search is global (all entries for that drm_type).
+
+        Returns:
+            List[str]: List of "kid:key" strings
+        """
+        if not kids:
+            return []
+
+        normalized_kids = [k.replace('-', '').strip().lower() for k in kids]
+        base_license_url = self._clean_license_url(license_url) if license_url else None
+
+        payload: dict = {"drm_type": drm_type, "kids": normalized_kids}
+        if base_license_url:
+            payload["license_url"] = base_license_url
+
+        console.print(f"[dim]Supabase get_keys_by_kids: {len(normalized_kids)} KID(s) for {drm_type}…")
+        result = self._post("get-keys", payload)
+        if result is None:
+            return []
+
+        keys = result.get('keys', [])
+        if keys:
+            console.print("[cyan]Using Supabase Vault.")
+            console.print(f"[red]{drm_type} [cyan](KID lookup: {len(keys)} key(s) found)")
+            for k in keys:
+                kid_val, key_val = k['kid_key'].split(':', 1)
+                console.print(f"    - [red]{kid_val}[white]:[green]{key_val}")
+
+        return [k['kid_key'] for k in keys]
+
+    def get_keys_by_kid(self, license_url: Optional[str], kid: str, drm_type: str) -> List[str]:
+        """Convenience wrapper for a single KID lookup."""
+        return self.get_keys_by_kids(license_url, [kid], drm_type)
+
+    ################# UPDATE ##################
+    def update_key_validity(self, kid: str, is_valid: bool, license_url: Optional[str] = None, drm_type: Optional[str] = None) -> bool:
+        """
+        Update validity status of a key.
+        If license_url is provided the update is scoped to that license only, preventing accidental global corruption of keys used by other content.
+
         Returns:
             bool: True if updated successfully, False otherwise
         """
-        url = f"{self.base_url}/update-key-validity"
-        
-        payload = {
-            "kid": kid,
-            "is_valid": is_valid
-        }
-        
-        try:
-            response = create_client(headers=self.headers).post(url, json=payload)
-            response.raise_for_status()
-            
-            result = response.json()
-            return result.get('success', False)
-            
-        except Exception as e:
-            console.print(f"[red]Error updating key validity: {e}")
-            return False
+        payload: dict = {"kid": kid, "is_valid": is_valid}
+        if license_url:
+            payload["license_url"] = self._clean_license_url(license_url)
+        if drm_type:
+            payload["drm_type"] = drm_type.lower()
+        result = self._post("update-key-validity", payload)
+        return bool(result and result.get('success', False))
 
 
 # Initialize

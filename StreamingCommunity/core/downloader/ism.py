@@ -161,6 +161,10 @@ class ISM_Downloader:
             site_name=self.site_name
         )
         
+        # Store DRM info for later use in manual decryption
+        self.media_downloader.license_url = self.license_url
+        self.media_downloader.drm_type = self.drm_preference
+        
         if self.ism_sub_list and SUBTITLE_FILTER != "false":
             console.print(f"[dim]Adding {len(self.ism_sub_list)} external subtitle(s) to the downloader.")
             self.media_downloader.external_subtitles = self.ism_sub_list

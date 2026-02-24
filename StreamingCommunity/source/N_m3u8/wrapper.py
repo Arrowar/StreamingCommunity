@@ -412,7 +412,7 @@ class MediaDownloader:
     def _manual_decrypt_check(self, status: Dict[str, Any]):
         """Check and manually decrypt files if they are still encrypted after download"""
         print("")
-        decryptor = Decryptor(preference=self.decrypt_preference)
+        decryptor = Decryptor(preference=self.decrypt_preference, license_url=getattr(self, 'license_url', None), drm_type=getattr(self, 'drm_type', None))
         
         # Prepare targets with their respective stream types
         targets = []

@@ -20,6 +20,7 @@ class ExternalSupaDBVault:
             "Content-Type": "application/json"
         }
     
+    ################# SET ##################
     def set_key(self, license_url: str, pssh: str, kid: str, key: str, drm_type: str, label: Optional[str] = None) -> bool:
         """
         Add a key to the vault
@@ -47,7 +48,6 @@ class ExternalSupaDBVault:
             if result.get('success'):
                 return True
             else:
-                console.print(f"[yellow]⚠ {result.get('message', 'Key already exists')}")
                 return False
                 
         except Exception as e:
@@ -81,6 +81,7 @@ class ExternalSupaDBVault:
         
         return added_count
     
+    ################# GET ##################
     def get_keys_by_pssh(self, license_url: str, pssh: str, drm_type: str) -> List[str]:
         """
         Retrieve all keys for a given license URL and PSSH
@@ -116,6 +117,60 @@ class ExternalSupaDBVault:
         except Exception as e:
             console.print(f"[red]Error fetching keys: {e}")
             return []
+        
+    def get_keys_by_kid(self, license_url: str, kid: str, drm_type: str) -> List[str]:
+        """
+        Retrieve key for a specific KID
+        
+        Returns:
+            List[str]: List of "kid:key" strings
+        """
+        url = f"{self.base_url}/get-keys"
+        
+        payload = {
+            "license_url": license_url,
+            "kid": kid,
+            "drm_type": drm_type
+        }
+        
+        try:
+            response = create_client(headers=self.headers).post(url, json=payload)
+            response.raise_for_status()
+            
+            result = response.json()
+            keys = result.get('keys', [])
+            
+            return [k['kid_key'] for k in keys]
+            
+        except Exception as e:
+            console.print(f"[red]Error fetching key for KID {kid}: {e}")
+            return []
+
+    ################# UPDATE ##################
+    def update_key_validity(self, kid: str, is_valid: bool) -> bool:
+        """
+        Update validity status of a key
+        
+        Returns:
+            bool: True if updated successfully, False otherwise
+        """
+        url = f"{self.base_url}/update-key-validity"
+        
+        payload = {
+            "kid": kid,
+            "is_valid": is_valid
+        }
+        
+        try:
+            response = create_client(headers=self.headers).post(url, json=payload)
+            response.raise_for_status()
+            
+            result = response.json()
+            return result.get('success', False)
+            
+        except Exception as e:
+            console.print(f"[red]Error updating key validity: {e}")
+            return False
 
 
 # Initialize

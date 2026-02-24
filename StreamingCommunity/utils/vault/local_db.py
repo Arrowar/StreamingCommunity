@@ -131,7 +131,8 @@ class LocalDBVault:
         parsed = urlparse(license_url)
         base_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
         return base_url.rstrip('/')
-    
+
+    ################# SET ##################
     def set_key(self, kid: str, key: str, drm_type: str, license_url: str, pssh: str = None, label: str = None) -> bool:
         """Add a single DRM key to the database"""
         # Normalize inputs
@@ -223,6 +224,7 @@ class LocalDBVault:
         
         return added_count
     
+    ################# GET ##################
     def get_keys_by_pssh(self, license_url: str, pssh: str, drm_type: str) -> List[str]:
         """
         Retrieve all keys for a given license URL, PSSH, and DRM type.

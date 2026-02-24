@@ -22,6 +22,7 @@ except Exception:
 
 # Internal import
 from StreamingCommunity.setup import get_bento4_decrypt_path, get_mp4dump_path, get_shaka_packager_path
+from StreamingCommunity.utils.vault import obj_externalSupaDbVault
 
 
 # Variable
@@ -30,65 +31,146 @@ console = Console()
 
 
 class Decryptor:
-    def __init__(self, preference: str = "bento4"):
+    def __init__(self, preference: str = "bento4", license_url: str = None, drm_type: str = None):
         self.preference = preference.lower()
         self.mp4decrypt_path = get_bento4_decrypt_path()
         self.mp4dump_path = get_mp4dump_path()
         self.shaka_packager_path = get_shaka_packager_path()
+        self.license_url = license_url
+        self.drm_type = drm_type
+        self.is_supa_db_connected = obj_externalSupaDbVault is not None
     
     def detect_encryption(self, file_path):
         """Detect encryption scheme using mp4dump. Returns 'ctr', 'cbc', or None if not encrypted."""
         logger.info(f"Detecting encryption: {os.path.basename(file_path)}")
+        kid = None
         
         try:
             cmd = [self.mp4dump_path, file_path]
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
             
             if result.returncode != 0:
-                return None
+                return None, None
             
             output = result.stdout
-            
-            if '[tenc]' not in output:
-                logger.info("File not encrypted")
-                return None
-            
+
+            # Extract KID if available
+            kid_match = re.search(r'default_KID\s*=\s*\[([\da-fA-F\s]+)\]', output, re.IGNORECASE)
+            if kid_match:
+                kid_raw = kid_match.group(1)
+                kid = re.sub(r'\s+', '', kid_raw).lower()
+                console.print(f"[dim]KID: {kid}")
+
+            # 1. Search for scheme_type
             scheme_match = re.search(r'scheme_type\s*=\s*(\w+)', output, re.IGNORECASE)
             if scheme_match:
                 scheme = scheme_match.group(1).lower()
-                logger.info(f"Encryption scheme: {scheme}")
+                logger.info(f"Found scheme_type: {scheme}")
+                console.print(f"[dim]Scheme: {scheme}")
                 if scheme in ['cenc', 'cens']:
-                    return 'ctr'
+                    return 'ctr', kid
                 elif scheme in ['cbcs', 'cbc1']:
-                    return 'cbc'
+                    return 'cbc', kid
             
-            return 'ctr'
+            # 2. Search for isProtected=1
+            protected_match = re.search(r'default_isProtected\s*=\s*1', output, re.IGNORECASE)
+            if protected_match:
+                console.print("[dim]Found isProtected=1 but no scheme_type. Defaulting to CTR mode.")
+                return 'ctr', kid
+            
+            # 3. Search for sinf box
+            if '[sinf]' in output:
+                console.print("[dim]Found sinf box, indicating encryption. Defaulting to CTR mode.")
+                return 'ctr', kid
+            
+            # 4. Search for frma
+            frma_match = re.search(r'original_format\s*=\s*(\w+)', output, re.IGNORECASE)
+            if frma_match and frma_match.group(1) != output.split()[-1]:
+                console.print("[dim]Found original_format different from file type, indicating encryption. Defaulting to CTR mode.")
+                return 'ctr', kid
+            
+            logger.info("No encryption indicators found")
+            return None, None
             
         except Exception as e:
-            logger.warning(f"Encryption detection failed: {e}")
-            return None
-    
+            logger.error(f"Encryption detection failed for {file_path}: {e}")
+            return None, None
+        
     def decrypt(self, encrypted_path, keys, output_path, stream_type: str = "video"):
         """Decrypt a file using the preferred method. Returns True on success."""
         try:
-            encryption = self.detect_encryption(encrypted_path)
-            if encryption is None:
+            encryption_scheme, kid = self.detect_encryption(encrypted_path)
+            if encryption_scheme is None:
                 shutil.copy(encrypted_path, output_path)
                 console.print("[dim]Not encrypted, copied")
                 return True
             
-            console.print(f"[dim]Decrypting ({encryption.upper()}) with {self.preference}...")
             if isinstance(keys, str):
                 keys = [keys]
+            
+            # Validate that at least one key matches the detected KID
+            if kid:
+                key_kids = []
+                for single_key in keys:
+                    if ":" in single_key:
+                        key_kid, _ = single_key.split(":", 1)
+                        key_kids.append(key_kid.lower())
+                    else:
+                        key_kids.append(single_key.lower())
+                
+                if key_kids and kid.lower() not in key_kids:
+                    console.print(f"[red]Error: Detected KID ({kid}) does not match any provided key KIDs ({key_kids})")
+                    
+                    # Mark mismatched keys as invalid in Supabase
+                    if self.is_supa_db_connected:
+                        for key_kid in key_kids:
+                            self._mark_key_invalid(key_kid)
+                    
+                    # Try to find correct key from Supabase by KID
+                    if self.is_supa_db_connected and self.license_url and self.drm_type:
+                        correct_keys = obj_externalSupaDbVault.get_keys_by_kid(self.license_url, kid, self.drm_type)
+                        if correct_keys:
+                            console.print(f"[green]Found correct key for KID {kid} from Supabase Vault!")
+                            keys = correct_keys
+                        else:
+                            console.print("[red]File cannot be decrypted")
+                            return False
+                    else:
+                        console.print("[red]File cannot be decrypted - wrong key for this content")
+                        return False
+            
+            console.print(f"[dim]Decrypting ({encryption_scheme.upper()}) with {self.preference}...")
 
             if self.preference == "shaka" and self.shaka_packager_path:
-                return self._decrypt_shaka(encrypted_path, keys, output_path, stream_type)
+                result = self._decrypt_shaka(encrypted_path, keys, output_path, stream_type)
             else:
-                return self._decrypt_bento4(encrypted_path, keys, output_path)
+                result = self._decrypt_bento4(encrypted_path, keys, output_path)
+            
+            # Mark key as valid if decryption succeeded
+            if result and kid and self.is_supa_db_connected:
+                self._mark_key_valid(kid)
+            
+            return result
                 
         except Exception as e:
             console.print(f"[red]Decryption error: {e}.")
             return False
+
+    def _mark_key_invalid(self, kid: str):
+        """Mark a key as invalid in Supabase Vault."""
+        if self.is_supa_db_connected:
+            if obj_externalSupaDbVault.update_key_validity(kid, False):
+                console.print(f"[yellow]Marked key {kid} as invalid in Supabase")
+            else:
+                logger.debug(f"Could not mark key {kid} as invalid")
+
+    def _mark_key_valid(self, kid: str):
+        """Mark a key as valid in Supabase Vault after successful decryption."""
+        if self.is_supa_db_connected:
+            if obj_externalSupaDbVault.update_key_validity(kid, True):
+                console.print(f"[green]Marked key {kid} as valid in Supabase")
+            else:
+                logger.debug(f"Could not mark key {kid} as valid")
 
     def _decrypt_bento4(self, encrypted_path, keys, output_path):
         """Decrypt a file using Bento4. Returns True on success."""

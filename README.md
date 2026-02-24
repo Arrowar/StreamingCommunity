@@ -43,9 +43,8 @@ python update.py
 
 ### Additional Documentation
 - 📝 [Login Guide](.github/doc/login.md) - Authentication for supported services
-- 🖥️ [Web GUI Guide](.github/doc/web-gui.md) - Web interface quick commands
-- 📦 [Queue Feature Guide](.github/doc/queue-feature-guide.md) - Batch download docs
-- ⚡ [Quick Start: Queue](.github/doc/quick-start-queue.md) - Fast setup for queue feature
+- 📦 [Queue Feature Guide](.github/doc/QUEUE_FEATURE_GUIDE.md) - Batch download docs
+- ⚡ [Quick Start: Queue](.github/doc/QUICK_START_QUEUE.md) - Fast setup for queue feature
 
 ---
 

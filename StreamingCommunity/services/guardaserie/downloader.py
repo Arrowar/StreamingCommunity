@@ -69,6 +69,8 @@ def download_episode(obj_episode, index_season_selected, index_episode_selected,
             }
         ).start()
 
+    return output_path, _
+
 def download_series(select_season: Entries, season_selection: str = None, episode_selection: str = None, scrape_serie = None) -> None:
     """
     Handle downloading a complete series

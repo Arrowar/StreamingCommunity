@@ -1,9 +1,7 @@
 # 22.02.26
 
-import logging
-from typing import Callable, Optional, List, Dict, Any
+from typing import Dict, Any
 from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeRemainingColumn
 from rich.panel import Panel
 from rich.table import Table
 from rich.prompt import Prompt
@@ -120,10 +118,10 @@ class BatchDownloader:
             bool: True if successful
         """
         if self.download_queue.remove_item(item_id):
-            console.print(f"[green]✓ Removed from queue")
+            console.print("[green]✓ Removed from queue")
             return True
         else:
-            console.print(f"[red]✗ Item not found in queue")
+            console.print("[red]✗ Item not found in queue")
             return False
     
     def clear_queue(self) -> None:
@@ -266,7 +264,7 @@ class BatchDownloader:
             console.print(f"[green]✓ Queue exported to {export_path}")
             return True
         else:
-            console.print(f"[red]✗ Failed to export queue")
+            console.print("[red]✗ Failed to export queue")
             return False
     
     def import_queue(self, import_path: str, merge: bool = False) -> bool:
@@ -284,5 +282,5 @@ class BatchDownloader:
             console.print(f"[green]✓ Queue imported from {import_path}")
             return True
         else:
-            console.print(f"[red]✗ Failed to import queue")
+            console.print("[red]✗ Failed to import queue")
             return False

@@ -125,7 +125,7 @@ def _build_command_for_hook(hook: dict) -> Tuple[list, dict]:
     if os_manager.system in ('linux', 'darwin'):
         if hook_type in ('bash', 'sh', 'shell'):
             if inline_command:
-                command = ['/bin/bash', '-lc', inline_command]
+                command = ['/bin/bash', '-c', inline_command]
             else:
                 if not script_path:
                     raise ValueError("Missing 'path' for bash/sh hook")

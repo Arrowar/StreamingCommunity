@@ -253,6 +253,9 @@ def _run_download_in_thread(site: str, item_payload: Dict[str, Any], season: str
             print(f"[Error] Download task failed: {e}")
             import traceback
             traceback.print_exc()
+        finally:
+            print("Running post-run hooks...")
+            execute_hooks('post_run')
 
     download_executor.submit(_task)
 
@@ -503,6 +506,9 @@ def _handle_series_download(request: HttpRequest) -> HttpResponse:
                         api.start_download(media_item, season=season_num, episodes="*")
                     except Exception as e:
                         print(f"[Error] Download season {season_num}: {e}")
+                    finally:
+                        print(f"Finished processing season {season_num}, running post-run hooks...")
+                        execute_hooks('post_run')
 
             except Exception as e:
                 print(f"[Error] Full series download task: {e}")

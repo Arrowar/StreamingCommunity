@@ -341,7 +341,7 @@ Execute custom scripts before/after downloads. Configure in `config.json`:
 #### Hook Configuration Options
 
 - **`name`**: Descriptive name for the hook
-- **`type`**: Script type - `python`, `bash`, `sh`, `bat`, `cmd`
+- **`type`**: Script type - `python`, `bash`, `sh`, `shell`, `bat`, `cmd`
 - **`path`**: Path to script file (alternative to `command`)
 - **`command`**: Inline command to execute (alternative to `path`)
 - **`args`**: List of arguments passed to the script
@@ -355,11 +355,11 @@ Execute custom scripts before/after downloads. Configure in `config.json`:
 #### Hook Types
 
 - **Python hooks**: Run with current Python interpreter
-- **Bash/sh hooks**: Execute via `bash`/`sh` on macOS/Linux
-- **Bat/cmd hooks**: Execute via `cmd /c` on Windows
-- **Inline commands**: Use `command` instead of `path` for simple one-liners
+- **Bash/sh/shell hooks**: All three types execute via `/bin/bash -c` on macOS/Linux
+- **Bat/cmd/shell hooks**: Execute via `cmd /c` on Windows
+- **Inline commands**: Use `command` instead of `path` for simple one-liners. Note: `args` are ignored when using `command`; they only apply when using `path`.
 
-Hooks are automatically executed by `run.py` before (`pre_run`) and after (`post_run`) the main execution flow.
+Hooks are automatically executed before (`pre_run`) and after (`post_run`) each download. In the GUI, `post_run` fires after every individual download completes; in CLI mode, `post_run` fires at the end of the main execution flow.
 
 ---
 

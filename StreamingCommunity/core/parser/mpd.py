@@ -345,7 +345,18 @@ class MPDParser:
         
         for info in matched_sets:
             pssh_map = info.get('pssh_map', {})
-            
+
+            # Build human-readable label for this adaptation set
+            c_type = info.get('content_type', '')
+            lang = info.get('language', 'N/A')
+            height = info.get('height')
+            if c_type == 'video' and height:
+                track_label = f"video {height}p"
+            elif c_type == 'audio':
+                track_label = f"audio ({lang})" if lang and lang != 'N/A' else "audio"
+            else:
+                track_label = c_type or None
+
             # Widevine PSSH
             for pssh in pssh_map.get(DRMSystem.WIDEVINE, []):
                 if pssh not in seen_wv:
@@ -353,7 +364,8 @@ class MPDParser:
                     wv_pssh.append({
                         'pssh': pssh,
                         'kid': info.get('default_kid') or 'N/A',
-                        'type': DRMSystem.WIDEVINE
+                        'type': DRMSystem.WIDEVINE,
+                        'label': track_label,
                     })
             
             # PlayReady PSSH
@@ -363,7 +375,8 @@ class MPDParser:
                     pr_pssh.append({
                         'pssh': pssh,
                         'kid': info.get('default_kid') or 'N/A',
-                        'type': DRMSystem.PLAYREADY
+                        'type': DRMSystem.PLAYREADY,
+                        'label': track_label,
                     })
         
         # Determine available DRM types

@@ -88,7 +88,6 @@ def _get_widevine_keys(pssh_list: list[dict], license_url: str, cdm_device_path:
             return None
 
     # Open CDM session
-    console.print("[dim]Opening CDM session ...")
     session_id = cdm.open()
     all_content_keys = []
     extracted_kids = set()
@@ -118,7 +117,6 @@ def _get_widevine_keys(pssh_list: list[dict], license_url: str, cdm_device_path:
 
             # Make license request
             try:
-                console.print("[dim]Requesting license ...")
                 response = create_client_curl(headers=req_headers).post(license_url, data=challenge)
             except Exception as e:
                 console.print(f"[red]License request error: {e}")
@@ -150,7 +148,6 @@ def _get_widevine_keys(pssh_list: list[dict], license_url: str, cdm_device_path:
 
             # Parse license
             try:
-                console.print("[dim]Parsing license ...")
                 cdm.parse_license(session_id, license_bytes)
             except Exception as e:
                 console.print(f"[red]Error parsing license: {e}")
@@ -164,15 +161,6 @@ def _get_widevine_keys(pssh_list: list[dict], license_url: str, cdm_device_path:
 
                     # Get KID and normalize
                     kid = key_obj.kid.hex.lower().strip()
-                    
-                    # Skip all-zero KIDs
-                    if all(c == '0' for c in kid):
-                        continue
-                    
-                    # Skip if we already extracted this KID
-                    if kid in extracted_kids:
-                        continue
-
                     formatted_key = f"{kid}:{key_obj.key.hex()}"
                     if formatted_key not in all_content_keys:
                         all_content_keys.append(formatted_key)

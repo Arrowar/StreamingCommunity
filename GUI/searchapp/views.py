@@ -250,12 +250,21 @@ def _run_download_in_thread(site: str, item_payload: Dict[str, Any], season: str
             # Start download
             api.start_download(media_item, season=season, episodes=episodes)
         except Exception as e:
-            print(f"[Error] Download task failed: {e}")
+            error_msg = str(e) or "Errore sconosciuto"
+            print(f"[Error] Download task failed: {error_msg}")
             import traceback
             traceback.print_exc()
-        finally:
-            print("Running post-run hooks...")
-            execute_hooks('post_run')
+
+            try:
+                _remove_scheduled_download(download_id)
+                
+                # start it briefly just to mark it as failed in the history.
+                if download_id not in download_tracker.downloads:
+                    download_tracker.start_download(download_id, title, site, media_type)
+                
+                download_tracker.complete_download(download_id, success=False, error=error_msg)
+            except Exception as tracker_err:
+                print(f"[Error] Failed to update download tracker: {tracker_err}")
 
     download_executor.submit(_task)
 
@@ -505,10 +514,17 @@ def _handle_series_download(request: HttpRequest) -> HttpResponse:
 
                         api.start_download(media_item, season=season_num, episodes="*")
                     except Exception as e:
+                        error_msg = str(e) or "Errore sconosciuto"
                         print(f"[Error] Download season {season_num}: {e}")
-                    finally:
-                        print(f"Finished processing season {season_num}, running post-run hooks...")
-                        execute_hooks('post_run')
+                        
+                        try:
+                            _remove_scheduled_download(download_id)
+                            if download_id not in download_tracker.downloads:
+                                season_title = f"{name} - S{season_num}"
+                                download_tracker.start_download(download_id, season_title, source_alias, media_type)
+                            download_tracker.complete_download(download_id, success=False, error=error_msg)
+                        except Exception as tracker_err:
+                            print(f"[Error] Failed to update download tracker: {tracker_err}")
 
             except Exception as e:
                 print(f"[Error] Full series download task: {e}")

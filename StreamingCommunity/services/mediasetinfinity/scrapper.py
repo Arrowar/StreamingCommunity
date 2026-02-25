@@ -60,16 +60,20 @@ class GetSerieInfo:
         try:
             params = {'byGuid': self.serie_id}
             url = f'https://feed.entertainment.tv.theplatform.eu/f/{self.public_id}/mediaset-prod-all-series-v2'
-            data = self.client.get(url, params=params, headers=self.headers)
-            return data.json()
+            response = self.client.get(url, params=params, headers=self.headers)
+            if response.status_code == 200 and response.text.strip().startswith('{'):
+                return response.json()
+            else:
+                logging.warning(f"Unexpected response from series API: {response.status_code}")
+                return None
         except Exception as e:
-            logging.error(f"Failed to get series data with error: {e}")
+            logging.error(f"Failed to get series data with error: {str(e)}")
             return None
 
     def _process_available_seasons(self, data):
         """Process available seasons from series data"""
         if not data or not data.get('entries'):
-            logging.error("No series data found")
+            logging.warning("No series data found in API")
             return []
 
         entry = data['entries'][0]
@@ -98,6 +102,27 @@ class GetSerieInfo:
         
         return stagioni_disponibili
 
+    def _fallback_homepage_scrape(self):
+        """Fallback: Scrape carousels directly from the homepage if no seasons are found via API"""
+        print(f"Fallback: Scraping homepage directly from {self.url}")
+        dummy_season = {
+            'tvSeasonNumber': 1,
+            'title': 'Stagione 1',
+            'url': None,
+            'id': self.serie_id,
+            'guid': self.serie_id,
+            'page_url': self.url
+        }
+        
+        # Try to extract sb IDs from the homepage URL
+        self._extract_season_sb_ids([dummy_season])
+        
+        if dummy_season.get('categories'):
+            self.stagioni_disponibili = [dummy_season]
+            return True
+            
+        return False
+
     def _build_season_page_urls(self, stagioni_disponibili):
         """Build season page URLs"""
         parsed_url = urlparse(self.url)
@@ -111,8 +136,15 @@ class GetSerieInfo:
     def _extract_season_sb_ids(self, stagioni_disponibili):
         """Extract sb IDs from season pages"""
         for season in stagioni_disponibili:
+            if not season.get('page_url'):
+                continue
+                
             response_page = self.client.get(season['page_url'], headers={'User-Agent': get_userAgent()})
             
+            if not response_page or response_page.status_code != 200:
+                logging.warning(f"Failed to fetch season page: {season.get('page_url')}")
+                continue
+                
             print("Response for _extract_season_sb_ids:", response_page.status_code, " Season:", season['tvSeasonNumber'])
             time.sleep(0.5)
             soup = BeautifulSoup(response_page.text, 'html.parser')
@@ -345,21 +377,28 @@ class GetSerieInfo:
                 
             # Step 3: Get series data
             data = self._get_series_data()
-            if not data:
-                logging.error("Failed to get series data")
-                return
+            if data:
+                # Step 4: Process available seasons
+                self.stagioni_disponibili = self._process_available_seasons(data)
                 
-            # Step 4: Process available seasons
-            self.stagioni_disponibili = self._process_available_seasons(data)
+            # Fallback if no seasons found or API failed
             if not self.stagioni_disponibili:
-                logging.error("No seasons found")
+                logging.info("No seasons found via API. Attempting fallback homepage scrape...")
+                self._fallback_homepage_scrape()
+            
+            if not self.stagioni_disponibili:
+                logging.error("No seasons found even after fallback")
                 return
                 
-            # Step 5: Build season page URLs
-            self._build_season_page_urls(self.stagioni_disponibili)
+            # Step 5: Build season page URLs - ONLY for seasons coming from API
+            api_seasons = [s for s in self.stagioni_disponibili if s.get('url')]
+            if api_seasons:
+                self._build_season_page_urls(api_seasons)
             
-            # Step 6: Extract sb IDs from season pages
-            self._extract_season_sb_ids(self.stagioni_disponibili)
+            # Step 6: Extract sb IDs from season pages (if not already extracted by fallback)
+            seasons_to_extract = [s for s in self.stagioni_disponibili if 'categories' not in s]
+            if seasons_to_extract:
+                self._extract_season_sb_ids(seasons_to_extract)
 
             # Step 7: Collect episodes from categories
             for season in self.stagioni_disponibili:

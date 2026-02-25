@@ -17,6 +17,7 @@ from StreamingCommunity.core.processors import join_video, join_audios, join_sub
 from StreamingCommunity.core.processors.helper.nfo import create_nfo
 from StreamingCommunity.source.utils.tracker import download_tracker, context_tracker
 from StreamingCommunity.source.utils.media_players import MediaPlayers
+from StreamingCommunity.cli.run import execute_hooks
 
 
 # # Downloader
@@ -86,6 +87,10 @@ class HLS_Downloader:
             download_id=self.download_id,
             site_name=self.site_name
         )
+
+        if self.download_id:
+            download_tracker.update_status(self.download_id, "Parsing HLS ...")
+            
         console.print("[dim]Parsing HLS ...")
         self.media_downloader.parser_stream()
         
@@ -104,7 +109,7 @@ class HLS_Downloader:
             pass
         
         if self.download_id:
-            download_tracker.update_status(self.download_id, "downloading")
+            download_tracker.update_status(self.download_id, "Downloading ...")
         
         console.print("[dim]Starting download ...")
         status = self.media_downloader.start_download()
@@ -124,7 +129,7 @@ class HLS_Downloader:
 
         # Merge files using FFmpeg
         if self.download_id:
-            download_tracker.update_status(self.download_id, "Muxing...")
+            download_tracker.update_status(self.download_id, "Muxing ...")
         final_file = self._merge_files(status)
         
         if not final_file:
@@ -163,6 +168,8 @@ class HLS_Downloader:
             
         if CLEANUP_TMP:
             shutil.rmtree(self.output_dir, ignore_errors=True)
+        
+        execute_hooks('post_run')
         return self.output_path, False
 
     def _no_media_downloaded(self, status):

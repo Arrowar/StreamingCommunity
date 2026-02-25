@@ -77,7 +77,6 @@ def _get_playready_keys_local_cdm(pssh_list: list[dict], license_url: str, cdm_d
             return None
 
     # Open CDM session
-    console.print("[dim]Opening CDM session ...")
     session_id = cdm.open()
     all_content_keys = []
     extracted_kids = set()
@@ -118,7 +117,6 @@ def _get_playready_keys_local_cdm(pssh_list: list[dict], license_url: str, cdm_d
 
             # Make license request
             try:
-                console.print("[dim]Requesting license ...")
                 response = create_client_curl(headers=req_headers).post(license_url, data=challenge)
             except Exception as e:
                 console.print(f"[red]License request error: {e}")
@@ -130,7 +128,6 @@ def _get_playready_keys_local_cdm(pssh_list: list[dict], license_url: str, cdm_d
 
             # Parse license
             try:
-                console.print("[dim]Parsing license ...")
                 cdm.parse_license(session_id, response.text)
             except Exception as e:
                 console.print(f"[red]Error parsing license: {e}")
@@ -140,15 +137,6 @@ def _get_playready_keys_local_cdm(pssh_list: list[dict], license_url: str, cdm_d
             try:
                 for key_obj in cdm.get_keys(session_id):
                     kid = key_obj.key_id.hex.replace('-', '').lower().strip()
-                    
-                    # Skip all-zero KIDs
-                    if all(c == '0' for c in kid):
-                        continue
-                    
-                    # Skip if we already extracted this KID
-                    if kid in extracted_kids:
-                        continue
-                    
                     key_val = key_obj.key.hex().replace('-', '').strip()
                     formatted_key = f"{kid}:{key_val}"
 

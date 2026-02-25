@@ -405,13 +405,11 @@ class MediaDownloader:
         if self.key:
             # IL 99% delle volte n3u8dl riesce a fare tutto ma in quel 1% sti cazzi meglio fare double check anche se si perde tempo.
             self._manual_decrypt_check(self.status)
-            print("")
 
         return self.status
 
     def _manual_decrypt_check(self, status: Dict[str, Any]):
         """Check and manually decrypt files if they are still encrypted after download"""
-        print("")
         decryptor = Decryptor(preference=self.decrypt_preference, license_url=getattr(self, 'license_url', None), drm_type=getattr(self, 'drm_type', None))
         
         # Prepare targets with their respective stream types
@@ -429,7 +427,7 @@ class MediaDownloader:
                 continue
                 
             # Check if still encrypted
-            console.print(f"[cyan]Checking if file [red]{file_path.name} [cyan]is still encrypted...")
+            console.print(f"[cyan]Check file [red]{file_path.name} [cyan]is still encrypted...")
             if decryptor.detect_encryption(str(file_path)):
                 
                 # Decrypt to a temporary file
@@ -451,9 +449,6 @@ class MediaDownloader:
                     if temp_output.exists():
                         temp_output.unlink()
                     console.print(f"[red]Manual decryption failed for: {file_path.name}[/red]")
-
-            else:
-                console.print("[dim]Not encrypted, copied")
 
     def _update_task(self, progress, tasks: dict, key: str, label: str, line: str):
         """Generic task update helper"""

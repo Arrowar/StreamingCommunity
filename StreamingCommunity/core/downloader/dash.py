@@ -19,6 +19,7 @@ from StreamingCommunity.core.processors import join_video, join_audios, join_sub
 from StreamingCommunity.core.processors.helper.nfo import create_nfo
 from StreamingCommunity.source.utils.tracker import download_tracker, context_tracker
 from StreamingCommunity.source.utils.media_players import MediaPlayers
+from StreamingCommunity.cli.run import execute_hooks
 
 
 # DRM Utilities
@@ -116,6 +117,9 @@ class DASH_Downloader:
                 return False
             
         drm_type = self.drm_info['selected_drm_type']
+        if self.download_id:
+            download_tracker.update_status(self.download_id, f"Fetching {drm_type} keys ...")
+
         try:
             if drm_type == DRMSystem.WIDEVINE:
                 keys = self.drm_manager.get_wv_keys(self.drm_info.get('widevine_pssh', []), self.license_url, self.license_headers, self.key)
@@ -159,6 +163,10 @@ class DASH_Downloader:
                     data = json.load(f)
                 
                 for item in data:
+                    is_image = str(item.get("GroupId", "")).lower().startswith(("image", "thumb"))
+                    if is_image:
+                        continue
+                    
                     is_video = bool(item.get("Resolution") or item.get("MediaType") == "VIDEO")
                     if is_video:
                         has_video_in_selected = True
@@ -211,7 +219,8 @@ class DASH_Downloader:
         """Find best video track based on bandwidth."""
         videos = [
             item for item in data 
-            if (item.get("Resolution") or item.get("MediaType") == "VIDEO") 
+            if not str(item.get("GroupId", "")).lower().startswith(("image", "thumb"))
+            and (item.get("Resolution") or item.get("MediaType") == "VIDEO") 
             and item.get("Bandwidth")
         ]
         return [max(videos, key=lambda x: x.get("Bandwidth", 0))] if videos else []
@@ -290,9 +299,9 @@ class DASH_Downloader:
             self.media_downloader.external_subtitles = self.mpd_sub_list
         
         if self.download_id:
-            download_tracker.update_status(self.download_id, "Parsing...")
+            download_tracker.update_status(self.download_id, "Parsing DASH...")
         
-        console.print("[dim]Parsing MPD ...")
+        console.print("[dim]Parsing DASH ...")
         self.media_downloader.parser_stream()
         
         # Get metadata
@@ -322,7 +331,7 @@ class DASH_Downloader:
         
         # Set keys and start download
         if self.download_id:
-            download_tracker.update_status(self.download_id, "downloading")
+            download_tracker.update_status(self.download_id, "Downloading ...")
         
         console.print("[dim]Starting download ...")
         self.media_downloader.set_key(self.decryption_keys)
@@ -343,7 +352,7 @@ class DASH_Downloader:
         
         # Merge files
         if self.download_id:
-            download_tracker.update_status(self.download_id, "Muxing...")
+            download_tracker.update_status(self.download_id, "Muxing ...")
             
         final_file = self._merge_files(status)
         if not final_file:
@@ -376,6 +385,8 @@ class DASH_Downloader:
             
         if CLEANUP_TMP:
             shutil.rmtree(self.output_dir, ignore_errors=True)
+        
+        execute_hooks('post_run')
         return self.output_path, False
     
     def _no_media_downloaded(self, status):

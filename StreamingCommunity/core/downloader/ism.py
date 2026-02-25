@@ -18,6 +18,7 @@ from StreamingCommunity.core.processors import join_video, join_audios, join_sub
 from StreamingCommunity.core.processors.helper.nfo import create_nfo
 from StreamingCommunity.source.utils.tracker import download_tracker, context_tracker
 from StreamingCommunity.source.utils.media_players import MediaPlayers
+from StreamingCommunity.cli.run import execute_hooks
 
 
 # DRM Utilities
@@ -170,7 +171,7 @@ class ISM_Downloader:
             self.media_downloader.external_subtitles = self.ism_sub_list
         
         if self.download_id:
-            download_tracker.update_status(self.download_id, "Parsing...")
+            download_tracker.update_status(self.download_id, "Parsing ISM ...")
         
         # Parse streams using N_m3u8dl (creates meta.json and raw.ism)
         console.print("[dim]Parsing ISM ...")
@@ -203,7 +204,7 @@ class ISM_Downloader:
         
         # Set keys and start download
         if self.download_id:
-            download_tracker.update_status(self.download_id, "downloading")
+            download_tracker.update_status(self.download_id, "Downloading ...")
         
         console.print("[dim]Starting download ...")
         self.media_downloader.set_key(self.decryption_keys)
@@ -224,7 +225,7 @@ class ISM_Downloader:
         
         # Merge files
         if self.download_id:
-            download_tracker.update_status(self.download_id, "Muxing...")
+            download_tracker.update_status(self.download_id, "Muxing ...")
             
         final_file = self._merge_files(status)
         if not final_file:
@@ -254,6 +255,8 @@ class ISM_Downloader:
             
         if CLEANUP_TMP:
             shutil.rmtree(self.output_dir, ignore_errors=True)
+        
+        execute_hooks('post_run')
         return self.output_path, False
     
     def _no_media_downloaded(self, status):

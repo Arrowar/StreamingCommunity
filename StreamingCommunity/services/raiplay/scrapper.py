@@ -1,5 +1,6 @@
 # 21.05.24
 
+import re
 import logging
 
 
@@ -90,7 +91,11 @@ class GetSerieInfo:
     def _add_season(self, season_set: dict, block_id: str, block_name: str):
         """Add a season combining set name and block name."""
         set_name = season_set.get('name', '')
-        season_number = len(self.seasons_manager.seasons) + 1
+        match = re.search(r'(\d+)', set_name)
+        if match:
+            season_number = int(match.group(1))
+        else:
+            season_number = len(self.seasons_manager.seasons) + 1
         
         # Store block_id mapping
         self.season_block_mapping[season_number] = {

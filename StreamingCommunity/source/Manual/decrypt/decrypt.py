@@ -102,7 +102,6 @@ class Decryptor:
             encryption_scheme, kid = self.detect_encryption(encrypted_path)
             if encryption_scheme is None:
                 shutil.copy(encrypted_path, output_path)
-                console.print("[dim]Not encrypted, copied")
                 return True
             
             if isinstance(keys, str):

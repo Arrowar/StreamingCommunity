@@ -17,6 +17,7 @@ from rich.progress import Progress, TextColumn
 # Internal utilities
 from StreamingCommunity.utils.http_client import create_client, get_userAgent
 from StreamingCommunity.utils import config_manager, os_manager, internet_manager
+from StreamingCommunity.cli.run import execute_hooks
 from StreamingCommunity.source.N_m3u8 import CustomBarColumn
 from StreamingCommunity.core.processors.helper.nfo import create_nfo
 from StreamingCommunity.source.utils.tracker import download_tracker, context_tracker
@@ -90,7 +91,7 @@ def MP4_Downloader(url: str, path: str, referer: str = None, headers_: dict = No
     if download_id:
         filename = os.path.basename(path)
         download_tracker.start_download(download_id, filename, site_name or "Unknown", media_type, path=os.path.abspath(path))
-        download_tracker.update_status(download_id, "downloading")
+        download_tracker.update_status(download_id, "Downloading ...")
 
     # Set headers
     headers = {}
@@ -313,6 +314,7 @@ def MP4_Downloader(url: str, path: str, referer: str = None, headers_: dict = No
             abs_path = os.path.abspath(path)
             download_tracker.complete_download(download_id, success=True, path=abs_path)
 
+        execute_hooks('post_run')
         return path, interrupt_handler.kill_download
     
     else:

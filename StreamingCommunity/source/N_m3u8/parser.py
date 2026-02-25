@@ -41,8 +41,17 @@ class LogParser:
         return 'WARN' in line.upper(), 'ERROR' in line.upper()
 
 
+def _is_image_track(s: dict) -> bool:
+    """Return True for thumbnail/image sprite tracks (e.g. GroupId 'images_1', 'thumb_...')."""
+    gid = str(s.get("GroupId", "")).lower()
+    return gid.startswith("image") or gid.startswith("thumb")
+
+
 def create_key(s):
     """Create a unique key for a stream from meta.json data"""
+    if _is_image_track(s):
+        return f"IMAGE|{s.get('GroupId','')}|{s.get('Bandwidth',0)}"
+
     if "Resolution" in s and s.get("Resolution"): 
         return f"VIDEO|{s.get('Resolution','')}|{s.get('Bandwidth',0)}|{s.get('Codecs','')}|{s.get('FrameRate','')}|{s.get('VideoRange','')}"
 
@@ -54,9 +63,8 @@ def create_key(s):
 
 def classify_stream(s):
     """Classify stream type based on meta.json data"""
-    group_id = s.get("GroupId", "")
-    if isinstance(group_id, str) and group_id.startswith("thumb_"):
-        return "Thumbnail"
+    if _is_image_track(s):
+        return "Image"
     
     # Check MediaType
     media_type = s.get("MediaType", "").upper()

@@ -46,6 +46,10 @@ class DRMManager:
         base_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
         return base_url.rstrip('/')
 
+    def _lookup_keys(self, db_obj, base_url: str, kids: list, drm_type: str) -> list:
+        """Look up keys from a DB object for the given KIDs in a SINGLE request."""
+        return list(db_obj.get_keys_by_kids(None, kids, drm_type) or [])
+
     def get_wv_keys(self, pssh_list: list[dict], license_url: str, headers: dict = None, key: str = None):
         """
         Get Widevine keys with step: 
@@ -81,31 +85,20 @@ class DRMManager:
             if kid and kid != 'N/A':
                 all_kids.append(kid.replace('-', '').strip().lower())
         
-        # Step 1: Check databases — single bulk request per DB (license URL + all KIDs)
+        # Step 1: Check databases — scoped by URL, global fallback for missing KIDs
         if (self.is_local_db_connected or self.is_supa_db_connected) and base_license_url and all_kids:
             found_keys = []
 
-            # 1.1 Local DB — one query for all KIDs
+            # 1.1 Local DB
             if self.is_local_db_connected:
-                lk = obj_localDbValut.get_keys_by_kids(base_license_url, all_kids, 'widevine')
-                if lk:
-                    found_keys.extend(lk)
-                else:
-                    # Fallback: global KID-only search
-                    lk_f = obj_localDbValut.get_keys_by_kids(None, all_kids, 'widevine')
-                    if lk_f:
-                        found_keys.extend(lk_f)
+                found_keys.extend(self._lookup_keys(obj_localDbValut, base_license_url, all_kids, 'widevine'))
 
-            # 1.2 Supabase DB — one request for all KIDs
+            # 1.2 Supabase DB — look up only KIDs still missing after local DB
             if self.is_supa_db_connected:
-                sk = obj_externalSupaDbVault.get_keys_by_kids(base_license_url, all_kids, 'widevine')
-                if sk:
-                    found_keys.extend(sk)
-                else:
-                    # Fallback: global KID-only search (no license filter)
-                    sk_f = obj_externalSupaDbVault.get_keys_by_kids(None, all_kids, 'widevine')
-                    if sk_f:
-                        found_keys.extend(sk_f)
+                found_kids_local = {k.split(':')[0].strip().lower() for k in found_keys}
+                kids_for_supa = [kid for kid in all_kids if kid not in found_kids_local]
+                if kids_for_supa:
+                    found_keys.extend(self._lookup_keys(obj_externalSupaDbVault, base_license_url, kids_for_supa, 'widevine'))
 
             if found_keys:
                 unique_keys = list(set(found_keys))
@@ -114,8 +107,8 @@ class DRMManager:
 
                 if needed_unique_kids.issubset(found_unique_kids):
                     return KeysManager(unique_keys)
-        
-        # Step 3: Try CDM extraction
+
+        # Step 2: Try CDM extraction
         try:
             console.print(f"[dim]Waiting {DELAY} seconds after CDM request ...")
             time.sleep(DELAY)
@@ -125,13 +118,19 @@ class DRMManager:
                 keys_list = keys.get_keys_list()
                 pssh_val = next((item.get('pssh') for item in pssh_list if item.get('pssh')), None)
 
+                # Build kid → label map from pssh_list entries
+                kid_to_label = {
+                    item['kid'].replace('-', '').strip().lower(): item['label']
+                    for item in pssh_list
+                    if item.get('kid') and item.get('kid') != 'N/A' and item.get('label')
+                } or None
+
                 if self.is_local_db_connected and base_license_url and pssh_val:
                     console.print(f"Storing {len(keys)} key(s) to local database...")
                     obj_localDbValut.set_keys(keys_list, 'widevine', base_license_url, pssh_val)
 
                 if self.is_supa_db_connected and base_license_url and pssh_val:
-                    console.print(f"Storing {len(keys)} key(s) to Supabase database...")
-                    obj_externalSupaDbVault.set_keys(keys_list, 'widevine', base_license_url, pssh_val)
+                    obj_externalSupaDbVault.set_keys(keys_list, 'widevine', base_license_url, pssh_val, kid_to_label)
 
                 return keys
             
@@ -177,29 +176,20 @@ class DRMManager:
             if kid and kid != 'N/A':
                 all_kids.append(kid.replace('-', '').strip().lower())
         
-        # Step 1: Check databases — single bulk request per DB (license URL + all KIDs)
+        # Step 1: Check databases — scoped by URL, global fallback for missing KIDs
         if (self.is_local_db_connected or self.is_supa_db_connected) and base_license_url and all_kids:
             found_keys = []
 
-            # 1.1 Local DB — one query for all KIDs
+            # 1.1 Local DB
             if self.is_local_db_connected:
-                lk = obj_localDbValut.get_keys_by_kids(base_license_url, all_kids, 'playready')
-                if lk:
-                    found_keys.extend(lk)
-                else:
-                    lk_f = obj_localDbValut.get_keys_by_kids(None, all_kids, 'playready')
-                    if lk_f:
-                        found_keys.extend(lk_f)
+                found_keys.extend(self._lookup_keys(obj_localDbValut, base_license_url, all_kids, 'playready'))
 
-            # 1.2 Supabase DB — one request for all KIDs
+            # 1.2 Supabase DB — look up only KIDs still missing after local DB
             if self.is_supa_db_connected:
-                sk = obj_externalSupaDbVault.get_keys_by_kids(base_license_url, all_kids, 'playready')
-                if sk:
-                    found_keys.extend(sk)
-                else:
-                    sk_f = obj_externalSupaDbVault.get_keys_by_kids(None, all_kids, 'playready')
-                    if sk_f:
-                        found_keys.extend(sk_f)
+                found_kids_local = {k.split(':')[0].strip().lower() for k in found_keys}
+                kids_for_supa = [kid for kid in all_kids if kid not in found_kids_local]
+                if kids_for_supa:
+                    found_keys.extend(self._lookup_keys(obj_externalSupaDbVault, base_license_url, kids_for_supa, 'playready'))
 
             if found_keys:
                 unique_keys = list(set(found_keys))
@@ -208,8 +198,8 @@ class DRMManager:
 
                 if needed_unique_kids.issubset(found_unique_kids):
                     return KeysManager(unique_keys)
-        
-        # Step 3: Try CDM extraction
+
+        # Step 2: Try CDM extraction
         try:
             console.print(f"[dim]Waiting {DELAY} seconds after CDM request ...")
             time.sleep(DELAY)
@@ -219,13 +209,19 @@ class DRMManager:
                 keys_list = keys.get_keys_list()
                 pssh_val = next((item.get('pssh') for item in pssh_list if item.get('pssh')), None)
 
+                # Build kid → label map from pssh_list entries
+                kid_to_label = {
+                    item['kid'].replace('-', '').strip().lower(): item['label']
+                    for item in pssh_list
+                    if item.get('kid') and item.get('kid') != 'N/A' and item.get('label')
+                } or None
+
                 if self.is_local_db_connected and base_license_url and pssh_val:
                     console.print(f"Storing {len(keys)} key(s) to local database...")
                     obj_localDbValut.set_keys(keys_list, 'playready', base_license_url, pssh_val)
 
                 if self.is_supa_db_connected and base_license_url and pssh_val:
-                    console.print(f"Storing {len(keys)} key(s) to Supabase database...")
-                    obj_externalSupaDbVault.set_keys(keys_list, 'playready', base_license_url, pssh_val)
+                    obj_externalSupaDbVault.set_keys(keys_list, 'playready', base_license_url, pssh_val, kid_to_label)
 
                 return keys
             else:

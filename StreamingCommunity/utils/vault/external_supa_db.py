@@ -39,15 +39,16 @@ class ExternalSupaDBVault:
             return None
 
     ################# SET ##################
-    def set_keys(self, keys_list: List[str], drm_type: str, license_url: str, pssh: str) -> int:
+    def set_keys(self, keys_list: List[str], drm_type: str, license_url: str, pssh: str, kid_to_label: Optional[dict] = None) -> int:
         """
         Add multiple keys to the vault in a single bulk request.
 
         Args:
             keys_list: List of "kid:key" strings
-            drm_type:  'widevine' or 'playready'
+            drm_type: 'widevine' or 'playready'
             license_url: Full license URL (will be cleaned server-side)
             pssh: PSSH string
+            kid_to_label: Optional dict mapping normalised KID → human label
 
         Returns:
             int: Number of keys successfully added
@@ -61,7 +62,15 @@ class ExternalSupaDBVault:
             if ':' not in key_str:
                 continue
             kid, key = key_str.split(':', 1)
-            keys_payload.append({"kid": kid.strip(), "key": key.strip()})
+            kid_clean = kid.strip()
+            kid_norm = kid_clean.lower().replace('-', '')
+            entry: dict = {"kid": kid_clean, "key": key.strip()}
+            if kid_to_label:
+                label = kid_to_label.get(kid_norm)
+                if label:
+                    entry["label"] = label
+                    
+            keys_payload.append(entry)
 
         if not keys_payload:
             return 0
@@ -73,15 +82,15 @@ class ExternalSupaDBVault:
             "keys": keys_payload,
         }
 
-        console.print(f"[dim]Supabase set_keys: {len(keys_payload)} key(s) for {drm_type}…")
         result = self._post("set-key", payload)
         if result is None:
             return 0
 
         added = result.get('added', 0)
+        updated = result.get('updated', 0)
         already = result.get('already_exists', 0)
         errors = result.get('errors', 0)
-        console.print(f"[dim]Supabase set_keys result: added={added}, already_exists={already}, errors={errors}")
+        console.print(f"[dim]Supabase set_keys result: added={added}, updated={updated}, already_exists={already}, errors={errors}")
         return added
 
     ################# GET ##################
@@ -129,15 +138,13 @@ class ExternalSupaDBVault:
         payload: dict = {"drm_type": drm_type, "kids": normalized_kids}
         if base_license_url:
             payload["license_url"] = base_license_url
-
-        console.print(f"[dim]Supabase get_keys_by_kids: {len(normalized_kids)} KID(s) for {drm_type}…")
+        
         result = self._post("get-keys", payload)
         if result is None:
             return []
 
         keys = result.get('keys', [])
         if keys:
-            console.print("[cyan]Using Supabase Vault.")
             console.print(f"[red]{drm_type} [cyan](KID lookup: {len(keys)} key(s) found)")
             for k in keys:
                 kid_val, key_val = k['kid_key'].split(':', 1)

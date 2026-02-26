@@ -32,14 +32,17 @@ COLOR_MAP = {
     "serie": "blue",
     "film": "green"
 }
-CATEGORY_MAP = {1: "anime", 2: "Film_serie", 3: "serie"}
+CATEGORY_MAP = {1: "anime", 2: "Film_serie", 3: "serie", 4: "film"}
 SHOW_DEVICE_INFO = config_manager.config.get_bool('DEFAULT', 'show_device_info')
 NOT_CLOSE = config_manager.config.get_bool('DEFAULT', 'close_console')
 
 
-def run_function(func: Callable[..., None], search_terms: str = None) -> None:
+def run_function(func: Callable[..., None], search_terms: str = None, selections: dict = None) -> None:
     """Run function once or indefinitely based on close_console flag."""
-    func(search_terms)
+    if selections:
+        func(search_terms, selections=selections)
+    else:
+        func(search_terms)
 
 
 def initialize():
@@ -236,15 +239,22 @@ def setup_argument_parser(search_functions):
     
     # Add arguments
     parser.add_argument('-s', '--search', default=None, help='Search terms')
-    parser.add_argument('--auto-first', action='store_true', help='Auto-download first result (use with --site and --search)')
     parser.add_argument('--site', type=str, help='Site by name or index')
-    parser.add_argument('--global', action='store_true', help='Global search across sites')
-    parser.add_argument('--not_close', type=bool, help='Keep console open after last download')
-    parser.add_argument('-sv', '--s_video', type=str, help='''Select video tracks. Example:  1. select best video (best) 2. Select 4K+HEVC video (res="3840*":codecs=hvc1:for=best)''')
-    parser.add_argument('-sa', '--s_audio', type=str, help='''Select audio tracks. Example:  1. Select all (all) 2. Select best eng audio (lang=en:for=best) 3. Select best 2, and language is ja or en (lang="ja|en":for=best2)''')
-    parser.add_argument('-ss', '--s_subtitle', type=str, help='''Select subtitle tracks. Example:  1. Select all subs (all) 2. Select all subs containing "English" (name="English":for=all)''')
+    parser.add_argument('--category', type=int, help='Category filter for global search (1=Anime, 2=Movies/Series, 3=Series, 4=Movies)')
+    parser.add_argument('--global', dest='global_search', action='store_true', help='Global search across sites')
+
+    parser.add_argument('--auto-first', action='store_true', help='Auto-download first result (use with --site and --search)')
+    parser.add_argument('--season', type=str, default=None, help='Season selection (for series, e.g., "1" or "1-3" or "*")')
+    parser.add_argument('--episode', type=str, default=None, help='Episode selection (for series, e.g., "1" or "1-5" or "*")')
+
+    parser.add_argument('-sv', '--s_video', type=str, help='Select video tracks. Example:  1. select best video (best) 2. Select 4K+HEVC video (res="3840*":codecs=hvc1:for=best)')
+    parser.add_argument('-sa', '--s_audio', type=str, help='Select audio tracks. Example:  1. Select all (all) 2. Select best eng audio (lang=en:for=best) 3. Select best 2, and language is ja or en (lang="ja|en":for=best2)')
+    parser.add_argument('-ss', '--s_subtitle', type=str, help='Select subtitle tracks. Example:  1. Select all subs (all) 2. Select all subs containing "English" (name="English":for=all)')
+
     parser.add_argument('--use_proxy', action='store_true', help='Enable proxy for requests')
     parser.add_argument('--extension', type=str, help='Output file extension (mkv, mp4)')
+    parser.add_argument('--not_close', action='store_true', help='Keep console open after last download')
+
     parser.add_argument('-UP', '--update', action='store_true', help='Auto-update to latest version (binary only)')
     parser.add_argument('--version', action='version', version=f'{__title__} {__version__}')
     return parser
@@ -292,7 +302,7 @@ def build_function_mappings(search_functions):
     return input_to_function, choice_labels, module_name_to_function
 
 
-def handle_direct_site_selection(args, input_to_function, module_name_to_function, search_terms):
+def handle_direct_site_selection(args, input_to_function, module_name_to_function, search_terms, selections=None):
     """Handle direct site selection via command line."""
     if not args.site:
         return False
@@ -312,14 +322,14 @@ def handle_direct_site_selection(args, input_to_function, module_name_to_functio
             if database and hasattr(database, 'media_list') and database.media_list:
                 first_item = database.media_list[0]
                 item_dict = first_item.__dict__.copy() if hasattr(first_item, '__dict__') else {}
-                func_to_run(direct_item=item_dict)
+                func_to_run(direct_item=item_dict, selections=selections)
                 return True
             else:
                 console.print("[yellow]No results found. Falling back to interactive mode.")
         except Exception as e:
             console.print(f"[red]Auto-first failed: {str(e)}")
     
-    run_function(func_to_run, search_terms=search_terms)
+    run_function(func_to_run, search_terms=search_terms, selections=selections)
     return True
 
 
@@ -359,12 +369,21 @@ def main():
         
         apply_config_updates(args)
 
-        if getattr(args, 'global'):
+        # Build selections dictionary from season and episode arguments
+        selections = None
+        if args.season is not None or args.episode is not None:
+            selections = {}
+            if args.season is not None:
+                selections['season'] = args.season
+            if args.episode is not None:
+                selections['episode'] = args.episode
+
+        if getattr(args, 'global_search', False):
             call_global_search(args.search)
             return
 
         input_to_function, choice_labels, module_name_to_function = build_function_mappings(search_functions)
-        if handle_direct_site_selection(args, input_to_function, module_name_to_function, args.search):
+        if handle_direct_site_selection(args, input_to_function, module_name_to_function, args.search, selections):
             return
         
         if not NOT_CLOSE:
@@ -375,7 +394,7 @@ def main():
                     call_global_search(args.search)
 
                 if category in input_to_function:
-                    run_function(input_to_function[category], search_terms=args.search)
+                    run_function(input_to_function[category], search_terms=args.search, selections=selections)
                 
                 user_response = msg.ask("\n[cyan]Do you want to perform another search? (y/n)", choices=["y", "n"], default="n")
                 if user_response.lower() != 'y':
@@ -390,7 +409,7 @@ def main():
                 call_global_search(args.search)
 
             if category in input_to_function:
-                run_function(input_to_function[category], search_terms=args.search)
+                run_function(input_to_function[category], search_terms=args.search, selections=selections)
 
             force_exit()
                 

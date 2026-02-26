@@ -1,6 +1,6 @@
 {
     "DEFAULT": {
-        "close_console": true,
+        "close_console": false,
         "show_message": true,
         "show_device_info": true,
         "fetch_domain_online": true
@@ -10,7 +10,8 @@
         "movie_folder_name": "Movie",
         "serie_folder_name": "Serie",
         "anime_folder_name": "Anime",
-        "map_episode_name": "%(episode_name) S%(season)E%(episode)",
+        "episode_format": "%(episode_name) S%(season)E%(episode)",
+        "season_format": "S%(season)",
         "add_siteName": false
     },
     "DOWNLOAD": {

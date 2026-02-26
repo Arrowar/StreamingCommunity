@@ -12,7 +12,7 @@ from rich.prompt import Prompt
 # Internal utilities
 from StreamingCommunity.utils import os_manager, config_manager, start_message
 from StreamingCommunity.services._base import site_constants, Entries
-from StreamingCommunity.services._base.tv_display_manager import map_episode_title
+from StreamingCommunity.services._base.tv_display_manager import map_episode_title, map_season_name
 from StreamingCommunity.services._base.tv_download_manager import process_season_selection, process_episode_download
 
 
@@ -78,7 +78,7 @@ def download_episode(obj_episode, index_season_selected, index_episode_selected,
     console.print(f"\n[yellow]Download: [red]{site_constants.SITE_NAME} → [cyan]{scrape_serie.series_name} [white]\\ [magenta]{obj_episode.name} ([cyan]S{index_season_selected}E{index_episode_selected}) \n")
 
     mp4_name = f"{map_episode_title(scrape_serie.series_name, index_season_selected, index_episode_selected, obj_episode.name)}.{extension_output}"
-    mp4_path = os_manager.get_sanitize_path(os.path.join(site_constants.SERIES_FOLDER, scrape_serie.series_name, f"S{index_season_selected}"))
+    mp4_path = os_manager.get_sanitize_path(os.path.join(site_constants.SERIES_FOLDER, scrape_serie.series_name, map_season_name(index_season_selected)))
 
     api = get_client()
     playback_info = get_playback_info(obj_episode)

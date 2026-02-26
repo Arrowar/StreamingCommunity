@@ -18,7 +18,8 @@ from StreamingCommunity.utils.console import TVShowManager
 # Variable
 msg = Prompt()
 console = Console()
-MAP_EPISODE = config_manager.config.get('OUTPUT', 'map_episode_name')
+EPISODE_FORMAT = config_manager.config.get('OUTPUT', 'episode_format')
+SEASON_FORMAT = config_manager.config.get('OUTPUT', 'season_format')
 
 
 def dynamic_format_number(number_str: str) -> str:
@@ -121,7 +122,7 @@ def map_episode_title(tv_name: str, number_season: int, episode_number: int, epi
     Returns:
         str: The mapped episode title.
     """
-    map_episode_temp = MAP_EPISODE
+    map_episode_temp = EPISODE_FORMAT
     
     if tv_name is not None:
         map_episode_temp = map_episode_temp.replace("%(tv_name)", os_manager.get_sanitize_file(tv_name))
@@ -140,6 +141,26 @@ def map_episode_title(tv_name: str, number_season: int, episode_number: int, epi
         map_episode_temp = map_episode_temp.replace("%(episode_name)", os_manager.get_sanitize_file(episode_name))
 
     return map_episode_temp
+
+
+def map_season_name(season_number: int) -> str:
+    """
+    Maps the season number to a specific format for folder naming.
+
+    Parameters:
+        season_number (int): The season number.
+
+    Returns:
+        str: The formatted season name for folder naming.
+    """
+    map_season_temp = SEASON_FORMAT
+    
+    if season_number is not None:
+        map_season_temp = map_season_temp.replace("%(season)", dynamic_format_number(str(season_number)))
+    else:
+        map_season_temp = map_season_temp.replace("%(season)", dynamic_format_number(str(0)))
+
+    return map_season_temp
 
 
 def validate_selection(list_season_select: List[int], available_seasons: List[int]) -> List[int]:

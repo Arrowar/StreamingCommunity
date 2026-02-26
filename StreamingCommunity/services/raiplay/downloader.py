@@ -14,7 +14,7 @@ from rich.prompt import Prompt
 from StreamingCommunity.utils import os_manager, config_manager, start_message
 from StreamingCommunity.utils.http_client import create_client, get_headers, get_userAgent
 from StreamingCommunity.services._base import site_constants, Entries
-from StreamingCommunity.services._base.tv_display_manager import map_episode_title
+from StreamingCommunity.services._base.tv_display_manager import map_episode_title, map_season_name
 from StreamingCommunity.services._base.tv_download_manager import process_season_selection, process_episode_download
 
 
@@ -99,7 +99,7 @@ def download_episode(obj_episode, index_season_selected, index_episode_selected,
 
     # Define filename and path
     mp4_name = f"{map_episode_title(scrape_serie.series_name, index_season_selected, index_episode_selected, obj_episode.name)}.{extension_output}"
-    mp4_path = os.path.join(site_constants.SERIES_FOLDER, scrape_serie.series_name, f"S{index_season_selected}")
+    mp4_path = os.path.join(site_constants.SERIES_FOLDER, scrape_serie.series_name, map_season_name(index_season_selected))
 
     # Get streaming URL
     master_playlist = VideoSource.extract_m3u8_url(obj_episode.url)

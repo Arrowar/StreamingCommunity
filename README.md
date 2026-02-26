@@ -94,7 +94,8 @@ Key configuration parameters in `config.json`:
         "movie_folder_name": "Movie",
         "serie_folder_name": "Serie",
         "anime_folder_name": "Anime",
-        "map_episode_name": "%(episode_name) S%(season)E%(episode)",
+        "episode_format": "%(episode_name) S%(season)E%(episode)",
+        "season_format": "S%(season)",
         "add_siteName": false
     }
 }
@@ -108,12 +109,16 @@ Key configuration parameters in `config.json`:
 - **`serie_folder_name`**: Subfolder name for TV series (default: `"Serie"`)
 - **`anime_folder_name`**: Subfolder name for anime (default: `"Anime"`)
 
-- **`map_episode_name`**: Episode filename template
+- **`episode_format`**: Episode filename template
   - `%(tv_name)`: TV Show name
   - `%(season)`: Season number (zero-padded)
   - `%(episode)`: Episode number (zero-padded)
   - `%(episode_name)`: Episode title
   - Example: `"%(episode_name) S%(season)E%(episode)"` → `"Pilot S01E01"`
+
+- **`season_format`**: Season folder name template (default: `"S%(season)"`)
+  - `%(season)`: Season number (zero-padded)
+  - Example: `"S%(season)"` → `"S01"` or `"Stagione %(season)"` → `"Stagione 1"`
 
 - **`add_siteName`**: Append site name to root path (default: `false`)
 

@@ -126,12 +126,10 @@ Key configuration parameters in `config.json`:
 ```json
 {
     "DOWNLOAD": {
-        "auto_select": true,
         "thread_count": 12,
         "retry_count": 40,
         "concurrent_download": true,
         "max_speed": "30MB",
-        "check_segments_count": true,
         "select_video": "res=.*1080.*:for=best",
         "select_audio": "lang='ita|Ita':for=all",
         "select_subtitle": "lang='ita|eng|Ita|Eng':for=all",
@@ -146,8 +144,6 @@ Key configuration parameters in `config.json`:
 - **`retry_count`**: Maximum retry attempts for failed segments (default: `40`)
 - **`concurrent_download`**: Download video and audio simultaneously (default: `true`)
 - **`max_speed`**: Speed limit per stream (e.g., `"30MB"`, `"10MB"`)
-- **`real_time_decryption`**: Decrypt segments in real-time during download instead of post-processing (default: `false`)
-- **`check_segments_count`**: Verify segment count matches manifest (default: `true`)
 - **`cleanup_tmp_folder`**: Remove temporary files after download (default: `true`)
 
 #### Stream Selection
@@ -282,14 +278,6 @@ python test_run.py --site streamingcommunity --search "interstellar" --auto-firs
 # Use site by index
 python test_run.py --site 0 --search "interstellar"
 ```
-
-### Advanced Options
-```bash
-# Keep console open
-python test_run.py --not_close true
-```
-
----
 
 ## Global Search
 

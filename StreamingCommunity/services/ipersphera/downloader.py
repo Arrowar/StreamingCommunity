@@ -53,8 +53,8 @@ def download_film(select_title: Entries) -> str:
     mega_link = None
     response = create_client_curl(headers=get_headers()).get(str(proton_url).strip())
     response.raise_for_status()
-
     soup = BeautifulSoup(response.text, 'html.parser')
+
     for link in soup.find_all('a'):
         href = link['href']
         if 'mega' in href:
@@ -63,9 +63,9 @@ def download_film(select_title: Entries) -> str:
 
     # Define the filename and path for the downloaded film
     if select_title.type == "film":
-        mp4_path = os.path.join(site_constants.MOVIE_FOLDER, str(select_title.name).replace(extension_output, ""))
+        title_path = os.path.join(site_constants.MOVIE_FOLDER, str(select_title.name).replace(extension_output, ""))
     else:
-        mp4_path = os.path.join(site_constants.SERIES_FOLDER, str(select_title.name).replace(extension_output, ""))
+        title_path = os.path.join(site_constants.SERIES_FOLDER, str(select_title.name).replace(extension_output, ""))
 
     # Download from MEGA
     mega = MEGA_Downloader(
@@ -73,6 +73,6 @@ def download_film(select_title: Entries) -> str:
     )
     output_path = mega.download_url(
         url=mega_link,
-        dest_path=mp4_path
+        dest_path=title_path
     )
     return output_path

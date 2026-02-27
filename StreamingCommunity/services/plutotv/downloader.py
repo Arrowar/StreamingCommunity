@@ -38,10 +38,8 @@ def download_episode(obj_episode, index_season_selected, index_episode_selected,
     console.print(f"\n[yellow]Download: [red]{site_constants.SITE_NAME} → [cyan]{scrape_serie.series_name} [white]\\ [magenta]{obj_episode.name} ([cyan]S{index_season_selected}E{index_episode_selected}) \n")
     
     # Define output path
-    mp4_name = f"{map_episode_title(scrape_serie.series_name, index_season_selected, index_episode_selected, obj_episode.name)}.{extension_output}"
-    mp4_path = os_manager.get_sanitize_path(
-        os.path.join(site_constants.SERIES_FOLDER, scrape_serie.series_name, map_season_name(index_season_selected))
-    )
+    episode_name = f"{map_episode_title(scrape_serie.series_name, index_season_selected, index_episode_selected, obj_episode.name)}.{extension_output}"
+    episode_path = os_manager.get_sanitize_path(os.path.join(site_constants.SERIES_FOLDER, scrape_serie.series_name, map_season_name(index_season_selected)))
     
     # Get playback information
     content_ids = {
@@ -52,7 +50,7 @@ def download_episode(obj_episode, index_season_selected, index_episode_selected,
     
     return HLS_Downloader(
         m3u8_url=m3u8_url,
-        output_path=os.path.join(mp4_path, mp4_name),
+        output_path=os.path.join(episode_path, episode_name)
     ).start()
 
 

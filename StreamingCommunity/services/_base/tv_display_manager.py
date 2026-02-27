@@ -18,6 +18,7 @@ from StreamingCommunity.utils.console import TVShowManager
 # Variable
 msg = Prompt()
 console = Console()
+MOVIE_FORMAT = config_manager.config.get('OUTPUT', 'movie_format')
 EPISODE_FORMAT = config_manager.config.get('OUTPUT', 'episode_format')
 SEASON_FORMAT = config_manager.config.get('OUTPUT', 'season_format')
 
@@ -107,6 +108,36 @@ def manage_selection(cmd_insert: str, max_count: int) -> List[int]:
         cmd_insert = msg.ask("[red]Invalid input. Please enter a valid command")
     
     return list_selection
+
+
+def map_movie_title(title_name: str, title_year: str = None) -> str:
+    """
+    Maps the movie title to a specific format using the movie_format config.
+
+    Parameters:
+        title_name (str): The name of the movie.
+        title_year (str): The release year of the movie (optional).
+
+    Returns:
+        str: The formatted movie filename (without extension).
+    """
+    map_movie_temp = MOVIE_FORMAT
+
+    if title_name is not None:
+        map_movie_temp = map_movie_temp.replace("%(title_name)", os_manager.get_sanitize_file(title_name))
+
+    if title_year is not None:
+        y = str(title_year).split('-')[0].strip()
+        if y.isdigit() and len(y) == 4:
+            map_movie_temp = map_movie_temp.replace("%(title_year)", y)
+        else:
+            map_movie_temp = map_movie_temp.replace("(%(title_year))", "").strip()
+            map_movie_temp = map_movie_temp.replace("%(title_year)", "").strip()
+    else:
+        map_movie_temp = map_movie_temp.replace("(%(title_year))", "").strip()
+        map_movie_temp = map_movie_temp.replace("%(title_year)", "").strip()
+
+    return map_movie_temp
 
 
 def map_episode_title(tv_name: str, number_season: int, episode_number: int, episode_name: str) -> str:

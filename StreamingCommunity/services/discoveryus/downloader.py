@@ -38,8 +38,8 @@ def download_episode(obj_episode, index_season_selected, index_episode_selected,
     console.print(f"\n[yellow]Download: [red]{site_constants.SITE_NAME} → [cyan]{scrape_serie.series_name} [white]\\ [magenta]{obj_episode.name} ([cyan]S{index_season_selected}E{index_episode_selected}) \n")
     
     # Define output path
-    mp4_name = f"{map_episode_title(scrape_serie.series_name, index_season_selected, index_episode_selected, obj_episode.name)}.{extension_output}"
-    mp4_path = os_manager.get_sanitize_path(
+    episode_name = f"{map_episode_title(scrape_serie.series_name, index_season_selected, index_episode_selected, obj_episode.name)}.{extension_output}"
+    episode_path = os_manager.get_sanitize_path(
         os.path.join(site_constants.SERIES_FOLDER, scrape_serie.series_name, map_season_name(index_season_selected))
     )
     
@@ -57,7 +57,7 @@ def download_episode(obj_episode, index_season_selected, index_episode_selected,
         mpd_url=playback_info['mpd_url'],
         license_url=playback_info['license_url'],
         license_headers=license_headers,
-        output_path=os.path.join(mp4_path, mp4_name),
+        output_path=os.path.join(episode_path, episode_name),
     ).start()
 
 def download_series(select_season: Entries, season_selection: str = None, episode_selection: str = None, scrape_serie = None) -> None:

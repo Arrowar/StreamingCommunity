@@ -34,7 +34,7 @@ COLOR_MAP = {
 }
 CATEGORY_MAP = {1: "anime", 2: "Film_serie", 3: "serie", 4: "film"}
 SHOW_DEVICE_INFO = config_manager.config.get_bool('DEFAULT', 'show_device_info')
-NOT_CLOSE = config_manager.config.get_bool('DEFAULT', 'close_console')
+CLOSE_CONSOLE = config_manager.config.get_bool('DEFAULT', 'close_console')
 
 
 def run_function(func: Callable[..., None], search_terms: str = None, selections: dict = None) -> None:
@@ -242,6 +242,7 @@ def setup_argument_parser(search_functions):
     parser.add_argument('--site', type=str, help='Site by name or index')
     parser.add_argument('--category', type=int, help='Category filter for global search (1=Anime, 2=Movies/Series, 3=Series, 4=Movies)')
     parser.add_argument('--global', dest='global_search', action='store_true', help='Global search across sites')
+    parser.add_argument('--close-console', dest='close_console', type=str, choices=['true','false'], help='Set whether to exit after last download (overrides config)')
 
     parser.add_argument('--auto-first', action='store_true', help='Auto-download first result (use with --site and --search)')
     parser.add_argument('--season', type=str, default=None, help='Season selection (for series, e.g., "1" or "1-3" or "*")')
@@ -253,7 +254,6 @@ def setup_argument_parser(search_functions):
 
     parser.add_argument('--use_proxy', action='store_true', help='Enable proxy for requests')
     parser.add_argument('--extension', type=str, help='Output file extension (mkv, mp4)')
-    parser.add_argument('--not_close', action='store_true', help='Keep console open after last download')
 
     parser.add_argument('-UP', '--update', action='store_true', help='Auto-update to latest version (binary only)')
     parser.add_argument('--version', action='version', version=f'{__title__} {__version__}')
@@ -263,25 +263,30 @@ def setup_argument_parser(search_functions):
 def apply_config_updates(args):
     """Apply command line arguments to configuration."""
     config_updates = {}
-    
     arg_mappings = {
         's_video': 'DOWNLOAD.select_video',
         's_audio': 'DOWNLOAD.select_audio',
         's_subtitle': 'DOWNLOAD.select_subtitle',
-        'not_close': 'DEFAULT.close_console',
         'use_proxy': 'REQUESTS.use_proxy',
-        'extension': 'PROCESS.extension'
+        'extension': 'PROCESS.extension',
+        'close_console': 'DEFAULT.close_console'
     }
-    
+
     for arg_name, config_key in arg_mappings.items():
-        if getattr(args, arg_name) is not None:
-            config_updates[config_key] = getattr(args, arg_name)
-    
+        val = getattr(args, arg_name, None)
+        if val is None:
+            continue
+
+        # convert boolean-like strings
+        if arg_name == 'close_console' and isinstance(val, str):
+            val = val.lower() == 'true'
+        config_updates[config_key] = val
+
     # Apply updates
     for key, value in config_updates.items():
         section, option = key.split('.')
         config_manager.config.set_key(section, option, value)
-    
+
     if config_updates:
         config_manager.save_config()
 
@@ -369,6 +374,13 @@ def main():
         
         apply_config_updates(args)
 
+        # Determine close_console for this run (CLI overrides config)
+        close_console_flag = None
+        if hasattr(args, 'close_console') and args.close_console is not None:
+            close_console_flag = args.close_console.lower() == 'true'
+        if close_console_flag is None:
+            close_console_flag = config_manager.config.get_bool('DEFAULT', 'close_console')
+
         # Build selections dictionary from season and episode arguments
         selections = None
         if args.season is not None or args.episode is not None:
@@ -386,7 +398,7 @@ def main():
         if handle_direct_site_selection(args, input_to_function, module_name_to_function, args.search, selections):
             return
         
-        if not NOT_CLOSE:
+        if not close_console_flag:
             while True:
                 category = get_user_site_selection(args, choice_labels)
 

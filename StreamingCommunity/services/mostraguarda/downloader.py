@@ -10,7 +10,8 @@ from rich.console import Console
 
 
 # Internal utilities
-from StreamingCommunity.utils import os_manager, config_manager, start_message
+from StreamingCommunity.utils import config_manager, start_message
+from StreamingCommunity.services._base.tv_display_manager import map_movie_title
 from StreamingCommunity.utils.http_client import create_client, get_headers
 from StreamingCommunity.services._base import site_constants, Entries
 
@@ -81,8 +82,8 @@ def download_film(select_title: Entries) -> str:
     video_source = VideoSource(supervideo_url)
 
     # Define output path
-    title_name = os_manager.get_sanitize_file(select_title.name, select_title.year) + f".{extension_output}"
-    mp4_path = os.path.join(site_constants.MOVIE_FOLDER, title_name.replace(f".{extension_output}", ""))
+    title_name = f"{map_movie_title(select_title.name, select_title.year)}.{extension_output}"
+    title_path = os.path.join(site_constants.MOVIE_FOLDER, title_name.replace(f".{extension_output}", ""))
 
     # Get m3u8 master playlist
     master_playlist = video_source.get_playlist()
@@ -90,6 +91,6 @@ def download_film(select_title: Entries) -> str:
     # Download the film using the m3u8 playlist, and output filename
     path, kill_handler = HLS_Downloader(
         m3u8_url=master_playlist,
-        output_path=os.path.join(mp4_path, title_name)
+        output_path=os.path.join(title_path, title_name)
     ).start()
     return path, kill_handler

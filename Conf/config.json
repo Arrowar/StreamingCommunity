@@ -1,8 +1,8 @@
 {
     "DEFAULT": {
-        "close_console": false,
+        "close_console": true,
         "show_message": true,
-        "show_device_info": true,
+        "show_device_info": false,
         "fetch_domain_online": true
     },
     "OUTPUT": {
@@ -10,6 +10,7 @@
         "movie_folder_name": "Movie",
         "serie_folder_name": "Serie",
         "anime_folder_name": "Anime",
+        "movie_format": "%(title_name) (%(title_year))",
         "episode_format": "%(episode_name) S%(season)E%(episode)",
         "season_format": "S%(season)",
         "add_siteName": false
@@ -17,11 +18,9 @@
     "DOWNLOAD": {
         "skip_download": false,
         "thread_count": 8,
-        "retry_count": 30,
+        "retry_count": 25,
         "concurrent_download": true,
         "max_speed": "",
-        "real_time_decryption": false,
-        "check_segments_count": true,
         "select_video": "best",
         "select_audio": "lang='ita|Ita|it':for=best",
         "select_subtitle": "lang='ita|eng|Ita|Eng|it|en':for=all",

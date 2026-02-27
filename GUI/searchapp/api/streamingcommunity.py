@@ -92,7 +92,8 @@ class StreamingCommunityAPI(BaseStreamingAPI):
                 media_id=media_item.id,
                 series_name=media_item.slug,
                 year=media_item.year,
-                provider_language=media_item.provider_language
+                provider_language=media_item.provider_language,
+                series_display_name=media_item.name
             )
             self.set_cached_scraper(media_item, scrape_serie)
         

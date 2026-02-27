@@ -39,10 +39,8 @@ video_filter = config_manager.config.get("DOWNLOAD", "select_video")
 audio_filter = config_manager.config.get("DOWNLOAD", "select_audio")
 subtitle_filter = config_manager.config.get("DOWNLOAD", "select_subtitle")
 max_speed = config_manager.config.get("DOWNLOAD", "max_speed")
-check_segments_count = config_manager.config.get_bool("DOWNLOAD", "check_segments_count")
 concurrent_download = config_manager.config.get_int("DOWNLOAD", "concurrent_download")
 retry_count = config_manager.config.get_int("DOWNLOAD", "retry_count")
-real_time_decryption = config_manager.config.get_bool("DOWNLOAD", "real_time_decryption")
 request_timeout = config_manager.config.get_int("REQUESTS", "timeout")
 thread_count = config_manager.config.get_int("DOWNLOAD", "thread_count")
 use_proxy = config_manager.config.get_bool("REQUESTS", "use_proxy")
@@ -293,8 +291,8 @@ class MediaDownloader:
             "--binary-merge",
             "--del-after-done",
             "--auto-subtitle-fix", "false",
-            "--check-segments-count", "true" if check_segments_count else "false",
-            "--mp4-real-time-decryption", "true" if real_time_decryption else "false"
+            "--check-segments-count", "false",
+            "--mp4-real-time-decryption", "false"
         ]
 
         if video_filter == "false":

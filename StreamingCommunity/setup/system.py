@@ -51,46 +51,65 @@ def get_shaka_packager_path() -> str:
     return shaka_packager
 
 def get_info_wvd(cdm_device_path):
-    if cdm_device_path is not None:
-        from pywidevine.device import Device
+    if cdm_device_path is None:
+        return None
+    
+    from pywidevine.device import Device
+    device = Device.load(cdm_device_path)
+    
+    info = {ci.name: ci.value for ci in device.client_id.client_info}
+    model = info.get("model_name", "N/A")
+    device_name = info.get("device_name", "").lower()
+    build_info = info.get("build_info", "").lower()
+    
+    is_emulator = (
+        any(x in device_name for x in ["generic", "sdk", "emulator", "x86"])
+        or any(x in build_info for x in ["test-keys", "userdebug"])
+    )
+    
+    if "tv" in model.lower():
+        dev_type = "TV"
+    elif is_emulator:
+        dev_type = "Emulator"
+    else:
+        dev_type = "Phone"
+    
+    return (
+        f"[red]Load [cyan]{dev_type} [red]{cdm_device_path}[cyan] | "
+        f"[cyan]Security: [red]L{device.security_level} [cyan]| "
+        f"[cyan]Model: [red]{model} [cyan]| "
+        f"[cyan]SysID: [red]{device.system_id}"
+    )
 
-        device = Device.load(cdm_device_path)
-
-        # Extract client info
-        info = {ci.name: ci.value for ci in device.client_id.client_info}
-        model = info.get("model_name", "N/A")
-
-        device_name = info.get("device_name", "").lower()
-        build_info = info.get("build_info", "").lower()
-
-        # Extract device type
-        is_emulator = any(x in device_name for x in [
-            "generic", "sdk", "emulator", "x86"
-        ]) or "test-keys" in build_info or "userdebug" in build_info
-        
-        if "tv" in model.lower():
-            dev_type = "Android TV"
-        elif is_emulator:
-            dev_type = "Android Emulator"
-        else:
-            dev_type = "Android Phone"
-
-        return (
-            f"[cyan]Load WVD: "
-            f"[red]L{device.security_level} [cyan]| [red]{dev_type} [cyan]| "
-            f"[cyan]SysID: [red]{device.system_id}"
-        )
 
 def get_info_prd(cdm_device_path):
-    if cdm_device_path is not None:
-        from pyplayready.device import Device
+    if cdm_device_path is None:
+        return None
+    
+    from pyplayready.device import Device
+    from pyplayready.system.bcert import BCertObjType, BCertCertType
 
-        device = Device.load(cdm_device_path)
-        cert_chain = device.group_certificate
-        leaf_cert = cert_chain.get(0)
+    device = Device.load(cdm_device_path)
+    cert_chain  = device.group_certificate
+    leaf_cert   = cert_chain.get(0)
 
-        return (
-            f"[cyan]Load PRD: "
-            f"[red]SL{device.security_level} [cyan]| "
-            f"[yellow]{leaf_cert.get_name()} "
-        )
+    basic = leaf_cert.get_attribute(BCertObjType.BASIC)
+    cert_type = BCertCertType(basic.attribute.cert_type).name if basic else "N/A"
+    security_level = basic.attribute.security_level if basic else device.security_level
+    #client_id   = basic.attribute.client_id.hex() if basic else "N/A"
+
+    def un_pad(b: bytes) -> str:
+        return b.rstrip(b'\x00').decode("utf-8", errors="ignore")
+
+    manufacturer = model = model_number = "N/A"
+    mfr = leaf_cert.get_attribute(BCertObjType.MANUFACTURER)
+    if mfr:
+        manufacturer = un_pad(mfr.attribute.manufacturer_name)
+        model = un_pad(mfr.attribute.model_name)
+        model_number = un_pad(mfr.attribute.model_number)
+
+    return (
+        f"[red]Load [cyan]{cert_type} [red]{cdm_device_path}[cyan] | "
+        f"[cyan]Security: [red]SL{security_level} [cyan]| "
+        f"[cyan]Model: [red]{manufacturer} {model} {model_number} [cyan]"
+    )

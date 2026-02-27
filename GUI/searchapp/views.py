@@ -41,14 +41,7 @@ scheduled_downloads_lock = threading.Lock()
 cancelled_scheduled_downloads: set[str] = set()
 
 
-def _add_scheduled_download(
-    download_id: str,
-    title: str,
-    site: str,
-    media_type: str = "Film",
-    season: str = None,
-    episodes: str = None,
-) -> None:
+def _add_scheduled_download(download_id: str, title: str, site: str, media_type: str = "Film", season: str = None, episodes: str = None) -> None:
     with scheduled_downloads_lock:
         scheduled_downloads[download_id] = {
             "id": download_id,
@@ -88,10 +81,7 @@ def _get_scheduled_downloads() -> List[Dict[str, Any]]:
         )
 
 
-def _prune_scheduled_downloads(
-    _active_downloads: List[Dict[str, Any]],
-    history: List[Dict[str, Any]],
-) -> None:
+def _prune_scheduled_downloads(_active_downloads: List[Dict[str, Any]], history: List[Dict[str, Any]]) -> None:
     history_ids = {item.get("id") for item in history if item.get("id")}
     now = time.time()
     max_age_seconds = 6 * 60 * 60
@@ -99,6 +89,7 @@ def _prune_scheduled_downloads(
     with scheduled_downloads_lock:
         to_remove = []
         for download_id, item in scheduled_downloads.items():
+            
             # Keep entries visible while not completed; remove only once they
             # reach history (completed/failed/cancelled) or become stale.
             if download_id in history_ids:

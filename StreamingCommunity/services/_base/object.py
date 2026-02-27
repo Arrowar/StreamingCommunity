@@ -51,27 +51,15 @@ class EpisodeManager:
         self.episodes: List[Episode] = []
 
     def add(self, episode: Episode):
-        """
-        Add a new episode to the manager.
-        """
         self.episodes.append(episode)
 
     def get(self, index: int) -> Episode:
-        """
-        Retrieve an episode by its index in the episodes list.
-        """
         return self.episodes[index]
     
     def clear(self) -> None:
-        """
-        This method clears the episodes list.
-        """
         self.episodes.clear()
 
     def __len__(self) -> int:
-        """
-        Get the number of episodes in the manager.
-        """
         return len(self.episodes)
 
     def __str__(self):
@@ -99,17 +87,11 @@ class SeasonManager:
         self.seasons: List[Season] = []
     
     def add(self, season: Season) -> Season:
-        """
-        Add a new season to the manager and return it.
-        """
         self.seasons.append(season)
         self.seasons.sort(key=lambda x: x.number)
         return season
         
     def get_season_by_number(self, number: int) -> Optional[Season]:
-        """
-        Get a season by its number.
-        """
         if len(self.seasons) == 1:
             return self.seasons[0]
         
@@ -120,9 +102,6 @@ class SeasonManager:
         return None
     
     def __len__(self) -> int:
-        """
-        Return the number of seasons managed.
-        """
         return len(self.seasons)
 
     
@@ -160,30 +139,24 @@ class Entries(metaclass=EntriesMeta):
     tmdb_id: str
 
     def to_dict(self):
-        """Convert the entries to a dictionary."""
         return self.__dict__.copy()
 
     @property
     def is_movie(self) -> bool:
-        """Check if the entries is a movie."""
         return str(getattr(self, 'type', '')).lower() in ['film', 'movie', 'ova']
 
     @property
     def poster(self) -> str:
-        """Get the poster image url."""
         return getattr(self, 'image', '') or getattr(self, 'poster_url', '')
+    
+    def __str__(self):
+        return f"Entries(id={self.id}, name='{self.name}', type='{self.type}', year='{self.year}', url='{self.url}', slug='{self.slug}', year='{self.year}')"
 
 class EntriesManager:
     def __init__(self):
         self.media_list: List[Entries] = []
 
-    def add(self, media) -> None:
-        """
-        Add media to the list.
-
-        Args:
-            media (Entries): Media item to add.
-        """
+    def add(self, media: Entries) -> None:
         # Logic to fetch year if 9999
         if media.year == "9999":
             if (TMDB_KEY != '' and TMDB_KEY is not None):
@@ -204,22 +177,16 @@ class EntriesManager:
         self.media_list.append(media)
 
     def get(self, index: int) -> Entries:
-        """
-        Get a media item from the list by index.
-        """
         return self.media_list[index]
+    
+    def clear(self) -> None:
+        self.media_list.clear()
 
     def __len__(self) -> int:
-        """
-        Get the number of media items in the list.
-        """
         return len(self.media_list)
 
-    def clear(self) -> None:
-        """
-        This method clears the media list.
-        """
-        self.media_list.clear()
+    def __str__(self):
+        return f"EntriesManager(num_media={len(self.media_list)})"
 
     def sort_by_fuzzy_score(self, query: str) -> None:
         """
@@ -231,6 +198,3 @@ class EntriesManager:
             score = 0 if title is None else difflib.SequenceMatcher(None, query_lower, title.lower()).ratio()
             setattr(media, 'score', score)
         self.media_list.sort(key=lambda x: getattr(x, 'score', 0), reverse=True)
-
-    def __str__(self):
-        return f"EntriesManager(num_media={len(self.media_list)})"

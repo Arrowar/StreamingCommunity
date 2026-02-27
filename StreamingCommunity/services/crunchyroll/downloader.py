@@ -13,7 +13,7 @@ from rich.prompt import Prompt
 # Internal utilities
 from StreamingCommunity.utils import config_manager, os_manager, start_message
 from StreamingCommunity.services._base import site_constants, Entries
-from StreamingCommunity.services._base.tv_display_manager import map_episode_title, map_season_name
+from StreamingCommunity.services._base.tv_display_manager import map_movie_title, map_episode_title, map_season_name
 from StreamingCommunity.services._base.tv_download_manager import process_season_selection, process_episode_download
 
 
@@ -43,8 +43,8 @@ def download_film(select_title: Entries) -> str:
     client = CrunchyrollClient()
 
     # Define filename and path
-    mp4_name = f"{os_manager.get_sanitize_file(select_title.name, select_title.year)}.{extension_output}"
-    mp4_path = os.path.join(site_constants.MOVIE_FOLDER, mp4_name.replace(f".{extension_output}", ""))
+    title_name = f"{map_movie_title(select_title.name, select_title.year)}.{extension_output}"
+    title_path = os.path.join(site_constants.MOVIE_FOLDER, title_name.replace(f".{extension_output}", ""))
 
     # Extract media ID
     url_id = select_title.get('url').split('/')[-1]
@@ -71,7 +71,7 @@ def download_film(select_title: Entries) -> str:
         license_url='https://www.crunchyroll.com/license/v1/license/widevine',
         license_headers=license_headers,
         mpd_sub_list=mpd_list_sub,
-        output_path=os.path.join(mp4_path, mp4_name),
+        output_path=os.path.join(title_path, title_name),
     ).start()
 
     # Small delay
@@ -88,8 +88,8 @@ def download_episode(obj_episode, index_season_selected, index_episode_selected,
     console.print(f"\n[yellow]Download: [red]{site_constants.SITE_NAME} → [cyan]{scrape_serie.series_name} [white]\\ [magenta]{obj_episode.name} ([cyan]S{index_season_selected}E{index_episode_selected}) \n")
 
     # Define filename and path for the downloaded video
-    mp4_name = f"{map_episode_title(scrape_serie.series_name, index_season_selected, index_episode_selected, obj_episode.name)}.{extension_output}"
-    mp4_path = os_manager.get_sanitize_path(os.path.join(site_constants.SERIES_FOLDER, scrape_serie.series_name, map_season_name(index_season_selected)))
+    title_name = f"{map_episode_title(scrape_serie.series_name, index_season_selected, index_episode_selected, obj_episode.name)}.{extension_output}"
+    title_path = os_manager.get_sanitize_path(os.path.join(site_constants.SERIES_FOLDER, scrape_serie.series_name, map_season_name(index_season_selected)))
 
     # Get media ID and main_guid for complete subtitles
     url_id = obj_episode.url.split('/')[-1]
@@ -117,7 +117,7 @@ def download_episode(obj_episode, index_season_selected, index_episode_selected,
         license_url='https://www.crunchyroll.com/license/v1/license/widevine',
         license_headers=license_headers,
         mpd_sub_list=mpd_list_sub,
-        output_path=os.path.join(mp4_path, mp4_name)
+        output_path=os.path.join(title_path, title_name)
     ).start()
 
     # Small delay between episodes to avoid rate limiting

@@ -121,6 +121,17 @@ class MPDParser:
             kid = (cp.get('{urn:mpeg:cenc:2013}default_KID') or cp.get('default_KID') or cp.get('kid'))
             if kid:
                 return kid.lower().replace('-', '')
+
+            # fallback: try to parse any Widevine PSSH for a key id
+            pssh_text = cp.findtext(self._xpath('cenc:pssh'))
+            if pssh_text and pssh_text.strip():
+                try:
+                    pssh_obj = PSSH(pssh_text.strip())
+                    if pssh_obj.key_ids:
+                        k = str(pssh_obj.key_ids[0])
+                        return k.lower().replace('-', '')
+                except Exception:
+                    pass
         return None
     
     def _get_drm_data(self, element: ET.Element) -> Dict[str, List[str]]:
@@ -260,7 +271,21 @@ class MPDParser:
         # Deduplicate
         for drm_type in pssh_map:
             pssh_map[drm_type] = list(dict.fromkeys(pssh_map[drm_type]))
-        
+
+            # If we still don't have a default kid we can try to extract it from any available PSSH box.
+            if not default_kid:
+                for drm_type, psshs in pssh_map.items():
+                    for p in psshs:
+                        try:
+                            parsed = PSSH(p)
+                            if parsed.key_ids:
+                                default_kid = str(parsed.key_ids[0]).lower().replace('-', '')
+                                break
+                        except Exception:
+                            pass
+                    if default_kid:
+                        break
+            
         # Get video height
         height = None
         if content_type == 'video':
@@ -322,7 +347,8 @@ class MPDParser:
                     continue
                 seen.add(key)
                 
-                console.print(f"    [red]- {label}[white], [cyan]Kid: [yellow]{kid}, [cyan]Protection: [yellow]{prot}")
+                if "text (" not in label:  # Don't print text tracks to avoid clutter (they usually don't have DRM)
+                    console.print(f"    [red]- {label}[white], [cyan]Kid: [yellow]{kid}, [cyan]Protection: [yellow]{prot}")
     
     def get_drm_info(self, drm_preference, selected_ids=None, selected_kids=None, selected_langs=None, selected_periods=None):
         """Extract DRM information from MPD."""
@@ -361,9 +387,18 @@ class MPDParser:
             for pssh in pssh_map.get(DRMSystem.WIDEVINE, []):
                 if pssh not in seen_wv:
                     seen_wv.add(pssh)
+                    kid_val = info.get('default_kid')
+                    if not kid_val or kid_val.lower() in ('n/a', ''):
+                        try:
+                            parsed = PSSH(pssh)
+                            if parsed.key_ids:
+                                kid_val = str(parsed.key_ids[0]).lower().replace('-', '')
+                        except Exception:
+                            pass
+                        
                     wv_pssh.append({
                         'pssh': pssh,
-                        'kid': info.get('default_kid') or 'N/A',
+                        'kid': kid_val or 'N/A',
                         'type': DRMSystem.WIDEVINE,
                         'label': track_label,
                     })
@@ -388,10 +423,7 @@ class MPDParser:
         
         # Select DRM type
         selected = drm_preference if drm_preference in available else (available[0] if available else None)
-        
-        # Print info
         self.print_adaptation_sets_info(selected_ids, selected_kids, selected_langs, selected_periods)
-        print("")
         
         return {
             'available_drm_types': available,

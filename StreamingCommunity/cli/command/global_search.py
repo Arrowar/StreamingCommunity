@@ -7,12 +7,12 @@ import logging
 # External library
 from rich.console import Console
 from rich.prompt import Prompt
-from rich.table import Table
 
 
 # Internal utilities
 from StreamingCommunity.utils.console.message import start_message
 from StreamingCommunity.services._base import load_search_functions
+from StreamingCommunity.utils.console.table import TVShowManager
 
 
 # Variable
@@ -124,12 +124,12 @@ def global_search(search_terms: str = None, selected_sites: list = None):
         for alias, results in all_results.items():
             for item in results:
                 all_media_items.append(item)
-        
+
         # Display consolidated results
-        display_consolidated_results(all_media_items, search_terms)
+        manager = display_consolidated_results(all_media_items, search_terms)
         
-        # Allow user to select an item
-        selected_item = select_from_consolidated_results(all_media_items)
+        # Allow user to select an item via manager
+        selected_item = select_from_consolidated_results(all_media_items, manager)
         if selected_item:
             # Process the selected item - download or further actions
             process_selected_item(selected_item, search_functions)
@@ -145,62 +145,83 @@ def global_search(search_terms: str = None, selected_sites: list = None):
 
 def display_consolidated_results(all_media_items, search_terms):
     """
-    Display consolidated search results from multiple sites.
-    
+    Display consolidated search results from multiple sites using the shared ``TVShowManager`` helper.
+
     Parameters:
         all_media_items (list): List of media items from all searched sites.
         search_terms (str): The search terms used.
-    """    
+
+    Returns:
+        TVShowManager: Manager instance that contains the displayed rows so
+        it can be reused for user interaction (selection).
+    """
     time.sleep(1)
     start_message()
 
     console.print(f"\n[green]Search results for: [yellow]{search_terms} \n")
     
-    table = Table(show_header=True, header_style="cyan")
-    table.add_column("#", style="dim", width=4)
-    table.add_column("Title", min_width=20)
-    table.add_column("Type", width=15)
+    manager = TVShowManager()
     has_year = any('year' in item and item['year'] for item in all_media_items)
+
+    # ensure all results appear in a single page
+    manager.step = len(all_media_items)
+    manager.slice_end = manager.step
+
+    cols = {
+        "#": {"color": "dim", "justify": "center", "width": 4},
+        "Title": {"color": "magenta", "justify": "left", "min_width": 20},
+        "Type": {"color": "yellow", "justify": "center", "width": 15},
+    }
     if has_year:
-        table.add_column("Year", width=8)
-    table.add_column("Source", width=25)
+        cols["Year"] = {"color": "green", "justify": "center", "width": 8}
+    cols["Source"] = {"color": "cyan", "justify": "left", "width": 25}
+
+    manager.add_column(cols)
 
     for i, item in enumerate(all_media_items, 1):
-        title = item.get('title', item.get('name', 'Unknown'))
-        media_type = item.get('type', item.get('media_type', 'Unknown'))
-        source = item.get('source', 'Unknown')
-        year = str(item.get('year', '')) if has_year else None
+        entry = {
+            "#": str(i),
+            "Title": item.get('title', item.get('name', 'Unknown')),  # default fallback
+            "Type": item.get('type', item.get('media_type', 'Unknown')),
+            "Source": item.get('source', 'Unknown')
+        }
         if has_year:
-            table.add_row(str(i), str(title), str(media_type), year, str(source))
-        else:
-            table.add_row(str(i), str(title), str(media_type), str(source))
-    console.print(table)
+            entry["Year"] = str(item.get('year', ''))
+        manager.add_tv_show(entry)
 
-def select_from_consolidated_results(all_media_items):
+    manager.display_data(manager.tv_shows)
+    return manager
+
+def select_from_consolidated_results(all_media_items, manager: TVShowManager):
     """
-    Allow user to select an item from consolidated results.
-    
+    Prompt the user to choose a single item via the provided manager.
+
     Parameters:
         all_media_items (list): List of media items from all searched sites.
-    
+        manager (TVShowManager): The table manager that displayed the rows.
+
     Returns:
-        dict: The selected media item or None if no selection was made.
+        dict: The selected media item or None if selection was cancelled.
     """
     if not all_media_items:
         return None
-    
-    max_index = len(all_media_items)
-    choice = msg.ask(
-        f"[green]Select item # (1-{max_index}) or 0 to cancel",
-        choices=[str(i) for i in range(max_index + 1)],
-        default="1",
-        show_choices=False
-    )
-    
-    if choice == "0":
-        return None
-    
-    return all_media_items[int(choice) - 1]
+
+    total = len(all_media_items)
+    while True:
+        last = manager.run(force_int_input=True, max_int_input=total)
+        if last is None or str(last).lower() in ["q", "quit"]:
+            manager.clear()
+            console.print("\n[red]Selection cancelled by user.")
+            return None
+        try:
+            idx = int(last) - 1
+            if 0 <= idx < total:
+                manager.clear()
+                return all_media_items[idx]
+            else:
+                console.print("\n[red]Invalid or out-of-range index. Please try again.")
+        except ValueError:
+            console.print("\n[red]Non-numeric input received. Please try again.")
 
 def process_selected_item(selected_item, search_functions):
     """

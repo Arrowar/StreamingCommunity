@@ -14,14 +14,15 @@ from StreamingCommunity.services._base.object import SeasonManager, Episode, Sea
 
 
 class GetSerieInfo:
-    def __init__(self, url, media_id: int = None, series_name: str = None, year: int = None, provider_language: str = "it"):
+    def __init__(self, url, media_id: int = None, series_name: str = None, year: int = None, provider_language: str = "it", series_display_name: str = None):
         """
         Initialize the GetSerieInfo class for scraping TV series information.
         
         Args:
             - url (str): The URL of the streaming site.
-            - media_id (int, optional): Unique identifier for the media
-            - series_name (str, optional): Name of the TV series
+            - media_id (int): Unique identifier for the media
+            - series_name (str): Slug of the TV series
+            - series_display_name (str): Name of the TV series
         """
         self.is_series = False
         self.headers = get_headers()
@@ -33,7 +34,8 @@ class GetSerieInfo:
 
         if series_name is not None:
             self.is_series = True
-            self.series_name = series_name
+            self.series_name = series_name  # slug, used for URL building
+            self.series_display_name = series_display_name if series_display_name is not None else series_name
 
     def collect_info_title(self) -> None:
         """

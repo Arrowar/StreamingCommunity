@@ -9,9 +9,9 @@ from rich.prompt import Prompt
 
 
 # Internal utilities
-from StreamingCommunity.utils import os_manager, config_manager, tmdb_client, start_message
+from StreamingCommunity.utils import config_manager, tmdb_client, start_message
 from StreamingCommunity.services._base import site_constants, Entries
-from StreamingCommunity.services._base.tv_display_manager import map_episode_title, map_season_name
+from StreamingCommunity.services._base.tv_display_manager import map_movie_title, map_episode_title, map_season_name
 from StreamingCommunity.services._base.tv_download_manager import process_season_selection, process_episode_download
 
 
@@ -64,13 +64,13 @@ def download_film(select_title: Entries) -> str:
         return None
 
     # Define the filename and path for the downloaded film
-    mp4_name = f"{os_manager.get_sanitize_file(select_title.name, select_title.year)}.{extension_output}"
-    mp4_path = os.path.join(site_constants.MOVIE_FOLDER, mp4_name.replace(f".{extension_output}", ""))
+    title_name = f"{map_movie_title(select_title.name, select_title.year)}.{extension_output}"
+    title_path = os.path.join(site_constants.MOVIE_FOLDER, title_name.replace(f".{extension_output}", ""))
 
     # Download the film using the m3u8 playlist, and output filename
     return HLS_Downloader(
         m3u8_url=master_playlist,
-        output_path=os.path.join(mp4_path, mp4_name)
+        output_path=os.path.join(title_path, title_name)
     ).start()
 
 
@@ -79,11 +79,12 @@ def download_episode(obj_episode, index_season_selected, index_episode_selected,
     Downloads a specific episode from the specified season.
     """
     start_message()
-    console.print(f"\n[yellow]Download: [red]{site_constants.SITE_NAME} → [cyan]{scrape_serie.series_name} [white]\\ [magenta]{obj_episode.name} ([cyan]S{index_season_selected}E{index_episode_selected}) \n")
+    series_display = getattr(scrape_serie, 'series_display_name', None) or scrape_serie.series_name
+    console.print(f"\n[yellow]Download: [red]{site_constants.SITE_NAME} → [cyan]{series_display} [white]\\ [magenta]{obj_episode.name} ([cyan]S{index_season_selected}E{index_episode_selected}) \n")
 
     # Define filename and path for the downloaded video
-    mp4_name = f"{map_episode_title(scrape_serie.series_name, index_season_selected, index_episode_selected, obj_episode.name)}.{extension_output}"
-    mp4_path = os.path.join(site_constants.SERIES_FOLDER, scrape_serie.series_name, map_season_name(index_season_selected))
+    episode_name = f"{map_episode_title(series_display, index_season_selected, index_episode_selected, obj_episode.name)}.{extension_output}"
+    episode_path = os.path.join(site_constants.SERIES_FOLDER, series_display, map_season_name(index_season_selected))
 
     if use_other_api:
         series_slug = scrape_serie.series_name.lower().replace(' ', '-').replace("'", '')
@@ -109,7 +110,7 @@ def download_episode(obj_episode, index_season_selected, index_episode_selected,
     # Download the episode
     return HLS_Downloader(
         m3u8_url=master_playlist,
-        output_path=os.path.join(mp4_path, mp4_name)
+        output_path=os.path.join(episode_path, episode_name)
     ).start()
 
 
@@ -127,8 +128,9 @@ def download_series(select_season: Entries, season_selection: str = None, episod
     video_source = VideoSource(f"{site_constants.FULL_URL}/{select_season.provider_language}", True, select_season.id)
     
     if scrape_serie is None:
-        scrape_serie = GetSerieInfo(f"{site_constants.FULL_URL}/{select_season.provider_language}", select_season.id, select_season.slug, select_season.year, select_season.provider_language)
+        scrape_serie = GetSerieInfo(f"{site_constants.FULL_URL}/{select_season.provider_language}", select_season.id, select_season.slug, select_season.year, select_season.provider_language, series_display_name=select_season.name)
         scrape_serie.getNumberSeason()
+        scrape_serie.series_display_name = select_season.name
     seasons_count = len(scrape_serie.seasons_manager)
 
     # Create callback function for downloading episodes

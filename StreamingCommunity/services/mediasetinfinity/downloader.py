@@ -15,7 +15,7 @@ from rich.prompt import Prompt
 from StreamingCommunity.utils import os_manager, config_manager, start_message
 from StreamingCommunity.utils.http_client import create_client
 from StreamingCommunity.services._base import site_constants, Entries
-from StreamingCommunity.services._base.tv_display_manager import map_episode_title, map_season_name
+from StreamingCommunity.services._base.tv_display_manager import map_movie_title, map_episode_title, map_season_name
 from StreamingCommunity.services._base.tv_download_manager import process_season_selection, process_episode_download
 
 
@@ -95,8 +95,8 @@ def download_film(select_title: Entries) -> Tuple[str, bool]:
     console.print(f"\n[yellow]Download: [red]{site_constants.SITE_NAME} → [cyan]{select_title.name} \n")
 
     # Define the filename and path for the downloaded film
-    mp4_name = f"{os_manager.get_sanitize_file(select_title.name, select_title.year)}.{extension_output}"
-    mp4_path = os.path.join(site_constants.MOVIE_FOLDER, mp4_name.replace(f".{extension_output}", ""))
+    title_name = f"{map_movie_title(select_title.name, select_title.year)}.{extension_output}"
+    title_path = os.path.join(site_constants.MOVIE_FOLDER, title_name.replace(f".{extension_output}", ""))
 
     # Get playback URL and tracking info
     playback_json = get_playback_url(select_title.id)
@@ -110,7 +110,7 @@ def download_film(select_title: Entries) -> Tuple[str, bool]:
     return DASH_Downloader(
         mpd_url=get_manifest(tracking_info['url']),
         license_url=license_url,
-        output_path=os.path.join(mp4_path, mp4_name),
+        output_path=os.path.join(title_path, title_name),
     ).start()
 
 
@@ -122,8 +122,8 @@ def download_episode(obj_episode, index_season_selected, index_episode_selected,
     console.print(f"\n[yellow]Download: [red]{site_constants.SITE_NAME} → [cyan]{scrape_serie.series_name} [white]\\ [magenta]{obj_episode.name} ([cyan]S{index_season_selected}E{index_episode_selected}) \n")
 
     # Define filename and path for the downloaded video
-    mp4_name = f"{map_episode_title(scrape_serie.series_name, index_season_selected, index_episode_selected, obj_episode.name)}.{extension_output}"
-    mp4_path = os_manager.get_sanitize_path(os.path.join(site_constants.SERIES_FOLDER, scrape_serie.series_name, map_season_name(index_season_selected)))
+    episode_name = f"{map_episode_title(scrape_serie.series_name, index_season_selected, index_episode_selected, obj_episode.name)}.{extension_output}"
+    episode_path = os_manager.get_sanitize_path(os.path.join(site_constants.SERIES_FOLDER, scrape_serie.series_name, map_season_name(index_season_selected)))
 
     # Generate mpd and license URLs
     playback_json = get_playback_url(obj_episode.id)
@@ -137,7 +137,7 @@ def download_episode(obj_episode, index_season_selected, index_episode_selected,
         mpd_url=get_manifest(tracking_info['videos'][0]['url']),
         license_url=license_url,
         mpd_sub_list=tracking_info['subtitles'],
-        output_path=os.path.join(mp4_path, mp4_name),
+        output_path=os.path.join(episode_path, episode_name),
     ).start()
     
 

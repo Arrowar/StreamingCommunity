@@ -11,12 +11,11 @@ from StreamingCommunity.utils import internet_manager
 
 # Logic
 from ..utils.object import StreamInfo
-from ..utils.trans_codec import get_audio_codec_name, get_video_codec_name, get_subtitle_codec_name, get_codec_type, get_channel_layout_name
+from ..utils.trans_codec import get_channel_layout_name
 
 
 def build_table(streams, selected: set, cursor: int, window_size: int = 12, highlight_cursor: bool = True):
     """Build and return the current table view"""
-
     table = Table(
         box=box.ROUNDED,
         show_header=True,
@@ -25,18 +24,10 @@ def build_table(streams, selected: set, cursor: int, window_size: int = 12, high
         padding=(0, 1)
     )
 
-    cols = [
-        ("#", "cyan"), 
-        ("Type", "cyan"), 
-        ("Role", "green"),
-        ("Sel", "green"),
-        ("Resolution", "yellow"), 
-        ("FrameRate", "yellow"), 
-        ("Bitrate", "yellow"), 
-        ("Codec", "green"),
+    cols = [("#", "cyan"), ("Type", "cyan"), ("Role", "green"), ("Sel", "green"),
+        ("Resolution", "yellow"), ("FrameRate", "yellow"), ("Bitrate", "yellow"), ("Codec", "green"),
         ("Channels", "blue"), 
-        ("Language", "blue"), 
-        ("Name", "green"), 
+        ("Language", "blue"), ("Name", "green"), 
         ("Duration", "magenta")
     ]
     for col, color in cols:
@@ -66,26 +57,6 @@ def build_table(streams, selected: set, cursor: int, window_size: int = 12, high
         else:
             style = "dim" if idx % 2 == 1 else None
         
-        # Transcode codec names
-        readable_codecs = ""
-        if "," in s.codec:
-            for raw_codec in s.codec.split(","):
-                c_type = get_codec_type(raw_codec)
-                if c_type == "Audio":
-                    readable_codecs += f", {get_audio_codec_name(raw_codec)}"
-                elif c_type == "Video":
-                    readable_codecs += get_video_codec_name(raw_codec)
-                elif c_type == "Subtitle":
-                    readable_codecs += f", {get_subtitle_codec_name(raw_codec)}"
-        else:
-            c_type = get_codec_type(s.codec)
-            if c_type == "Audio":
-                readable_codecs = get_audio_codec_name(s.codec)
-            elif c_type == "Video":
-                readable_codecs = get_video_codec_name(s.codec)
-            elif c_type == "Subtitle":
-                readable_codecs = get_subtitle_codec_name(s.codec)
-
         table.add_row(
             str(idx + 1),
             f"{s.type}",
@@ -94,7 +65,7 @@ def build_table(streams, selected: set, cursor: int, window_size: int = 12, high
             s.resolution if s.type == "Video" else "",
             str(s.frame_rate) if s.frame_rate and s.frame_rate != 0 else "",
             bitrate,
-            readable_codecs,
+            s.get_short_codec(),
             get_channel_layout_name(s.channels) if s.channels else "",
             s.language or '',
             s.name or '',

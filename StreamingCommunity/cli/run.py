@@ -16,7 +16,6 @@ from rich.prompt import Prompt
 
 # Internal utilities
 from . import call_global_search
-from StreamingCommunity.setup import get_prd_path, get_wvd_path, get_info_wvd, get_info_prd
 from StreamingCommunity.services._base import load_search_functions
 from StreamingCommunity.utils import config_manager, os_manager, start_message
 from StreamingCommunity.upload import git_update, binary_update
@@ -33,7 +32,6 @@ COLOR_MAP = {
     "film": "green"
 }
 CATEGORY_MAP = {1: "anime", 2: "Film_serie", 3: "serie", 4: "film"}
-SHOW_DEVICE_INFO = config_manager.config.get_bool('DEFAULT', 'show_device_info')
 CLOSE_CONSOLE = config_manager.config.get_bool('DEFAULT', 'close_console')
 
 
@@ -49,15 +47,6 @@ def initialize():
     """Initialize the application with system checks and setup."""
     start_message(False)
 
-    if SHOW_DEVICE_INFO:
-        prd_path = get_prd_path()
-        wvd_path = get_wvd_path()
-        
-        if prd_path is not None:
-            console.print(get_info_prd(prd_path))
-        if wvd_path is not None:
-            console.print(get_info_wvd(wvd_path))
-    
     # Windows 7 terminal size fix
     if platform.system() == "Windows" and "7" in platform.version():
         os.system('mode 120, 40')

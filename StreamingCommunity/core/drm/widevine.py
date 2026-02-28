@@ -12,6 +12,7 @@ from pywidevine.pssh import PSSH
 
 
 # Internal utilities
+from StreamingCommunity.setup import get_info_wvd
 from StreamingCommunity.utils.http_client import create_client_curl
 from StreamingCommunity.source.utils.object import KeysManager
 
@@ -64,7 +65,7 @@ def _get_widevine_keys(pssh_list: list[dict], license_url: str, cdm_device_path:
     
     # Initialize device
     if cdm_device_path is not None:
-        console.print("[cyan]Using local CDM.")
+        console.print(get_info_wvd(cdm_device_path))
         try:
             device = Device.load(cdm_device_path)
             cdm = Cdm.from_device(device)

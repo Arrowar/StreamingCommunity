@@ -2,7 +2,6 @@
     "DEFAULT": {
         "close_console": true,
         "show_message": true,
-        "show_device_info": false,
         "fetch_domain_online": true
     },
     "OUTPUT": {

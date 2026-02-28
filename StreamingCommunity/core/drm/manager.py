@@ -91,10 +91,12 @@ class DRMManager:
 
             # 1.1 Local DB
             if self.is_local_db_connected:
+                console.print(f"[dim]Looking for keys in local database")
                 found_keys.extend(self._lookup_keys(obj_localDbValut, base_license_url, all_kids, 'widevine'))
 
             # 1.2 Supabase DB — look up only KIDs still missing after local DB
             if self.is_supa_db_connected:
+                console.print(f"[dim]Looking for keys in Supabase database")
                 found_kids_local = {k.split(':')[0].strip().lower() for k in found_keys}
                 kids_for_supa = [kid for kid in all_kids if kid not in found_kids_local]
                 if kids_for_supa:
@@ -182,10 +184,12 @@ class DRMManager:
 
             # 1.1 Local DB
             if self.is_local_db_connected:
+                console.print(f"[dim]Looking for keys in local database")
                 found_keys.extend(self._lookup_keys(obj_localDbValut, base_license_url, all_kids, 'playready'))
 
             # 1.2 Supabase DB — look up only KIDs still missing after local DB
             if self.is_supa_db_connected:
+                console.print(f"[dim]Looking for keys in Supabase database")
                 found_kids_local = {k.split(':')[0].strip().lower() for k in found_keys}
                 kids_for_supa = [kid for kid in all_kids if kid not in found_kids_local]
                 if kids_for_supa:

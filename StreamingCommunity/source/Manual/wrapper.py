@@ -144,7 +144,7 @@ class MediaDownloader:
             extension = ''
         
         stream_info = StreamInfo(type_=stream_type, language=stream.language, resolution=stream.resolution if stream.type == 'video' else "", codec=stream.codecs,
-            bandwidth=bandwidth_str, raw_bandwidth=str(stream.bitrate), name=stream.name, selected=stream.selected, extension=extension, total_duration=stream.duration
+            bandwidth=bandwidth_str, raw_bandwidth=str(stream.bitrate), name=stream.name, selected=stream.selected, extension=extension, total_duration=stream.duration, descriptor="Manual"
         )
         
         return stream_info

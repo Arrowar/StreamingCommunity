@@ -9,6 +9,7 @@ from pyplayready.system.pssh import PSSH
 
 
 # Internal utilities
+from StreamingCommunity.setup import get_info_prd
 from StreamingCommunity.utils.http_client import create_client_curl
 from StreamingCommunity.source.utils.object import KeysManager
 
@@ -61,7 +62,7 @@ def _get_playready_keys_local_cdm(pssh_list: list[dict], license_url: str, cdm_d
     
     # Initialize device
     if cdm_device_path is not None:
-        console.print("[green]Using local CDM.")
+        console.print(get_info_prd(cdm_device_path))
         try:
             device = Device.load(cdm_device_path)
             cdm = Cdm.from_device(device)

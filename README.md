@@ -249,7 +249,6 @@ OPTIONS: id=REGEX:lang=REGEX:name=REGEX:codecs=REGEX:res=REGEX:frame=REGEX:
     "DEFAULT": {
         "close_console": true,
         "show_message": false,
-        "show_device_info": false,
         "fetch_domain_online": true
     }
 }
@@ -257,7 +256,6 @@ OPTIONS: id=REGEX:lang=REGEX:name=REGEX:codecs=REGEX:res=REGEX:frame=REGEX:
 
 - **`close_console`**: Automatically close console after download completion (default: `true`)
 - **`show_message`**: Display debug messages (default: `false`)
-- **`show_device_info`**: Display device information (default: `false`)
 - **`fetch_domain_online`**: Automatically fetch latest domains from GitHub (default: `true`)
 
 ---

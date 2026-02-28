@@ -134,7 +134,8 @@ def parse_meta_json(json_path: str, selected_json_path: str) -> List[StreamInfo]
             frame_rate=s.get('FrameRate', 0),
             channels=s.get('Channels', '').replace('CH', ''),
             role=s.get('Role', ''),
+            group_id=s.get("GroupId", "") or s.get("id", ""),
+            descriptor="N_m3u8",
         ))
-        streams[-1].track_id = s.get("GroupId") or s.get("id") or ""
         
     return streams

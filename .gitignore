@@ -63,3 +63,5 @@ console.log
 .serena
 .planning
 docker-compose.yml
+end.py
+config_mio.json

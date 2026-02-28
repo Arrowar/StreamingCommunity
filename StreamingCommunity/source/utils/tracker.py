@@ -30,6 +30,7 @@ class DownloadTracker(metaclass=SingletonMeta):
         self._lock = threading.Lock()
         
     def start_download(self, download_id: str, title: str, site: str, media_type: str = "Film", path: str = None):
+        hook_context = None
         with self._lock:
             self.stop_events[download_id] = threading.Event()
             self.active_processes[download_id] = []
@@ -48,6 +49,23 @@ class DownloadTracker(metaclass=SingletonMeta):
                 "last_update": time.time(),
                 "tasks": {} # For multi-stream downloads (video, audio, etc)
             }
+            hook_context = {
+                "download_id": download_id,
+                "download_title": title,
+                "download_site": site,
+                "download_media_type": media_type,
+                "download_status": "starting",
+                "download_path": path,
+                "success": "",
+                "download_error": "",
+            }
+
+        try:
+            from StreamingCommunity.utils.hooks import execute_hooks
+
+            execute_hooks("pre_download", context=hook_context)
+        except Exception:
+            pass
             
     def update_progress(self, download_id: str, task_key: str, progress: float = None, speed: str = None, size: str = None, segments: str = None, status: str = None):
         with self._lock:
@@ -153,6 +171,7 @@ class DownloadTracker(metaclass=SingletonMeta):
                         pass
 
     def complete_download(self, download_id: str, success: bool = True, error: str = None, path: str = None):
+        hook_context = None
         with self._lock:
             if download_id in self.downloads:
                 dl = self.downloads.pop(download_id)
@@ -170,10 +189,30 @@ class DownloadTracker(metaclass=SingletonMeta):
                 dl["path"] = path
                 dl["progress"] = 100 if success else dl["progress"]
                 self.history.append(dl)
+                hook_context = {
+                    "download_id": dl.get("id"),
+                    "download_title": dl.get("title"),
+                    "download_site": dl.get("site"),
+                    "download_media_type": dl.get("type"),
+                    "download_status": dl.get("status"),
+                    "download_path": path or dl.get("path"),
+                    "success": success,
+                    "download_error": error or "",
+                }
 
                 # Limit history size
                 if len(self.history) > 50:
                     self.history.pop(0)
+
+        if hook_context:
+            try:
+                from StreamingCommunity.utils.hooks import execute_hooks, remember_hook_context
+
+                if hook_context.get("success") and hook_context.get("download_path"):
+                    remember_hook_context("post_run", hook_context)
+                execute_hooks("post_download", context=hook_context)
+            except Exception:
+                pass
 
     def get_active_downloads(self) -> List[Dict[str, Any]]:
         with self._lock:

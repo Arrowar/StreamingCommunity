@@ -2,11 +2,9 @@
 
 import os
 import sys
-import logging
 import platform
 import argparse
-import subprocess
-from typing import Callable, Tuple
+from typing import Callable
 
 
 # External library
@@ -17,7 +15,8 @@ from rich.prompt import Prompt
 # Internal utilities
 from . import call_global_search
 from StreamingCommunity.services._base import load_search_functions
-from StreamingCommunity.utils import config_manager, os_manager, start_message
+from StreamingCommunity.utils import config_manager, start_message
+from StreamingCommunity.utils.hooks import execute_hooks, get_last_hook_context
 from StreamingCommunity.upload import git_update, binary_update
 from StreamingCommunity.upload.version import __version__, __title__
 
@@ -61,148 +60,6 @@ def initialize():
         git_update()
     except Exception as e:
         console.log(f"[red]Error with loading github: {str(e)}")
-
-
-def _expand_user_path(path: str) -> str:
-    """Expand '~' and environment variables and normalize the path."""
-    if not path:
-        return path
-    return os.path.normpath(os.path.expandvars(os.path.expanduser(path)))
-
-
-def _should_run_on_current_os(hook: dict) -> bool:
-    """Check if a hook is allowed on current OS."""
-    allowed_systems = hook.get('os')
-    if not allowed_systems:
-        return True
-    try:
-        normalized = [str(s).strip().lower() for s in allowed_systems]
-    except Exception:
-        return True
-    return os_manager.system in normalized
-
-
-def _build_command_for_hook(hook: dict) -> Tuple[list, dict]:
-    """Build the subprocess command and environment for a hook definition."""
-    hook_type = str(hook.get('type', '')).strip().lower()
-    script_path = hook.get('path')
-    inline_command = hook.get('command')
-    args = hook.get('args', [])
-    env = hook.get('env') or {}
-    workdir = hook.get('cwd')
-
-    if isinstance(args, str):
-        args = [a for a in args.split(' ') if a]
-    elif not isinstance(args, list):
-        args = []
-
-    if script_path:
-        script_path = _expand_user_path(script_path)
-        if not os.path.isabs(script_path):
-            script_path = os.path.abspath(script_path)
-
-    if workdir:
-        workdir = _expand_user_path(workdir)
-
-    base_env = os.environ.copy()
-    for k, v in env.items():
-        base_env[str(k)] = str(v)
-
-    if hook_type == 'python':
-        if not script_path:
-            raise ValueError("Missing 'path' for python hook")
-        command = [sys.executable, script_path] + args
-        return ([c for c in command if c], {'env': base_env, 'cwd': workdir})
-
-    if os_manager.system in ('linux', 'darwin'):
-        if hook_type in ('bash', 'sh', 'shell'):
-            if inline_command:
-                command = ['/bin/bash', '-c', inline_command]
-            else:
-                if not script_path:
-                    raise ValueError("Missing 'path' for bash/sh hook")
-                command = ['/bin/bash', script_path] + args
-            return (command, {'env': base_env, 'cwd': workdir})
-
-    if os_manager.system == 'windows':
-        if hook_type in ('bat', 'cmd', 'shell'):
-            if inline_command:
-                command = ['cmd', '/c', inline_command]
-            else:
-                if not script_path:
-                    raise ValueError("Missing 'path' for bat/cmd hook")
-                command = ['cmd', '/c', script_path] + args
-            return (command, {'env': base_env, 'cwd': workdir})
-
-    raise ValueError(f"Unsupported hook type '{hook_type}' on OS '{os_manager.system}'")
-
-
-def _iter_hooks(stage: str):
-    """Yield hook dicts for a given stage ('pre_run' | 'post_run')."""
-    try:
-        hooks_list = config_manager.config.get_list('HOOKS', stage)
-        if not isinstance(hooks_list, list):
-            return
-        for hook in hooks_list:
-            if not isinstance(hook, dict):
-                continue
-            yield hook
-    except Exception:
-        return
-
-
-def execute_hooks(stage: str) -> None:
-    """Execute configured hooks for the given stage. Stage can be 'pre_run' or 'post_run'."""
-    stage = str(stage).strip().lower()
-    if stage not in ('pre_run', 'post_run'):
-        return
-
-    for hook in _iter_hooks(stage):
-        console.print(f"\n[green]Executing hook for stage '{stage}'...")
-        name = hook.get('name') or f"{stage}_hook"
-        enabled = hook.get('enabled', True)
-        continue_on_error = hook.get('continue_on_error', True)
-        timeout = hook.get('timeout')
-
-        if not enabled:
-            continue
-
-        if not _should_run_on_current_os(hook):
-            continue
-
-        try:
-            command, popen_kwargs = _build_command_for_hook(hook)
-            result = None
-            if timeout is not None:
-                result = subprocess.run(command, check=False, capture_output=True, text=True, timeout=int(timeout), **popen_kwargs)
-            else:
-                result = subprocess.run(command, check=False, capture_output=True, text=True, **popen_kwargs)
-
-            stdout = (result.stdout or '').strip()
-            stderr = (result.stderr or '').strip()
-            if stdout:
-                console.print(f"[cyan][hook:{name} stdout]\n{stdout}")
-            if stderr:
-                logging.warning(f"Hook '{name}' stderr: {stderr}")
-                console.print(f"[yellow][hook:{name} stderr]\n{stderr}")
-
-            if result.returncode != 0:
-                message = f"Hook '{name}' exited with code {result.returncode}"
-                if continue_on_error:
-                    logging.error(message + " (continuing)")
-                    continue
-                else:
-                    logging.error(message + " (stopping)")
-                    raise SystemExit(result.returncode)
-
-        except Exception as e:
-            message = f"Hook '{name}' failed: {str(e)}"
-            if continue_on_error:
-                logging.error(message + " (continuing)")
-                continue
-            else:
-                logging.error(message + " (stopping)")
-                raise
 
 
 def force_exit():
@@ -415,4 +272,4 @@ def main():
             force_exit()
                 
     finally:
-        execute_hooks('post_run')
+        execute_hooks('post_run', context=get_last_hook_context('post_download') or get_last_hook_context('post_run'))

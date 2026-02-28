@@ -51,6 +51,26 @@
     },
     "HOOKS": {
         "pre_run": [],
-        "post_run": []
+        "post_run": [],
+        "post_download": [
+            {
+                "name": "post-download-env",
+                "type": "python",
+                "path": "/app/Video/end.py",
+                "args": [
+                    "{download_path}"
+                ],
+                "env": {
+                    "MY_FLAG": "1"
+                },
+                "cwd": "~",
+                "os": [
+                    "linux"
+                ],
+                "timeout": 60,
+                "enabled": true,
+                "continue_on_error": true
+            }
+        ]
     }
 }

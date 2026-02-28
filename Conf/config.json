@@ -56,7 +56,7 @@
             {
                 "name": "post-download-env",
                 "type": "python",
-                "path": "/app/Video/end.py",
+                "path": "/app/end.py",
                 "args": [
                     "{download_path}"
                 ],

@@ -8,14 +8,15 @@ services:
     ports:
       - "8001:8000"
     environment:
-      ALLOWED_HOSTS: "custom servername or IP address"
-      CSRF_TRUSTED_ORIGINS: "https://customservername.com"
+      ALLOWED_HOSTS: "streaming.asd.com localhost 127.0.0.1 192.168.188.13"
+      CSRF_TRUSTED_ORIGINS: "https://streaming.asd.com"
       USE_X_FORWARDED_HOST: "true"
       SECURE_PROXY_SSL_HEADER_ENABLED: "true"
       CSRF_COOKIE_SECURE: "true"
       SESSION_COOKIE_SECURE: "true"
     volumes:
       - /media/marco/videos/share/tmp:/app/Video
+      - /media/marco/videos/share:/app/VideoShare
     restart: unless-stopped
     dns:
       - 1.1.1.1

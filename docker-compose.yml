@@ -1,0 +1,22 @@
+services:
+  streamcommunity:
+    build:
+      context: .
+      dockerfile: dockerfile
+    image: streamcommunity:1.0.8
+    container_name: streamcommunity
+    ports:
+      - "8001:8000"
+    environment:
+      ALLOWED_HOSTS: "custom servername or IP address"
+      CSRF_TRUSTED_ORIGINS: "https://customservername.com"
+      USE_X_FORWARDED_HOST: "true"
+      SECURE_PROXY_SSL_HEADER_ENABLED: "true"
+      CSRF_COOKIE_SECURE: "true"
+      SESSION_COOKIE_SECURE: "true"
+    volumes:
+      - /media/marco/videos/share/tmp:/app/Video
+    restart: unless-stopped
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8

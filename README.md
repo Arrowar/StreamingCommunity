@@ -139,6 +139,7 @@ Key configuration parameters in `config.json`:
 ```
 
 #### Performance Settings
+- **`auto_select`**: Automatically select streams based on filters (default: `true`). When `false`, enables interactive stream selection mode where user can manually choose video/audio/subtitle tracks before download.
 - **`skip_download`**: Skip the download step and process existing files (default: `false`)
 - **`thread_count`**: Number of parallel download threads (default: `12`)
 - **`retry_count`**: Maximum retry attempts for failed segments (default: `40`)

@@ -240,6 +240,7 @@ def setup_argument_parser(search_functions):
     parser.add_argument('-sv', '--s_video', type=str, help='Select video tracks. Example:  1. select best video (best) 2. Select 4K+HEVC video (res="3840*":codecs=hvc1:for=best)')
     parser.add_argument('-sa', '--s_audio', type=str, help='Select audio tracks. Example:  1. Select all (all) 2. Select best eng audio (lang=en:for=best) 3. Select best 2, and language is ja or en (lang="ja|en":for=best2)')
     parser.add_argument('-ss', '--s_subtitle', type=str, help='Select subtitle tracks. Example:  1. Select all subs (all) 2. Select all subs containing "English" (name="English":for=all)')
+    parser.add_argument('--auto-select', dest='auto_select', type=str, choices=['true','false'], help='Auto-select streams based on config filters (overrides config). false=interactive selection')
 
     parser.add_argument('--use_proxy', action='store_true', help='Enable proxy for requests')
     parser.add_argument('--extension', type=str, help='Output file extension (mkv, mp4)')
@@ -256,6 +257,7 @@ def apply_config_updates(args):
         's_video': 'DOWNLOAD.select_video',
         's_audio': 'DOWNLOAD.select_audio',
         's_subtitle': 'DOWNLOAD.select_subtitle',
+        'auto_select': 'DOWNLOAD.auto_select',
         'use_proxy': 'REQUESTS.use_proxy',
         'extension': 'PROCESS.extension',
         'close_console': 'DEFAULT.close_console'
@@ -267,7 +269,7 @@ def apply_config_updates(args):
             continue
 
         # convert boolean-like strings
-        if arg_name == 'close_console' and isinstance(val, str):
+        if arg_name in ('close_console', 'auto_select') and isinstance(val, str):
             val = val.lower() == 'true'
         config_updates[config_key] = val
 

@@ -99,7 +99,8 @@ class MediaDownloader:
         if use_proxy and (proxy_url := configuration_proxy.get("https") or configuration_proxy.get("http")):
             cmd.extend(["--use-system-proxy", "false", "--custom-proxy", proxy_url])
         
-        cmd.extend(["--force-ansi-console", "--no-ansi-color"])
+        if auto_select_cfg:
+            cmd.extend(["--force-ansi-console", "--no-ansi-color"])
         return cmd
     
     def determine_decryption_tool(self) -> str:
@@ -286,7 +287,6 @@ class MediaDownloader:
             "--tmp-dir", str(self.output_dir),
             "--ffmpeg-binary-path", get_ffmpeg_path(), 
             "--decryption-binary-path", self.determine_decryption_tool(),
-            "--no-log", 
             "--write-meta-json", "false", 
             "--binary-merge",
             "--del-after-done",
@@ -295,30 +295,34 @@ class MediaDownloader:
             "--mp4-real-time-decryption", "false"
         ]
 
-        if video_filter == "false":
-            cmd.extend(["--drop-video", "all"])
-        else:
-            if norm_v:
-                cmd.extend(["--select-video", norm_v])
+        if auto_select_cfg:
+            cmd.append("--no-log")
+            if video_filter == "false":
+                cmd.extend(["--drop-video", "all"])
             else:
-                console.print("[dim]No video filter selected.")
+                if norm_v:
+                    cmd.extend(["--select-video", norm_v])
+                else:
+                    console.print("[dim]No video filter selected.")
+            
+            if audio_filter == "false":
+                cmd.extend(["--drop-audio", "all"])
+            else:
+                if norm_a:
+                    cmd.extend(["--select-audio", norm_a])
+                else:
+                    console.print("[dim]No audio filter selected.")
+
+            if subtitle_filter == "false":
+                cmd.extend(["--drop-subtitle", "all"])
+            else:
+                if norm_s:
+                    cmd.extend(["--select-subtitle", norm_s])
+                else:
+                    console.print("[dim]No subtitle filter selected.")
+        else:
+            cmd.extend(["--log-level", "ERROR"])
         
-        if audio_filter == "false":
-            cmd.extend(["--drop-audio", "all"])
-        else:
-            if norm_a:
-                cmd.extend(["--select-audio", norm_a])
-            else:
-                console.print("[dim]No audio filter selected.")
-
-        if subtitle_filter == "false":
-            cmd.extend(["--drop-subtitle", "all"])
-        else:
-            if norm_s:
-                cmd.extend(["--select-subtitle", norm_s])
-            else:
-                console.print("[dim]No subtitle filter selected.")
-
         cmd.extend(self._get_common_args())
 
         # Add optional parameters
@@ -354,38 +358,44 @@ class MediaDownloader:
         with open(log_path, 'w', encoding='utf-8', errors='replace') as log_file:
             log_file.write(f"Command: {' '.join(cmd)}\n{'='*80}\n\n")
             
-            # Use NullContext if in GUI mode to avoid live table conflicts for GUI
-            progress_ctx = nullcontext() if context_tracker.is_gui else Progress(
-                TextColumn("[purple]{task.description}", justify="left"), CustomBarColumn(bar_width=40), ColoredSegmentColumn(),
-                TextColumn("[dim][[/dim]"), CompactTimeColumn(), TextColumn("[dim]<[/dim]"), CompactTimeRemainingColumn(), TextColumn("[dim]][/dim]"),
-                SizeColumn(), TextColumn("[dim]@[/dim]"), TextColumn("[red]{task.fields[speed]}[/red]", justify="right"), 
-                console=console,
-                refresh_per_second=4.0
-            )
-
-            with progress_ctx as progress:
-                tasks = {}
-                proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors='replace', bufsize=1, universal_newlines=True)
-                
-                # Register process for potential termination
+            # In interactive mode (auto_select=false), don't use progress bar - just run n3u8dl directly
+            if not auto_select_cfg:
+                proc = subprocess.Popen(cmd)
                 if self.download_id:
                     download_tracker.register_process(self.download_id, proc)
+                proc.wait()
 
-                with proc:
-                    for line in proc.stdout:
-                        if self.download_id and download_tracker.is_stopped(self.download_id):
-                            proc.terminate()
-                            break
-                        
-                        log_file.write(line)
-                        log_parser.parse_line(line)
-                        
-                        self._parse_progress_line(line, progress, tasks, subtitle_sizes)
+            else:
+                progress_ctx = nullcontext() if context_tracker.is_gui else Progress(
+                    TextColumn("[purple]{task.description}", justify="left"), CustomBarColumn(bar_width=40), ColoredSegmentColumn(),
+                    TextColumn("[dim][[/dim]"), CompactTimeColumn(), TextColumn("[dim]<[/dim]"), CompactTimeRemainingColumn(), TextColumn("[dim]][/dim]"),
+                    SizeColumn(), TextColumn("[dim]@[/dim]"), TextColumn("[red]{task.fields[speed]}[/red]", justify="right"), 
+                    console=console,
+                    refresh_per_second=10.0
+                )
                 
-                    # Ensure all tasks are complete
-                    if progress:
-                        for task_id in tasks.values():
-                            progress.update(task_id, completed=100)
+                with progress_ctx as progress:
+                    tasks = {}
+                    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors='replace', bufsize=1, universal_newlines=True)
+                    
+                    # Register process for potential termination
+                    if self.download_id:
+                        download_tracker.register_process(self.download_id, proc)
+
+                    with proc:
+                        for line in proc.stdout:
+                            if self.download_id and download_tracker.is_stopped(self.download_id):
+                                proc.terminate()
+                                break
+                            
+                            log_file.write(line)
+                            log_parser.parse_line(line)
+                            self._parse_progress_line(line, progress, tasks, subtitle_sizes)
+                        
+                        # Ensure all tasks are complete
+                        if progress:
+                            for task_id in tasks.values():
+                                progress.update(task_id, completed=100)
         
         # Check if we were cancelled
         if self.download_id and download_tracker.is_stopped(self.download_id):

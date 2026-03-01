@@ -350,6 +350,117 @@ class CrunchyrollClient:
         except Exception as e:
             logging.error(f"Failed to deauth stream token: {e}")
             return False
+
+    def get_available_versions(self, url_id: str) -> List[Dict]:
+        """
+        Return the list of all available audio versions for an episode
+
+        Returns:
+            List of dicts with: guid, audio_locale
+        """
+        try:
+            playback_data = self.get_streams(url_id)
+            versions_list = playback_data.get('versions') or []
+
+            # Deauth immediately to free the slot
+            token = playback_data.get("token") or _find_token_recursive(playback_data)
+            if token:
+                self.deauth_video(url_id, token)
+
+            result = []
+            seen = set()
+            for v in versions_list:
+                guid = v.get('guid') or v.get('id')
+                locale = v.get('audio_locale')
+                if guid and locale and locale not in seen:
+                    seen.add(locale)
+                    result.append({"guid": guid, "audio_locale": locale})
+
+            return result
+
+        except Exception as e:
+            logging.error(f"get_available_versions failed for {url_id}: {e}")
+            return []
+
+    def get_versions_by_locales(self, url_id: str, locales: List[str]) -> List[Dict]:
+        """
+        Get playback sessions for specified audio locales.
+        
+        Parameters:
+            url_id: The media ID (can be main episode or season ID)
+            locales: List of BCP47 locales (e.g., ["it-IT", "en-US"])
+        """
+        if not locales:
+            logging.warning("get_versions_by_locales called with empty locales list")
+            return []
+        
+        versions = []
+        
+        try:
+            # Get versions list for the main content
+            playback_data = self.get_streams(url_id)
+            
+            # Extract versions if available
+            versions_list = playback_data.get('versions')
+            logging.debug(f"Found {len(versions_list) if isinstance(versions_list, list) else 0} versions for url_id: {url_id}")
+            
+            if not versions_list:
+                logging.warning(f"No versions found for url_id: {url_id}")
+                return []
+
+            # Filter and fetch each version matching the requested locales
+            for version in versions_list:
+                if not isinstance(version, dict):
+                    continue
+                
+                version_guid = version.get('guid') or version.get('id')
+                audio_locale = version.get('audio_locale') or version.get('audio', {}).get('locale')
+                logging.debug(f"Checking version: guid={version_guid}, audio_locale={audio_locale}")
+
+                if not version_guid or not audio_locale:
+                    logging.debug("Skipping version due to missing guid or audio_locale")
+                    continue
+                
+                # Check if this version's locale matches requested locales
+                if audio_locale not in locales:
+                    logging.debug(f"Skipping version due to locale mismatch: {audio_locale} not in {locales}")
+                    continue
+                
+                try:
+                    # Get playback data for this specific version
+                    logging.debug(f"Fetching playback for version {version_guid} with locale {audio_locale}...")
+                    version_playback = self.get_streams(version_guid)
+                    
+                    mpd_url = version_playback.get('url')
+                    token = version_playback.get("token") or _find_token_recursive(version_playback)
+                    logging.debug(f"Version {version_guid} - mpd_url: {mpd_url}, token: {'found' if token else 'not found'}")
+                    
+                    if mpd_url:
+                        versions.append({
+                            "guid": version_guid,
+                            "audio_locale": audio_locale,
+                            "mpd_url": mpd_url,
+                            "token": token,
+                            "mpd_headers": self._get_headers()
+                        })
+                    
+                    # Deauth immediately to free streaming slot
+                    if token:
+                        self.deauth_video(version_guid, token)
+                
+                except Exception as e:
+                    logging.error(f"Failed to fetch streams for version {version_guid}: {e}")
+                    continue
+            
+            # Deauth the main url_id as well
+            main_token = playback_data.get("token") or _find_token_recursive(playback_data)
+            if main_token:
+                self.deauth_video(url_id, main_token)
+        
+        except Exception as e:
+            logging.error(f"Error in get_versions_by_locales: {e}")
+        
+        return versions
         
 def _find_token_recursive(obj) -> Optional[str]:
     """Recursively search for 'token' field in playback response."""

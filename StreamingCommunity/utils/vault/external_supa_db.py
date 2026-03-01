@@ -87,10 +87,6 @@ class ExternalSupaDBVault:
             return 0
 
         added = result.get('added', 0)
-        updated = result.get('updated', 0)
-        already = result.get('already_exists', 0)
-        errors = result.get('errors', 0)
-        console.print(f"[dim]Supabase set_keys result: added={added}, updated={updated}, already_exists={already}, errors={errors}")
         return added
 
     ################# GET ##################

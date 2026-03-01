@@ -62,3 +62,6 @@ console.log
 .planning/phases/01-fastapi-backend-foundation
 .serena
 .planning
+docker-compose.yml
+end.py
+config_mio.json

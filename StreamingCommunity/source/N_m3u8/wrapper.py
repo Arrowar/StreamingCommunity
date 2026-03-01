@@ -6,6 +6,7 @@ import platform
 import subprocess
 from pathlib import Path
 from typing import Optional, List, Dict, Any
+from datetime import datetime
 from contextlib import nullcontext
 
 
@@ -122,7 +123,7 @@ class MediaDownloader:
         except Exception:
             return False
 
-    def parser_stream(self) -> List[StreamInfo]:
+    def parser_stream(self, show_table: bool = True) -> List[StreamInfo]:
         """Analyze playlist and display table of available streams"""
         analysis_path = self.output_dir / "analysis_temp"
         analysis_path.mkdir(exist_ok=True)
@@ -152,7 +153,7 @@ class MediaDownloader:
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors='replace', bufsize=1, universal_newlines=True)
         
         # Save parsing log
-        log_path = self.output_dir / f"{self.filename}_parsing.log"
+        log_path = self.output_dir / f"{self.filename}_parsing_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
         with open(log_path, 'w', encoding='utf-8', errors='replace') as log_file:
             log_file.write(f"Command: {' '.join(cmd)}\n{'='*80}\n\n")
             log_parser = LogParser()
@@ -195,9 +196,9 @@ class MediaDownloader:
                 ext_sub['_ext'] = ext_type
                 self.streams.append(StreamInfo(type_="Subtitle [red]*EXT", language=ext_sub.get('language', ''), name=ext_sub.get('name', ''), selected=selected, extension=ext_type))
 
-            # Show table
-            selected_set = {i for i, s in enumerate(self.streams) if getattr(s, 'selected', False)}
-            console.print(build_table(self.streams, selected_set, 0, window_size=len(self.streams), highlight_cursor=False))
+            if show_table:
+                selected_set = {i for i, s in enumerate(self.streams) if getattr(s, 'selected', False)}
+                console.print(build_table(self.streams, selected_set, 0, window_size=len(self.streams), highlight_cursor=False))
             return self.streams
         
         return []
@@ -297,7 +298,7 @@ class MediaDownloader:
 
         if auto_select_cfg:
             cmd.append("--no-log")
-            if video_filter == "false":
+            if norm_v == "false":
                 cmd.extend(["--drop-video", "all"])
             else:
                 if norm_v:
@@ -305,7 +306,7 @@ class MediaDownloader:
                 else:
                     console.print("[dim]No video filter selected.")
             
-            if audio_filter == "false":
+            if norm_a == "false":
                 cmd.extend(["--drop-audio", "all"])
             else:
                 if norm_a:
@@ -313,7 +314,7 @@ class MediaDownloader:
                 else:
                     console.print("[dim]No audio filter selected.")
 
-            if subtitle_filter == "false":
+            if norm_s == "false":
                 cmd.extend(["--drop-subtitle", "all"])
             else:
                 if norm_s:
@@ -352,7 +353,7 @@ class MediaDownloader:
             loop.close()
         
         log_parser = LogParser(show_warnings=False)
-        log_path = self.output_dir / f"{self.filename}_download.log"
+        log_path = self.output_dir / f"{self.filename}_download_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
         subtitle_sizes = {}
         
         with open(log_path, 'w', encoding='utf-8', errors='replace') as log_file:
@@ -497,8 +498,7 @@ class MediaDownloader:
         return task
 
     def _parse_progress_line(self, line: str, progress, tasks: dict, subtitle_sizes: dict):
-        """
-            Parse a progress line and update progress bars"""
+        """Parse a progress line and update progress bars"""
         if line.startswith("Vid"):
             res = (VIDEO_LINE_RE.search(line).group(1) if VIDEO_LINE_RE.search(line) else next((s.resolution or s.extension or "main" for s in self.streams if s.type == "Video"), "main"))
             self._update_task(progress, tasks, f"video_{res}", f"[cyan]Vid [red]{res}", line)
@@ -548,7 +548,7 @@ class MediaDownloader:
 
     def _get_download_status(self, subtitle_sizes: dict, external_subs: list) -> Dict[str, Any]:
         """Get final download status"""
-        status = {'video': None, 'audios': [], 'subtitles': [], 'external_subtitles': external_subs}
+        status = {'video': None, 'audios': [], 'subtitles': [], 'external_subtitles': external_subs, 'external_audios': []}
         exts = {
             'video': ['.mp4', '.mkv', '.m4v', '.ts', '.mov', '.webm'], 
             'audio': ['.m4a', '.aac', '.mp3', '.ts', '.mp4', '.wav', '.webm'], 

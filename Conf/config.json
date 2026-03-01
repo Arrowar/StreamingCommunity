@@ -52,6 +52,7 @@
     },
     "HOOKS": {
         "pre_run": [],
-        "post_run": []
+        "post_run": [],
+        "post_download": []
     }
 }

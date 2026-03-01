@@ -62,7 +62,6 @@ class DownloadTracker(metaclass=SingletonMeta):
 
         try:
             from StreamingCommunity.utils.hooks import execute_hooks
-
             execute_hooks("pre_download", context=hook_context)
         except Exception:
             pass

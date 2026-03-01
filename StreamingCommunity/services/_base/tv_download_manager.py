@@ -10,10 +10,21 @@ from rich.prompt import Prompt
 
 # Internal utilities
 from StreamingCommunity.services._base.tv_display_manager import manage_selection, validate_selection, display_episodes_list, display_seasons_list
+from StreamingCommunity.source.utils.tracker import download_tracker, context_tracker
 
 
 # Variable
 console = Console()
+
+
+def _is_user_stop_requested() -> bool:
+    """
+    Return True only when an explicit stop has been requested for the active tracked download.
+    """
+    download_id = context_tracker.download_id
+    if not download_id:
+        return False
+    return download_tracker.is_stopped(download_id)
 
 
 def process_season_selection(scrape_serie: Any, seasons_count: int, season_selection: Optional[str], episode_selection: Optional[str], download_episode_callback: Callable) -> None:
@@ -114,7 +125,9 @@ def process_episode_download(index_season_selected: int, scrape_serie: Any, down
             path, stopped = download_video_callback(episodes[i_episode-1], index_season_selected, i_episode)
             
             if stopped:
-                break
+                if _is_user_stop_requested():
+                    break
+                console.print(f"[yellow]Warning: episode {i_episode} failed for season {index_season_selected}. Continuing with next episode.")
         
         console.print(f"\n[red]End downloaded [yellow]season: [red]{index_season_selected}.")
     
@@ -177,4 +190,6 @@ def process_episode_download(index_season_selected: int, scrape_serie: Any, down
             path, stopped = download_video_callback(episodes[i_episode-1], index_season_selected, i_episode)
             
             if stopped:
-                break
+                if _is_user_stop_requested():
+                    break
+                console.print(f"[yellow]Warning: episode {i_episode} failed for season {index_season_selected}. Continuing with next episode.")

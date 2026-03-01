@@ -185,7 +185,7 @@ def MP4_Downloader(url: str, path: str, referer: str = None, headers_: dict = No
                 TextColumn("[bright_magenta]@[/bright_magenta]"),
                 TextColumn("[bright_cyan]{task.fields[speed]}[/bright_cyan]"),
                 console=console,
-                refresh_per_second=4.0
+                refresh_per_second=10.0
             )
 
             with progress_ctx as progress_bars:

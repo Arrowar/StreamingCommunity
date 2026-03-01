@@ -298,7 +298,7 @@ class MediaDownloader:
 
         if auto_select_cfg:
             cmd.append("--no-log")
-            if norm_v == "false":
+            if video_filter == "false":
                 cmd.extend(["--drop-video", "all"])
             else:
                 if norm_v:
@@ -306,7 +306,7 @@ class MediaDownloader:
                 else:
                     console.print("[dim]No video filter selected.")
             
-            if norm_a == "false":
+            if audio_filter == "false":
                 cmd.extend(["--drop-audio", "all"])
             else:
                 if norm_a:
@@ -314,7 +314,7 @@ class MediaDownloader:
                 else:
                     console.print("[dim]No audio filter selected.")
 
-            if norm_s == "false":
+            if subtitle_filter == "false":
                 cmd.extend(["--drop-subtitle", "all"])
             else:
                 if norm_s:

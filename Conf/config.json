@@ -15,6 +15,7 @@
         "add_siteName": false
     },
     "DOWNLOAD": {
+        "auto_select": true,
         "skip_download": false,
         "thread_count": 8,
         "retry_count": 25,
